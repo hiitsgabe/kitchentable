@@ -33,7 +33,7 @@ void main() {
     expect(await db.cardCount(), 3);
   });
 
-  test('it reports how many records it has written', () async {
+  test('it reports progress once per batch, not once at the end', () async {
     final importer = ScryfallImporter(db: db, batchSize: 2);
     final seen = <int>[];
 
@@ -45,8 +45,12 @@ void main() {
       onIndexed: seen.add,
     );
 
-    expect(seen.last, 3);
-    expect(seen, isNotEmpty);
+    // Three records at a batch size of two is one full flush then the
+    // remainder. Asserting the whole sequence rather than just the total is
+    // deliberate: `expect(seen.last, 3)` passes even when batching is removed
+    // entirely, so it would not protect the thing the batch exists for.
+    // Inserting 36000 rows one statement at a time takes minutes on a phone.
+    expect(seen, [2, 3]);
   });
 
   test('a record missing oracle_id is skipped rather than killing the import',
