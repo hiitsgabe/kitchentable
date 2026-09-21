@@ -65,7 +65,17 @@ class ImportNotifier extends Notifier<ImportState> {
     final endpoint = source.endpoint;
     if (endpoint == null) return;
 
-    final importer = ScryfallImporter(db: ref.read(catalogDbProvider));
+    final db = ref.read(catalogDbProvider);
+    if (db == null) {
+      state = const ImportState(
+        phase: ImportPhase.failed,
+        error: 'There is no local catalog on this build, so nothing can be '
+            'imported here. Use the Android build.',
+      );
+      return;
+    }
+
+    final importer = ScryfallImporter(db: db);
     state = const ImportState(phase: ImportPhase.downloading);
 
     try {

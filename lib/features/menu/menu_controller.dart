@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../sources/catalog/catalog_db.dart';
+import '../../sources/catalog/catalog_opener.dart';
 
 enum MenuEntryId { play, decks, sources, settings }
 
@@ -65,7 +66,11 @@ class MenuState {
       ];
 }
 
-final catalogDbProvider = Provider<CatalogDb>((ref) {
+/// Null where there is no local catalog, which today means the web build. The
+/// menu then renders with zero cards, which is the truth there rather than a
+/// crash. See catalog_opener_web.dart.
+final catalogDbProvider = Provider<CatalogDb?>((ref) {
+  if (!catalogIsAvailable) return null;
   final db = CatalogDb();
   ref.onDispose(db.close);
   return db;
@@ -73,7 +78,7 @@ final catalogDbProvider = Provider<CatalogDb>((ref) {
 
 final menuStateProvider = FutureProvider<MenuState>((ref) async {
   final db = ref.watch(catalogDbProvider);
-  final count = await db.cardCount();
+  final count = db == null ? 0 : await db.cardCount();
 
   // enabledSources is inferred rather than looked up, because nothing records
   // which sources are on yet. A non empty catalog is today's evidence that
