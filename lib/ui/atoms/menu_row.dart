@@ -125,7 +125,7 @@ class _MenuRowState extends State<MenuRow> {
                           style: TextStyle(
                             fontSize: m.scaled(16),
                             height: 1.25,
-                            color: _focused ? Colors.white : Palette.ink,
+                            color: Palette.ink,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
