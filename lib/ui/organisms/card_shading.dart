@@ -8,8 +8,8 @@ import 'dart:math' as math;
 /// more than one full turn, which is exactly the region nobody checks by hand.
 class CardShading {
   CardShading({required double yaw, required this.pitch})
-      : yaw = _wrap(yaw),
-        _facing = math.cos(_wrap(yaw));
+    : yaw = _wrap(yaw),
+      _facing = math.cos(_wrap(yaw));
 
   final double yaw;
   final double pitch;
@@ -38,11 +38,6 @@ class CardShading {
 
   /// How solid the shadow on the ground is.
   double get groundAlpha => (0.6 * openness).clamp(0.0, 1.0);
-
-  /// How visible the card's edge is. Cubed so it is gone well before the face
-  /// becomes readable.
-  double get edgeAlpha =>
-      math.pow(1 - openness, 3).toDouble().clamp(0.0, 1.0);
 
   /// Which way the dark side sits. Reads the face that is showing rather than
   /// the raw angle, so it stays correct after the card has been turned round

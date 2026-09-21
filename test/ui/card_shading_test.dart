@@ -8,14 +8,13 @@ void main() {
     final s = CardShading(yaw: 0, pitch: 0);
     expect(s.openness, closeTo(1, 0.001));
     expect(s.shadeAlpha, closeTo(0, 0.001));
-    expect(s.edgeAlpha, closeTo(0, 0.001));
     expect(s.showingBack, isFalse);
   });
 
-  test('side on, the edge is all there is', () {
+  test('side on, the card is closed', () {
     final s = CardShading(yaw: math.pi / 2, pitch: 0);
     expect(s.openness, closeTo(0, 0.001));
-    expect(s.edgeAlpha, closeTo(1, 0.001));
+    expect(s.shadeAlpha, closeTo(0.55, 0.001));
   });
 
   test('half a turn shows the back, and shows it fully open', () {
@@ -23,7 +22,6 @@ void main() {
     expect(s.showingBack, isTrue);
     expect(s.openness, closeTo(1, 0.001),
         reason: 'the back is as square to you as the front was');
-    expect(s.edgeAlpha, closeTo(0, 0.001));
   });
 
   test('a full turn is the same as no turn', () {
@@ -58,7 +56,6 @@ void main() {
           ('shadeAlpha', s.shadeAlpha),
           ('glossAlpha', s.glossAlpha),
           ('groundAlpha', s.groundAlpha),
-          ('edgeAlpha', s.edgeAlpha),
         ]) {
           expect(v.isNaN, isFalse, reason: '$name was NaN at yaw $yaw');
           expect(v, inInclusiveRange(0.0, 1.0),
