@@ -74,5 +74,11 @@ final catalogDbProvider = Provider<CatalogDb>((ref) {
 final menuStateProvider = FutureProvider<MenuState>((ref) async {
   final db = ref.watch(catalogDbProvider);
   final count = await db.cardCount();
+
+  // enabledSources is inferred rather than looked up, because nothing records
+  // which sources are on yet. A non empty catalog is today's evidence that
+  // Scryfall was imported, and that only holds while Scryfall is the one
+  // catalog source. The second one makes this line lie, and the Sources
+  // subtitle is what will show the lie first.
   return MenuState(cardCount: count, enabledSources: count > 0 ? 1 : 0);
 });
