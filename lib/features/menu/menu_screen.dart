@@ -6,6 +6,7 @@ import '../../ui/atoms/menu_row.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
+import '../decks/decks_screen.dart';
 import '../sources/sources_screen.dart';
 import 'menu_controller.dart';
 
@@ -82,9 +83,14 @@ class _Menu extends StatelessWidget {
   }
 
   void _open(BuildContext context, MenuEntryId id) {
-    if (id != MenuEntryId.sources) return;
+    final screen = switch (id) {
+      MenuEntryId.sources => const SourcesScreen(),
+      MenuEntryId.decks => const DecksScreen(),
+      _ => null,
+    };
+    if (screen == null) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const SourcesScreen()),
+      MaterialPageRoute<void>(builder: (_) => screen),
     );
   }
 }
