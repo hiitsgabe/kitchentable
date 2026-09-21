@@ -7,6 +7,7 @@ import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
+import 'import_screen.dart';
 
 String formatMegabytes(int bytes) =>
     '${(bytes / 1048576).toStringAsFixed(1)} MB';
@@ -54,7 +55,11 @@ class SourcesScreen extends ConsumerWidget {
                   enabled: source.available,
                   metrics: m,
                   autofocus: source.id == knownSources.first.id,
-                  onActivate: () {},
+                  onActivate: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ImportScreen(source: source),
+                    ),
+                  ),
                 ),
               const Spacer(),
               HintBar(
