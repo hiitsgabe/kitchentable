@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:drift_flutter/drift_flutter.dart';
 
 import '../model/catalog_card.dart';
+import 'catalog_opener.dart';
 
 part 'catalog_db.g.dart';
 
@@ -30,7 +30,7 @@ class Cards extends Table {
 
 @DriftDatabase(tables: [Cards])
 class CatalogDb extends _$CatalogDb {
-  CatalogDb() : super(driftDatabase(name: 'catalog'));
+  CatalogDb() : super(openCatalog());
 
   CatalogDb.forTesting(super.executor);
 
