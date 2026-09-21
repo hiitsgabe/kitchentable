@@ -1218,8 +1218,16 @@ class CatalogDb extends _$CatalogDb {
 
 - [ ] **Step 5: Generate the drift code**
 
-Run: `dart run build_runner build --delete-conflicting-outputs`
-Expected: `Succeeded after ...` and `lib/sources/catalog/catalog_db.g.dart` now exists.
+Run: `dart run build_runner build`
+Expected: a line like `Built with build_runner/aot in 52s; wrote 31 outputs.`
+and `lib/sources/catalog/catalog_db.g.dart` now exists, about 1290 lines.
+
+Do not pass `--delete-conflicting-outputs`. build_runner 2.16.1 removed it
+and prints `These options have been removed and were ignored` if you do.
+
+The generated file is committed. This is an application, not a published
+package, so a fresh checkout should build without anyone having to run
+codegen first. The cost is a large generated diff whenever the schema moves.
 
 - [ ] **Step 6: Run it and watch it pass**
 
