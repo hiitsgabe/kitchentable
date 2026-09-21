@@ -2,11 +2,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../sources/model/catalog_card.dart';
 import '../tokens/metrics.dart';
+import '../atoms/card_image.dart';
 import '../tokens/palette.dart';
 import 'card_shading.dart';
 
@@ -130,8 +130,10 @@ class _CardViewerState extends State<CardViewer>
                 onPointerSignal: (event) {
                   if (event is PointerScrollEvent) {
                     setState(() {
-                      _zoom = (_zoom - event.scrollDelta.dy * 0.0016)
-                          .clamp(1.0, 3.2);
+                      _zoom = (_zoom - event.scrollDelta.dy * 0.0016).clamp(
+                        1.0,
+                        3.2,
+                      );
                     });
                   }
                 },
@@ -147,8 +149,10 @@ class _CardViewerState extends State<CardViewer>
                       _yaw += d.focalPointDelta.dx * 0.011;
                       // Inverted so dragging the top of the card away from
                       // you tips the top away from you.
-                      _pitch = (_pitch - d.focalPointDelta.dy * 0.006)
-                          .clamp(-0.45, 0.45);
+                      _pitch = (_pitch - d.focalPointDelta.dy * 0.006).clamp(
+                        -0.45,
+                        0.45,
+                      );
                     }
                   }),
                   onScaleEnd: (_) => _settle(),
@@ -209,9 +213,8 @@ class _Card extends StatelessWidget {
     final light = CardShading(yaw: yaw, pitch: pitch);
     final showingBack = light.showingBack;
     final openness = light.openness;
-    final url = showingBack
-        ? (card.imageBack ?? _genericBack)
-        : (card.imageNormal ?? card.imageSmall);
+    final frontUrl = card.imageNormal ?? card.imageSmall;
+    final backUrl = card.imageBack ?? _genericBack;
 
     return Stack(
       alignment: Alignment.center,
@@ -261,26 +264,19 @@ class _Card extends StatelessWidget {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        if (url == null)
-                          ColoredBox(
-                            color: Palette.tile,
-                            child: Center(
-                              child: Text(
-                                card.name,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: Palette.inkMuted),
-                              ),
-                            ),
-                          )
-                        else
-                          CachedNetworkImage(
-                            imageUrl: url,
-                            fit: BoxFit.cover,
-                            placeholder: (_, _) =>
-                                const ColoredBox(color: Palette.tile),
-                            errorWidget: (_, _, _) =>
-                                const ColoredBox(color: Palette.tile),
-                          ),
+                        // Both faces are built, always. Only one is painted,
+                        // but a widget in the tree fetches its picture, so the
+                        // far side has already arrived by the time the card
+                        // turns. Building it on demand meant turning over onto
+                        // a black rectangle and watching it load.
+                        Opacity(
+                          opacity: showingBack ? 0 : 1,
+                          child: _Side(url: frontUrl, name: card.name),
+                        ),
+                        Opacity(
+                          opacity: showingBack ? 1 : 0,
+                          child: _Side(url: backUrl, name: card.name),
+                        ),
 
                         // Gloss. A narrow band of white that slides across the
                         // face as the card turns, which is most of what sells it.
@@ -360,6 +356,35 @@ class _Card extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// One face of the card. Always built, sometimes invisible.
+class _Side extends StatelessWidget {
+  const _Side({required this.url, required this.name});
+
+  final String? url;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final blank = ColoredBox(
+      color: Palette.tile,
+      child: Center(
+        child: Text(
+          name,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Palette.inkMuted),
+        ),
+      ),
+    );
+
+    final address = url;
+    if (address == null) return SizedBox.expand(child: blank);
+
+    return SizedBox.expand(
+      child: CardImage(url: address, fallback: blank),
     );
   }
 }
