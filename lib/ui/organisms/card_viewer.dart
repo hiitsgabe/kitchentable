@@ -1,11 +1,14 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../sources/model/catalog_card.dart';
 import '../tokens/metrics.dart';
 import '../tokens/palette.dart';
+import 'card_shading.dart';
 
 /// The generic Magic back, served by Scryfall, for a card with only one face.
 const _genericBack =
@@ -54,6 +57,10 @@ class _CardViewerState extends State<CardViewer>
   double _pitch = 0;
 
   double _yawFrom = 0, _yawTo = 0, _pitchFrom = 0, _pitchTo = 0;
+
+  /// Pinched, or scrolled with a wheel. One is the card at its natural size.
+  double _zoom = 1;
+  double _zoomAtGestureStart = 1;
 
   @override
   void initState() {
@@ -116,20 +123,41 @@ class _CardViewerState extends State<CardViewer>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              GestureDetector(
-                onTap: _flip,
-                onPanUpdate: (d) => setState(() {
-                  _yaw += d.delta.dx * 0.011;
-                  // Inverted so dragging the top of the card away from you
-                  // tips the top away from you.
-                  _pitch = (_pitch - d.delta.dy * 0.006).clamp(-0.45, 0.45);
-                }),
-                onPanEnd: (_) => _settle(),
-                child: _Card(
-                  card: widget.card,
-                  yaw: _yaw,
-                  pitch: _pitch,
-                  width: width,
+              Listener(
+                // A mouse wheel is not a scale gesture, so it is caught
+                // separately. Without this, zoom would be touch only and the
+                // browser build could never read a card's text.
+                onPointerSignal: (event) {
+                  if (event is PointerScrollEvent) {
+                    setState(() {
+                      _zoom = (_zoom - event.scrollDelta.dy * 0.0016)
+                          .clamp(1.0, 3.2);
+                    });
+                  }
+                },
+                child: GestureDetector(
+                  onTap: _flip,
+                  // Scale rather than pan, because a GestureDetector cannot
+                  // arbitrate both. focalPointDelta carries the drag, so the
+                  // turn and the pinch come from one recogniser.
+                  onScaleStart: (_) => _zoomAtGestureStart = _zoom,
+                  onScaleUpdate: (d) => setState(() {
+                    _zoom = (_zoomAtGestureStart * d.scale).clamp(1.0, 3.2);
+                    if (d.pointerCount == 1) {
+                      _yaw += d.focalPointDelta.dx * 0.011;
+                      // Inverted so dragging the top of the card away from
+                      // you tips the top away from you.
+                      _pitch = (_pitch - d.focalPointDelta.dy * 0.006)
+                          .clamp(-0.45, 0.45);
+                    }
+                  }),
+                  onScaleEnd: (_) => _settle(),
+                  child: _Card(
+                    card: widget.card,
+                    yaw: _yaw,
+                    pitch: _pitch,
+                    width: width * _zoom,
+                  ),
                 ),
               ),
               SizedBox(height: m.scaled(26)),
@@ -145,7 +173,7 @@ class _CardViewerState extends State<CardViewer>
               SizedBox(height: m.scaled(6)),
               Text(
                 widget.card.imageBack == null
-                    ? 'drag to turn it over'
+                    ? 'drag to turn it over, pinch or scroll to read it'
                     : 'drag to turn it over, it has a second face',
                 style: TextStyle(
                   fontSize: m.scaled(11),
@@ -178,15 +206,12 @@ class _Card extends StatelessWidget {
     final height = width * 88 / 63;
     final radius = BorderRadius.circular(width * 0.048);
 
-    final facing = math.cos(yaw);
-    final showingBack = facing < 0;
+    final light = CardShading(yaw: yaw, pitch: pitch);
+    final showingBack = light.showingBack;
+    final openness = light.openness;
     final url = showingBack
         ? (card.imageBack ?? _genericBack)
         : (card.imageNormal ?? card.imageSmall);
-
-    // Zero when the card is edge on, one when it is square to you. Drives the
-    // edge, the shadow and how far the highlight has travelled.
-    final openness = facing.abs();
 
     return Stack(
       alignment: Alignment.center,
@@ -196,8 +221,8 @@ class _Card extends StatelessWidget {
         // with the card and stopped reading as a shadow at all.
         Transform.translate(
           offset: Offset(
-            -math.sin(yaw) * width * 0.18,
-            math.sin(pitch) * width * 0.12 + width * 0.07,
+            light.groundDx * width * 0.18,
+            light.groundDy * width * 0.12 + width * 0.07,
           ),
           child: Container(
             width: width * 0.88,
@@ -206,7 +231,7 @@ class _Card extends StatelessWidget {
               borderRadius: radius,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.6 * openness),
+                  color: Colors.black.withValues(alpha: light.groundAlpha),
                   blurRadius: width * 0.26,
                   spreadRadius: width * 0.015,
                 ),
@@ -313,7 +338,7 @@ class _Card extends StatelessWidget {
                 // readable. The first version kept a minimum width and drew a
                 // bright line straight down the middle of the art.
                 child: Opacity(
-                  opacity: math.pow(1 - openness, 3).toDouble().clamp(0.0, 1.0),
+                  opacity: light.edgeAlpha,
                   child: Container(
                     width: width * 0.055 * (1 - openness) + width * 0.008,
                     height: height * 0.985,
