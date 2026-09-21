@@ -88,6 +88,36 @@ Sideboard
     expect(r.ignored, ['0 Nothing']);
   });
 
+  test('export junk is reported, not imported as a card', () {
+    final r = parseDecklist('''
+4 Lightning Bolt
+Total: 75
+==========
+Approx. price: 412.00
+56 Mountain
+''');
+    expect(r.entries.map((e) => e.name), ['Lightning Bolt', 'Mountain']);
+    expect(r.ignored, ['Total: 75', '==========', 'Approx. price: 412.00']);
+  });
+
+  test('a bracketed count on a header does not become a card', () {
+    final r = parseDecklist('''
+Mainboard (60)
+4 Lightning Bolt
+Sideboard (15)
+2 Pyroblast
+''');
+    expect(r.entries.length, 2);
+    expect(r.entries.where((e) => e.sideboard).single.name, 'Pyroblast');
+    expect(r.ignored, isEmpty);
+  });
+
+  test("Commander's Sphere is a card, not a section break", () {
+    final r = parseDecklist("1 Commander's Sphere\n1 Sol Ring");
+    expect(r.entries.map((e) => e.name), ["Commander's Sphere", 'Sol Ring']);
+    expect(r.entries.every((e) => !e.sideboard), isTrue);
+  });
+
   test('windows line endings do not glue themselves to the last name', () {
     final r = parseDecklist('4 Lightning Bolt\r\n2 Counterspell\r\n');
     expect(r.entries.map((e) => e.name), ['Lightning Bolt', 'Counterspell']);
