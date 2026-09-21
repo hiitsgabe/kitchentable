@@ -20,8 +20,12 @@ const _genericBack =
 /// exactly like that. What makes an object read as an object is not the
 /// rotation, it is everything that moves with it: a highlight sliding across
 /// the face, the side turning away going dark, a shadow that leans the other
-/// way, and a visible edge at the moment it is side on. That last one also
-/// hides the texture swap, because a card seen edge on has no face to swap.
+/// way.
+///
+/// An earlier version also drew the card's edge at the instant it is side on,
+/// to cover the texture swapping over. Both faces are mounted now so there is
+/// no swap to cover, and what the edge actually did was flick a white line
+/// across the middle of the card on every single turn.
 class CardViewer extends StatefulWidget {
   const CardViewer({super.key, required this.card});
 
@@ -321,33 +325,6 @@ class _Card extends StatelessWidget {
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // The edge of the card, widest exactly when it is side on. This is
-              // what turns the texture swap from a glitch into a thing turning
-              // over, because at that instant there is no face to see anyway.
-              IgnorePointer(
-                // Cubed rather than linear so it is gone by the time the face is
-                // readable. The first version kept a minimum width and drew a
-                // bright line straight down the middle of the art.
-                child: Opacity(
-                  opacity: light.edgeAlpha,
-                  child: Container(
-                    width: width * 0.055 * (1 - openness) + width * 0.008,
-                    height: height * 0.985,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(width * 0.008),
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFF2A2430),
-                          Color(0xFFCFC6D6),
-                          Color(0xFF1A1620),
-                        ],
-                        stops: [0, 0.45, 1],
-                      ),
                     ),
                   ),
                 ),
