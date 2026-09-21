@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../decks/model/deck.dart';
 import '../../ui/atoms/card_art.dart';
 import '../../ui/atoms/count_pill.dart';
+import '../../ui/organisms/card_viewer.dart';
 import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -164,11 +165,14 @@ class _SlotRow extends ConsumerWidget {
     final editor = ref.read(deckEditorProvider.notifier);
 
     return Padding(
-      padding: EdgeInsets.only(bottom: m.scaled(8)),
+      padding: EdgeInsets.only(bottom: m.scaled(10)),
       child: Row(
         children: [
-          CardArt(metrics: m, card: slot.card, width: m.scaled(34)),
-          SizedBox(width: m.scaled(10)),
+          GestureDetector(
+            onTap: () => CardViewer.show(context, slot.card),
+            child: CardArt(metrics: m, card: slot.card, width: m.scaled(48)),
+          ),
+          SizedBox(width: m.scaled(12)),
           SizedBox(
             width: m.scaled(26),
             child: Text(
@@ -181,11 +185,26 @@ class _SlotRow extends ConsumerWidget {
             ),
           ),
           Expanded(
-            child: Text(
-              slot.card.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: m.scaled(14), color: Palette.ink),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  slot.card.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: m.scaled(14), color: Palette.ink),
+                ),
+                SizedBox(height: m.scaled(2)),
+                Text(
+                  slot.card.typeLine,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: m.scaled(11),
+                    color: Palette.inkFaint,
+                  ),
+                ),
+              ],
             ),
           ),
           if (slot.commander)

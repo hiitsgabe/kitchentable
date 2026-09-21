@@ -23,6 +23,7 @@ class Cards extends Table {
   TextColumn get legalities => text()();
   TextColumn get imageSmall => text().nullable()();
   TextColumn get imageNormal => text().nullable()();
+  TextColumn get imageBack => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {oracleId};
@@ -63,7 +64,7 @@ class CatalogDb extends _$CatalogDb {
   CatalogDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -78,6 +79,12 @@ class CatalogDb extends _$CatalogDb {
             // Every deck that existed before this column was a Magic deck,
             // which is what the default says, so nothing needs rewriting.
             await m.addColumn(decks, decks.game);
+          }
+          if (from < 4) {
+            // Null on every existing row. Those cards turn over onto the
+            // generic back, which is what they did before this column existed.
+            // A reimport fills it in.
+            await m.addColumn(cards, cards.imageBack);
           }
         },
       );
@@ -152,6 +159,7 @@ class CatalogDb extends _$CatalogDb {
         legalities: jsonEncode(c.legalities),
         imageSmall: Value(c.imageSmall),
         imageNormal: Value(c.imageNormal),
+        imageBack: Value(c.imageBack),
       );
 
   CatalogCard _fromRow(Card row) => CatalogCard(
@@ -170,5 +178,6 @@ class CatalogDb extends _$CatalogDb {
             .map((k, v) => MapEntry(k, v as String)),
         imageSmall: row.imageSmall,
         imageNormal: row.imageNormal,
+        imageBack: row.imageBack,
       );
 }
