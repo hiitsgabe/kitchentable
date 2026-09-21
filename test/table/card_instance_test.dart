@@ -1,0 +1,48 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/table/model/card_instance.dart';
+
+void main() {
+  test('a card starts upright, face up and uncounted', () {
+    const card = CardInstance(id: 'i1', oracleId: 'sol ring');
+
+    expect(card.rotation, 0);
+    expect(card.faceDown, isFalse);
+    expect(card.counters, isEmpty);
+    expect(card.attachedTo, isNull);
+    expect(card.position, isNull);
+  });
+
+  test('rotating goes a quarter turn and wraps at a full one', () {
+    const card = CardInstance(id: 'i1', oracleId: 'x');
+
+    expect(card.rotated().rotation, 90);
+    expect(card.rotated().rotated().rotation, 180);
+    expect(card.rotated().rotated().rotated().rotated().rotation, 0);
+  });
+
+  test('two cards of the same printing are still two cards', () {
+    const a = CardInstance(id: 'i1', oracleId: 'mountain');
+    const b = CardInstance(id: 'i2', oracleId: 'mountain');
+
+    expect(a == b, isFalse,
+        reason: 'thirty seven Mountains are thirty seven things on a table');
+  });
+
+  test('counters add up and clear away', () {
+    const card = CardInstance(id: 'i1', oracleId: 'x');
+
+    final loaded = card.withCounter('+1/+1', 2).withCounter('+1/+1', 1);
+    expect(loaded.counters['+1/+1'], 3);
+
+    final cleared = loaded.withCounter('+1/+1', -3);
+    expect(cleared.counters.containsKey('+1/+1'), isFalse,
+        reason: 'a counter at zero is not a counter');
+  });
+
+  test('a counter can go negative, because some of them do', () {
+    const card = CardInstance(id: 'i1', oracleId: 'x');
+    final drained = card.withCounter('-1/-1', 2);
+
+    expect(drained.counters['-1/-1'], 2);
+  });
+}
