@@ -28,6 +28,9 @@ class Cards extends Table {
   Set<Column> get primaryKey => {oracleId};
 }
 
+/// Named so the generated row class does not collide with the Deck model.
+/// drift names a row after the table in the singular, and `Deck` is taken.
+@DataClassName('DeckRow')
 class Decks extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
@@ -40,6 +43,7 @@ class Decks extends Table {
 
 /// A card in a deck. Three piles live here, told apart by two flags rather than
 /// three tables, because they are the same row with a different home.
+@DataClassName('DeckCardRow')
 class DeckCards extends Table {
   TextColumn get deckId => text()();
   TextColumn get oracleId => text()();
