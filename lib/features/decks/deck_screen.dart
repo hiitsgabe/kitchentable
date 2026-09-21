@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../decks/model/deck.dart';
 import '../../ui/atoms/card_art.dart';
 import '../../ui/atoms/count_pill.dart';
+import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/card_viewer.dart';
 import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
@@ -225,7 +226,22 @@ class _SlotRow extends ConsumerWidget {
           _Step(
             metrics: m,
             icon: Icons.add_rounded,
-            onTap: () => editor.setQuantity(slot, slot.quantity + 1),
+            // Dimmed when the format says no. A button that quietly does
+            // nothing is worse than one that is plainly out of moves.
+            enabled: editor.canAddMore(slot),
+            onTap: () {
+              if (editor.canAddMore(slot)) {
+                editor.setQuantity(slot, slot.quantity + 1);
+              } else {
+                Toast.show(
+                  context,
+                  deck.format.maxCopies == 1
+                      ? '${deck.format.label} is singleton'
+                      : 'Already at ${deck.format.maxCopies} copies',
+                  icon: Icons.block_rounded,
+                );
+              }
+            },
           ),
         ],
       ),
@@ -238,11 +254,13 @@ class _Step extends StatelessWidget {
     required this.metrics,
     required this.icon,
     required this.onTap,
+    this.enabled = true,
   });
 
   final Metrics metrics;
   final IconData icon;
   final VoidCallback onTap;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -259,7 +277,11 @@ class _Step extends StatelessWidget {
           borderRadius: BorderRadius.circular(m.scaled(8)),
           border: Border.all(color: Palette.tileEdge),
         ),
-        child: Icon(icon, size: m.scaled(17), color: Palette.inkMuted),
+        child: Icon(
+          icon,
+          size: m.scaled(17),
+          color: enabled ? Palette.inkMuted : Palette.inkFaint.withValues(alpha: 0.4),
+        ),
       ),
     );
   }

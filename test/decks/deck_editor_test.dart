@@ -100,6 +100,45 @@ void main() {
     expect(deck().commanders.length, 1);
   });
 
+  test('the plus button cannot make two of a singleton card', () async {
+    final sol = DeckSlot(card: _card('Sol Ring'), quantity: 1);
+    await editor().add(sol);
+
+    await editor().setQuantity(sol, 2);
+
+    expect(deck().quantityOf('sol ring'), 1,
+        reason: 'Commander is singleton and the button is not an exception');
+  });
+
+  test('the plus button still works on a basic land', () async {
+    final mountain = DeckSlot(card: _card('Mountain', typeLine: 'Basic Land - Mountain'), quantity: 1);
+    await editor().add(mountain);
+
+    await editor().setQuantity(mountain, 37);
+
+    expect(deck().quantityOf('mountain'), 37);
+  });
+
+  test('the limit counts the sideboard copy too', () async {
+    final sol = DeckSlot(card: _card('Sol Ring'), quantity: 1);
+    final solSide =
+        DeckSlot(card: _card('Sol Ring'), quantity: 1, sideboard: true);
+    await editor().add(sol);
+    await editor().add(solSide);
+
+    // Already two of a singleton card across the piles, so neither goes up.
+    await editor().setQuantity(sol, 2);
+    expect(deck().quantityOf('sol ring'), 1);
+  });
+
+  test('going down is never refused', () async {
+    final mountain = DeckSlot(card: _card('Mountain', typeLine: 'Basic Land - Mountain'), quantity: 10);
+    await editor().add(mountain);
+
+    await editor().setQuantity(mountain, 4);
+    expect(deck().quantityOf('mountain'), 4);
+  });
+
   test('a pasted list is written once, not once per card', () async {
     await editor().addAll([
       DeckSlot(card: _card('Sol Ring'), quantity: 1),

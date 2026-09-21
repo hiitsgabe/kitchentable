@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/deck_repository.dart';
+import '../../decks/model/copy_limit.dart';
 import '../../decks/model/deck.dart';
 import '../menu/menu_controller.dart';
 
@@ -77,6 +78,21 @@ class DeckEditor extends Notifier<Deck?> {
     await _persist(deck.copyWith(slots: slots));
   }
 
+  /// The most copies of this card the deck may hold, counting both piles.
+  /// Basic lands and the cards that grant themselves the exemption come back
+  /// effectively unbounded.
+  int limitFor(DeckSlot slot) {
+    final deck = state;
+    if (deck == null) return 0;
+    return copyLimitFor(slot.card, deck.format);
+  }
+
+  bool canAddMore(DeckSlot slot) {
+    final deck = state;
+    if (deck == null) return false;
+    return deck.totalCopiesOf(slot.card.oracleId) < limitFor(slot);
+  }
+
   Future<void> setQuantity(DeckSlot slot, int quantity) async {
     final deck = state;
     if (deck == null) return;
@@ -84,6 +100,15 @@ class DeckEditor extends Notifier<Deck?> {
     final slots = [...deck.slots];
     final at = _indexOf(slots, slot);
     if (at < 0) return;
+
+    // The plus button used to add without asking. In Commander that put two
+    // of a singleton card in the deck, which the rules had already forbidden
+    // everywhere except here.
+    if (quantity > slots[at].quantity) {
+      final elsewhere =
+          deck.totalCopiesOf(slot.card.oracleId) - slots[at].quantity;
+      if (elsewhere + quantity > copyLimitFor(slot.card, deck.format)) return;
+    }
 
     if (quantity <= 0) {
       slots.removeAt(at);
