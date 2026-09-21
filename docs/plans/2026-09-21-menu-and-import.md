@@ -1876,6 +1876,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/features/menu/menu_controller.dart';
 import 'package:kitchentable/features/menu/menu_screen.dart';
+import 'package:kitchentable/ui/atoms/menu_row.dart';
 
 Widget _host(MenuState state) => ProviderScope(
       overrides: [
@@ -1904,6 +1905,43 @@ void main() {
 
     expect(find.text('36079 CARDS'), findsOneWidget);
     expect(find.text('host a table or join by code'), findsOneWidget);
+  });
+
+  // The two tests above only read text, and MenuState computes those strings
+  // whether or not the screen passes anything down. So they stay green even if
+  // the screen hands every row `enabled: true` and `autofocus: false`. The two
+  // below pin the wiring itself, which is where the product decision lives.
+
+  MenuRow rowFor(WidgetTester tester, String title) => tester.widget<MenuRow>(
+        find.ancestor(of: find.text(title), matching: find.byType(MenuRow)),
+      );
+
+  testWidgets('the menu hands each row its own enabled flag', (tester) async {
+    await tester.pumpWidget(_host(
+      const MenuState(cardCount: 0, enabledSources: 0),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(rowFor(tester, 'Play').enabled, isFalse);
+    expect(rowFor(tester, 'Decks').enabled, isFalse);
+    expect(rowFor(tester, 'Sources').enabled, isTrue);
+    expect(rowFor(tester, 'Settings').enabled, isTrue);
+  });
+
+  testWidgets('focus starts where there is something to do', (tester) async {
+    await tester.pumpWidget(_host(
+      const MenuState(cardCount: 0, enabledSources: 0),
+    ));
+    await tester.pumpAndSettle();
+    expect(rowFor(tester, 'Sources').autofocus, isTrue);
+    expect(rowFor(tester, 'Play').autofocus, isFalse);
+
+    await tester.pumpWidget(_host(
+      const MenuState(cardCount: 36079, enabledSources: 1),
+    ));
+    await tester.pumpAndSettle();
+    expect(rowFor(tester, 'Play').autofocus, isTrue);
+    expect(rowFor(tester, 'Sources').autofocus, isFalse);
   });
 }
 ```
@@ -2067,7 +2105,7 @@ void main() {
 - [ ] **Step 5: Run it and watch it pass**
 
 Run: `flutter test test/features/menu_screen_test.dart`
-Expected: PASS, 2 tests.
+Expected: PASS, 4 tests.
 
 - [ ] **Step 6: Run everything**
 
@@ -2088,8 +2126,13 @@ git commit -m "The menu is the first thing you see and the only tutorial"
 
 ## Task 12: The sources screen
 
+Task 11 needed somewhere to navigate, so it left a fifteen line placeholder at
+`lib/features/sources/sources_screen.dart`: a Scaffold with an AppBar and the
+word Sources. **Replace that file wholesale.** Nothing in it is meant to
+survive, there is nothing to merge, and it has no tests of its own.
+
 **Files:**
-- Create: `lib/features/sources/sources_screen.dart`
+- Replace: `lib/features/sources/sources_screen.dart`
 - Test: `test/features/sources_screen_test.dart`
 
 - [ ] **Step 1: Write the failing test**
