@@ -44,4 +44,9 @@ class Metrics {
       };
 
   double scaled(double base) => base * scale;
+
+  /// The app is a phone interface wherever it runs. On a wide browser window or
+  /// a television, the content stays a column of this width in the middle
+  /// instead of stretching a menu row a metre wide.
+  double get contentWidth => 460 * scale;
 }

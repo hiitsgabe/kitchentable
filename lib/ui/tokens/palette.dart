@@ -21,4 +21,13 @@ abstract final class Palette {
   /// Fills a focused row. Dark enough to sit under the accent border without
   /// competing with it.
   static const focusWash = Color(0xFF101A2A);
+
+  /// The little rounded square at the head of a row. Present on every list in
+  /// the app, so a row never starts with naked text.
+  static const tile = Color(0xFF1A212A);
+  static const tileEdge = Color(0xFF262E38);
+  static const tileFocused = Color(0xFF16263F);
+
+  /// Hairline under a header and above the hint bar.
+  static const rule = Color(0xFF1B212A);
 }
