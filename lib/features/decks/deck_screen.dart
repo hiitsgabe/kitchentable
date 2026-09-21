@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/deck.dart';
+import '../../decks/model/game.dart';
 import '../../ui/atoms/card_art.dart';
 import '../../ui/atoms/count_pill.dart';
 import '../../ui/atoms/toast.dart';
@@ -12,6 +13,7 @@ import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import 'add_cards_screen.dart';
+import 'add_lands_screen.dart';
 import 'decks_controller.dart';
 import 'paste_list_screen.dart';
 
@@ -61,6 +63,16 @@ class DeckScreen extends ConsumerWidget {
             MaterialPageRoute<void>(builder: (_) => const AddCardsScreen()),
           ),
         ),
+        if (deck.game == Game.magic)
+          MenuRow(
+            title: 'Add lands',
+            subtitle: 'the tedious third of a deck, in one tap',
+            icon: Icons.terrain_rounded,
+            metrics: m,
+            onActivate: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const AddLandsScreen()),
+            ),
+          ),
         MenuRow(
           title: 'Paste a list',
           subtitle: 'the format shops and deck sites give you',
