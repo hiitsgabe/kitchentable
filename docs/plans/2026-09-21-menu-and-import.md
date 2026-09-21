@@ -105,11 +105,19 @@ test/
   features/menu_screen_test.dart
 ```
 
-A note on web. The importer uses `dart:io` gzip, which does not compile for
-web. `gunzip.dart` is a conditional import so the web build keeps working and
-the web importer throws a clear `UnsupportedError`. Web exists so we can look
-at the UI on a machine with no display and no emulator, not so we can import on
-it.
+A note on web, corrected on 2026 09 21 after measuring it. The first version of
+this plan said `dart:io` gzip does not compile for web. On Flutter 3.47.5 with
+Dart 3.13.4 that is false: the SDK ships
+`_internal/js_runtime/lib/io_patch.dart`, which compiles `dart:io` for dart2js
+and patches `RawZLibFilter._makeZLibInflateFilter` to
+`throw UnsupportedError("_newZLibInflateFilter")`. An unconditional `dart:io`
+import builds for web fine and blows up at run time instead.
+
+The conditional import in `gunzip.dart` stays, for a different reason than the
+one originally written down. It turns an `UnsupportedError` thrown from inside
+the SDK, naming a private filter nobody has heard of, into a sentence that says
+what actually happened. Web exists so we can look at the UI on a machine with no
+display and no emulator, not so we can import on it.
 
 ---
 
@@ -201,6 +209,20 @@ void main() {
     );
   });
 
+  test('the threshold itself counts as a television', () {
+    expect(
+      classifyDevice(size: const Size(960, 540), hasTouch: false),
+      DeviceClass.tv,
+    );
+  });
+
+  test('one pixel under the threshold is still a handheld', () {
+    expect(
+      classifyDevice(size: const Size(959, 540), hasTouch: false),
+      DeviceClass.handheld,
+    );
+  });
+
   test('television metrics are bigger than handheld metrics', () {
     expect(Metrics.of(DeviceClass.tv).scale,
         greaterThan(Metrics.of(DeviceClass.handheld).scale));
@@ -226,6 +248,10 @@ enum DeviceClass { handheld, tv }
 
 /// A television is the only thing we expect to be large and untouchable at the
 /// same time. Anything you can touch is being held, however big it is.
+///
+/// Width rather than shortestSide on purpose: touch already wins for anything
+/// held, so width is only ever consulted for a D-pad session, where somebody
+/// rotating the screen is not a case worth carrying.
 DeviceClass classifyDevice({required Size size, required bool hasTouch}) {
   if (hasTouch) return DeviceClass.handheld;
   return size.width >= 960 ? DeviceClass.tv : DeviceClass.handheld;
@@ -239,6 +265,11 @@ class Metrics {
   });
 
   /// Multiplies every font size and every gap. Nothing hardcodes a size.
+  ///
+  /// This is not Android's sp and has nothing to do with the reader's font size
+  /// preference. It is one constant per device class. If accessibility text
+  /// scaling is ever honoured it has to come from MediaQuery on top of this,
+  /// not instead of it.
   final double scale;
 
   /// Overscan. Televisions eat their own edges.
@@ -256,14 +287,14 @@ class Metrics {
         DeviceClass.tv => _tv,
       };
 
-  double sp(double base) => base * scale;
+  double scaled(double base) => base * scale;
 }
 ```
 
 - [ ] **Step 4: Run it and watch it pass**
 
 Run: `flutter test test/ui/metrics_test.dart`
-Expected: PASS, 4 tests.
+Expected: PASS, 6 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -276,26 +307,85 @@ git commit -m "Tell a television apart from a handheld"
 
 ## Task 3: The focusable row
 
-Every list in this app is made of these. It has to show focus hard enough to
-read across a room, and it has to refuse focus when it is disabled, otherwise
-the D-pad stops on dead entries.
+Every list in this app is made of these, so its contract is the app's contract.
+
+Two things about it are not obvious and both were got wrong the first time.
+
+**A tap is not a button press.** `MaterialApp` maps the select button and
+gameButtonA to `ActivateIntent` in `WidgetsApp.defaultShortcuts`
+(`app.dart:1268` and `1269`), but `WidgetsApp.defaultActions` contains no
+handler for `ActivateIntent` at all. The intent is dispatched and nothing
+catches it. A row built from `Focus` plus `GestureDetector` therefore takes
+focus, draws its border, and does absolutely nothing when you press the button.
+It looks correct and is inert. The row must handle `ActivateIntent` itself.
+
+**A dead row still takes focus on a D-pad, and that is right.** Flutter decides
+this for us in `FocusableActionDetector`:
+
+```dart
+bool get _canRequestFocus => switch (MediaQuery.maybeNavigationModeOf(context)) {
+  NavigationMode.traditional || null => widget.enabled,
+  NavigationMode.directional => true,
+};
+```
+
+Under directional navigation a disabled control stays reachable. That is the
+correct behaviour here and not merely something to tolerate: on the main menu
+the disabled `Play` row carries the subtitle `needs a source`, which is the
+sentence that teaches a new player what to do. Skipping it would hide the
+instruction from exactly the people who cannot tap.
+
+So the contract is: **a disabled row may be focused, and never activates.**
+Not by tap, and not by button.
 
 **Files:**
+- Modify: `lib/ui/tokens/palette.dart`
 - Create: `lib/ui/atoms/menu_row.dart`
 - Test: `test/ui/menu_row_test.dart`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Give the focus wash a name**
+
+In `lib/ui/tokens/palette.dart`, add this below `accent`:
+
+```dart
+  /// Fills a focused row. Dark enough to sit under the accent border without
+  /// competing with it.
+  static const focusWash = Color(0xFF101A2A);
+```
+
+- [ ] **Step 2: Write the failing test**
 
 Create `test/ui/menu_row_test.dart`:
 
 ```dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/ui/atoms/menu_row.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
-Widget _host(Widget child) => MaterialApp(
-      home: Scaffold(body: Column(children: [child])),
+Widget _host(Widget child, {NavigationMode? navigationMode}) {
+  final app = MaterialApp(home: Scaffold(body: Column(children: [child])));
+  if (navigationMode == null) return app;
+  return MediaQuery(
+    data: MediaQueryData(navigationMode: navigationMode),
+    child: app,
+  );
+}
+
+MenuRow _row({
+  String title = 'Sources',
+  bool enabled = true,
+  FocusNode? focusNode,
+  required VoidCallback onActivate,
+}) =>
+    MenuRow(
+      title: title,
+      subtitle: 'start here',
+      enabled: enabled,
+      focusNode: focusNode,
+      metrics: Metrics.of(DeviceClass.handheld),
+      onActivate: onActivate,
     );
 
 void main() {
@@ -303,50 +393,64 @@ void main() {
     final node = FocusNode();
     addTearDown(node.dispose);
 
-    await tester.pumpWidget(_host(MenuRow(
-      title: 'Sources',
-      subtitle: 'start here',
-      focusNode: node,
-      metrics: Metrics.of(DeviceClass.handheld),
-      onActivate: () {},
-    )));
-
+    await tester.pumpWidget(_host(_row(focusNode: node, onActivate: () {})));
     node.requestFocus();
     await tester.pump();
 
     expect(node.hasFocus, isTrue);
   });
 
-  testWidgets('a disabled row refuses focus so the D-pad skips it',
+  testWidgets('an enabled row fires when tapped', (tester) async {
+    var fired = 0;
+    await tester.pumpWidget(_host(_row(onActivate: () => fired++)));
+
+    await tester.tap(find.text('Sources'));
+    await tester.pump();
+
+    expect(fired, 1);
+  });
+
+  testWidgets('an enabled row fires when the select button is pressed',
       (tester) async {
+    var fired = 0;
     final node = FocusNode();
     addTearDown(node.dispose);
 
-    await tester.pumpWidget(_host(MenuRow(
-      title: 'Play',
-      subtitle: 'needs a source',
-      enabled: false,
-      focusNode: node,
-      metrics: Metrics.of(DeviceClass.handheld),
-      onActivate: () {},
-    )));
-
+    await tester.pumpWidget(
+      _host(_row(focusNode: node, onActivate: () => fired++)),
+    );
     node.requestFocus();
     await tester.pump();
 
-    expect(node.hasFocus, isFalse);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pump();
+
+    expect(fired, 1);
+  });
+
+  testWidgets('an enabled row fires when the gamepad A button is pressed',
+      (tester) async {
+    var fired = 0;
+    final node = FocusNode();
+    addTearDown(node.dispose);
+
+    await tester.pumpWidget(
+      _host(_row(focusNode: node, onActivate: () => fired++)),
+    );
+    node.requestFocus();
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.gameButtonA);
+    await tester.pump();
+
+    expect(fired, 1);
   });
 
   testWidgets('a disabled row does not fire when tapped', (tester) async {
     var fired = 0;
-
-    await tester.pumpWidget(_host(MenuRow(
-      title: 'Play',
-      subtitle: 'needs a source',
-      enabled: false,
-      metrics: Metrics.of(DeviceClass.handheld),
-      onActivate: () => fired++,
-    )));
+    await tester.pumpWidget(
+      _host(_row(title: 'Play', enabled: false, onActivate: () => fired++)),
+    );
 
     await tester.tap(find.text('Play'));
     await tester.pump();
@@ -354,30 +458,54 @@ void main() {
     expect(fired, 0);
   });
 
-  testWidgets('an enabled row fires when tapped', (tester) async {
-    var fired = 0;
+  testWidgets('a D-pad can reach a disabled row so its reason can be read',
+      (tester) async {
+    final node = FocusNode();
+    addTearDown(node.dispose);
 
-    await tester.pumpWidget(_host(MenuRow(
-      title: 'Sources',
-      subtitle: 'start here',
-      metrics: Metrics.of(DeviceClass.handheld),
-      onActivate: () => fired++,
-    )));
-
-    await tester.tap(find.text('Sources'));
+    await tester.pumpWidget(_host(
+      _row(title: 'Play', enabled: false, focusNode: node, onActivate: () {}),
+      navigationMode: NavigationMode.directional,
+    ));
+    node.requestFocus();
     await tester.pump();
 
-    expect(fired, 1);
+    expect(node.hasFocus, isTrue,
+        reason: 'the subtitle on a dead row is how a player learns what to do');
+  });
+
+  testWidgets('a disabled row does not fire when the select button is pressed',
+      (tester) async {
+    var fired = 0;
+    final node = FocusNode();
+    addTearDown(node.dispose);
+
+    await tester.pumpWidget(_host(
+      _row(
+        title: 'Play',
+        enabled: false,
+        focusNode: node,
+        onActivate: () => fired++,
+      ),
+      navigationMode: NavigationMode.directional,
+    ));
+    node.requestFocus();
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pump();
+
+    expect(fired, 0);
   });
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [ ] **Step 3: Run it and watch it fail**
 
 Run: `flutter test test/ui/menu_row_test.dart`
 Expected: FAIL, `Target of URI doesn't exist: 'package:kitchentable/ui/atoms/menu_row.dart'`
 
-- [ ] **Step 3: Write the implementation**
+- [ ] **Step 4: Write the implementation**
 
 Create `lib/ui/atoms/menu_row.dart`:
 
@@ -389,6 +517,16 @@ import '../tokens/metrics.dart';
 
 /// One line in a list. Focus has to be loud, because the same widget is read
 /// from thirty centimetres on a handheld and from three metres on a television.
+///
+/// It answers ActivateIntent as well as a tap, and that is not decoration.
+/// MaterialApp maps the select button and gameButtonA to ActivateIntent, but
+/// WidgetsApp.defaultActions has no handler for it, so without the action below
+/// the intent is dispatched and nothing catches it: the row would take focus,
+/// draw its border and do nothing when pressed.
+///
+/// A disabled row can still be focused under directional navigation, which is
+/// Flutter's choice and the right one. Its subtitle usually says why it is
+/// disabled, and that sentence is worth reaching. It just never activates.
 class MenuRow extends StatefulWidget {
   const MenuRow({
     super.key,
@@ -416,70 +554,89 @@ class MenuRow extends StatefulWidget {
 class _MenuRowState extends State<MenuRow> {
   bool _focused = false;
 
+  void _activate() {
+    if (widget.enabled) widget.onActivate();
+  }
+
   @override
   Widget build(BuildContext context) {
     final m = widget.metrics;
 
-    return Focus(
+    return FocusableActionDetector(
       focusNode: widget.focusNode,
       autofocus: widget.autofocus && widget.enabled,
-      canRequestFocus: widget.enabled,
+      enabled: widget.enabled,
       descendantsAreFocusable: widget.enabled,
       onFocusChange: (v) => setState(() => _focused = v),
-      child: GestureDetector(
-        onTap: widget.enabled ? widget.onActivate : null,
-        behavior: HitTestBehavior.opaque,
-        child: Opacity(
-          opacity: widget.enabled ? 1 : 0.42,
-          child: Container(
-            margin: EdgeInsets.only(bottom: m.sp(5)),
-            padding: EdgeInsets.symmetric(
-              horizontal: m.sp(12),
-              vertical: m.sp(11),
-            ),
-            decoration: BoxDecoration(
-              color: _focused ? const Color(0xFF101A2A) : Colors.transparent,
-              borderRadius: BorderRadius.circular(m.sp(10)),
-              border: Border.all(
-                color: _focused ? Palette.accent : Colors.transparent,
-                width: m.focusRing,
+      actions: <Type, Action<Intent>>{
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            _activate();
+            return null;
+          },
+        ),
+      },
+      child: Semantics(
+        button: true,
+        enabled: widget.enabled,
+        label: widget.subtitle == null
+            ? widget.title
+            : '${widget.title}. ${widget.subtitle}',
+        child: GestureDetector(
+          onTap: widget.enabled ? _activate : null,
+          behavior: HitTestBehavior.opaque,
+          child: Opacity(
+            opacity: widget.enabled ? 1 : 0.42,
+            child: Container(
+              margin: EdgeInsets.only(bottom: m.scaled(5)),
+              padding: EdgeInsets.symmetric(
+                horizontal: m.scaled(12),
+                vertical: m.scaled(11),
               ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.title,
-                        style: TextStyle(
-                          fontSize: m.sp(15),
-                          color: _focused ? Colors.white : Palette.ink,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (widget.subtitle != null) ...[
-                        SizedBox(height: m.sp(2)),
+              decoration: BoxDecoration(
+                color: _focused ? Palette.focusWash : Colors.transparent,
+                borderRadius: BorderRadius.circular(m.scaled(10)),
+                border: Border.all(
+                  color: _focused ? Palette.accent : Colors.transparent,
+                  width: m.focusRing,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          widget.subtitle!,
+                          widget.title,
                           style: TextStyle(
-                            fontSize: m.sp(11),
-                            color: Palette.inkFaint,
+                            fontSize: m.scaled(15),
+                            color: _focused ? Colors.white : Palette.ink,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
+                        if (widget.subtitle != null) ...[
+                          SizedBox(height: m.scaled(2)),
+                          Text(
+                            widget.subtitle!,
+                            style: TextStyle(
+                              fontSize: m.scaled(11),
+                              color: Palette.inkFaint,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                Text(
-                  '›',
-                  style: TextStyle(
-                    fontSize: m.sp(16),
-                    color: _focused ? Palette.accent : Palette.inkFaint,
+                  Text(
+                    '›',
+                    style: TextStyle(
+                      fontSize: m.scaled(16),
+                      color: _focused ? Palette.accent : Palette.inkFaint,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -489,18 +646,32 @@ class _MenuRowState extends State<MenuRow> {
 }
 ```
 
-- [ ] **Step 4: Run it and watch it pass**
+- [ ] **Step 5: Run it and watch it pass**
 
 Run: `flutter test test/ui/menu_row_test.dart`
-Expected: PASS, 4 tests.
+Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Prove the button tests bite**
+
+A green suite is not evidence on its own. Delete the whole `actions:` block from
+`FocusableActionDetector`, run the test file again, and confirm that exactly the
+two button tests fail:
+
+- `an enabled row fires when the select button is pressed`
+- `an enabled row fires when the gamepad A button is pressed`
+
+and that the tap tests stay green. Then restore the block and confirm 7 pass
+again and `git status --short` shows only intended changes.
+
+If the button tests stay green without the action, the test is not reaching the
+shortcut layer and the bug is still live. Report that rather than committing.
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add lib/ui/atoms/menu_row.dart test/ui/menu_row_test.dart
-git commit -m "A row that shows focus and refuses it when dead"
+git add lib/ui/tokens/palette.dart lib/ui/atoms/menu_row.dart test/ui/menu_row_test.dart
+git commit -m "A row you can reach with a thumb or a D-pad"
 ```
-
 ---
 
 ## Task 4: The hint bar
@@ -576,7 +747,7 @@ class HintBar extends StatelessWidget {
     final m = metrics;
 
     return Container(
-      padding: EdgeInsets.only(top: m.sp(8)),
+      padding: EdgeInsets.only(top: m.scaled(8)),
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: Palette.surfaceEdge)),
       ),
@@ -585,25 +756,25 @@ class HintBar extends StatelessWidget {
           for (final hint in hints) ...[
             Container(
               padding: EdgeInsets.symmetric(
-                horizontal: m.sp(6),
-                vertical: m.sp(2),
+                horizontal: m.scaled(6),
+                vertical: m.scaled(2),
               ),
               decoration: BoxDecoration(
                 color: Palette.surface,
-                borderRadius: BorderRadius.circular(m.sp(4)),
+                borderRadius: BorderRadius.circular(m.scaled(4)),
                 border: Border.all(color: Palette.surfaceEdge),
               ),
               child: Text(
                 hint.button,
-                style: TextStyle(fontSize: m.sp(10), color: Palette.inkMuted),
+                style: TextStyle(fontSize: m.scaled(10), color: Palette.inkMuted),
               ),
             ),
-            SizedBox(width: m.sp(5)),
+            SizedBox(width: m.scaled(5)),
             Text(
               hint.label,
-              style: TextStyle(fontSize: m.sp(10), color: Palette.inkFaint),
+              style: TextStyle(fontSize: m.scaled(10), color: Palette.inkFaint),
             ),
-            SizedBox(width: m.sp(14)),
+            SizedBox(width: m.scaled(14)),
           ],
         ],
       ),
@@ -1055,8 +1226,16 @@ class CatalogDb extends _$CatalogDb {
 
 - [ ] **Step 5: Generate the drift code**
 
-Run: `dart run build_runner build --delete-conflicting-outputs`
-Expected: `Succeeded after ...` and `lib/sources/catalog/catalog_db.g.dart` now exists.
+Run: `dart run build_runner build`
+Expected: a line like `Built with build_runner/aot in 52s; wrote 31 outputs.`
+and `lib/sources/catalog/catalog_db.g.dart` now exists, about 1290 lines.
+
+Do not pass `--delete-conflicting-outputs`. build_runner 2.16.1 removed it
+and prints `These options have been removed and were ignored` if you do.
+
+The generated file is committed. This is an application, not a published
+package, so a fresh checkout should build without anyone having to run
+codegen first. The cost is a large generated diff whenever the schema moves.
 
 - [ ] **Step 6: Run it and watch it pass**
 
@@ -1225,6 +1404,20 @@ Stream<List<int>> gunzipStream(Stream<List<int>> compressed) {
 }
 ```
 
+This task cannot prove itself at compile time, and neither can any later one.
+Two separate reasons, both measured on 2026 09 21.
+
+Nothing imports `gunzip.dart` yet, so the web compiler never reaches it. That
+part resolves by Task 13.
+
+The bigger one never resolves: on this SDK an unconditional
+`export 'gunzip_io.dart';` builds for web **successfully**. `dart:io` is
+compiled for dart2js and the gzip filter throws at run time instead, so there is
+no build failure to catch, here or anywhere.
+
+What Task 13 does prove is reachability, which is worth having. Do not use a
+`--release` build for that grep, see Task 13 Step 9.
+
 - [ ] **Step 4: Prove both builds still compile**
 
 Run: `flutter analyze`
@@ -1291,7 +1484,7 @@ void main() {
     expect(await db.cardCount(), 3);
   });
 
-  test('it reports how many records it has written', () async {
+  test('it reports progress once per batch, not once at the end', () async {
     final importer = ScryfallImporter(db: db, batchSize: 2);
     final seen = <int>[];
 
@@ -1303,8 +1496,12 @@ void main() {
       onIndexed: seen.add,
     );
 
-    expect(seen.last, 3);
-    expect(seen, isNotEmpty);
+    // Three records at a batch size of two is one full flush then the
+    // remainder. Asserting the whole sequence rather than just the total is
+    // deliberate: `expect(seen.last, 3)` passes even when batching is removed
+    // entirely, so it would not protect the thing the batch exists for.
+    // Inserting 36000 rows one statement at a time takes minutes on a phone.
+    expect(seen, [2, 3]);
   });
 
   test('a record missing oracle_id is skipped rather than killing the import',
@@ -1480,7 +1677,24 @@ class ScryfallImporter {
 Run: `flutter test test/sources/scryfall_importer_test.dart`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Do not try to prove the gunzip export here**
+
+An earlier version of this plan put Task 8's deferred web probe in this task, on
+the grounds that this file is the first to import `gunzip.dart`. That was wrong
+and it was tried: on 2026 09 21 an unconditional `export 'gunzip_io.dart';`
+still built web cleanly, and `build/web/main.dart.js` contained zero occurrences
+of gunzip or ScryfallImporter.
+
+Importing is not the condition. **Reachability from `main.dart` is.** Nothing in
+`lib/` reaches `ScryfallImporter`: `main.dart` goes to `app.dart`, which at this
+point still only pulls in `ui/tokens`. The only file importing the importer is
+its own test, and tests are not part of the web compilation. So the whole thing
+is tree shaken away and the build says nothing either way.
+
+The debt moves to Task 13, which is the first task that wires the importer to a
+screen the app can actually open.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add lib/sources/import test/sources/scryfall_importer_test.dart
@@ -1633,6 +1847,12 @@ final catalogDbProvider = Provider<CatalogDb>((ref) {
 final menuStateProvider = FutureProvider<MenuState>((ref) async {
   final db = ref.watch(catalogDbProvider);
   final count = await db.cardCount();
+
+  // enabledSources is inferred rather than looked up, because nothing records
+  // which sources are on yet. A non empty catalog is today's evidence that
+  // Scryfall was imported, and that only holds while Scryfall is the one
+  // catalog source. The second one makes this line lie, and the Sources
+  // subtitle is what will show the lie first.
   return MenuState(cardCount: count, enabledSources: count > 0 ? 1 : 0);
 });
 ```
@@ -1669,6 +1889,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/features/menu/menu_controller.dart';
 import 'package:kitchentable/features/menu/menu_screen.dart';
+import 'package:kitchentable/ui/atoms/menu_row.dart';
 
 Widget _host(MenuState state) => ProviderScope(
       overrides: [
@@ -1697,6 +1918,55 @@ void main() {
 
     expect(find.text('36079 CARDS'), findsOneWidget);
     expect(find.text('host a table or join by code'), findsOneWidget);
+  });
+
+  // The two tests above only read text, and MenuState computes those strings
+  // whether or not the screen passes anything down. So they stay green even if
+  // the screen hands every row `enabled: true` and `autofocus: false`. The two
+  // below pin the wiring itself, which is where the product decision lives.
+
+  MenuRow rowFor(WidgetTester tester, String title) => tester.widget<MenuRow>(
+        find.ancestor(of: find.text(title), matching: find.byType(MenuRow)),
+      );
+
+  testWidgets('the menu hands each row its own enabled flag', (tester) async {
+    await tester.pumpWidget(_host(
+      const MenuState(cardCount: 0, enabledSources: 0),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(rowFor(tester, 'Play').enabled, isFalse);
+    expect(rowFor(tester, 'Decks').enabled, isFalse);
+    expect(rowFor(tester, 'Sources').enabled, isTrue);
+    expect(rowFor(tester, 'Settings').enabled, isTrue);
+  });
+
+  // One state per test, never two pumps in one. Swapping the override on a
+  // mounted ProviderScope looks like it should work and silently does not:
+  // ProviderElement.update is an empty method (riverpod 3.4.3 element.dart:610)
+  // and the only class overriding it is the one behind overrideWithValue. A
+  // builder override, which this provider needs because it returns a Future,
+  // goes through the empty one, so the element keeps serving the first result
+  // forever and pumpAndSettle has nothing to wait for.
+  testWidgets('focus starts on Sources when there is nothing else to do',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      const MenuState(cardCount: 0, enabledSources: 0),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(rowFor(tester, 'Sources').autofocus, isTrue);
+    expect(rowFor(tester, 'Play').autofocus, isFalse);
+  });
+
+  testWidgets('focus moves to Play once there are cards', (tester) async {
+    await tester.pumpWidget(_host(
+      const MenuState(cardCount: 36079, enabledSources: 1),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(rowFor(tester, 'Play').autofocus, isTrue);
+    expect(rowFor(tester, 'Sources').autofocus, isFalse);
   });
 }
 ```
@@ -1773,22 +2043,22 @@ class _Menu extends StatelessWidget {
             ),
           ]),
           style: TextStyle(
-            fontSize: m.sp(24),
+            fontSize: m.scaled(24),
             fontWeight: FontWeight.w700,
             letterSpacing: -0.6,
             color: Palette.ink,
           ),
         ),
-        SizedBox(height: m.sp(4)),
+        SizedBox(height: m.scaled(4)),
         Text(
           state.headline,
           style: TextStyle(
-            fontSize: m.sp(10),
+            fontSize: m.scaled(10),
             letterSpacing: 0.8,
             color: Palette.inkFaint,
           ),
         ),
-        SizedBox(height: m.sp(20)),
+        SizedBox(height: m.scaled(20)),
         for (final entry in state.entries)
           MenuRow(
             title: entry.title,
@@ -1860,7 +2130,7 @@ void main() {
 - [ ] **Step 5: Run it and watch it pass**
 
 Run: `flutter test test/features/menu_screen_test.dart`
-Expected: PASS, 2 tests.
+Expected: PASS, 5 tests.
 
 - [ ] **Step 6: Run everything**
 
@@ -1881,8 +2151,13 @@ git commit -m "The menu is the first thing you see and the only tutorial"
 
 ## Task 12: The sources screen
 
+Task 11 needed somewhere to navigate, so it left a fifteen line placeholder at
+`lib/features/sources/sources_screen.dart`: a Scaffold with an AppBar and the
+word Sources. **Replace that file wholesale.** Nothing in it is meant to
+survive, there is nothing to merge, and it has no tests of its own.
+
 **Files:**
-- Create: `lib/features/sources/sources_screen.dart`
+- Replace: `lib/features/sources/sources_screen.dart`
 - Test: `test/features/sources_screen_test.dart`
 
 - [ ] **Step 1: Write the failing test**
@@ -1973,21 +2248,21 @@ class SourcesScreen extends ConsumerWidget {
               Text(
                 'Sources',
                 style: TextStyle(
-                  fontSize: m.sp(20),
+                  fontSize: m.scaled(20),
                   fontWeight: FontWeight.w600,
                   color: Palette.ink,
                 ),
               ),
-              SizedBox(height: m.sp(4)),
+              SizedBox(height: m.scaled(4)),
               Text(
                 'NOTHING HAS LEFT THIS DEVICE YET',
                 style: TextStyle(
-                  fontSize: m.sp(10),
+                  fontSize: m.scaled(10),
                   letterSpacing: 0.8,
                   color: Palette.inkFaint,
                 ),
               ),
-              SizedBox(height: m.sp(18)),
+              SizedBox(height: m.scaled(18)),
               for (final source in knownSources)
                 MenuRow(
                   title: source.name,
@@ -2253,11 +2528,11 @@ class ProgressTrack extends StatelessWidget {
     return Opacity(
       opacity: dimmed ? 0.45 : 1,
       child: Container(
-        margin: EdgeInsets.only(bottom: m.sp(8)),
-        padding: EdgeInsets.all(m.sp(12)),
+        margin: EdgeInsets.only(bottom: m.scaled(8)),
+        padding: EdgeInsets.all(m.scaled(12)),
         decoration: BoxDecoration(
           color: Palette.surface,
-          borderRadius: BorderRadius.circular(m.sp(10)),
+          borderRadius: BorderRadius.circular(m.scaled(10)),
           border: Border.all(color: Palette.surfaceEdge),
         ),
         child: Column(
@@ -2265,22 +2540,22 @@ class ProgressTrack extends StatelessWidget {
           children: [
             Text(
               label,
-              style: TextStyle(fontSize: m.sp(12), color: Palette.ink),
+              style: TextStyle(fontSize: m.scaled(12), color: Palette.ink),
             ),
-            SizedBox(height: m.sp(7)),
+            SizedBox(height: m.scaled(7)),
             ClipRRect(
-              borderRadius: BorderRadius.circular(m.sp(4)),
+              borderRadius: BorderRadius.circular(m.scaled(4)),
               child: LinearProgressIndicator(
                 value: fraction,
-                minHeight: m.sp(5),
+                minHeight: m.scaled(5),
                 backgroundColor: Palette.feltEdge,
                 valueColor: const AlwaysStoppedAnimation(Palette.accent),
               ),
             ),
-            SizedBox(height: m.sp(5)),
+            SizedBox(height: m.scaled(5)),
             Text(
               trailing,
-              style: TextStyle(fontSize: m.sp(10), color: Palette.inkFaint),
+              style: TextStyle(fontSize: m.scaled(10), color: Palette.inkFaint),
             ),
           ],
         ),
@@ -2343,12 +2618,12 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               Text(
                 widget.source.name,
                 style: TextStyle(
-                  fontSize: m.sp(20),
+                  fontSize: m.scaled(20),
                   fontWeight: FontWeight.w600,
                   color: Palette.ink,
                 ),
               ),
-              SizedBox(height: m.sp(18)),
+              SizedBox(height: m.scaled(18)),
               ProgressTrack(
                 metrics: m,
                 label: 'Downloading',
@@ -2369,21 +2644,21 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               ),
               if (s.phase == ImportPhase.failed)
                 Padding(
-                  padding: EdgeInsets.only(top: m.sp(6)),
+                  padding: EdgeInsets.only(top: m.scaled(6)),
                   child: Text(
                     s.error ?? 'It did not work',
                     style: TextStyle(
-                      fontSize: m.sp(11),
+                      fontSize: m.scaled(11),
                       color: Palette.attention,
                     ),
                   ),
                 ),
               if (s.phase == ImportPhase.done)
                 Padding(
-                  padding: EdgeInsets.only(top: m.sp(6)),
+                  padding: EdgeInsets.only(top: m.scaled(6)),
                   child: Text(
                     'Done. ${s.indexed} cards.',
-                    style: TextStyle(fontSize: m.sp(12), color: Palette.ink),
+                    style: TextStyle(fontSize: m.scaled(12), color: Palette.ink),
                   ),
                 ),
               const Spacer(),
@@ -2427,7 +2702,46 @@ Expected: PASS, all tests.
 Run: `flutter analyze`
 Expected: `No issues found!`
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 9: Prove reachability, and stop expecting a build failure**
+
+This is the first task where `ScryfallImporter` is reachable from `main.dart`:
+import_screen pulls import_controller, which pulls the importer, and
+sources_screen opens import_screen, and the menu opens sources_screen, and
+app.dart opens the menu. Tasks 8 and 9 both tried to prove the gunzip export
+here and could not. Measured on 2026 09 21, here is why, so nobody tries again.
+
+**Use a `--profile` build for the grep, never `--release`.** A release build
+minifies identifiers, so every name greps to zero and a reachable class is
+indistinguishable from a deleted one. The control that settles it:
+
+```
+release   MenuRow 0    gunzip 0    ScryfallImporter 0
+profile   MenuRow 22   gunzip 2    ScryfallImporter 18
+```
+
+`MenuRow` is on the screen the app opens. Zero in release means the grep is
+measuring minification, not reach.
+
+So:
+
+```bash
+flutter build web --profile
+grep -c "MenuRow" build/web/main.dart.js          # control, must be > 0
+grep -c "gunzip" build/web/main.dart.js           # must be > 0
+grep -c "ScryfallImporter" build/web/main.dart.js # must be > 0
+```
+
+If the control is 0 your grep is broken, not the code. If the control is greater
+than 0 and gunzip is 0, the importer really is unreachable: stop and report.
+
+**Do not expect an unconditional `dart:io` export to fail the build.** It does
+not. Dart 3.13.4 compiles `dart:io` for dart2js via
+`_internal/js_runtime/lib/io_patch.dart` and patches the gzip filter to throw at
+run time. The conditional export earns its place by replacing that SDK level
+`UnsupportedError("_newZLibInflateFilter")` with a sentence a person can read,
+not by keeping the build alive.
+
+- [ ] **Step 10: Commit**
 
 ```bash
 git add lib test
@@ -2437,6 +2751,19 @@ git commit -m "Import the catalog, with a bar for each kind of waiting"
 ---
 
 ## Task 14: Prove it on a real device
+
+> **Not done.** Deferred on 2026 09 21 by the repo owner. The machine this was
+> built on has no Android SDK and no JDK, and 2.9 GB of disk left, which is not
+> enough to install them. It also has no phone attached, and the phone is the
+> whole point of this task.
+>
+> Everything above this line is implemented, tested and committed. Nothing below
+> has been run. Until somebody does, the central question of the import is
+> **unanswered**: nobody knows whether 24 MB of download and 36000 inserts
+> survive on real hardware without the system killing the app mid index. The
+> test suite cannot answer it, because no test touches the network or a real
+> device.
+
 
 The tests never touch the network. This is the step that finds out whether the
 import survives 24 MB and 36000 rows on hardware, which is the only question
