@@ -1471,7 +1471,7 @@ void main() {
     expect(await db.cardCount(), 3);
   });
 
-  test('it reports how many records it has written', () async {
+  test('it reports progress once per batch, not once at the end', () async {
     final importer = ScryfallImporter(db: db, batchSize: 2);
     final seen = <int>[];
 
@@ -1483,8 +1483,12 @@ void main() {
       onIndexed: seen.add,
     );
 
-    expect(seen.last, 3);
-    expect(seen, isNotEmpty);
+    // Three records at a batch size of two is one full flush then the
+    // remainder. Asserting the whole sequence rather than just the total is
+    // deliberate: `expect(seen.last, 3)` passes even when batching is removed
+    // entirely, so it would not protect the thing the batch exists for.
+    // Inserting 36000 rows one statement at a time takes minutes on a phone.
+    expect(seen, [2, 3]);
   });
 
   test('a record missing oracle_id is skipped rather than killing the import',
@@ -1660,22 +1664,22 @@ class ScryfallImporter {
 Run: `flutter test test/sources/scryfall_importer_test.dart`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Collect the debt Task 8 left**
+- [ ] **Step 5: Do not try to prove the gunzip export here**
 
-This file is the first thing in the app to import `gunzip.dart`, so it is the
-first moment the conditional export can be tested at all. Task 8 shipped
-unproven and said so.
+An earlier version of this plan put Task 8's deferred web probe in this task, on
+the grounds that this file is the first to import `gunzip.dart`. That was wrong
+and it was tried: on 2026 09 21 an unconditional `export 'gunzip_io.dart';`
+still built web cleanly, and `build/web/main.dart.js` contained zero occurrences
+of gunzip or ScryfallImporter.
 
-Run `flutter build web --release` and confirm it succeeds.
+Importing is not the condition. **Reachability from `main.dart` is.** Nothing in
+`lib/` reaches `ScryfallImporter`: `main.dart` goes to `app.dart`, which at this
+point still only pulls in `ui/tokens`. The only file importing the importer is
+its own test, and tests are not part of the web compilation. So the whole thing
+is tree shaken away and the build says nothing either way.
 
-Then change `lib/sources/import/gunzip.dart` to an unconditional
-`export 'gunzip_io.dart';` and run `flutter build web --release` again. It must
-now FAIL, complaining that `dart:io` is not available for this platform. Restore
-the conditional export and confirm the build succeeds again.
-
-If the web build still succeeds with the unconditional export now that something
-imports it, then the conditional export is not what keeps web working and
-nobody yet knows what is. Stop and report that.
+The debt moves to Task 13, which is the first task that wires the importer to a
+screen the app can actually open.
 
 - [ ] **Step 6: Commit**
 
@@ -2624,7 +2628,32 @@ Expected: PASS, all tests.
 Run: `flutter analyze`
 Expected: `No issues found!`
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 9: Collect the gunzip debt, at last**
+
+Task 8 created the conditional gunzip export and could not prove it. Task 9
+tried and could not either. This is the first task where `ScryfallImporter` is
+reachable from `main.dart`: import_screen pulls import_controller, which pulls
+the importer, and sources_screen opens import_screen, and the menu opens
+sources_screen, and app.dart opens the menu.
+
+First confirm the chain is real rather than assuming it:
+
+```bash
+grep -c "gunzip\|ScryfallImporter" build/web/main.dart.js
+```
+
+after a successful `flutter build web --release`. If that is still 0, the
+importer is STILL not reachable and the probe below cannot bite. Say so and stop.
+
+If it is greater than 0, run the probe. Change `lib/sources/import/gunzip.dart`
+to an unconditional `export 'gunzip_io.dart';` and run
+`flutter build web --release` again. It must now FAIL on `dart:io` not being
+available. Restore the conditional export and confirm the build succeeds.
+
+A passing web build is not evidence here unless the grep above proved the code
+was actually compiled in.
+
+- [ ] **Step 10: Commit**
 
 ```bash
 git add lib test
