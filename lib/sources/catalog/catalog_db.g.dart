@@ -873,7 +873,7 @@ class CardsCompanion extends UpdateCompanion<Card> {
   }
 }
 
-class $DecksTable extends Decks with TableInfo<$DecksTable, Deck> {
+class $DecksTable extends Decks with TableInfo<$DecksTable, DeckRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -925,7 +925,7 @@ class $DecksTable extends Decks with TableInfo<$DecksTable, Deck> {
   static const String $name = 'decks';
   @override
   VerificationContext validateIntegrity(
-    Insertable<Deck> instance, {
+    Insertable<DeckRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -965,9 +965,9 @@ class $DecksTable extends Decks with TableInfo<$DecksTable, Deck> {
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  Deck map(Map<String, dynamic> data, {String? tablePrefix}) {
+  DeckRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return Deck(
+    return DeckRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -993,12 +993,12 @@ class $DecksTable extends Decks with TableInfo<$DecksTable, Deck> {
   }
 }
 
-class Deck extends DataClass implements Insertable<Deck> {
+class DeckRow extends DataClass implements Insertable<DeckRow> {
   final String id;
   final String name;
   final String format;
   final DateTime updatedAt;
-  const Deck({
+  const DeckRow({
     required this.id,
     required this.name,
     required this.format,
@@ -1023,12 +1023,12 @@ class Deck extends DataClass implements Insertable<Deck> {
     );
   }
 
-  factory Deck.fromJson(
+  factory DeckRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Deck(
+    return DeckRow(
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       format: serializer.fromJson<String>(json['format']),
@@ -1046,19 +1046,19 @@ class Deck extends DataClass implements Insertable<Deck> {
     };
   }
 
-  Deck copyWith({
+  DeckRow copyWith({
     String? id,
     String? name,
     String? format,
     DateTime? updatedAt,
-  }) => Deck(
+  }) => DeckRow(
     id: id ?? this.id,
     name: name ?? this.name,
     format: format ?? this.format,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  Deck copyWithCompanion(DecksCompanion data) {
-    return Deck(
+  DeckRow copyWithCompanion(DecksCompanion data) {
+    return DeckRow(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       format: data.format.present ? data.format.value : this.format,
@@ -1068,7 +1068,7 @@ class Deck extends DataClass implements Insertable<Deck> {
 
   @override
   String toString() {
-    return (StringBuffer('Deck(')
+    return (StringBuffer('DeckRow(')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('format: $format, ')
@@ -1082,14 +1082,14 @@ class Deck extends DataClass implements Insertable<Deck> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Deck &&
+      (other is DeckRow &&
           other.id == this.id &&
           other.name == this.name &&
           other.format == this.format &&
           other.updatedAt == this.updatedAt);
 }
 
-class DecksCompanion extends UpdateCompanion<Deck> {
+class DecksCompanion extends UpdateCompanion<DeckRow> {
   final Value<String> id;
   final Value<String> name;
   final Value<String> format;
@@ -1112,7 +1112,7 @@ class DecksCompanion extends UpdateCompanion<Deck> {
        name = Value(name),
        format = Value(format),
        updatedAt = Value(updatedAt);
-  static Insertable<Deck> custom({
+  static Insertable<DeckRow> custom({
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? format,
@@ -1179,7 +1179,7 @@ class DecksCompanion extends UpdateCompanion<Deck> {
 }
 
 class $DeckCardsTable extends DeckCards
-    with TableInfo<$DeckCardsTable, DeckCard> {
+    with TableInfo<$DeckCardsTable, DeckCardRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -1260,7 +1260,7 @@ class $DeckCardsTable extends DeckCards
   static const String $name = 'deck_cards';
   @override
   VerificationContext validateIntegrity(
-    Insertable<DeckCard> instance, {
+    Insertable<DeckCardRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -1307,9 +1307,9 @@ class $DeckCardsTable extends DeckCards
   @override
   Set<GeneratedColumn> get $primaryKey => {deckId, oracleId, sideboard};
   @override
-  DeckCard map(Map<String, dynamic> data, {String? tablePrefix}) {
+  DeckCardRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return DeckCard(
+    return DeckCardRow(
       deckId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}deck_id'],
@@ -1339,13 +1339,13 @@ class $DeckCardsTable extends DeckCards
   }
 }
 
-class DeckCard extends DataClass implements Insertable<DeckCard> {
+class DeckCardRow extends DataClass implements Insertable<DeckCardRow> {
   final String deckId;
   final String oracleId;
   final int quantity;
   final bool sideboard;
   final bool commander;
-  const DeckCard({
+  const DeckCardRow({
     required this.deckId,
     required this.oracleId,
     required this.quantity,
@@ -1373,12 +1373,12 @@ class DeckCard extends DataClass implements Insertable<DeckCard> {
     );
   }
 
-  factory DeckCard.fromJson(
+  factory DeckCardRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return DeckCard(
+    return DeckCardRow(
       deckId: serializer.fromJson<String>(json['deckId']),
       oracleId: serializer.fromJson<String>(json['oracleId']),
       quantity: serializer.fromJson<int>(json['quantity']),
@@ -1398,21 +1398,21 @@ class DeckCard extends DataClass implements Insertable<DeckCard> {
     };
   }
 
-  DeckCard copyWith({
+  DeckCardRow copyWith({
     String? deckId,
     String? oracleId,
     int? quantity,
     bool? sideboard,
     bool? commander,
-  }) => DeckCard(
+  }) => DeckCardRow(
     deckId: deckId ?? this.deckId,
     oracleId: oracleId ?? this.oracleId,
     quantity: quantity ?? this.quantity,
     sideboard: sideboard ?? this.sideboard,
     commander: commander ?? this.commander,
   );
-  DeckCard copyWithCompanion(DeckCardsCompanion data) {
-    return DeckCard(
+  DeckCardRow copyWithCompanion(DeckCardsCompanion data) {
+    return DeckCardRow(
       deckId: data.deckId.present ? data.deckId.value : this.deckId,
       oracleId: data.oracleId.present ? data.oracleId.value : this.oracleId,
       quantity: data.quantity.present ? data.quantity.value : this.quantity,
@@ -1423,7 +1423,7 @@ class DeckCard extends DataClass implements Insertable<DeckCard> {
 
   @override
   String toString() {
-    return (StringBuffer('DeckCard(')
+    return (StringBuffer('DeckCardRow(')
           ..write('deckId: $deckId, ')
           ..write('oracleId: $oracleId, ')
           ..write('quantity: $quantity, ')
@@ -1439,7 +1439,7 @@ class DeckCard extends DataClass implements Insertable<DeckCard> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is DeckCard &&
+      (other is DeckCardRow &&
           other.deckId == this.deckId &&
           other.oracleId == this.oracleId &&
           other.quantity == this.quantity &&
@@ -1447,7 +1447,7 @@ class DeckCard extends DataClass implements Insertable<DeckCard> {
           other.commander == this.commander);
 }
 
-class DeckCardsCompanion extends UpdateCompanion<DeckCard> {
+class DeckCardsCompanion extends UpdateCompanion<DeckCardRow> {
   final Value<String> deckId;
   final Value<String> oracleId;
   final Value<int> quantity;
@@ -1472,7 +1472,7 @@ class DeckCardsCompanion extends UpdateCompanion<DeckCard> {
   }) : deckId = Value(deckId),
        oracleId = Value(oracleId),
        quantity = Value(quantity);
-  static Insertable<DeckCard> custom({
+  static Insertable<DeckCardRow> custom({
     Expression<String>? deckId,
     Expression<String>? oracleId,
     Expression<int>? quantity,
@@ -2056,14 +2056,14 @@ class $$DecksTableTableManager
         RootTableManager<
           _$CatalogDb,
           $DecksTable,
-          Deck,
+          DeckRow,
           $$DecksTableFilterComposer,
           $$DecksTableOrderingComposer,
           $$DecksTableAnnotationComposer,
           $$DecksTableCreateCompanionBuilder,
           $$DecksTableUpdateCompanionBuilder,
-          (Deck, BaseReferences<_$CatalogDb, $DecksTable, Deck>),
-          Deck,
+          (DeckRow, BaseReferences<_$CatalogDb, $DecksTable, DeckRow>),
+          DeckRow,
           PrefetchHooks Function()
         > {
   $$DecksTableTableManager(_$CatalogDb db, $DecksTable table)
@@ -2108,8 +2108,12 @@ class $$DecksTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable<$DecksTable, Deck>(table),
-                  BaseReferences<_$CatalogDb, $DecksTable, Deck>(db, table, e),
+                  e.readTable<$DecksTable, DeckRow>(table),
+                  BaseReferences<_$CatalogDb, $DecksTable, DeckRow>(
+                    db,
+                    table,
+                    e,
+                  ),
                 ),
               )
               .toList(),
@@ -2122,14 +2126,14 @@ typedef $$DecksTableProcessedTableManager =
     ProcessedTableManager<
       _$CatalogDb,
       $DecksTable,
-      Deck,
+      DeckRow,
       $$DecksTableFilterComposer,
       $$DecksTableOrderingComposer,
       $$DecksTableAnnotationComposer,
       $$DecksTableCreateCompanionBuilder,
       $$DecksTableUpdateCompanionBuilder,
-      (Deck, BaseReferences<_$CatalogDb, $DecksTable, Deck>),
-      Deck,
+      (DeckRow, BaseReferences<_$CatalogDb, $DecksTable, DeckRow>),
+      DeckRow,
       PrefetchHooks Function()
     >;
 typedef $$DeckCardsTableCreateCompanionBuilder = DeckCardsCompanion Function({
@@ -2249,14 +2253,17 @@ class $$DeckCardsTableTableManager
         RootTableManager<
           _$CatalogDb,
           $DeckCardsTable,
-          DeckCard,
+          DeckCardRow,
           $$DeckCardsTableFilterComposer,
           $$DeckCardsTableOrderingComposer,
           $$DeckCardsTableAnnotationComposer,
           $$DeckCardsTableCreateCompanionBuilder,
           $$DeckCardsTableUpdateCompanionBuilder,
-          (DeckCard, BaseReferences<_$CatalogDb, $DeckCardsTable, DeckCard>),
-          DeckCard,
+          (
+            DeckCardRow,
+            BaseReferences<_$CatalogDb, $DeckCardsTable, DeckCardRow>,
+          ),
+          DeckCardRow,
           PrefetchHooks Function()
         > {
   $$DeckCardsTableTableManager(_$CatalogDb db, $DeckCardsTable table)
@@ -2305,8 +2312,8 @@ class $$DeckCardsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable<$DeckCardsTable, DeckCard>(table),
-                  BaseReferences<_$CatalogDb, $DeckCardsTable, DeckCard>(
+                  e.readTable<$DeckCardsTable, DeckCardRow>(table),
+                  BaseReferences<_$CatalogDb, $DeckCardsTable, DeckCardRow>(
                     db,
                     table,
                     e,
@@ -2323,14 +2330,14 @@ typedef $$DeckCardsTableProcessedTableManager =
     ProcessedTableManager<
       _$CatalogDb,
       $DeckCardsTable,
-      DeckCard,
+      DeckCardRow,
       $$DeckCardsTableFilterComposer,
       $$DeckCardsTableOrderingComposer,
       $$DeckCardsTableAnnotationComposer,
       $$DeckCardsTableCreateCompanionBuilder,
       $$DeckCardsTableUpdateCompanionBuilder,
-      (DeckCard, BaseReferences<_$CatalogDb, $DeckCardsTable, DeckCard>),
-      DeckCard,
+      (DeckCardRow, BaseReferences<_$CatalogDb, $DeckCardsTable, DeckCardRow>),
+      DeckCardRow,
       PrefetchHooks Function()
     >;
 
