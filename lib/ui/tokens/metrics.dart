@@ -45,8 +45,15 @@ class Metrics {
 
   double scaled(double base) => base * scale;
 
-  /// The app is a phone interface wherever it runs. On a wide browser window or
-  /// a television, the content stays a column of this width in the middle
-  /// instead of stretching a menu row a metre wide.
-  double get contentWidth => 460 * scale;
+  /// How wide the content column may get, for a given amount of room.
+  ///
+  /// A fixed cap was the first attempt and it was the opposite mistake to the
+  /// one it fixed: rows no longer stretched a metre wide, they stayed a phone
+  /// strip no matter how much room there was. This grows with the window and
+  /// then stops, because a row of text stops being readable somewhere around
+  /// eighty characters whatever the screen does.
+  double contentWidthFor(double available) {
+    if (available < 640 * scale) return available;
+    return (available * 0.72).clamp(600 * scale, 860 * scale);
+  }
 }
