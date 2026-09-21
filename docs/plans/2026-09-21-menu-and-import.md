@@ -2752,6 +2752,19 @@ git commit -m "Import the catalog, with a bar for each kind of waiting"
 
 ## Task 14: Prove it on a real device
 
+> **Not done.** Deferred on 2026 09 21 by the repo owner. The machine this was
+> built on has no Android SDK and no JDK, and 2.9 GB of disk left, which is not
+> enough to install them. It also has no phone attached, and the phone is the
+> whole point of this task.
+>
+> Everything above this line is implemented, tested and committed. Nothing below
+> has been run. Until somebody does, the central question of the import is
+> **unanswered**: nobody knows whether 24 MB of download and 36000 inserts
+> survive on real hardware without the system killing the app mid index. The
+> test suite cannot answer it, because no test touches the network or a real
+> device.
+
+
 The tests never touch the network. This is the step that finds out whether the
 import survives 24 MB and 36000 rows on hardware, which is the only question
 that matters.
