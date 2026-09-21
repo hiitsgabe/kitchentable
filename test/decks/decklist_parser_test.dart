@@ -113,9 +113,12 @@ Sideboard (15)
   });
 
   test("Commander's Sphere is a card, not a section break", () {
-    final r = parseDecklist("1 Commander's Sphere\n1 Sol Ring");
-    expect(r.entries.map((e) => e.name), ["Commander's Sphere", 'Sol Ring']);
-    expect(r.entries.every((e) => !e.sideboard), isTrue);
+    // No quantity on purpose. With a quantity the line can never be mistaken
+    // for a header, so the version of this test that had one proved nothing.
+    final r = parseDecklist("Sideboard\nCommander's Sphere\n1 Pyroblast");
+    expect(r.entries.map((e) => e.name), ["Commander's Sphere", 'Pyroblast']);
+    expect(r.entries.every((e) => e.sideboard), isTrue,
+        reason: 'the Sphere must not have switched the section back to deck');
   });
 
   test('windows line endings do not glue themselves to the last name', () {
