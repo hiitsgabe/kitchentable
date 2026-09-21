@@ -1928,18 +1928,30 @@ void main() {
     expect(rowFor(tester, 'Settings').enabled, isTrue);
   });
 
-  testWidgets('focus starts where there is something to do', (tester) async {
+  // One state per test, never two pumps in one. Swapping the override on a
+  // mounted ProviderScope looks like it should work and silently does not:
+  // ProviderElement.update is an empty method (riverpod 3.4.3 element.dart:610)
+  // and the only class overriding it is the one behind overrideWithValue. A
+  // builder override, which this provider needs because it returns a Future,
+  // goes through the empty one, so the element keeps serving the first result
+  // forever and pumpAndSettle has nothing to wait for.
+  testWidgets('focus starts on Sources when there is nothing else to do',
+      (tester) async {
     await tester.pumpWidget(_host(
       const MenuState(cardCount: 0, enabledSources: 0),
     ));
     await tester.pumpAndSettle();
+
     expect(rowFor(tester, 'Sources').autofocus, isTrue);
     expect(rowFor(tester, 'Play').autofocus, isFalse);
+  });
 
+  testWidgets('focus moves to Play once there are cards', (tester) async {
     await tester.pumpWidget(_host(
       const MenuState(cardCount: 36079, enabledSources: 1),
     ));
     await tester.pumpAndSettle();
+
     expect(rowFor(tester, 'Play').autofocus, isTrue);
     expect(rowFor(tester, 'Sources').autofocus, isFalse);
   });
@@ -2105,7 +2117,7 @@ void main() {
 - [ ] **Step 5: Run it and watch it pass**
 
 Run: `flutter test test/features/menu_screen_test.dart`
-Expected: PASS, 4 tests.
+Expected: PASS, 5 tests.
 
 - [ ] **Step 6: Run everything**
 
