@@ -1,9 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../sources/model/catalog_card.dart';
 import '../tokens/metrics.dart';
 import '../tokens/palette.dart';
+import 'card_image.dart';
 
 /// A card, as a picture.
 ///
@@ -45,12 +45,11 @@ class CardArt extends StatelessWidget {
         height: height,
         child: url == null
             ? _Fallback(metrics: m, card: card)
-            : CachedNetworkImage(
-                imageUrl: url,
-                fit: BoxFit.cover,
-                fadeInDuration: const Duration(milliseconds: 160),
-                placeholder: (_, _) => const ColoredBox(color: Palette.tile),
-                errorWidget: (_, _, _) => _Fallback(metrics: m, card: card),
+            : CardImage(
+                url: url,
+                // The name, not a blank box. If the picture never arrives the
+                // name is what somebody wanted from it anyway.
+                fallback: _Fallback(metrics: m, card: card),
               ),
       ),
     );
