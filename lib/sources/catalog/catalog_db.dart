@@ -28,14 +28,49 @@ class Cards extends Table {
   Set<Column> get primaryKey => {oracleId};
 }
 
-@DriftDatabase(tables: [Cards])
+class Decks extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get format => text()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// A card in a deck. Three piles live here, told apart by two flags rather than
+/// three tables, because they are the same row with a different home.
+class DeckCards extends Table {
+  TextColumn get deckId => text()();
+  TextColumn get oracleId => text()();
+  IntColumn get quantity => integer()();
+  BoolColumn get sideboard => boolean().withDefault(const Constant(false))();
+  BoolColumn get commander => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {deckId, oracleId, sideboard};
+}
+
+@DriftDatabase(tables: [Cards, Decks, DeckCards])
 class CatalogDb extends _$CatalogDb {
   CatalogDb() : super(openCatalog());
 
   CatalogDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          // A catalog is 36000 rows that took minutes to fetch and index, so a
+          // schema bump adds tables and never drops one.
+          if (from < 2) {
+            await m.createTable(decks);
+            await m.createTable(deckCards);
+          }
+        },
+      );
 
   Future<int> cardCount() async {
     final count = countAll();
