@@ -299,26 +299,85 @@ git commit -m "Tell a television apart from a handheld"
 
 ## Task 3: The focusable row
 
-Every list in this app is made of these. It has to show focus hard enough to
-read across a room, and it has to refuse focus when it is disabled, otherwise
-the D-pad stops on dead entries.
+Every list in this app is made of these, so its contract is the app's contract.
+
+Two things about it are not obvious and both were got wrong the first time.
+
+**A tap is not a button press.** `MaterialApp` maps the select button and
+gameButtonA to `ActivateIntent` in `WidgetsApp.defaultShortcuts`
+(`app.dart:1268` and `1269`), but `WidgetsApp.defaultActions` contains no
+handler for `ActivateIntent` at all. The intent is dispatched and nothing
+catches it. A row built from `Focus` plus `GestureDetector` therefore takes
+focus, draws its border, and does absolutely nothing when you press the button.
+It looks correct and is inert. The row must handle `ActivateIntent` itself.
+
+**A dead row still takes focus on a D-pad, and that is right.** Flutter decides
+this for us in `FocusableActionDetector`:
+
+```dart
+bool get _canRequestFocus => switch (MediaQuery.maybeNavigationModeOf(context)) {
+  NavigationMode.traditional || null => widget.enabled,
+  NavigationMode.directional => true,
+};
+```
+
+Under directional navigation a disabled control stays reachable. That is the
+correct behaviour here and not merely something to tolerate: on the main menu
+the disabled `Play` row carries the subtitle `needs a source`, which is the
+sentence that teaches a new player what to do. Skipping it would hide the
+instruction from exactly the people who cannot tap.
+
+So the contract is: **a disabled row may be focused, and never activates.**
+Not by tap, and not by button.
 
 **Files:**
+- Modify: `lib/ui/tokens/palette.dart`
 - Create: `lib/ui/atoms/menu_row.dart`
 - Test: `test/ui/menu_row_test.dart`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Give the focus wash a name**
+
+In `lib/ui/tokens/palette.dart`, add this below `accent`:
+
+```dart
+  /// Fills a focused row. Dark enough to sit under the accent border without
+  /// competing with it.
+  static const focusWash = Color(0xFF101A2A);
+```
+
+- [ ] **Step 2: Write the failing test**
 
 Create `test/ui/menu_row_test.dart`:
 
 ```dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/ui/atoms/menu_row.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
-Widget _host(Widget child) => MaterialApp(
-      home: Scaffold(body: Column(children: [child])),
+Widget _host(Widget child, {NavigationMode? navigationMode}) {
+  final app = MaterialApp(home: Scaffold(body: Column(children: [child])));
+  if (navigationMode == null) return app;
+  return MediaQuery(
+    data: MediaQueryData(navigationMode: navigationMode),
+    child: app,
+  );
+}
+
+MenuRow _row({
+  String title = 'Sources',
+  bool enabled = true,
+  FocusNode? focusNode,
+  required VoidCallback onActivate,
+}) =>
+    MenuRow(
+      title: title,
+      subtitle: 'start here',
+      enabled: enabled,
+      focusNode: focusNode,
+      metrics: Metrics.of(DeviceClass.handheld),
+      onActivate: onActivate,
     );
 
 void main() {
@@ -326,50 +385,64 @@ void main() {
     final node = FocusNode();
     addTearDown(node.dispose);
 
-    await tester.pumpWidget(_host(MenuRow(
-      title: 'Sources',
-      subtitle: 'start here',
-      focusNode: node,
-      metrics: Metrics.of(DeviceClass.handheld),
-      onActivate: () {},
-    )));
-
+    await tester.pumpWidget(_host(_row(focusNode: node, onActivate: () {})));
     node.requestFocus();
     await tester.pump();
 
     expect(node.hasFocus, isTrue);
   });
 
-  testWidgets('a disabled row refuses focus so the D-pad skips it',
+  testWidgets('an enabled row fires when tapped', (tester) async {
+    var fired = 0;
+    await tester.pumpWidget(_host(_row(onActivate: () => fired++)));
+
+    await tester.tap(find.text('Sources'));
+    await tester.pump();
+
+    expect(fired, 1);
+  });
+
+  testWidgets('an enabled row fires when the select button is pressed',
       (tester) async {
+    var fired = 0;
     final node = FocusNode();
     addTearDown(node.dispose);
 
-    await tester.pumpWidget(_host(MenuRow(
-      title: 'Play',
-      subtitle: 'needs a source',
-      enabled: false,
-      focusNode: node,
-      metrics: Metrics.of(DeviceClass.handheld),
-      onActivate: () {},
-    )));
-
+    await tester.pumpWidget(
+      _host(_row(focusNode: node, onActivate: () => fired++)),
+    );
     node.requestFocus();
     await tester.pump();
 
-    expect(node.hasFocus, isFalse);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pump();
+
+    expect(fired, 1);
+  });
+
+  testWidgets('an enabled row fires when the gamepad A button is pressed',
+      (tester) async {
+    var fired = 0;
+    final node = FocusNode();
+    addTearDown(node.dispose);
+
+    await tester.pumpWidget(
+      _host(_row(focusNode: node, onActivate: () => fired++)),
+    );
+    node.requestFocus();
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.gameButtonA);
+    await tester.pump();
+
+    expect(fired, 1);
   });
 
   testWidgets('a disabled row does not fire when tapped', (tester) async {
     var fired = 0;
-
-    await tester.pumpWidget(_host(MenuRow(
-      title: 'Play',
-      subtitle: 'needs a source',
-      enabled: false,
-      metrics: Metrics.of(DeviceClass.handheld),
-      onActivate: () => fired++,
-    )));
+    await tester.pumpWidget(
+      _host(_row(title: 'Play', enabled: false, onActivate: () => fired++)),
+    );
 
     await tester.tap(find.text('Play'));
     await tester.pump();
@@ -377,30 +450,54 @@ void main() {
     expect(fired, 0);
   });
 
-  testWidgets('an enabled row fires when tapped', (tester) async {
-    var fired = 0;
+  testWidgets('a D-pad can reach a disabled row so its reason can be read',
+      (tester) async {
+    final node = FocusNode();
+    addTearDown(node.dispose);
 
-    await tester.pumpWidget(_host(MenuRow(
-      title: 'Sources',
-      subtitle: 'start here',
-      metrics: Metrics.of(DeviceClass.handheld),
-      onActivate: () => fired++,
-    )));
-
-    await tester.tap(find.text('Sources'));
+    await tester.pumpWidget(_host(
+      _row(title: 'Play', enabled: false, focusNode: node, onActivate: () {}),
+      navigationMode: NavigationMode.directional,
+    ));
+    node.requestFocus();
     await tester.pump();
 
-    expect(fired, 1);
+    expect(node.hasFocus, isTrue,
+        reason: 'the subtitle on a dead row is how a player learns what to do');
+  });
+
+  testWidgets('a disabled row does not fire when the select button is pressed',
+      (tester) async {
+    var fired = 0;
+    final node = FocusNode();
+    addTearDown(node.dispose);
+
+    await tester.pumpWidget(_host(
+      _row(
+        title: 'Play',
+        enabled: false,
+        focusNode: node,
+        onActivate: () => fired++,
+      ),
+      navigationMode: NavigationMode.directional,
+    ));
+    node.requestFocus();
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pump();
+
+    expect(fired, 0);
   });
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [ ] **Step 3: Run it and watch it fail**
 
 Run: `flutter test test/ui/menu_row_test.dart`
 Expected: FAIL, `Target of URI doesn't exist: 'package:kitchentable/ui/atoms/menu_row.dart'`
 
-- [ ] **Step 3: Write the implementation**
+- [ ] **Step 4: Write the implementation**
 
 Create `lib/ui/atoms/menu_row.dart`:
 
@@ -412,6 +509,16 @@ import '../tokens/metrics.dart';
 
 /// One line in a list. Focus has to be loud, because the same widget is read
 /// from thirty centimetres on a handheld and from three metres on a television.
+///
+/// It answers ActivateIntent as well as a tap, and that is not decoration.
+/// MaterialApp maps the select button and gameButtonA to ActivateIntent, but
+/// WidgetsApp.defaultActions has no handler for it, so without the action below
+/// the intent is dispatched and nothing catches it: the row would take focus,
+/// draw its border and do nothing when pressed.
+///
+/// A disabled row can still be focused under directional navigation, which is
+/// Flutter's choice and the right one. Its subtitle usually says why it is
+/// disabled, and that sentence is worth reaching. It just never activates.
 class MenuRow extends StatefulWidget {
   const MenuRow({
     super.key,
@@ -439,70 +546,89 @@ class MenuRow extends StatefulWidget {
 class _MenuRowState extends State<MenuRow> {
   bool _focused = false;
 
+  void _activate() {
+    if (widget.enabled) widget.onActivate();
+  }
+
   @override
   Widget build(BuildContext context) {
     final m = widget.metrics;
 
-    return Focus(
+    return FocusableActionDetector(
       focusNode: widget.focusNode,
       autofocus: widget.autofocus && widget.enabled,
-      canRequestFocus: widget.enabled,
+      enabled: widget.enabled,
       descendantsAreFocusable: widget.enabled,
       onFocusChange: (v) => setState(() => _focused = v),
-      child: GestureDetector(
-        onTap: widget.enabled ? widget.onActivate : null,
-        behavior: HitTestBehavior.opaque,
-        child: Opacity(
-          opacity: widget.enabled ? 1 : 0.42,
-          child: Container(
-            margin: EdgeInsets.only(bottom: m.scaled(5)),
-            padding: EdgeInsets.symmetric(
-              horizontal: m.scaled(12),
-              vertical: m.scaled(11),
-            ),
-            decoration: BoxDecoration(
-              color: _focused ? const Color(0xFF101A2A) : Colors.transparent,
-              borderRadius: BorderRadius.circular(m.scaled(10)),
-              border: Border.all(
-                color: _focused ? Palette.accent : Colors.transparent,
-                width: m.focusRing,
+      actions: <Type, Action<Intent>>{
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            _activate();
+            return null;
+          },
+        ),
+      },
+      child: Semantics(
+        button: true,
+        enabled: widget.enabled,
+        label: widget.subtitle == null
+            ? widget.title
+            : '${widget.title}. ${widget.subtitle}',
+        child: GestureDetector(
+          onTap: widget.enabled ? _activate : null,
+          behavior: HitTestBehavior.opaque,
+          child: Opacity(
+            opacity: widget.enabled ? 1 : 0.42,
+            child: Container(
+              margin: EdgeInsets.only(bottom: m.scaled(5)),
+              padding: EdgeInsets.symmetric(
+                horizontal: m.scaled(12),
+                vertical: m.scaled(11),
               ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.title,
-                        style: TextStyle(
-                          fontSize: m.scaled(15),
-                          color: _focused ? Colors.white : Palette.ink,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (widget.subtitle != null) ...[
-                        SizedBox(height: m.scaled(2)),
+              decoration: BoxDecoration(
+                color: _focused ? Palette.focusWash : Colors.transparent,
+                borderRadius: BorderRadius.circular(m.scaled(10)),
+                border: Border.all(
+                  color: _focused ? Palette.accent : Colors.transparent,
+                  width: m.focusRing,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          widget.subtitle!,
+                          widget.title,
                           style: TextStyle(
-                            fontSize: m.scaled(11),
-                            color: Palette.inkFaint,
+                            fontSize: m.scaled(15),
+                            color: _focused ? Colors.white : Palette.ink,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
+                        if (widget.subtitle != null) ...[
+                          SizedBox(height: m.scaled(2)),
+                          Text(
+                            widget.subtitle!,
+                            style: TextStyle(
+                              fontSize: m.scaled(11),
+                              color: Palette.inkFaint,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                Text(
-                  '›',
-                  style: TextStyle(
-                    fontSize: m.scaled(16),
-                    color: _focused ? Palette.accent : Palette.inkFaint,
+                  Text(
+                    '›',
+                    style: TextStyle(
+                      fontSize: m.scaled(16),
+                      color: _focused ? Palette.accent : Palette.inkFaint,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -512,18 +638,32 @@ class _MenuRowState extends State<MenuRow> {
 }
 ```
 
-- [ ] **Step 4: Run it and watch it pass**
+- [ ] **Step 5: Run it and watch it pass**
 
 Run: `flutter test test/ui/menu_row_test.dart`
-Expected: PASS, 4 tests.
+Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Prove the button tests bite**
+
+A green suite is not evidence on its own. Delete the whole `actions:` block from
+`FocusableActionDetector`, run the test file again, and confirm that exactly the
+two button tests fail:
+
+- `an enabled row fires when the select button is pressed`
+- `an enabled row fires when the gamepad A button is pressed`
+
+and that the tap tests stay green. Then restore the block and confirm 7 pass
+again and `git status --short` shows only intended changes.
+
+If the button tests stay green without the action, the test is not reaching the
+shortcut layer and the bug is still live. Report that rather than committing.
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add lib/ui/atoms/menu_row.dart test/ui/menu_row_test.dart
-git commit -m "A row that shows focus and refuses it when dead"
+git add lib/ui/tokens/palette.dart lib/ui/atoms/menu_row.dart test/ui/menu_row_test.dart
+git commit -m "A row you can reach with a thumb or a D-pad"
 ```
-
 ---
 
 ## Task 4: The hint bar
