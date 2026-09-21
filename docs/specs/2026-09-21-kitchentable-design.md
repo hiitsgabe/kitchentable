@@ -237,6 +237,67 @@ One honest degradation: in StackedSeats a band can be too short to show a free
 arrangement legibly. Below a height threshold the band renders grouped
 regardless. The arrangement is preserved in the data, it is just not drawn.
 
+## Importing card data
+
+Sizes measured on 2026 09 21.
+
+```
+MTGJSON AllPrintings     636.0 MB   the obvious path
+Scryfall oracle_cards     23.6 MB   one entry per unique card
+MTGJSON per set            ~1.0 MB   FDN 1.1, FIN 1.3, DSK 0.9, BLB 0.8
+card image, normal          76 KB   on demand
+```
+
+The obvious path is to pull AllPrintings and it does not fit on a phone.
+Nobody needs it.
+
+Playing and building decks needs name, mana cost, type line, oracle text, power,
+toughness, colors and legalities. Scryfall's `oracle_cards` carries all of that
+for 36079 cards in 23.6 MB. The one thing AllPrintings adds is booster
+structure, and MTGJSON publishes that per set at about 1 MB, so draft downloads
+one set when the player picks that set to draft.
+
+Images are never fetched in bulk. A whole Commander deck is 100 times 76 KB,
+about 7.6 MB, and only for cards the player actually chose.
+
+The whole import is therefore about 25 MB, which is the difference between
+possible and not possible on a phone.
+
+### The import screens
+
+There is no welcome screen. The menu draws itself from real state: with no
+source, Play and Decks are dimmed and focus starts on Sources. With a catalog,
+Play lights up, focus moves to it, and the subtitle becomes the real card
+count. The menu is the tutorial.
+
+Download shows two bars, not one. Fetching depends on the network and indexing
+depends on the device. They are different waits and a single bar for both is
+the one that sticks at 99%.
+
+Every source row states its size and states that it will download, before the
+player touches it.
+
+## Input: touch and D-pad, on two device classes
+
+The app is driven by touch and by a D-pad, and it targets both Android
+handhelds with physical controls and Android TV.
+
+This is a design system requirement, not a navigation feature bolted on later.
+
+- Every atom is born with a visible focus state. Not a hairline, something you
+  can see across a room.
+- Traversal order is declared explicitly rather than inferred from layout.
+- A hint bar shows the current button legend, the way handheld interfaces do.
+
+On the table this stops being free. The D-pad has to walk card by card inside a
+zone and jump between zones on a separate button. That is a real interaction
+design problem and it is owed a solution before the table is built, not after.
+
+Two device classes means a type scale that responds to the class. TV sits far
+from the eye and needs larger type, overscan margins and bigger targets.
+Handhelds sit close and use normal metrics. One scale factor resolved at
+startup, applied through tokens, so no widget hardcodes a size.
+
 ## Code structure
 
 Flutter 3.47.5, Dart 3.13.4. Riverpod. Targets are Android, iOS and web. Web is
