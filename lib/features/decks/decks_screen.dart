@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/deck.dart';
+import '../../decks/model/game.dart';
 import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -11,7 +12,9 @@ import 'deck_screen.dart';
 import 'new_deck_screen.dart';
 
 class DecksScreen extends ConsumerWidget {
-  const DecksScreen({super.key});
+  const DecksScreen({super.key, required this.game});
+
+  final Game game;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,11 +23,14 @@ class DecksScreen extends ConsumerWidget {
       size: media.size,
       hasTouch: media.navigationMode == NavigationMode.traditional,
     ));
-    final decks = ref.watch(decksProvider);
+    final all = ref.watch(decksProvider);
+    final decks = all.whenData(
+      (list) => list.where((d) => d.game == game).toList(),
+    );
 
     return ScreenFrame(
       metrics: m,
-      title: 'Decks',
+      title: '${game.label} decks',
       label: switch (decks) {
         AsyncData(:final value) when value.isEmpty => 'none yet',
         AsyncData(:final value) => '${value.length} saved',
@@ -46,7 +52,7 @@ class DecksScreen extends ConsumerWidget {
           autofocus: true,
           onActivate: () async {
             await Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const NewDeckScreen()),
+              MaterialPageRoute<void>(builder: (_) => NewDeckScreen(game: game)),
             );
           },
         ),

@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../sources/catalog/catalog_db.dart';
 import 'model/deck.dart';
 import 'model/deck_format.dart';
+import 'model/game.dart';
 
 /// Reads and writes decks. The catalog and the decks share one database file,
 /// because a deck is mostly a list of oracle ids pointing into the catalog and
@@ -30,6 +31,7 @@ class DeckRepository {
               id: r.id,
               name: r.name,
               format: _formatFrom(r.format),
+              game: _gameFrom(r.game),
               slots: const [],
             ))
         .toList();
@@ -67,6 +69,7 @@ class DeckRepository {
       id: row.id,
       name: row.name,
       format: _formatFrom(row.format),
+      game: _gameFrom(row.game),
       slots: slots,
     );
   }
@@ -78,6 +81,7 @@ class DeckRepository {
               id: deck.id,
               name: deck.name,
               format: deck.format.name,
+              game: Value(deck.game.name),
               updatedAt: DateTime.now(),
             ),
           );
@@ -108,6 +112,11 @@ class DeckRepository {
       await (db.delete(db.decks)..where((d) => d.id.equals(id))).go();
     });
   }
+
+  static Game _gameFrom(String stored) => Game.values.firstWhere(
+        (g) => g.name == stored,
+        orElse: () => Game.magic,
+      );
 
   static DeckFormat _formatFrom(String stored) => DeckFormat.values.firstWhere(
         (f) => f.name == stored,

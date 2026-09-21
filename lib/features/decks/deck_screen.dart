@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/deck.dart';
+import '../../ui/atoms/card_art.dart';
 import '../../ui/atoms/count_pill.dart';
 import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
@@ -163,11 +164,13 @@ class _SlotRow extends ConsumerWidget {
     final editor = ref.read(deckEditorProvider.notifier);
 
     return Padding(
-      padding: EdgeInsets.only(bottom: m.scaled(6)),
+      padding: EdgeInsets.only(bottom: m.scaled(8)),
       child: Row(
         children: [
+          CardArt(metrics: m, card: slot.card, width: m.scaled(34)),
+          SizedBox(width: m.scaled(10)),
           SizedBox(
-            width: m.scaled(34),
+            width: m.scaled(26),
             child: Text(
               '${slot.quantity}',
               style: TextStyle(

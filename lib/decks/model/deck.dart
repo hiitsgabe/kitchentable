@@ -1,6 +1,7 @@
 import '../../sources/model/catalog_card.dart';
 import 'copy_limit.dart';
 import 'deck_format.dart';
+import 'game.dart';
 
 /// A card in a deck, with the catalog entry already resolved.
 class DeckSlot {
@@ -29,12 +30,14 @@ class Deck {
     required this.id,
     required this.name,
     required this.format,
+    this.game = Game.magic,
     this.slots = const [],
   });
 
   final String id;
   final String name;
   final DeckFormat format;
+  final Game game;
   final List<DeckSlot> slots;
 
   Iterable<DeckSlot> get main =>
@@ -65,6 +68,7 @@ class Deck {
         id: id,
         name: name ?? this.name,
         format: format,
+        game: game,
         slots: slots ?? this.slots,
       );
 }

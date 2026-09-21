@@ -1,42 +1,40 @@
 import 'package:flutter/material.dart';
 
-/// A kitchen table at night: dark wood, worn felt, brass.
+/// Black and pink, and the ground is deliberately almost nothing.
 ///
-/// The first palette was a near black ground with the blue every Flutter app
-/// ships with, which is the look of an app that has not chosen anything. This
-/// one is warm all the way down, so card art, the only thing here allowed to be
-/// loud, sits on something instead of floating on a void.
+/// Two earlier attempts failed for the same reason: they had an opinion. The
+/// blue one looked like every Flutter app, the brown one looked like Forge.
+/// Card art is already as loud as a screen gets, five colours of it, so the
+/// chrome gets out of the way and the pink does the pointing.
+///
+/// The ground here is only the fallback. What is actually behind the app is
+/// whatever the player picked in settings, see [Backdrop].
 abstract final class Palette {
-  /// The table itself. Warm, not neutral: there is no grey anywhere in here.
-  static const felt = Color(0xFF15120D);
-  static const feltEdge = Color(0xFF0D0B08);
+  static const felt = Color(0xFF07060A);
+  static const feltEdge = Color(0xFF030205);
 
-  /// Anything raised off the table: a card back, a progress panel.
-  static const surface = Color(0xFF1E1A13);
-  static const surfaceEdge = Color(0xFF2E2819);
+  /// Anything raised off the ground. Translucent in practice, so a backdrop
+  /// effect shows through instead of being covered up.
+  static const surface = Color(0xFF14121A);
+  static const surfaceEdge = Color(0xFF241F2E);
 
-  /// Paper rather than white. Pure white on a warm ground reads as a hole.
-  static const ink = Color(0xFFF2EADC);
-  static const inkMuted = Color(0xFFA89C86);
-  static const inkFaint = Color(0xFF8A8069);
+  static const ink = Color(0xFFF4F1F6);
+  static const inkMuted = Color(0xFFA29AAE);
+  static const inkFaint = Color(0xFF7A7186);
 
-  /// Brass. Focus, selection, whatever is under your thumb right now.
-  static const accent = Color(0xFFD2A63C);
+  /// Focus, selection, whatever is under your thumb right now.
+  static const accent = Color(0xFFFF2E88);
 
-  /// Fills a focused row, a hint of the brass bleeding into the wood.
-  static const focusWash = Color(0xFF2A2113);
+  /// Fills a focused row, the pink bled almost all the way out.
+  static const focusWash = Color(0xFF26091A);
 
-  /// Reserved for the thing the player must not miss: a legal target once a
-  /// referee is plugged in, a pack waiting to be picked, a trigger on the
-  /// stack. Deliberately not brass, so it never competes with focus.
-  static const attention = Color(0xFFE2703F);
+  /// Reserved for the thing the player must not miss. Deliberately not pink,
+  /// so it never competes with focus.
+  static const attention = Color(0xFFFFB03A);
 
-  /// The little rounded square at the head of a row. Present on every list in
-  /// the app, so a row never starts with naked text.
-  static const tile = Color(0xFF231E15);
-  static const tileEdge = Color(0xFF342D1F);
-  static const tileFocused = Color(0xFF3B2E13);
+  static const tile = Color(0xFF191521);
+  static const tileEdge = Color(0xFF2B2438);
+  static const tileFocused = Color(0xFF341021);
 
-  /// Hairline under a header and above the hint bar.
-  static const rule = Color(0xFF282216);
+  static const rule = Color(0xFF221D2C);
 }

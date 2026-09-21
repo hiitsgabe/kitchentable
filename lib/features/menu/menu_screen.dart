@@ -6,7 +6,8 @@ import '../../ui/atoms/menu_row.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
-import '../decks/decks_screen.dart';
+import '../decks/games_screen.dart';
+import '../settings/settings_screen.dart';
 import '../sources/sources_screen.dart';
 import 'menu_controller.dart';
 
@@ -85,7 +86,8 @@ class _Menu extends StatelessWidget {
   void _open(BuildContext context, MenuEntryId id) {
     final screen = switch (id) {
       MenuEntryId.sources => const SourcesScreen(),
-      MenuEntryId.decks => const DecksScreen(),
+      MenuEntryId.decks => const GamesScreen(),
+      MenuEntryId.settings => const SettingsScreen(),
       _ => null,
     };
     if (screen == null) return;

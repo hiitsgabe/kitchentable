@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/decks/deck_repository.dart';
 import 'package:kitchentable/decks/model/deck.dart';
 import 'package:kitchentable/decks/model/deck_format.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/sources/catalog/catalog_db.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 
@@ -101,6 +102,45 @@ void main() {
     expect(all.first.name, 'pauper thing');
     expect(all.first.slots, isEmpty, reason: 'the list screen shows no cards');
     expect(all.length, 2);
+  });
+
+  test('a deck remembers which game it is', () async {
+    await repo.save(const Deck(
+      id: 'p1',
+      name: 'pikachu pile',
+      format: DeckFormat.pokemonStandard,
+      game: Game.pokemon,
+    ));
+
+    final loaded = await repo.load('p1');
+    expect(loaded!.game, Game.pokemon);
+    expect(loaded.format, DeckFormat.pokemonStandard);
+  });
+
+  test('a deck saved before games existed reads back as Magic', () async {
+    // The column arrived in schema 3 with a default, so every row that
+    // predates it is a Magic deck, which is what those rows actually were.
+    await db.customStatement(
+      "INSERT INTO decks (id, name, format, updated_at) "
+      "VALUES ('old', 'from before', 'commander', 0)",
+    );
+
+    final loaded = await repo.load('old');
+    expect(loaded!.game, Game.magic);
+  });
+
+  test('the two games do not see each other in the list', () async {
+    await repo.save(deck());
+    await repo.save(const Deck(
+      id: 'p1',
+      name: 'pikachu pile',
+      format: DeckFormat.pokemonStandard,
+      game: Game.pokemon,
+    ));
+
+    final all = await repo.list();
+    expect(all.where((d) => d.game == Game.magic).length, 1);
+    expect(all.where((d) => d.game == Game.pokemon).length, 1);
   });
 
   test('deleting a deck takes its cards with it', () async {

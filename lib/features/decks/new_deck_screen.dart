@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/deck.dart';
 import '../../decks/model/deck_format.dart';
+import '../../decks/model/game.dart';
 import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -15,7 +16,9 @@ import 'deck_screen.dart';
 /// through would need every card rechecked, and nobody actually wants that: it
 /// is a new deck.
 class NewDeckScreen extends ConsumerWidget {
-  const NewDeckScreen({super.key});
+  const NewDeckScreen({super.key, required this.game});
+
+  final Game game;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,7 +30,7 @@ class NewDeckScreen extends ConsumerWidget {
 
     return ScreenFrame(
       metrics: m,
-      title: 'New deck',
+      title: 'New ${game.label} deck',
       label: 'the format decides the rules',
       onBack: () => Navigator.of(context).maybePop(),
       hints: const [
@@ -36,13 +39,13 @@ class NewDeckScreen extends ConsumerWidget {
         Hint(button: 'B', label: 'back'),
       ],
       children: [
-        for (final format in DeckFormat.values)
+        for (final format in game.formats)
           MenuRow(
             title: format.label,
             subtitle: _describe(format),
             icon: _iconFor(format),
             metrics: m,
-            autofocus: format == DeckFormat.commander,
+            autofocus: format == game.formats.first,
             onActivate: () => _create(context, ref, format),
           ),
       ],
@@ -50,6 +53,7 @@ class NewDeckScreen extends ConsumerWidget {
   }
 
   static String _describe(DeckFormat f) => switch (f) {
+        DeckFormat.pokemonStandard => '60 cards, four of each, six prizes',
         DeckFormat.commander =>
           '100 cards, one of each, a commander, 40 life',
         DeckFormat.standard => '60 cards, four of each, 15 sideboard',
@@ -58,6 +62,7 @@ class NewDeckScreen extends ConsumerWidget {
       };
 
   static IconData _iconFor(DeckFormat f) => switch (f) {
+        DeckFormat.pokemonStandard => Icons.catching_pokemon_rounded,
         DeckFormat.commander => Icons.groups_rounded,
         DeckFormat.standard => Icons.shield_rounded,
         DeckFormat.pauper => Icons.savings_rounded,
@@ -73,7 +78,12 @@ class NewDeckScreen extends ConsumerWidget {
     if (repo == null) return;
 
     final id = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
-    final deck = Deck(id: id, name: 'Untitled ${format.label}', format: format);
+    final deck = Deck(
+      id: id,
+      name: 'Untitled ${format.label}',
+      format: format,
+      game: game,
+    );
 
     await repo.save(deck);
     ref.invalidate(decksProvider);
