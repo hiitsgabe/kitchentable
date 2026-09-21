@@ -201,6 +201,20 @@ void main() {
     );
   });
 
+  test('the threshold itself counts as a television', () {
+    expect(
+      classifyDevice(size: const Size(960, 540), hasTouch: false),
+      DeviceClass.tv,
+    );
+  });
+
+  test('one pixel under the threshold is still a handheld', () {
+    expect(
+      classifyDevice(size: const Size(959, 540), hasTouch: false),
+      DeviceClass.handheld,
+    );
+  });
+
   test('television metrics are bigger than handheld metrics', () {
     expect(Metrics.of(DeviceClass.tv).scale,
         greaterThan(Metrics.of(DeviceClass.handheld).scale));
@@ -226,6 +240,10 @@ enum DeviceClass { handheld, tv }
 
 /// A television is the only thing we expect to be large and untouchable at the
 /// same time. Anything you can touch is being held, however big it is.
+///
+/// Width rather than shortestSide on purpose: touch already wins for anything
+/// held, so width is only ever consulted for a D-pad session, where somebody
+/// rotating the screen is not a case worth carrying.
 DeviceClass classifyDevice({required Size size, required bool hasTouch}) {
   if (hasTouch) return DeviceClass.handheld;
   return size.width >= 960 ? DeviceClass.tv : DeviceClass.handheld;
@@ -239,6 +257,11 @@ class Metrics {
   });
 
   /// Multiplies every font size and every gap. Nothing hardcodes a size.
+  ///
+  /// This is not Android's sp and has nothing to do with the reader's font size
+  /// preference. It is one constant per device class. If accessibility text
+  /// scaling is ever honoured it has to come from MediaQuery on top of this,
+  /// not instead of it.
   final double scale;
 
   /// Overscan. Televisions eat their own edges.
@@ -256,14 +279,14 @@ class Metrics {
         DeviceClass.tv => _tv,
       };
 
-  double sp(double base) => base * scale;
+  double scaled(double base) => base * scale;
 }
 ```
 
 - [ ] **Step 4: Run it and watch it pass**
 
 Run: `flutter test test/ui/metrics_test.dart`
-Expected: PASS, 4 tests.
+Expected: PASS, 6 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -432,14 +455,14 @@ class _MenuRowState extends State<MenuRow> {
         child: Opacity(
           opacity: widget.enabled ? 1 : 0.42,
           child: Container(
-            margin: EdgeInsets.only(bottom: m.sp(5)),
+            margin: EdgeInsets.only(bottom: m.scaled(5)),
             padding: EdgeInsets.symmetric(
-              horizontal: m.sp(12),
-              vertical: m.sp(11),
+              horizontal: m.scaled(12),
+              vertical: m.scaled(11),
             ),
             decoration: BoxDecoration(
               color: _focused ? const Color(0xFF101A2A) : Colors.transparent,
-              borderRadius: BorderRadius.circular(m.sp(10)),
+              borderRadius: BorderRadius.circular(m.scaled(10)),
               border: Border.all(
                 color: _focused ? Palette.accent : Colors.transparent,
                 width: m.focusRing,
@@ -454,17 +477,17 @@ class _MenuRowState extends State<MenuRow> {
                       Text(
                         widget.title,
                         style: TextStyle(
-                          fontSize: m.sp(15),
+                          fontSize: m.scaled(15),
                           color: _focused ? Colors.white : Palette.ink,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       if (widget.subtitle != null) ...[
-                        SizedBox(height: m.sp(2)),
+                        SizedBox(height: m.scaled(2)),
                         Text(
                           widget.subtitle!,
                           style: TextStyle(
-                            fontSize: m.sp(11),
+                            fontSize: m.scaled(11),
                             color: Palette.inkFaint,
                           ),
                         ),
@@ -475,7 +498,7 @@ class _MenuRowState extends State<MenuRow> {
                 Text(
                   '›',
                   style: TextStyle(
-                    fontSize: m.sp(16),
+                    fontSize: m.scaled(16),
                     color: _focused ? Palette.accent : Palette.inkFaint,
                   ),
                 ),
@@ -576,7 +599,7 @@ class HintBar extends StatelessWidget {
     final m = metrics;
 
     return Container(
-      padding: EdgeInsets.only(top: m.sp(8)),
+      padding: EdgeInsets.only(top: m.scaled(8)),
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: Palette.surfaceEdge)),
       ),
@@ -585,25 +608,25 @@ class HintBar extends StatelessWidget {
           for (final hint in hints) ...[
             Container(
               padding: EdgeInsets.symmetric(
-                horizontal: m.sp(6),
-                vertical: m.sp(2),
+                horizontal: m.scaled(6),
+                vertical: m.scaled(2),
               ),
               decoration: BoxDecoration(
                 color: Palette.surface,
-                borderRadius: BorderRadius.circular(m.sp(4)),
+                borderRadius: BorderRadius.circular(m.scaled(4)),
                 border: Border.all(color: Palette.surfaceEdge),
               ),
               child: Text(
                 hint.button,
-                style: TextStyle(fontSize: m.sp(10), color: Palette.inkMuted),
+                style: TextStyle(fontSize: m.scaled(10), color: Palette.inkMuted),
               ),
             ),
-            SizedBox(width: m.sp(5)),
+            SizedBox(width: m.scaled(5)),
             Text(
               hint.label,
-              style: TextStyle(fontSize: m.sp(10), color: Palette.inkFaint),
+              style: TextStyle(fontSize: m.scaled(10), color: Palette.inkFaint),
             ),
-            SizedBox(width: m.sp(14)),
+            SizedBox(width: m.scaled(14)),
           ],
         ],
       ),
@@ -1773,22 +1796,22 @@ class _Menu extends StatelessWidget {
             ),
           ]),
           style: TextStyle(
-            fontSize: m.sp(24),
+            fontSize: m.scaled(24),
             fontWeight: FontWeight.w700,
             letterSpacing: -0.6,
             color: Palette.ink,
           ),
         ),
-        SizedBox(height: m.sp(4)),
+        SizedBox(height: m.scaled(4)),
         Text(
           state.headline,
           style: TextStyle(
-            fontSize: m.sp(10),
+            fontSize: m.scaled(10),
             letterSpacing: 0.8,
             color: Palette.inkFaint,
           ),
         ),
-        SizedBox(height: m.sp(20)),
+        SizedBox(height: m.scaled(20)),
         for (final entry in state.entries)
           MenuRow(
             title: entry.title,
@@ -1973,21 +1996,21 @@ class SourcesScreen extends ConsumerWidget {
               Text(
                 'Sources',
                 style: TextStyle(
-                  fontSize: m.sp(20),
+                  fontSize: m.scaled(20),
                   fontWeight: FontWeight.w600,
                   color: Palette.ink,
                 ),
               ),
-              SizedBox(height: m.sp(4)),
+              SizedBox(height: m.scaled(4)),
               Text(
                 'NOTHING HAS LEFT THIS DEVICE YET',
                 style: TextStyle(
-                  fontSize: m.sp(10),
+                  fontSize: m.scaled(10),
                   letterSpacing: 0.8,
                   color: Palette.inkFaint,
                 ),
               ),
-              SizedBox(height: m.sp(18)),
+              SizedBox(height: m.scaled(18)),
               for (final source in knownSources)
                 MenuRow(
                   title: source.name,
@@ -2253,11 +2276,11 @@ class ProgressTrack extends StatelessWidget {
     return Opacity(
       opacity: dimmed ? 0.45 : 1,
       child: Container(
-        margin: EdgeInsets.only(bottom: m.sp(8)),
-        padding: EdgeInsets.all(m.sp(12)),
+        margin: EdgeInsets.only(bottom: m.scaled(8)),
+        padding: EdgeInsets.all(m.scaled(12)),
         decoration: BoxDecoration(
           color: Palette.surface,
-          borderRadius: BorderRadius.circular(m.sp(10)),
+          borderRadius: BorderRadius.circular(m.scaled(10)),
           border: Border.all(color: Palette.surfaceEdge),
         ),
         child: Column(
@@ -2265,22 +2288,22 @@ class ProgressTrack extends StatelessWidget {
           children: [
             Text(
               label,
-              style: TextStyle(fontSize: m.sp(12), color: Palette.ink),
+              style: TextStyle(fontSize: m.scaled(12), color: Palette.ink),
             ),
-            SizedBox(height: m.sp(7)),
+            SizedBox(height: m.scaled(7)),
             ClipRRect(
-              borderRadius: BorderRadius.circular(m.sp(4)),
+              borderRadius: BorderRadius.circular(m.scaled(4)),
               child: LinearProgressIndicator(
                 value: fraction,
-                minHeight: m.sp(5),
+                minHeight: m.scaled(5),
                 backgroundColor: Palette.feltEdge,
                 valueColor: const AlwaysStoppedAnimation(Palette.accent),
               ),
             ),
-            SizedBox(height: m.sp(5)),
+            SizedBox(height: m.scaled(5)),
             Text(
               trailing,
-              style: TextStyle(fontSize: m.sp(10), color: Palette.inkFaint),
+              style: TextStyle(fontSize: m.scaled(10), color: Palette.inkFaint),
             ),
           ],
         ),
@@ -2343,12 +2366,12 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               Text(
                 widget.source.name,
                 style: TextStyle(
-                  fontSize: m.sp(20),
+                  fontSize: m.scaled(20),
                   fontWeight: FontWeight.w600,
                   color: Palette.ink,
                 ),
               ),
-              SizedBox(height: m.sp(18)),
+              SizedBox(height: m.scaled(18)),
               ProgressTrack(
                 metrics: m,
                 label: 'Downloading',
@@ -2369,21 +2392,21 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               ),
               if (s.phase == ImportPhase.failed)
                 Padding(
-                  padding: EdgeInsets.only(top: m.sp(6)),
+                  padding: EdgeInsets.only(top: m.scaled(6)),
                   child: Text(
                     s.error ?? 'It did not work',
                     style: TextStyle(
-                      fontSize: m.sp(11),
+                      fontSize: m.scaled(11),
                       color: Palette.attention,
                     ),
                   ),
                 ),
               if (s.phase == ImportPhase.done)
                 Padding(
-                  padding: EdgeInsets.only(top: m.sp(6)),
+                  padding: EdgeInsets.only(top: m.scaled(6)),
                   child: Text(
                     'Done. ${s.indexed} cards.',
-                    style: TextStyle(fontSize: m.sp(12), color: Palette.ink),
+                    style: TextStyle(fontSize: m.scaled(12), color: Palette.ink),
                   ),
                 ),
               const Spacer(),
