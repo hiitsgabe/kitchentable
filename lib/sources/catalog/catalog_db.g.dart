@@ -873,15 +873,690 @@ class CardsCompanion extends UpdateCompanion<Card> {
   }
 }
 
+class $DecksTable extends Decks with TableInfo<$DecksTable, Deck> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DecksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _formatMeta = const VerificationMeta('format');
+  @override
+  late final GeneratedColumn<String> format = GeneratedColumn<String>(
+    'format',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, format, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'decks';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Deck> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('format')) {
+      context.handle(
+        _formatMeta,
+        format.isAcceptableOrUnknown(data['format']!, _formatMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_formatMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Deck map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Deck(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      format: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}format'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DecksTable createAlias(String alias) {
+    return $DecksTable(attachedDatabase, alias);
+  }
+}
+
+class Deck extends DataClass implements Insertable<Deck> {
+  final String id;
+  final String name;
+  final String format;
+  final DateTime updatedAt;
+  const Deck({
+    required this.id,
+    required this.name,
+    required this.format,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['format'] = Variable<String>(format);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  DecksCompanion toCompanion(bool nullToAbsent) {
+    return DecksCompanion(
+      id: Value(id),
+      name: Value(name),
+      format: Value(format),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Deck.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Deck(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      format: serializer.fromJson<String>(json['format']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'format': serializer.toJson<String>(format),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Deck copyWith({
+    String? id,
+    String? name,
+    String? format,
+    DateTime? updatedAt,
+  }) => Deck(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    format: format ?? this.format,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  Deck copyWithCompanion(DecksCompanion data) {
+    return Deck(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      format: data.format.present ? data.format.value : this.format,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Deck(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('format: $format, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, format, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Deck &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.format == this.format &&
+          other.updatedAt == this.updatedAt);
+}
+
+class DecksCompanion extends UpdateCompanion<Deck> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> format;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const DecksCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.format = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DecksCompanion.insert({
+    required String id,
+    required String name,
+    required String format,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       format = Value(format),
+       updatedAt = Value(updatedAt);
+  static Insertable<Deck> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? format,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (format != null) 'format': format,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DecksCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? format,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return DecksCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      format: format ?? this.format,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (format.present) {
+      map['format'] = Variable<String>(format.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DecksCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('format: $format, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DeckCardsTable extends DeckCards
+    with TableInfo<$DeckCardsTable, DeckCard> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DeckCardsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _deckIdMeta = const VerificationMeta('deckId');
+  @override
+  late final GeneratedColumn<String> deckId = GeneratedColumn<String>(
+    'deck_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _oracleIdMeta = const VerificationMeta(
+    'oracleId',
+  );
+  @override
+  late final GeneratedColumn<String> oracleId = GeneratedColumn<String>(
+    'oracle_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+    'quantity',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sideboardMeta = const VerificationMeta(
+    'sideboard',
+  );
+  @override
+  late final GeneratedColumn<bool> sideboard = GeneratedColumn<bool>(
+    'sideboard',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("sideboard" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _commanderMeta = const VerificationMeta(
+    'commander',
+  );
+  @override
+  late final GeneratedColumn<bool> commander = GeneratedColumn<bool>(
+    'commander',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("commander" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    deckId,
+    oracleId,
+    quantity,
+    sideboard,
+    commander,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'deck_cards';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DeckCard> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('deck_id')) {
+      context.handle(
+        _deckIdMeta,
+        deckId.isAcceptableOrUnknown(data['deck_id']!, _deckIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deckIdMeta);
+    }
+    if (data.containsKey('oracle_id')) {
+      context.handle(
+        _oracleIdMeta,
+        oracleId.isAcceptableOrUnknown(data['oracle_id']!, _oracleIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_oracleIdMeta);
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_quantityMeta);
+    }
+    if (data.containsKey('sideboard')) {
+      context.handle(
+        _sideboardMeta,
+        sideboard.isAcceptableOrUnknown(data['sideboard']!, _sideboardMeta),
+      );
+    }
+    if (data.containsKey('commander')) {
+      context.handle(
+        _commanderMeta,
+        commander.isAcceptableOrUnknown(data['commander']!, _commanderMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {deckId, oracleId, sideboard};
+  @override
+  DeckCard map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DeckCard(
+      deckId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deck_id'],
+      )!,
+      oracleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}oracle_id'],
+      )!,
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quantity'],
+      )!,
+      sideboard: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}sideboard'],
+      )!,
+      commander: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}commander'],
+      )!,
+    );
+  }
+
+  @override
+  $DeckCardsTable createAlias(String alias) {
+    return $DeckCardsTable(attachedDatabase, alias);
+  }
+}
+
+class DeckCard extends DataClass implements Insertable<DeckCard> {
+  final String deckId;
+  final String oracleId;
+  final int quantity;
+  final bool sideboard;
+  final bool commander;
+  const DeckCard({
+    required this.deckId,
+    required this.oracleId,
+    required this.quantity,
+    required this.sideboard,
+    required this.commander,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['deck_id'] = Variable<String>(deckId);
+    map['oracle_id'] = Variable<String>(oracleId);
+    map['quantity'] = Variable<int>(quantity);
+    map['sideboard'] = Variable<bool>(sideboard);
+    map['commander'] = Variable<bool>(commander);
+    return map;
+  }
+
+  DeckCardsCompanion toCompanion(bool nullToAbsent) {
+    return DeckCardsCompanion(
+      deckId: Value(deckId),
+      oracleId: Value(oracleId),
+      quantity: Value(quantity),
+      sideboard: Value(sideboard),
+      commander: Value(commander),
+    );
+  }
+
+  factory DeckCard.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DeckCard(
+      deckId: serializer.fromJson<String>(json['deckId']),
+      oracleId: serializer.fromJson<String>(json['oracleId']),
+      quantity: serializer.fromJson<int>(json['quantity']),
+      sideboard: serializer.fromJson<bool>(json['sideboard']),
+      commander: serializer.fromJson<bool>(json['commander']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'deckId': serializer.toJson<String>(deckId),
+      'oracleId': serializer.toJson<String>(oracleId),
+      'quantity': serializer.toJson<int>(quantity),
+      'sideboard': serializer.toJson<bool>(sideboard),
+      'commander': serializer.toJson<bool>(commander),
+    };
+  }
+
+  DeckCard copyWith({
+    String? deckId,
+    String? oracleId,
+    int? quantity,
+    bool? sideboard,
+    bool? commander,
+  }) => DeckCard(
+    deckId: deckId ?? this.deckId,
+    oracleId: oracleId ?? this.oracleId,
+    quantity: quantity ?? this.quantity,
+    sideboard: sideboard ?? this.sideboard,
+    commander: commander ?? this.commander,
+  );
+  DeckCard copyWithCompanion(DeckCardsCompanion data) {
+    return DeckCard(
+      deckId: data.deckId.present ? data.deckId.value : this.deckId,
+      oracleId: data.oracleId.present ? data.oracleId.value : this.oracleId,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      sideboard: data.sideboard.present ? data.sideboard.value : this.sideboard,
+      commander: data.commander.present ? data.commander.value : this.commander,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeckCard(')
+          ..write('deckId: $deckId, ')
+          ..write('oracleId: $oracleId, ')
+          ..write('quantity: $quantity, ')
+          ..write('sideboard: $sideboard, ')
+          ..write('commander: $commander')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(deckId, oracleId, quantity, sideboard, commander);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DeckCard &&
+          other.deckId == this.deckId &&
+          other.oracleId == this.oracleId &&
+          other.quantity == this.quantity &&
+          other.sideboard == this.sideboard &&
+          other.commander == this.commander);
+}
+
+class DeckCardsCompanion extends UpdateCompanion<DeckCard> {
+  final Value<String> deckId;
+  final Value<String> oracleId;
+  final Value<int> quantity;
+  final Value<bool> sideboard;
+  final Value<bool> commander;
+  final Value<int> rowid;
+  const DeckCardsCompanion({
+    this.deckId = const Value.absent(),
+    this.oracleId = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.sideboard = const Value.absent(),
+    this.commander = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DeckCardsCompanion.insert({
+    required String deckId,
+    required String oracleId,
+    required int quantity,
+    this.sideboard = const Value.absent(),
+    this.commander = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : deckId = Value(deckId),
+       oracleId = Value(oracleId),
+       quantity = Value(quantity);
+  static Insertable<DeckCard> custom({
+    Expression<String>? deckId,
+    Expression<String>? oracleId,
+    Expression<int>? quantity,
+    Expression<bool>? sideboard,
+    Expression<bool>? commander,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (deckId != null) 'deck_id': deckId,
+      if (oracleId != null) 'oracle_id': oracleId,
+      if (quantity != null) 'quantity': quantity,
+      if (sideboard != null) 'sideboard': sideboard,
+      if (commander != null) 'commander': commander,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DeckCardsCompanion copyWith({
+    Value<String>? deckId,
+    Value<String>? oracleId,
+    Value<int>? quantity,
+    Value<bool>? sideboard,
+    Value<bool>? commander,
+    Value<int>? rowid,
+  }) {
+    return DeckCardsCompanion(
+      deckId: deckId ?? this.deckId,
+      oracleId: oracleId ?? this.oracleId,
+      quantity: quantity ?? this.quantity,
+      sideboard: sideboard ?? this.sideboard,
+      commander: commander ?? this.commander,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (deckId.present) {
+      map['deck_id'] = Variable<String>(deckId.value);
+    }
+    if (oracleId.present) {
+      map['oracle_id'] = Variable<String>(oracleId.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (sideboard.present) {
+      map['sideboard'] = Variable<bool>(sideboard.value);
+    }
+    if (commander.present) {
+      map['commander'] = Variable<bool>(commander.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeckCardsCompanion(')
+          ..write('deckId: $deckId, ')
+          ..write('oracleId: $oracleId, ')
+          ..write('quantity: $quantity, ')
+          ..write('sideboard: $sideboard, ')
+          ..write('commander: $commander, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$CatalogDb extends GeneratedDatabase {
   _$CatalogDb(QueryExecutor e) : super(e);
   $CatalogDbManager get managers => $CatalogDbManager(this);
   late final $CardsTable cards = $CardsTable(this);
+  late final $DecksTable decks = $DecksTable(this);
+  late final $DeckCardsTable deckCards = $DeckCardsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [cards];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [cards, decks, deckCards];
 }
 
 typedef $$CardsTableCreateCompanionBuilder = CardsCompanion Function({
@@ -1281,10 +1956,391 @@ typedef $$CardsTableProcessedTableManager =
       Card,
       PrefetchHooks Function()
     >;
+typedef $$DecksTableCreateCompanionBuilder = DecksCompanion Function({
+  required String id,
+  required String name,
+  required String format,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$DecksTableUpdateCompanionBuilder = DecksCompanion Function({
+  Value<String> id,
+  Value<String> name,
+  Value<String> format,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$DecksTableFilterComposer extends Composer<_$CatalogDb, $DecksTable> {
+  $$DecksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get format => $composableBuilder(
+    column: $table.format,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DecksTableOrderingComposer extends Composer<_$CatalogDb, $DecksTable> {
+  $$DecksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get format => $composableBuilder(
+    column: $table.format,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DecksTableAnnotationComposer
+    extends Composer<_$CatalogDb, $DecksTable> {
+  $$DecksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get format =>
+      $composableBuilder(column: $table.format, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$DecksTableTableManager
+    extends
+        RootTableManager<
+          _$CatalogDb,
+          $DecksTable,
+          Deck,
+          $$DecksTableFilterComposer,
+          $$DecksTableOrderingComposer,
+          $$DecksTableAnnotationComposer,
+          $$DecksTableCreateCompanionBuilder,
+          $$DecksTableUpdateCompanionBuilder,
+          (Deck, BaseReferences<_$CatalogDb, $DecksTable, Deck>),
+          Deck,
+          PrefetchHooks Function()
+        > {
+  $$DecksTableTableManager(_$CatalogDb db, $DecksTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DecksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DecksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DecksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> format = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DecksCompanion(
+                id: id,
+                name: name,
+                format: format,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String format,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => DecksCompanion.insert(
+                id: id,
+                name: name,
+                format: format,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DecksTable, Deck>(table),
+                  BaseReferences<_$CatalogDb, $DecksTable, Deck>(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DecksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$CatalogDb,
+      $DecksTable,
+      Deck,
+      $$DecksTableFilterComposer,
+      $$DecksTableOrderingComposer,
+      $$DecksTableAnnotationComposer,
+      $$DecksTableCreateCompanionBuilder,
+      $$DecksTableUpdateCompanionBuilder,
+      (Deck, BaseReferences<_$CatalogDb, $DecksTable, Deck>),
+      Deck,
+      PrefetchHooks Function()
+    >;
+typedef $$DeckCardsTableCreateCompanionBuilder = DeckCardsCompanion Function({
+  required String deckId,
+  required String oracleId,
+  required int quantity,
+  Value<bool> sideboard,
+  Value<bool> commander,
+  Value<int> rowid,
+});
+typedef $$DeckCardsTableUpdateCompanionBuilder = DeckCardsCompanion Function({
+  Value<String> deckId,
+  Value<String> oracleId,
+  Value<int> quantity,
+  Value<bool> sideboard,
+  Value<bool> commander,
+  Value<int> rowid,
+});
+
+class $$DeckCardsTableFilterComposer
+    extends Composer<_$CatalogDb, $DeckCardsTable> {
+  $$DeckCardsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get deckId => $composableBuilder(
+    column: $table.deckId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get oracleId => $composableBuilder(
+    column: $table.oracleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get sideboard => $composableBuilder(
+    column: $table.sideboard,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get commander => $composableBuilder(
+    column: $table.commander,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DeckCardsTableOrderingComposer
+    extends Composer<_$CatalogDb, $DeckCardsTable> {
+  $$DeckCardsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get deckId => $composableBuilder(
+    column: $table.deckId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get oracleId => $composableBuilder(
+    column: $table.oracleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get sideboard => $composableBuilder(
+    column: $table.sideboard,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get commander => $composableBuilder(
+    column: $table.commander,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DeckCardsTableAnnotationComposer
+    extends Composer<_$CatalogDb, $DeckCardsTable> {
+  $$DeckCardsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get deckId =>
+      $composableBuilder(column: $table.deckId, builder: (column) => column);
+
+  GeneratedColumn<String> get oracleId =>
+      $composableBuilder(column: $table.oracleId, builder: (column) => column);
+
+  GeneratedColumn<int> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<bool> get sideboard =>
+      $composableBuilder(column: $table.sideboard, builder: (column) => column);
+
+  GeneratedColumn<bool> get commander =>
+      $composableBuilder(column: $table.commander, builder: (column) => column);
+}
+
+class $$DeckCardsTableTableManager
+    extends
+        RootTableManager<
+          _$CatalogDb,
+          $DeckCardsTable,
+          DeckCard,
+          $$DeckCardsTableFilterComposer,
+          $$DeckCardsTableOrderingComposer,
+          $$DeckCardsTableAnnotationComposer,
+          $$DeckCardsTableCreateCompanionBuilder,
+          $$DeckCardsTableUpdateCompanionBuilder,
+          (DeckCard, BaseReferences<_$CatalogDb, $DeckCardsTable, DeckCard>),
+          DeckCard,
+          PrefetchHooks Function()
+        > {
+  $$DeckCardsTableTableManager(_$CatalogDb db, $DeckCardsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DeckCardsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DeckCardsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DeckCardsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> deckId = const Value.absent(),
+                Value<String> oracleId = const Value.absent(),
+                Value<int> quantity = const Value.absent(),
+                Value<bool> sideboard = const Value.absent(),
+                Value<bool> commander = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DeckCardsCompanion(
+                deckId: deckId,
+                oracleId: oracleId,
+                quantity: quantity,
+                sideboard: sideboard,
+                commander: commander,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String deckId,
+                required String oracleId,
+                required int quantity,
+                Value<bool> sideboard = const Value.absent(),
+                Value<bool> commander = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DeckCardsCompanion.insert(
+                deckId: deckId,
+                oracleId: oracleId,
+                quantity: quantity,
+                sideboard: sideboard,
+                commander: commander,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DeckCardsTable, DeckCard>(table),
+                  BaseReferences<_$CatalogDb, $DeckCardsTable, DeckCard>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DeckCardsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$CatalogDb,
+      $DeckCardsTable,
+      DeckCard,
+      $$DeckCardsTableFilterComposer,
+      $$DeckCardsTableOrderingComposer,
+      $$DeckCardsTableAnnotationComposer,
+      $$DeckCardsTableCreateCompanionBuilder,
+      $$DeckCardsTableUpdateCompanionBuilder,
+      (DeckCard, BaseReferences<_$CatalogDb, $DeckCardsTable, DeckCard>),
+      DeckCard,
+      PrefetchHooks Function()
+    >;
 
 class $CatalogDbManager {
   final _$CatalogDb _db;
   $CatalogDbManager(this._db);
   $$CardsTableTableManager get cards =>
       $$CardsTableTableManager(_db, _db.cards);
+  $$DecksTableTableManager get decks =>
+      $$DecksTableTableManager(_db, _db.decks);
+  $$DeckCardsTableTableManager get deckCards =>
+      $$DeckCardsTableTableManager(_db, _db.deckCards);
 }
