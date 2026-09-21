@@ -1396,6 +1396,15 @@ Stream<List<int>> gunzipStream(Stream<List<int>> compressed) {
 }
 ```
 
+This task cannot prove itself. Nothing imports `gunzip.dart` yet, and the web
+compiler only compiles what is reachable from `main.dart`, so the web build
+succeeds whether or not the conditional export is correct. Verified on
+2026 09 21: an unconditional `export 'gunzip_io.dart';` still built web fine,
+and the bundle contained zero occurrences of gunzip.
+
+So the real proof is deferred to Task 9, which is the first thing to import it.
+Task 9 Step 6 carries it. Do not skip it there.
+
 - [ ] **Step 4: Prove both builds still compile**
 
 Run: `flutter analyze`
@@ -1651,7 +1660,24 @@ class ScryfallImporter {
 Run: `flutter test test/sources/scryfall_importer_test.dart`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Collect the debt Task 8 left**
+
+This file is the first thing in the app to import `gunzip.dart`, so it is the
+first moment the conditional export can be tested at all. Task 8 shipped
+unproven and said so.
+
+Run `flutter build web --release` and confirm it succeeds.
+
+Then change `lib/sources/import/gunzip.dart` to an unconditional
+`export 'gunzip_io.dart';` and run `flutter build web --release` again. It must
+now FAIL, complaining that `dart:io` is not available for this platform. Restore
+the conditional export and confirm the build succeeds again.
+
+If the web build still succeeds with the unconditional export now that something
+imports it, then the conditional export is not what keeps web working and
+nobody yet knows what is. Stop and report that.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add lib/sources/import test/sources/scryfall_importer_test.dart
