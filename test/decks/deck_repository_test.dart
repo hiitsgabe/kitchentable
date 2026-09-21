@@ -109,6 +109,12 @@ void main() {
 
     expect(await repo.load('d1'), isNull);
     expect(await repo.list(), isEmpty);
+
+    // Reading the card table directly, because the two assertions above pass
+    // perfectly well while the rows sit there orphaned. The first version of
+    // this test stopped one line early and a probe walked straight through it.
+    final orphans = await db.select(db.deckCards).get();
+    expect(orphans, isEmpty);
   });
 
   test('a card missing from the catalog does not break the load', () async {
