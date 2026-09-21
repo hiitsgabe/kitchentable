@@ -101,6 +101,31 @@ class CatalogDb extends _$CatalogDb {
 
   Future<void> clear() => delete(cards).go();
 
+  Future<List<CatalogCard>> cardsByOracleIds(List<String> ids) async {
+    if (ids.isEmpty) return const [];
+    final rows =
+        await (select(cards)..where((c) => c.oracleId.isIn(ids))).get();
+    return rows.map(_fromRow).toList();
+  }
+
+  /// Exact name match, case insensitive. This is what a pasted decklist needs:
+  /// it has a name and nothing else, and a fuzzy match there would quietly
+  /// swap a card for one that merely looks similar.
+  Future<Map<String, CatalogCard>> cardsByExactNames(
+    Iterable<String> names,
+  ) async {
+    final wanted = names.map((n) => n.toLowerCase()).toSet();
+    if (wanted.isEmpty) return const {};
+
+    final rows = await (select(cards)
+          ..where((c) => c.nameFolded.isIn(wanted.toList())))
+        .get();
+
+    return {
+      for (final row in rows) row.nameFolded: _fromRow(row),
+    };
+  }
+
   CardsCompanion _toRow(CatalogCard c) => CardsCompanion.insert(
         oracleId: c.oracleId,
         name: c.name,
