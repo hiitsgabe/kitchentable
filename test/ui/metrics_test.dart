@@ -25,6 +25,20 @@ void main() {
     );
   });
 
+  test('the threshold itself counts as a television', () {
+    expect(
+      classifyDevice(size: const Size(960, 540), hasTouch: false),
+      DeviceClass.tv,
+    );
+  });
+
+  test('one pixel under the threshold is still a handheld', () {
+    expect(
+      classifyDevice(size: const Size(959, 540), hasTouch: false),
+      DeviceClass.handheld,
+    );
+  });
+
   test('television metrics are bigger than handheld metrics', () {
     expect(Metrics.of(DeviceClass.tv).scale,
         greaterThan(Metrics.of(DeviceClass.handheld).scale));
