@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
+import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../sources/sources_screen.dart';
@@ -14,29 +15,39 @@ class MenuScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final media = MediaQuery.of(context);
-    final deviceClass = classifyDevice(
+    final m = Metrics.of(classifyDevice(
       size: media.size,
       hasTouch: media.navigationMode == NavigationMode.traditional,
-    );
-    final m = Metrics.of(deviceClass);
+    ));
     final async = ref.watch(menuStateProvider);
 
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(m.safeInset),
-          child: async.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(
-              child: Text('$e', style: const TextStyle(color: Palette.ink)),
+    return async.when(
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(m.safeInset),
+            child: Text(
+              '$e',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Palette.ink),
             ),
-            data: (state) => _Menu(state: state, metrics: m),
           ),
         ),
       ),
+      data: (state) => _Menu(state: state, metrics: m),
     );
   }
 }
+
+IconData _iconFor(MenuEntryId id) => switch (id) {
+      MenuEntryId.play => Icons.play_arrow_rounded,
+      MenuEntryId.decks => Icons.style_rounded,
+      MenuEntryId.sources => Icons.download_rounded,
+      MenuEntryId.settings => Icons.tune_rounded,
+    };
 
 class _Menu extends StatelessWidget {
   const _Menu({required this.state, required this.metrics});
@@ -46,53 +57,26 @@ class _Menu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final m = metrics;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ScreenFrame(
+      metrics: metrics,
+      wordmark: true,
+      title: 'kitchentable',
+      label: state.headline,
+      hints: const [
+        Hint(button: HintBar.dpad, label: 'move'),
+        Hint(button: 'A', label: 'open'),
+      ],
       children: [
-        Text.rich(
-          TextSpan(children: [
-            const TextSpan(text: 'kitchen'),
-            TextSpan(
-              text: 'table',
-              style: const TextStyle(color: Palette.accent),
-            ),
-          ]),
-          style: TextStyle(
-            fontSize: m.scaled(24),
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.6,
-            color: Palette.ink,
-          ),
-        ),
-        SizedBox(height: m.scaled(4)),
-        Text(
-          state.headline,
-          style: TextStyle(
-            fontSize: m.scaled(10),
-            letterSpacing: 0.8,
-            color: Palette.inkFaint,
-          ),
-        ),
-        SizedBox(height: m.scaled(20)),
         for (final entry in state.entries)
           MenuRow(
             title: entry.title,
             subtitle: entry.subtitle,
+            icon: _iconFor(entry.id),
             enabled: entry.enabled,
-            metrics: m,
+            metrics: metrics,
             autofocus: entry.id == state.initialFocus,
             onActivate: () => _open(context, entry.id),
           ),
-        const Spacer(),
-        HintBar(
-          metrics: m,
-          hints: const [
-            Hint(button: '▲▼', label: 'move'),
-            Hint(button: 'A', label: 'open'),
-          ],
-        ),
       ],
     );
   }

@@ -22,6 +22,7 @@ class MenuRow extends StatefulWidget {
     required this.metrics,
     required this.onActivate,
     this.subtitle,
+    this.icon,
     this.enabled = true,
     this.focusNode,
     this.autofocus = false,
@@ -29,6 +30,11 @@ class MenuRow extends StatefulWidget {
 
   final String title;
   final String? subtitle;
+
+  /// Optional, but every list in the app passes one. A row that opens with
+  /// naked text reads as a paragraph, not as something you can press.
+  final IconData? icon;
+
   final Metrics metrics;
   final VoidCallback onActivate;
   final bool enabled;
@@ -76,14 +82,14 @@ class _MenuRowState extends State<MenuRow> {
           child: Opacity(
             opacity: widget.enabled ? 1 : 0.42,
             child: Container(
-              margin: EdgeInsets.only(bottom: m.scaled(5)),
+              margin: EdgeInsets.only(bottom: m.scaled(8)),
               padding: EdgeInsets.symmetric(
                 horizontal: m.scaled(12),
-                vertical: m.scaled(11),
+                vertical: m.scaled(12),
               ),
               decoration: BoxDecoration(
                 color: _focused ? Palette.focusWash : Colors.transparent,
-                borderRadius: BorderRadius.circular(m.scaled(10)),
+                borderRadius: BorderRadius.circular(m.scaled(14)),
                 border: Border.all(
                   color: _focused ? Palette.accent : Colors.transparent,
                   width: m.focusRing,
@@ -91,6 +97,25 @@ class _MenuRowState extends State<MenuRow> {
               ),
               child: Row(
                 children: [
+                  if (widget.icon != null) ...[
+                    Container(
+                      width: m.scaled(38),
+                      height: m.scaled(38),
+                      decoration: BoxDecoration(
+                        color: _focused ? Palette.tileFocused : Palette.tile,
+                        borderRadius: BorderRadius.circular(m.scaled(10)),
+                        border: Border.all(
+                          color: _focused ? Palette.accent : Palette.tileEdge,
+                        ),
+                      ),
+                      child: Icon(
+                        widget.icon,
+                        size: m.scaled(19),
+                        color: _focused ? Palette.accent : Palette.inkMuted,
+                      ),
+                    ),
+                    SizedBox(width: m.scaled(13)),
+                  ],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,17 +123,19 @@ class _MenuRowState extends State<MenuRow> {
                         Text(
                           widget.title,
                           style: TextStyle(
-                            fontSize: m.scaled(15),
+                            fontSize: m.scaled(16),
+                            height: 1.25,
                             color: _focused ? Colors.white : Palette.ink,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         if (widget.subtitle != null) ...[
-                          SizedBox(height: m.scaled(2)),
+                          SizedBox(height: m.scaled(3)),
                           Text(
                             widget.subtitle!,
                             style: TextStyle(
-                              fontSize: m.scaled(11),
+                              fontSize: m.scaled(12),
+                              height: 1.3,
                               color: Palette.inkFaint,
                             ),
                           ),
@@ -116,12 +143,10 @@ class _MenuRowState extends State<MenuRow> {
                       ],
                     ),
                   ),
-                  Text(
-                    '›',
-                    style: TextStyle(
-                      fontSize: m.scaled(16),
-                      color: _focused ? Palette.accent : Palette.inkFaint,
-                    ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: m.scaled(20),
+                    color: _focused ? Palette.accent : Palette.inkFaint,
                   ),
                 ],
               ),
