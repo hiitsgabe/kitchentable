@@ -35,6 +35,7 @@ class Decks extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
   TextColumn get format => text()();
+  TextColumn get game => text().withDefault(const Constant('magic'))();
   DateTimeColumn get updatedAt => dateTime()();
 
   @override
@@ -62,7 +63,7 @@ class CatalogDb extends _$CatalogDb {
   CatalogDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -72,6 +73,11 @@ class CatalogDb extends _$CatalogDb {
           if (from < 2) {
             await m.createTable(decks);
             await m.createTable(deckCards);
+          }
+          if (from < 3) {
+            // Every deck that existed before this column was a Magic deck,
+            // which is what the default says, so nothing needs rewriting.
+            await m.addColumn(decks, decks.game);
           }
         },
       );

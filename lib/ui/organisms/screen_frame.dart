@@ -59,12 +59,12 @@ class ScreenFrame extends StatelessWidget {
                     horizontal: m.safeInset,
                     vertical: m.scaled(24),
                   ),
-                  // Hugs its content rather than filling the viewport. Pinning
-                  // the hint bar to the bottom of a tall window left a hand
-                  // span of nothing between the last row and the legend, which
-                  // read as a bug rather than as space.
+                  // Header pinned to the top, hint bar pinned to the bottom,
+                  // and only the list between them moves. This oscillated
+                  // twice: full width with a floating footer, then a hugging
+                  // column with the header stranded mid screen. The complaint
+                  // both times was the width, never the height.
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (onBack != null) ...[
@@ -84,10 +84,9 @@ class ScreenFrame extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: m.scaled(26)),
-                      Flexible(
+                      Expanded(
                         child: ListView(
                           padding: EdgeInsets.zero,
-                          shrinkWrap: true,
                           children: children,
                         ),
                       ),

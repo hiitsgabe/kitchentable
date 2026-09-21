@@ -905,6 +905,16 @@ class $DecksTable extends Decks with TableInfo<$DecksTable, DeckRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _gameMeta = const VerificationMeta('game');
+  @override
+  late final GeneratedColumn<String> game = GeneratedColumn<String>(
+    'game',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('magic'),
+  );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
   );
@@ -917,7 +927,7 @@ class $DecksTable extends Decks with TableInfo<$DecksTable, DeckRow> {
     requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, name, format, updatedAt];
+  List<GeneratedColumn> get $columns => [id, name, format, game, updatedAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -951,6 +961,12 @@ class $DecksTable extends Decks with TableInfo<$DecksTable, DeckRow> {
     } else if (isInserting) {
       context.missing(_formatMeta);
     }
+    if (data.containsKey('game')) {
+      context.handle(
+        _gameMeta,
+        game.isAcceptableOrUnknown(data['game']!, _gameMeta),
+      );
+    }
     if (data.containsKey('updated_at')) {
       context.handle(
         _updatedAtMeta,
@@ -980,6 +996,10 @@ class $DecksTable extends Decks with TableInfo<$DecksTable, DeckRow> {
         DriftSqlType.string,
         data['${effectivePrefix}format'],
       )!,
+      game: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}game'],
+      )!,
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
@@ -997,11 +1017,13 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
   final String id;
   final String name;
   final String format;
+  final String game;
   final DateTime updatedAt;
   const DeckRow({
     required this.id,
     required this.name,
     required this.format,
+    required this.game,
     required this.updatedAt,
   });
   @override
@@ -1010,6 +1032,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
     map['format'] = Variable<String>(format);
+    map['game'] = Variable<String>(game);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
   }
@@ -1019,6 +1042,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
       id: Value(id),
       name: Value(name),
       format: Value(format),
+      game: Value(game),
       updatedAt: Value(updatedAt),
     );
   }
@@ -1032,6 +1056,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       format: serializer.fromJson<String>(json['format']),
+      game: serializer.fromJson<String>(json['game']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
   }
@@ -1042,6 +1067,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'format': serializer.toJson<String>(format),
+      'game': serializer.toJson<String>(game),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
   }
@@ -1050,11 +1076,13 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
     String? id,
     String? name,
     String? format,
+    String? game,
     DateTime? updatedAt,
   }) => DeckRow(
     id: id ?? this.id,
     name: name ?? this.name,
     format: format ?? this.format,
+    game: game ?? this.game,
     updatedAt: updatedAt ?? this.updatedAt,
   );
   DeckRow copyWithCompanion(DecksCompanion data) {
@@ -1062,6 +1090,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       format: data.format.present ? data.format.value : this.format,
+      game: data.game.present ? data.game.value : this.game,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
@@ -1072,13 +1101,14 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('format: $format, ')
+          ..write('game: $game, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, format, updatedAt);
+  int get hashCode => Object.hash(id, name, format, game, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1086,6 +1116,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
           other.id == this.id &&
           other.name == this.name &&
           other.format == this.format &&
+          other.game == this.game &&
           other.updatedAt == this.updatedAt);
 }
 
@@ -1093,12 +1124,14 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
   final Value<String> id;
   final Value<String> name;
   final Value<String> format;
+  final Value<String> game;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
   const DecksCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.format = const Value.absent(),
+    this.game = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -1106,6 +1139,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
     required String id,
     required String name,
     required String format,
+    this.game = const Value.absent(),
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -1116,6 +1150,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? format,
+    Expression<String>? game,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
   }) {
@@ -1123,6 +1158,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (format != null) 'format': format,
+      if (game != null) 'game': game,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1132,6 +1168,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
     Value<String>? id,
     Value<String>? name,
     Value<String>? format,
+    Value<String>? game,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
   }) {
@@ -1139,6 +1176,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
       id: id ?? this.id,
       name: name ?? this.name,
       format: format ?? this.format,
+      game: game ?? this.game,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -1156,6 +1194,9 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
     if (format.present) {
       map['format'] = Variable<String>(format.value);
     }
+    if (game.present) {
+      map['game'] = Variable<String>(game.value);
+    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
@@ -1171,6 +1212,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('format: $format, ')
+          ..write('game: $game, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -1960,6 +2002,7 @@ typedef $$DecksTableCreateCompanionBuilder = DecksCompanion Function({
   required String id,
   required String name,
   required String format,
+  Value<String> game,
   required DateTime updatedAt,
   Value<int> rowid,
 });
@@ -1967,6 +2010,7 @@ typedef $$DecksTableUpdateCompanionBuilder = DecksCompanion Function({
   Value<String> id,
   Value<String> name,
   Value<String> format,
+  Value<String> game,
   Value<DateTime> updatedAt,
   Value<int> rowid,
 });
@@ -1991,6 +2035,11 @@ class $$DecksTableFilterComposer extends Composer<_$CatalogDb, $DecksTable> {
 
   ColumnFilters<String> get format => $composableBuilder(
     column: $table.format,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get game => $composableBuilder(
+    column: $table.game,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2023,6 +2072,11 @@ class $$DecksTableOrderingComposer extends Composer<_$CatalogDb, $DecksTable> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get game => $composableBuilder(
+    column: $table.game,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
@@ -2046,6 +2100,9 @@ class $$DecksTableAnnotationComposer
 
   GeneratedColumn<String> get format =>
       $composableBuilder(column: $table.format, builder: (column) => column);
+
+  GeneratedColumn<String> get game =>
+      $composableBuilder(column: $table.game, builder: (column) => column);
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
@@ -2082,12 +2139,14 @@ class $$DecksTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> format = const Value.absent(),
+                Value<String> game = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DecksCompanion(
                 id: id,
                 name: name,
                 format: format,
+                game: game,
                 updatedAt: updatedAt,
                 rowid: rowid,
               ),
@@ -2096,12 +2155,14 @@ class $$DecksTableTableManager
                 required String id,
                 required String name,
                 required String format,
+                Value<String> game = const Value.absent(),
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
               }) => DecksCompanion.insert(
                 id: id,
                 name: name,
                 format: format,
+                game: game,
                 updatedAt: updatedAt,
                 rowid: rowid,
               ),
