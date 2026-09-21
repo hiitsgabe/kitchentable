@@ -26,8 +26,8 @@ class DecklistParseResult {
   final List<DecklistEntry> entries;
 
   /// Lines that were not blank, not a comment and not a section header, and
-  /// still could not be read. Shown to the player rather than dropped: a
-  /// silent skip in an importer is how a deck quietly comes out wrong.
+  /// still could not be read. Shown to the player rather than dropped: a silent
+  /// skip in an importer is how a deck quietly comes out wrong.
   final List<String> ignored;
 
   int get cardCount =>
@@ -40,19 +40,31 @@ final _entry = RegExp(
   r'^\s*'
   r'(?:(\d+)\s*[xX]?\s+)?' // 4, 4x, 4 x, or nothing at all
   r'(.+?)' // the name, lazily, so the trailing junk below wins
-  r'(?:\s+\(([A-Za-z0-9]{2,6})\)(?:\s+[A-Za-z0-9\-★]+)?)?' // (SET) 123
+  r'(?:\s+\(([A-Za-z0-9]{2,6})\)(?:\s+[A-Za-z0-9\-*]+)?)?' // (SET) 123
   r'\s*$',
 );
 
+/// A header is only a header when the line is nothing but the header, give or
+/// take a bracketed count or a colon. Anchoring on the word alone is a trap:
+/// it turns `Commander's Sphere` into a section break, and that is a real card.
 final _sideboardHeader = RegExp(
-  r'^\s*(sideboard|side ?board)\s*:?\s*$',
+  r'^\s*(sideboard|side board|maybeboard|maybe board)\s*(?:\(\s*\d+\s*\))?\s*:?\s*$',
   caseSensitive: false,
 );
 
 final _deckHeader = RegExp(
-  r'^\s*(deck|main ?deck|maindeck|commander|companion)\s*:?\s*$',
+  r'^\s*(deck|maindeck|main deck|mainboard|main board|commander|companion)\s*(?:\(\s*\d+\s*\))?\s*:?\s*$',
   caseSensitive: false,
 );
+
+/// Lines that look like a card and are not. Export files carry totals and
+/// prices, and without this they arrive as cards with plausible names.
+final _notACard = RegExp(
+  r'^\s*(total|cards?|count|price|approx\.?\s*price|estimated)\b',
+  caseSensitive: false,
+);
+
+final _hasALetter = RegExp(r'[A-Za-zÀ-ɏ]');
 
 /// Reads the format every card shop and deck site spits out.
 ///
@@ -62,7 +74,7 @@ final _deckHeader = RegExp(
 ///
 /// It deliberately does NOT look anything up. Matching a name against the
 /// catalog is a separate job with its own failure mode, and mixing the two
-/// makes it impossible to tell a typo from a card you do not own yet.
+/// makes it impossible to tell a typo from a card you have not imported yet.
 DecklistParseResult parseDecklist(String input) {
   final entries = <DecklistEntry>[];
   final ignored = <String>[];
@@ -79,6 +91,12 @@ DecklistParseResult parseDecklist(String input) {
     }
     if (_deckHeader.hasMatch(line)) {
       sideboard = false;
+      continue;
+    }
+
+    // A line with no letter in it is a divider or a stray number.
+    if (!_hasALetter.hasMatch(line) || _notACard.hasMatch(line)) {
+      ignored.add(line);
       continue;
     }
 
