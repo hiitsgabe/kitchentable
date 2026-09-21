@@ -7,6 +7,8 @@ import '../../decks/model/deck.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../ui/atoms/card_art.dart';
 import '../../ui/atoms/hint_bar.dart';
+import '../../ui/atoms/toast.dart';
+import '../../ui/organisms/card_viewer.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
@@ -51,10 +53,12 @@ class _AddCardsScreenState extends ConsumerState<AddCardsScreen> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final deck = ref.watch(deckEditorProvider);
 
     return ScreenFrame(
@@ -114,9 +118,16 @@ class _CardRow extends ConsumerWidget {
       child: GestureDetector(
         onTap: blocked
             ? null
-            : () => ref
-                .read(deckEditorProvider.notifier)
-                .add(DeckSlot(card: card, quantity: 1)),
+            : () {
+                ref
+                    .read(deckEditorProvider.notifier)
+                    .add(DeckSlot(card: card, quantity: 1));
+                Toast.show(
+                  context,
+                  'Added ${card.name}',
+                  icon: Icons.check_rounded,
+                );
+              },
         behavior: HitTestBehavior.opaque,
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: m.scaled(8)),
@@ -125,36 +136,41 @@ class _CardRow extends ConsumerWidget {
               // The picture is the point of this row. A name alone tells you
               // nothing about whether it is the card you meant, and half of
               // Magic is people recognising art before they read anything.
-              Stack(
-                children: [
-                  CardArt(metrics: m, card: card, width: m.scaled(46)),
-                  if (have > 0)
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: m.scaled(5),
-                          vertical: m.scaled(1),
-                        ),
-                        decoration: BoxDecoration(
-                          color: Palette.accent,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(m.scaled(3)),
-                            bottomRight: Radius.circular(m.scaled(6)),
+              GestureDetector(
+                // The picture opens the card, the rest of the row adds it.
+                // Two jobs a thumb can tell apart without a label.
+                onTap: () => CardViewer.show(context, card),
+                child: Stack(
+                  children: [
+                    CardArt(metrics: m, card: card, width: m.scaled(46)),
+                    if (have > 0)
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: m.scaled(5),
+                            vertical: m.scaled(1),
                           ),
-                        ),
-                        child: Text(
-                          '$have',
-                          style: TextStyle(
-                            fontSize: m.scaled(11),
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
+                          decoration: BoxDecoration(
+                            color: Palette.accent,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(m.scaled(3)),
+                              bottomRight: Radius.circular(m.scaled(6)),
+                            ),
+                          ),
+                          child: Text(
+                            '$have',
+                            style: TextStyle(
+                              fontSize: m.scaled(11),
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
               SizedBox(width: m.scaled(12)),
               Expanded(
@@ -165,8 +181,10 @@ class _CardRow extends ConsumerWidget {
                       card.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          TextStyle(fontSize: m.scaled(14), color: Palette.ink),
+                      style: TextStyle(
+                        fontSize: m.scaled(14),
+                        color: Palette.ink,
+                      ),
                     ),
                     SizedBox(height: m.scaled(2)),
                     Text(

@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 /// A list rather than a single choice, because the point is that the player
 /// picks. The default is the animated one in black and pink.
 enum BackdropKind {
-  /// Slow fluid mesh, the default. Black with pink bleeding through.
-  aurora,
-
-  /// Soft drifting blobs, painted by hand rather than by a shader, so it
-  /// survives anywhere the shader does not.
+  /// Soft drifting blobs, the default. Painted by hand rather than by a
+  /// shader, so it survives anywhere the shader does not.
   drift,
+
+  /// Slow fluid mesh. Black with pink bleeding through.
+  aurora,
 
   /// Two colours, still. Cheapest on a battery and on a weak handheld.
   flat,
@@ -26,8 +26,8 @@ enum BackdropKind {
       };
 
   String get describe => switch (this) {
-        BackdropKind.aurora => 'slow fluid colour, the default',
-        BackdropKind.drift => 'soft blobs, gentler on a battery',
+        BackdropKind.aurora => 'slow fluid colour, needs a shader',
+        BackdropKind.drift => 'soft blobs, the default',
         BackdropKind.flat => 'two colours, still, cheapest of all',
         BackdropKind.image => 'point it at a file on this device',
       };
@@ -37,7 +37,7 @@ enum BackdropKind {
 
 class BackdropStyle {
   const BackdropStyle({
-    this.kind = BackdropKind.aurora,
+    this.kind = BackdropKind.drift,
     this.top = const Color(0xFFFF2E88),
     this.bottom = const Color(0xFF07060A),
     this.imagePath,
@@ -76,7 +76,7 @@ class BackdropStyle {
   static BackdropStyle fromJson(Map<String, Object?> json) => BackdropStyle(
         kind: BackdropKind.values.firstWhere(
           (k) => k.name == json['kind'],
-          orElse: () => BackdropKind.aurora,
+          orElse: () => BackdropKind.drift,
         ),
         top: Color((json['top'] as int?) ?? 0xFFFF2E88),
         bottom: Color((json['bottom'] as int?) ?? 0xFF07060A),

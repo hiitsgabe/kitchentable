@@ -16,6 +16,7 @@ class CatalogCard {
     this.legalities = const {},
     this.imageSmall,
     this.imageNormal,
+    this.imageBack,
   });
 
   final String oracleId;
@@ -33,6 +34,10 @@ class CatalogCard {
   final String? imageSmall;
   final String? imageNormal;
 
+  /// The second face, for a card that has one. Null on an ordinary card, which
+  /// then turns over onto the generic Magic back instead.
+  final String? imageBack;
+
   bool isLegalIn(String format) => legalities[format] == 'legal';
 
   /// Double faced cards carry their images under `card_faces` rather than at
@@ -43,6 +48,14 @@ class CatalogCard {
             ? (json['card_faces'] as List<dynamic>).first['image_uris']
                 as Map<String, dynamic>?
             : null);
+
+    final faces = json['card_faces'] as List<dynamic>?;
+    // Parenthesised because `as String?` followed by a colon reads as the
+    // start of a ternary to the parser, not as a nullable cast.
+    final back = (faces != null && faces.length > 1)
+        ? ((faces[1]['image_uris'] as Map<String, dynamic>?)?['normal']
+            as String?)
+        : null;
 
     return CatalogCard(
       oracleId: json['oracle_id'] as String,
@@ -61,6 +74,7 @@ class CatalogCard {
           .map((k, v) => MapEntry(k, v as String)),
       imageSmall: images?['small'] as String?,
       imageNormal: images?['normal'] as String?,
+      imageBack: back,
     );
   }
 }
