@@ -105,11 +105,19 @@ test/
   features/menu_screen_test.dart
 ```
 
-A note on web. The importer uses `dart:io` gzip, which does not compile for
-web. `gunzip.dart` is a conditional import so the web build keeps working and
-the web importer throws a clear `UnsupportedError`. Web exists so we can look
-at the UI on a machine with no display and no emulator, not so we can import on
-it.
+A note on web, corrected on 2026 09 21 after measuring it. The first version of
+this plan said `dart:io` gzip does not compile for web. On Flutter 3.47.5 with
+Dart 3.13.4 that is false: the SDK ships
+`_internal/js_runtime/lib/io_patch.dart`, which compiles `dart:io` for dart2js
+and patches `RawZLibFilter._makeZLibInflateFilter` to
+`throw UnsupportedError("_newZLibInflateFilter")`. An unconditional `dart:io`
+import builds for web fine and blows up at run time instead.
+
+The conditional import in `gunzip.dart` stays, for a different reason than the
+one originally written down. It turns an `UnsupportedError` thrown from inside
+the SDK, naming a private filter nobody has heard of, into a sentence that says
+what actually happened. Web exists so we can look at the UI on a machine with no
+display and no emulator, not so we can import on it.
 
 ---
 
@@ -1396,14 +1404,19 @@ Stream<List<int>> gunzipStream(Stream<List<int>> compressed) {
 }
 ```
 
-This task cannot prove itself. Nothing imports `gunzip.dart` yet, and the web
-compiler only compiles what is reachable from `main.dart`, so the web build
-succeeds whether or not the conditional export is correct. Verified on
-2026 09 21: an unconditional `export 'gunzip_io.dart';` still built web fine,
-and the bundle contained zero occurrences of gunzip.
+This task cannot prove itself at compile time, and neither can any later one.
+Two separate reasons, both measured on 2026 09 21.
 
-So the real proof is deferred to Task 9, which is the first thing to import it.
-Task 9 Step 6 carries it. Do not skip it there.
+Nothing imports `gunzip.dart` yet, so the web compiler never reaches it. That
+part resolves by Task 13.
+
+The bigger one never resolves: on this SDK an unconditional
+`export 'gunzip_io.dart';` builds for web **successfully**. `dart:io` is
+compiled for dart2js and the gzip filter throws at run time instead, so there is
+no build failure to catch, here or anywhere.
+
+What Task 13 does prove is reachability, which is worth having. Do not use a
+`--release` build for that grep, see Task 13 Step 9.
 
 - [ ] **Step 4: Prove both builds still compile**
 
@@ -2689,30 +2702,44 @@ Expected: PASS, all tests.
 Run: `flutter analyze`
 Expected: `No issues found!`
 
-- [ ] **Step 9: Collect the gunzip debt, at last**
+- [ ] **Step 9: Prove reachability, and stop expecting a build failure**
 
-Task 8 created the conditional gunzip export and could not prove it. Task 9
-tried and could not either. This is the first task where `ScryfallImporter` is
-reachable from `main.dart`: import_screen pulls import_controller, which pulls
-the importer, and sources_screen opens import_screen, and the menu opens
-sources_screen, and app.dart opens the menu.
+This is the first task where `ScryfallImporter` is reachable from `main.dart`:
+import_screen pulls import_controller, which pulls the importer, and
+sources_screen opens import_screen, and the menu opens sources_screen, and
+app.dart opens the menu. Tasks 8 and 9 both tried to prove the gunzip export
+here and could not. Measured on 2026 09 21, here is why, so nobody tries again.
 
-First confirm the chain is real rather than assuming it:
+**Use a `--profile` build for the grep, never `--release`.** A release build
+minifies identifiers, so every name greps to zero and a reachable class is
+indistinguishable from a deleted one. The control that settles it:
 
-```bash
-grep -c "gunzip\|ScryfallImporter" build/web/main.dart.js
+```
+release   MenuRow 0    gunzip 0    ScryfallImporter 0
+profile   MenuRow 22   gunzip 2    ScryfallImporter 18
 ```
 
-after a successful `flutter build web --release`. If that is still 0, the
-importer is STILL not reachable and the probe below cannot bite. Say so and stop.
+`MenuRow` is on the screen the app opens. Zero in release means the grep is
+measuring minification, not reach.
 
-If it is greater than 0, run the probe. Change `lib/sources/import/gunzip.dart`
-to an unconditional `export 'gunzip_io.dart';` and run
-`flutter build web --release` again. It must now FAIL on `dart:io` not being
-available. Restore the conditional export and confirm the build succeeds.
+So:
 
-A passing web build is not evidence here unless the grep above proved the code
-was actually compiled in.
+```bash
+flutter build web --profile
+grep -c "MenuRow" build/web/main.dart.js          # control, must be > 0
+grep -c "gunzip" build/web/main.dart.js           # must be > 0
+grep -c "ScryfallImporter" build/web/main.dart.js # must be > 0
+```
+
+If the control is 0 your grep is broken, not the code. If the control is greater
+than 0 and gunzip is 0, the importer really is unreachable: stop and report.
+
+**Do not expect an unconditional `dart:io` export to fail the build.** It does
+not. Dart 3.13.4 compiles `dart:io` for dart2js via
+`_internal/js_runtime/lib/io_patch.dart` and patches the gzip filter to throw at
+run time. The conditional export earns its place by replacing that SDK level
+`UnsupportedError("_newZLibInflateFilter")` with a sentence a person can read,
+not by keeping the build alive.
 
 - [ ] **Step 10: Commit**
 
