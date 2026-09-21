@@ -17,4 +17,8 @@ abstract final class Palette {
   /// Reserved for the thing the player must not miss: a legal target once a
   /// referee is plugged in, a pack waiting to be picked, a trigger on the stack.
   static const attention = Color(0xFFF0B429);
+
+  /// Fills a focused row. Dark enough to sit under the accent border without
+  /// competing with it.
+  static const focusWash = Color(0xFF101A2A);
 }
