@@ -46,20 +46,48 @@ void main() {
   });
 
   test('two seats with the same deck get different shuffles', () {
+    // Sixty DISTINCT cards, and the comparison is on oracleId rather than on
+    // the instance id. The first version of this test compared instance ids,
+    // which are minted with the seat as a prefix, so one list was always
+    // s1-anything and the other always s2-anything and they could never be
+    // equal. It passed with the per seat seed removed, which is how a probe
+    // found it: a test that cannot fail is worse than one that merely does not.
+    final sixty = Deck(
+      id: 'shared',
+      name: 'shared',
+      format: DeckFormat.commander,
+      slots: [
+        for (var i = 0; i < 60; i++)
+          DeckSlot(card: _card('card$i'), quantity: 1),
+      ],
+    );
+
     final table = sitDownTogether(
       players: [
-        (deck: _deck('a', cards: 60), name: 'you', owner: const SeatOwner.here()),
-        (deck: _deck('a', cards: 60), name: 'Carla', owner: const SeatOwner.here()),
+        (deck: sixty, name: 'you', owner: const SeatOwner.here()),
+        (deck: sixty, name: 'Carla', owner: const SeatOwner.here()),
       ],
       seed: 'abc',
     );
 
-    final mine = table.zone('library-s1')!.cards.map((c) => c.id).toList();
-    final theirs = table.zone('library-s2')!.cards.map((c) => c.id).toList();
+    // Library plus hand, because seven came off the top of each and the two
+    // seats drew different sevens. Comparing libraries alone compares fifty
+    // three cards that are not the same fifty three, which is a mismatch about
+    // the draw rather than about the shuffle.
+    List<String> wholeDeck(String seatId) => [
+          ...table.zone('library-$seatId')!.cards,
+          ...table.zone('hand-$seatId')!.cards,
+        ].map((c) => c.oracleId).toList();
 
-    // Same seed for the table, a different one per seat underneath. Two people
-    // with the same decklist drawing the same seven cards would be absurd.
-    expect(mine, isNot(theirs));
+    final mine = wholeDeck('s1');
+    final theirs = wholeDeck('s2');
+
+    expect(mine, hasLength(60));
+    expect(mine.toSet(), theirs.toSet(),
+        reason: 'the same decklist, so the same sixty cards are in there');
+    expect(mine, isNot(theirs),
+        reason: 'two people with the same list drawing the same seven cards '
+            'would be absurd, and that is what one seed for the table gives');
   });
 
   test('the same table seed deals the same pod twice', () {
