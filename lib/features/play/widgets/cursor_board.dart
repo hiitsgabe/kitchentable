@@ -32,6 +32,7 @@ class CursorBoard extends StatefulWidget {
     required this.onActivate,
     required this.onInspect,
     required this.onPlace,
+    this.cardScale = 1,
   });
 
   final Metrics metrics;
@@ -45,6 +46,10 @@ class CursorBoard extends StatefulWidget {
   /// Where a card was dropped, normalized 0 to 1 against this mat.
   final void Function(String cardId, double x, double y) onPlace;
 
+  /// The player's own multiplier on the card size. One is the mat exactly as
+  /// the layout drew it.
+  final double cardScale;
+
   @override
   State<CursorBoard> createState() => _CursorBoardState();
 }
@@ -54,6 +59,11 @@ class _CursorBoardState extends State<CursorBoard> {
 
   /// Where a card has been dragged to but not yet dropped, in mat units.
   final _dragging = <String, Offset>{};
+
+  /// The card as this board lays it out. The whole size scales and not just
+  /// the drawn width, so a bigger card is still centred on its own spot and
+  /// still leaves a gap in the flow.
+  Size get _cardSize => _cardOnMat * widget.cardScale;
 
   List<CursorZone> get _sizes =>
       [for (final z in widget.zones) (id: z.id, size: z.cards.length)];
@@ -187,7 +197,7 @@ class _CursorBoardState extends State<CursorBoard> {
     final spot = spotFor(
       position: card.position,
       index: index,
-      card: _cardOnMat,
+      card: _cardSize,
     );
     final pending = _dragging[card.id] ?? Offset.zero;
 
@@ -220,7 +230,7 @@ class _CursorBoardState extends State<CursorBoard> {
               metrics: m,
               instance: card,
               printing: widget.printings[card.oracleId],
-              width: _cardOnMat.width * scale,
+              width: _cardSize.width * scale,
               onTap: () => widget.onActivate(card),
               onLongPress: () => widget.onInspect(card),
             ),
@@ -255,7 +265,7 @@ class _CursorBoardState extends State<CursorBoard> {
     // centre and not the corner, because spotFor centres a positioned card
     // and the two have to be inverses or a card walks on every drag.
     final at =
-        from + moved + Offset(_cardOnMat.width / 2, _cardOnMat.height / 2);
+        from + moved + Offset(_cardSize.width / 2, _cardSize.height / 2);
     setState(() {});
     widget.onPlace(
       card.id,

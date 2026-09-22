@@ -12,6 +12,7 @@ import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../menu/menu_controller.dart';
+import 'card_size.dart';
 import 'play_controller.dart';
 import 'renderers/free_canvas.dart';
 import 'renderers/renderer_choice.dart';
@@ -65,6 +66,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     ));
     final table = ref.watch(playProvider);
     final play = ref.read(playProvider.notifier);
+    final cardScale = ref.watch(cardScaleProvider);
 
     // The referee's refusal, said out loud. Nothing refuses anything while the
     // permissive referee is the only one there is, so this path never fires
@@ -137,6 +139,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
           child: CursorBoard(
             key: const Key('your-board'),
             metrics: m,
+            cardScale: cardScale,
             zones: [
               (
                 id: battlefield.id,
@@ -205,6 +208,8 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                     .choose(renderer == TableRenderer.stackedSeats
                         ? TableRenderer.freeCanvas
                         : TableRenderer.stackedSeats),
+                onCardSize: (by) =>
+                    ref.read(cardScaleProvider.notifier).nudge(by),
                 onLife: (by) => play.run(ChangeLife(seatId: seat.id, by: by)),
                 onUndo: play.undo,
                 onLeave: () {
@@ -244,6 +249,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                             key: const Key('your-board'),
                             child: FreeCanvas(
                               metrics: m,
+                              cardScale: cardScale,
                               seats: views,
                               viewerSeatId: viewerId,
                               printings: _printings,
@@ -330,6 +336,7 @@ class _TopBar extends StatelessWidget {
     required this.canUndo,
     required this.renderer,
     required this.onSwitchRenderer,
+    required this.onCardSize,
     required this.onLife,
     required this.onUndo,
     required this.onLeave,
@@ -341,6 +348,9 @@ class _TopBar extends StatelessWidget {
   final bool canUndo;
   final TableRenderer renderer;
   final VoidCallback onSwitchRenderer;
+
+  /// One notch bigger or smaller, for the cards on the table.
+  final void Function(int) onCardSize;
   final void Function(int) onLife;
   final VoidCallback onUndo;
   final VoidCallback onLeave;
@@ -397,6 +407,20 @@ class _TopBar extends StatelessWidget {
               ? Icons.grid_view_rounded
               : Icons.view_agenda_rounded,
           onTap: onSwitchRenderer,
+        ),
+        SizedBox(width: m.scaled(12)),
+        _Pill(
+          metrics: m,
+          key: const Key('cards-smaller'),
+          icon: Icons.zoom_out_rounded,
+          onTap: () => onCardSize(-1),
+        ),
+        SizedBox(width: m.scaled(10)),
+        _Pill(
+          metrics: m,
+          key: const Key('cards-bigger'),
+          icon: Icons.zoom_in_rounded,
+          onTap: () => onCardSize(1),
         ),
         SizedBox(width: m.scaled(12)),
         Opacity(

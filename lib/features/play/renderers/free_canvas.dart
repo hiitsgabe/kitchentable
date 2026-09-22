@@ -28,6 +28,7 @@ class FreeCanvas extends StatelessWidget {
     required this.onTapCard,
     required this.onInspectCard,
     this.turnSeatId,
+    this.cardScale = 1,
   });
 
   final Metrics metrics;
@@ -37,6 +38,10 @@ class FreeCanvas extends StatelessWidget {
   final void Function(CardInstance) onTapCard;
   final void Function(CardInstance) onInspectCard;
   final String? turnSeatId;
+
+  /// The player's own multiplier on the card size. One is the surface exactly
+  /// as the layout drew it.
+  final double cardScale;
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +68,7 @@ class FreeCanvas extends StatelessWidget {
                   isTurn: seats[i].seatId == turnSeatId,
                   onTapCard: onTapCard,
                   onInspectCard: onInspectCard,
+                  cardScale: cardScale,
                 ),
               ),
           ],
@@ -81,6 +87,7 @@ class _Mat extends StatelessWidget {
     required this.isTurn,
     required this.onTapCard,
     required this.onInspectCard,
+    required this.cardScale,
   });
 
   final Metrics metrics;
@@ -90,6 +97,7 @@ class _Mat extends StatelessWidget {
   final bool isTurn;
   final void Function(CardInstance) onTapCard;
   final void Function(CardInstance) onInspectCard;
+  final double cardScale;
 
   @override
   Widget build(BuildContext context) {
@@ -127,10 +135,13 @@ class _Mat extends StatelessWidget {
   }
 
   Widget _place(CardInstance card, int index) {
+    // The whole size scales and not just the drawn width, so a bigger card is
+    // still centred on its own spot and still leaves a gap in the flow.
+    final size = _cardOnMat * cardScale;
     final spot = spotFor(
       position: card.position,
       index: index,
-      card: _cardOnMat,
+      card: size,
     );
 
     return Positioned(
@@ -142,7 +153,7 @@ class _Mat extends StatelessWidget {
         metrics: metrics,
         instance: card,
         printing: printings[card.oracleId],
-        width: _cardOnMat.width,
+        width: size.width,
         onTap: () => onTapCard(card),
         onLongPress: () => onInspectCard(card),
       ),
