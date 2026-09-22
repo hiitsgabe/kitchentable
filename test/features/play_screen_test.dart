@@ -10,6 +10,7 @@ import 'package:kitchentable/features/play/renderers/free_canvas.dart';
 import 'package:kitchentable/features/play/renderers/stacked_seats.dart';
 import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
 import 'package:kitchentable/features/play/widgets/radar_strip.dart';
+import 'package:kitchentable/features/play/widgets/table_card.dart';
 import 'package:kitchentable/features/play/widgets/seat_band.dart';
 import 'package:kitchentable/table/model/seat_owner.dart';
 import 'package:kitchentable/table/actions/table_action.dart';
@@ -250,6 +251,33 @@ void main() {
     expect(
       container.read(playProvider)!.locate(card.id)!.card.position,
       (x: 0.3, y: 0.6),
+    );
+  });
+
+  testWidgets('dragging a card on the screen writes where it landed',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pump();
+
+    // The case above drives the reducer, which was already able to do this.
+    // This one goes through the screen's own onPlace closure, which nothing
+    // else in the suite touches: a typo in it would ship silently.
+    await tester.drag(find.byType(TableCard).first, const Offset(70, 50));
+    await tester.pump();
+
+    final placed = container.read(playProvider)!.locate(card.id)!.card;
+    expect(placed.position, isNotNull);
+    expect(placed.position!.x, greaterThan(0));
+    expect(placed.position!.x, lessThan(1));
+
+    // The drag must not have moved it out of its pile or reordered it.
+    expect(
+      container.read(playProvider)!.zone('battlefield-s1')!.cards,
+      hasLength(1),
     );
   });
 
