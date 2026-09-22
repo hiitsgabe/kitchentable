@@ -3163,8 +3163,23 @@ git commit -m "Write down what playing it actually did"
 - **Free card positions.** The field is on `CardInstance` and nothing writes to
   it. Dragging a card to a spot belongs with the renderer that can show it.
 - **The network.** Plan 3, entirely.
-- **Pokemon.** Its zones are declared nowhere yet. The point of the eleven verbs
-  is that adding them changes no code in `table/`, and that claim gets tested
-  the day somebody writes `pokemon_pack.dart`.
+- **Pokemon.** Its zones are declared nowhere yet.
+
+  The claim this plan opened with was that adding them changes no code under
+  `lib/table/`. **That claim is already false and it is worth writing down
+  rather than discovering later.** `lib/table/setup.dart` imports
+  `games/magic_pack.dart` and hardcodes `openingHandSize = 7`, so a Magic
+  shaped thing lives in the generic folder.
+
+  Nothing under `table/model/` or `table/actions/` knows about any game, and
+  that part holds: the eleven verbs and the state really are game agnostic.
+  It is `sitDown` that is misfiled. It is a game's way of starting a table, not
+  the table's.
+
+  The fix is for plan 2, when there is a second game to shape it: a game pack
+  grows a `sitDown` of its own and `lib/table/setup.dart` goes away. Doing it
+  now would mean designing that interface against one real case and one
+  imagined one, which is the mistake the spec already warned about for Pokemon
+  itself.
 - **Mulligans, phases, the stack, priority.** All of them are rules, and the
   referee's chair is empty on purpose.
