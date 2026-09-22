@@ -1084,7 +1084,7 @@ In `lib/table/view/seat_view.dart`, directly below `zone`:
 - [ ] **Step 4: Run it and watch it pass**
 
 Run: `flutter test test/table/seat_view_test.dart`
-Expected: PASS, 8 tests.
+Expected: PASS, 7 tests.
 
 - [ ] **Step 5: Write the failing test for the band**
 
@@ -1134,16 +1134,50 @@ Widget _host(SeatView seat, {void Function()? onTap}) => MaterialApp(
       ),
     );
 
+/// A view that leaks on purpose: the hand arrives full and readable.
+///
+/// [SeatView] would never build this, and that is the point. Handing the band
+/// a correct view proves nothing about the band, because a band that read the
+/// hand would find it empty and draw nothing either way. The band is what is
+/// under test here, so it is given a view that would let it misbehave.
+SeatView _leaking({int hand = 7, int board = 1}) => SeatView(
+      seatId: 's2',
+      name: 'seat s2',
+      life: 40,
+      isViewer: false,
+      zones: [
+        ZoneView(
+          id: 'battlefield-s2',
+          label: 'battlefield',
+          count: board,
+          readable: true,
+          cards: [
+            for (var i = 0; i < board; i++)
+              CardInstance(id: 's2-b$i', oracleId: 'card$i'),
+          ],
+        ),
+        ZoneView(
+          id: 'hand-s2',
+          label: 'hand',
+          count: hand,
+          readable: true,
+          cards: [
+            for (var i = 0; i < hand; i++)
+              CardInstance(id: 's2-h$i', oracleId: 'card$i'),
+          ],
+        ),
+      ],
+    );
+
 void main() {
   testWidgets('an opponent shows how many cards, never which', (tester) async {
-    final them = SeatView.of(_seat('s2', hand: 3), viewer: 's1');
-    await tester.pumpWidget(_host(them));
+    await tester.pumpWidget(_host(_leaking(hand: 7, board: 1)));
 
-    expect(find.text('hand 3'), findsOneWidget);
-    // Their battlefield is empty, so every card in the tree would have to have
-    // come out of their hand. There are none, because the view never carried
-    // them this far.
-    expect(find.byType(TableCard), findsNothing);
+    expect(find.text('hand 7'), findsOneWidget);
+    // One card drawn, and it is the one on the battlefield. The seven in the
+    // hand are right there in the view and the band must still not reach for
+    // them: a pile other than the battlefield is not the band's to draw.
+    expect(find.byType(TableCard), findsNWidgets(1));
   });
 
   testWidgets('a battlefield is drawn, because everybody can see it',
@@ -1325,14 +1359,23 @@ class SeatBand extends StatelessWidget {
 - [ ] **Step 8: Run both test files and watch them pass**
 
 Run: `flutter test test/features/seat_band_test.dart test/table/seat_view_test.dart`
-Expected: PASS, 13 tests.
+Expected: PASS, 12 tests.
 
 - [ ] **Step 9: Probe that the hiding test can fail**
 
-Change `_viewOf` in `lib/table/view/seat_view.dart` to `cards: zone.cards` and
-run `flutter test test/features/seat_band_test.dart`. The first case must fail
-with two TableCards found. Edit it back by hand, never with `git checkout`, and
+Probe the band and not the view. In `seat_band.dart`, change the battlefield
+row to `for (final card in [...board.cards, ...?seat.pile('hand')?.cards])`
+and run `flutter test test/features/seat_band_test.dart`. The first case must
+fail with eight TableCards found where one was expected, and it must be the
+only case that fails. Edit it back by hand, never with `git checkout`, and
 rerun.
+
+**Do not probe `SeatView._viewOf` here and expect this file to notice.** The
+first draft of this task did, and the mutation survived: `SeatBand` has no
+code path that renders a hand card, so a leaking view changes nothing it
+draws. Only both bugs at once made the case fail, which means it pinned
+neither. `SeatView`'s own hiding is probed in Task 2 and in
+`seat_view_test.dart`, where it bites.
 
 - [ ] **Step 10: Commit**
 
