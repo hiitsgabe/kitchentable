@@ -146,9 +146,11 @@ void main() {
     expect(backFor(Game.magic), contains('scryfall'));
   });
 
-  test('Pokemon has its own', () {
-    expect(backFor(Game.pokemon), isNotNull);
-    expect(backFor(Game.pokemon), isNot(backFor(Game.magic)));
+  test('Pokemon has no back to fetch, and does not borrow Magic s', () {
+    // Game.pokemon.hasCatalog is false and the source registry refuses
+    // Pokemon decks, so no Pokemon deck can reach a table at all. A drawn
+    // back would be an invention and unreachable code at once.
+    expect(backFor(Game.pokemon), isNull);
   });
 
   testWidgets('a back with a picture draws it', (tester) async {
@@ -187,9 +189,13 @@ Append to `test/features/library_stack_test.dart`:
     await tester.pumpWidget(_host(count: 8, game: Game.magic));
     await tester.pump();
 
-    // The top card and the leaves under it. A blank tile reads as a hole in
-    // the table rather than as a deck.
-    expect(find.byType(CardBack), findsWidgets);
+    // Eight leaves and the top card. Counting the art and not just the boxes:
+    // `LibraryStack` is already built out of `CardBack`, so asserting that a
+    // `CardBack` exists is green before this task starts, and the only red in
+    // Step 2 would be the missing `game` parameter taking the file down at
+    // load. A compile red is not a behavioural red.
+    expect(find.byType(CardBack), findsNWidgets(9));
+    expect(find.byKey(const Key('card-back-art')), findsNWidgets(9));
   });
 ```
 
@@ -223,17 +229,16 @@ String? backFor(Game? game) => switch (game) {
     };
 ```
 
-For `_pokemonBack`, the app has no Pokemon catalog and therefore no source
-that serves one. **Do not hotlink a fan site.** Two honest choices, and the
-implementer picks and says which:
+`Game.pokemon` returns **null**. The app has no Pokemon catalog,
+`Game.pokemon.hasCatalog` is false, and the source registry refuses Pokemon
+decks, so no Pokemon deck can reach a table: a drawn back would be an
+invention and unreachable code at once, and it would not do the job a back is
+here to do, which is to say which game is on the table. Write a comment saying
+the back arrives with the catalog that serves it. Do not hotlink a fan site.
 
-- A null for now, with the box drawing as it does today, and a comment saying
-  the back arrives with the catalog that serves it.
-- A drawn back: a rounded rectangle in the Pokemon card's colours with the
-  app's own mark, generated in code, no asset and no fetch.
-
-Prefer the first if the second cannot be made to look deliberate rather than
-broken.
+Give `backFor` three explicit arms, `Game.magic`, `Game.pokemon` and `null`,
+rather than a wildcard, so a third game is a compile error here instead of a
+silent null.
 
 Then give `CardBack` the game and the picture:
 
@@ -282,11 +287,27 @@ and `CachedNetworkImage` on io, and its existing parameters may not be these.
 Match what is there rather than what is written here.
 
 Give `LibraryStack` a `Game? game` and pass it to every `CardBack`, leaves
-included. In `play_screen.dart` pass the seat's deck game. **The table does
-not know about games**: `TableState` has no such field, so the screen reads it
-from where the deck came in. If nothing on the screen can reach it, add it to
-`PlayController` when the table opens rather than putting it on `TableState`,
-and say that is what you did.
+included.
+
+**The table does not know about games and must not learn.** `TableState` and
+`Seat` have no such field and the spec says the table is game agnostic on
+purpose. Nothing on the screen can reach a deck either: the `Deck` is only in
+scope inside `startPod`. So `PlayController` keeps a
+`Map<String, Game> _games` written there and cleared in `leave()`, with a
+`Game? gameAt(String seatId)`, and the screen passes
+`game: play.gameAt(seat.id)`.
+
+Build that map by zipping `table.seats[i].id` against `players[i].deck.game`
+rather than rebuilding the `'s${i + 1}'` string, so it depends on the order
+`sitDownTogether` seats people and not on the spelling of the id it mints.
+
+**Nothing will observe that route unless you write a case for it.** Add one to
+`play_screen_test.dart` asserting a `card-back-art` descends from
+`library-stack`, and probe it by passing `game: null` from the screen. It dies
+by a finder, so it proves liveness only, and there is no wrong value to
+follow it with: Magic is the only game with a back, so "no game" is the only
+wrong answer the app can currently produce on that path. Say that rather than
+dressing it up.
 
 - [ ] **Step 4: Run them and watch them pass**
 
@@ -299,8 +320,19 @@ why you did not.
 
 - [ ] **Step 5: Probe**
 
-Make `backFor` return null for every game. The two drawing cases must fail,
-and say which assertion each. Edit it back by hand and rerun.
+Two, because one cannot reach the Pokemon arm.
+
+Make `backFor` return null for Magic too. Three cases fall: the Magic one on a
+wrong value, and the two drawing ones on finders, which is liveness only. The
+wrong value is on the same function the two widget cases read, so the three
+together are not fooling you about which code they exercise. The no-game case
+stays green, correctly.
+
+Then make `Game.pokemon` return the Magic back. The Pokemon case must fail on
+a wrong value, which is the assertion doing the work.
+
+Say which assertion failed each time, with its line. Edit each back by hand
+and rerun.
 
 - [ ] **Step 6: Commit**
 
