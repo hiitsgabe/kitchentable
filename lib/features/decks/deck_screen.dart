@@ -254,15 +254,37 @@ class _SlotRow extends ConsumerWidget {
               ],
             ),
           ),
-          if (slot.commander)
-            Padding(
-              padding: EdgeInsets.only(right: m.scaled(8)),
-              child: Icon(
-                Icons.star_rounded,
-                size: m.scaled(16),
-                color: Palette.accent,
-              ),
+          // The star picks the commander. It only appears in a format that has
+          // one, and it is the only way to choose: the editor has had a
+          // makeCommander since it was written and nothing ever called it,
+          // which is exactly why nothing caught that a Commander deck could
+          // not name its commander.
+          if (deck.format.needsCommander)
+            _Step(
+              metrics: m,
+              icon: slot.commander
+                  ? Icons.star_rounded
+                  : Icons.star_outline_rounded,
+              highlighted: slot.commander,
+              onTap: () {
+                if (slot.commander) {
+                  editor.standDownCommander();
+                  Toast.show(
+                    context,
+                    '${slot.card.name} is back in the deck',
+                    icon: Icons.star_outline_rounded,
+                  );
+                } else {
+                  editor.makeCommander(slot);
+                  Toast.show(
+                    context,
+                    '${slot.card.name} commands',
+                    icon: Icons.star_rounded,
+                  );
+                }
+              },
             ),
+          if (deck.format.needsCommander) SizedBox(width: m.scaled(4)),
           _Step(
             metrics: m,
             icon: Icons.remove_rounded,
@@ -301,12 +323,14 @@ class _Step extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.enabled = true,
+    this.highlighted = false,
   });
 
   final Metrics metrics;
   final IconData icon;
   final VoidCallback onTap;
   final bool enabled;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {

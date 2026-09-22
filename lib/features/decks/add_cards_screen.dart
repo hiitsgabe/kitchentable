@@ -116,18 +116,27 @@ class _CardRow extends ConsumerWidget {
     return Opacity(
       opacity: blocked ? 0.45 : 1,
       child: GestureDetector(
-        onTap: blocked
-            ? null
-            : () {
-                ref
-                    .read(deckEditorProvider.notifier)
-                    .add(DeckSlot(card: card, quantity: 1));
-                Toast.show(
-                  context,
-                  'Added ${card.name}',
-                  icon: Icons.check_rounded,
-                );
-              },
+        // A blocked card still answers the tap, it just says no. Before this
+        // it had onTap: null, so touching it was a silent nothing and looked
+        // exactly like the app having missed the tap.
+        onTap: () {
+          if (blocked) {
+            Toast.show(
+              context,
+              complaint!.message,
+              icon: Icons.block_rounded,
+            );
+            return;
+          }
+          ref
+              .read(deckEditorProvider.notifier)
+              .add(DeckSlot(card: card, quantity: 1));
+          Toast.show(
+            context,
+            'Added ${card.name}',
+            icon: Icons.check_rounded,
+          );
+        },
         behavior: HitTestBehavior.opaque,
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: m.scaled(8)),
