@@ -115,7 +115,7 @@ void main() {
       (tester) async {
     await _seated(tester);
 
-    final board = tester.getRect(find.byType(Expanded).first);
+    final board = tester.getRect(find.byKey(const Key('your-board')));
     final hand = tester.getRect(find.byType(HandSheet));
 
     // Arena opens the hand into a fan across the battlefield, so you cannot
@@ -184,6 +184,25 @@ void main() {
           reason: 'a card from somebody else s hand reached the widget tree');
     }
     expect(find.text('hand 7'), findsOneWidget);
+  });
+
+  testWidgets('a spectator is shown no hand at all', (tester) async {
+    final container = await _seatedPod(tester, ['you', 'Carla']);
+    container.read(viewerSeatProvider.notifier).sit(null);
+    await tester.pump();
+
+    // Plan 3 arrives here: the table is open and this device holds no chair.
+    // The seat the screen falls back to drawing is still somebody's, and its
+    // hand is not this device's to see. Every other case in this file has a
+    // local seat, which makes this the only one where the `mine` guard on
+    // HandSheet is load bearing at all.
+    final table = container.read(playProvider)!;
+    for (final seat in table.seats) {
+      for (final card in table.zone('hand-${seat.id}')!.cards) {
+        expect(find.byKey(Key('hand-card-${card.id}')), findsNothing,
+            reason: 'a spectator was handed ${seat.id} s cards');
+      }
+    }
   });
 
   testWidgets('looking out of another local seat swaps whose hand it is',
