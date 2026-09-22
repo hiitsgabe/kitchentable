@@ -159,16 +159,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
             printings: _printings,
             onActivate: (c) => play.run(RotateCard(c.id)),
             onInspect: _inspect,
-            onPlace: (cardId, x, y) {
-              final found = ref.read(playProvider)?.locate(cardId);
-              if (found == null) return;
-              play.run(MoveCard(
-                cardId: cardId,
-                toZoneId: found.zone.id,
-                at: found.zone.cards.indexWhere((c) => c.id == cardId),
-                position: (x: x, y: y),
-              ));
-            },
+            onPlace: _place,
           ),
         ),
         SizedBox(height: m.scaled(10)),
@@ -264,6 +255,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                               turnSeatId: table.turnSeatId,
                               onTapCard: (c) => play.run(RotateCard(c.id)),
                               onInspectCard: _inspect,
+                              onPlace: _place,
                             ),
                           ),
                         ),
@@ -298,6 +290,23 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
         ),
       ),
     );
+  }
+
+  /// Puts a card down where it was dropped, in whichever renderer dropped it.
+  ///
+  /// The card keeps its place in its own pile: this says where on the mat it
+  /// is lying, and nothing else. Both renderers normalize against the same mat
+  /// so a drag on the canvas and a drag on the D-pad board mean the same
+  /// thing.
+  void _place(String cardId, double x, double y) {
+    final found = ref.read(playProvider)?.locate(cardId);
+    if (found == null) return;
+    ref.read(playProvider.notifier).run(MoveCard(
+          cardId: cardId,
+          toZoneId: found.zone.id,
+          at: found.zone.cards.indexWhere((c) => c.id == cardId),
+          position: (x: x, y: y),
+        ));
   }
 
   /// Moves the viewer, and says out loud when it will not move.

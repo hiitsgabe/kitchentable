@@ -1,3 +1,5 @@
+import 'dart:ui' show clampDouble;
+
 import 'package:flutter/material.dart';
 
 import '../../../sources/model/catalog_card.dart';
@@ -5,6 +7,7 @@ import '../../../table/model/card_instance.dart';
 import '../../../table/view/seat_view.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
+import '../widgets/grabbable.dart';
 import '../widgets/table_card.dart';
 import 'mat_layout.dart';
 
@@ -27,6 +30,7 @@ class FreeCanvas extends StatelessWidget {
     required this.printings,
     required this.onTapCard,
     required this.onInspectCard,
+    required this.onPlace,
     this.turnSeatId,
     this.cardScale = 1,
   });
@@ -37,6 +41,11 @@ class FreeCanvas extends StatelessWidget {
   final Map<String, CatalogCard> printings;
   final void Function(CardInstance) onTapCard;
   final void Function(CardInstance) onInspectCard;
+
+  /// Where one of your own cards was dropped, normalized 0 to 1 against your
+  /// mat. Somebody else's card never reports: it is theirs to move.
+  final void Function(String cardId, double x, double y) onPlace;
+
   final String? turnSeatId;
 
   /// The player's own multiplier on the card size. One is the surface exactly
@@ -57,17 +66,23 @@ class FreeCanvas extends StatelessWidget {
         height: surface.height,
         child: Stack(
           children: [
-            for (var i = 0; i < seats.length; i++)
+            // Walked in seat order and not in table order, so your own mat
+            // is the one at the bottom, next to your hand.
+            for (final (slot, seatAt) in seatOrder(
+              count: seats.length,
+              viewerAt: seats.indexWhere((s) => s.seatId == viewerSeatId),
+            ).indexed)
               Positioned.fromRect(
-                rect: matFor(i, seats.length),
+                rect: matFor(slot, seats.length),
                 child: _Mat(
                   metrics: metrics,
-                  seat: seats[i],
+                  seat: seats[seatAt],
                   printings: printings,
-                  isViewer: seats[i].seatId == viewerSeatId,
-                  isTurn: seats[i].seatId == turnSeatId,
+                  isViewer: seats[seatAt].seatId == viewerSeatId,
+                  isTurn: seats[seatAt].seatId == turnSeatId,
                   onTapCard: onTapCard,
                   onInspectCard: onInspectCard,
+                  onPlace: onPlace,
                   cardScale: cardScale,
                 ),
               ),
@@ -78,7 +93,7 @@ class FreeCanvas extends StatelessWidget {
   }
 }
 
-class _Mat extends StatelessWidget {
+class _Mat extends StatefulWidget {
   const _Mat({
     required this.metrics,
     required this.seat,
@@ -87,6 +102,7 @@ class _Mat extends StatelessWidget {
     required this.isTurn,
     required this.onTapCard,
     required this.onInspectCard,
+    required this.onPlace,
     required this.cardScale,
   });
 
@@ -97,21 +113,36 @@ class _Mat extends StatelessWidget {
   final bool isTurn;
   final void Function(CardInstance) onTapCard;
   final void Function(CardInstance) onInspectCard;
+  final void Function(String cardId, double x, double y) onPlace;
   final double cardScale;
 
   @override
+  State<_Mat> createState() => _MatState();
+}
+
+class _MatState extends State<_Mat> {
+  /// Where a card has been dragged to but not yet dropped, in mat units.
+  final _dragging = <String, Offset>{};
+
+  /// The card as this mat lays it out. The whole size scales and not just the
+  /// drawn width, so a bigger card is still centred on its own spot and still
+  /// leaves a gap in the flow.
+  Size get _cardSize => _cardOnMat * widget.cardScale;
+
+  @override
   Widget build(BuildContext context) {
+    final seat = widget.seat;
     final board = seat.pile('battlefield');
     final cards = board?.cards ?? const <CardInstance>[];
 
     return Container(
       key: Key('mat-${seat.seatId}'),
       decoration: BoxDecoration(
-        color: isViewer ? Palette.tileFocused : Palette.tile,
+        color: widget.isViewer ? Palette.tileFocused : Palette.tile,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isTurn ? Palette.accent : Palette.tileEdge,
-          width: isTurn ? 3 : 1,
+          color: widget.isTurn ? Palette.accent : Palette.tileEdge,
+          width: widget.isTurn ? 3 : 1,
         ),
       ),
       child: Stack(
@@ -135,28 +166,60 @@ class _Mat extends StatelessWidget {
   }
 
   Widget _place(CardInstance card, int index) {
-    // The whole size scales and not just the drawn width, so a bigger card is
-    // still centred on its own spot and still leaves a gap in the flow.
-    final size = _cardOnMat * cardScale;
     final spot = spotFor(
       position: card.position,
       index: index,
-      card: size,
+      card: _cardSize,
+    );
+    final pending = _dragging[card.id] ?? Offset.zero;
+
+    final face = TableCard(
+      metrics: widget.metrics,
+      instance: card,
+      printing: widget.printings[card.oracleId],
+      width: _cardSize.width,
+      onTap: () => widget.onTapCard(card),
+      onLongPress: () => widget.onInspectCard(card),
     );
 
     return Positioned(
       key: Key('card-${card.id}'),
-      left: spot.dx,
+      left: spot.dx + pending.dx,
       // Below the seat's name, which sits in the padding at the top.
-      top: spot.dy + matPadding,
-      child: TableCard(
-        metrics: metrics,
-        instance: card,
-        printing: printings[card.oracleId],
-        width: size.width,
-        onTap: () => onTapCard(card),
-        onLongPress: () => onInspectCard(card),
-      ),
+      top: spot.dy + matPadding + pending.dy,
+      // A card on somebody else's mat is theirs to move, so it is not even
+      // picked up: no drag, no half move that snaps back.
+      child: widget.isViewer
+          ? Grabbable(
+              onMove: (delta) => _drag(card.id, delta),
+              onDrop: () => _drop(card, spot),
+              child: face,
+            )
+          : face,
+    );
+  }
+
+  void _drag(String cardId, Offset delta) {
+    setState(() {
+      _dragging[cardId] = (_dragging[cardId] ?? Offset.zero) + delta;
+    });
+  }
+
+  void _drop(CardInstance card, Offset from) {
+    final moved = _dragging.remove(card.id);
+    setState(() {});
+    if (moved == null) return;
+
+    // The centre of where the card ended up, normalized against the mat. The
+    // centre and not the corner, because spotFor centres a positioned card and
+    // the two have to be inverses or a card walks on every drag. The padding
+    // the name sits in is left out of both, so it cancels.
+    final at =
+        from + moved + Offset(_cardSize.width / 2, _cardSize.height / 2);
+    widget.onPlace(
+      card.id,
+      clampDouble(at.dx / matSize.width, 0, 1),
+      clampDouble(at.dy / matSize.height, 0, 1),
     );
   }
 }
