@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/sources/catalog/catalog_db.dart';
+import 'package:drift/native.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kitchentable/decks/model/deck.dart';
 import 'package:kitchentable/decks/model/deck_format.dart';
@@ -49,14 +51,27 @@ Future<ProviderContainer> _seatedPod(
   List<String> names, {
   Size window = const Size(390, 844),
   bool withCommander = false,
+  bool withCatalog = false,
 }) async {
   tester.view.physicalSize = window;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
+  // Off by default: almost every case here is about the table and wants no
+  // database. On, because the screen refuses to open the big view for a card
+  // it has no printing for, so the route through the viewer cannot be
+  // exercised without one. In memory, so nothing touches disk inside the
+  // widget binding's fake async.
+  CatalogDb? db;
+  if (withCatalog) {
+    db = CatalogDb.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.insertAll([_card('Mountain'), _card('General')]);
+  }
+
   final container = ProviderContainer(
-    overrides: [catalogDbProvider.overrideWithValue(null)],
+    overrides: [catalogDbProvider.overrideWithValue(db)],
   );
   addTearDown(container.dispose);
   container.read(playProvider.notifier).startPod(
@@ -324,8 +339,12 @@ void main() {
 
   testWidgets('the deck can be shuffled from the table', (tester) async {
     final container = await _seatedPod(tester, ['you']);
-    final before =
-        container.read(playProvider)!.zone('library-s1')!.cards.first.id;
+    final before = container
+        .read(playProvider)!
+        .zone('library-s1')!
+        .cards
+        .map((c) => c.id)
+        .toList();
 
     await tester.tap(find.byKey(const Key('library-work')));
     await tester.pumpAndSettle();
@@ -334,15 +353,24 @@ void main() {
     await tester.tap(find.byKey(const Key('confirm-shuffle')));
     await tester.pumpAndSettle();
 
-    final after =
-        container.read(playProvider)!.zone('library-s1')!.cards.first.id;
+    final after = container
+        .read(playProvider)!
+        .zone('library-s1')!
+        .cards
+        .map((c) => c.id)
+        .toList();
 
-    // 53 cards, so the same card staying on top is a one in fifty three
-    // coincidence rather than a flake worth tolerating. If this is ever seen
-    // failing, check the seed before loosening it.
+    // The whole order, not the top card. Comparing tops was flaky at exactly
+    // the rate you would expect: measured at 1.904% over two hundred thousand
+    // shuffles of fifty three cards, against 1/53 = 1.887%. An earlier
+    // comment here called that "a one in fifty three coincidence rather than
+    // a flake worth tolerating", which was wrong twice: it is a flake, and
+    // two failures in fifty runs is what 1.9% looks like.
+    //
+    // Two identical permutations of fifty three cards is 1 in 53 factorial,
+    // which is a number with seventy digits.
     expect(after, isNot(before));
-    expect(container.read(playProvider)!.zone('library-s1')!.cards,
-        hasLength(53));
+    expect(after, hasLength(53));
   });
 
   testWidgets('a card sent to the bottom from the sheet goes there',
@@ -431,6 +459,32 @@ void main() {
     // way to put a land down and the player did not ask to lose it.
     expect(container.read(playProvider)!.zone('battlefield-s1')!.cards,
         hasLength(1));
+  });
+
+  testWidgets('a commander sent home from the big view gets there',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you'],
+        withCommander: true, withCatalog: true);
+    final play = container.read(playProvider.notifier);
+    final commander =
+        container.read(playProvider)!.zone('command-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: commander.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    // The corner drag is covered. This is the other route, the one for a
+    // commander that dies with your finger nowhere near it, and nothing
+    // touched it: setting hasCommandZone to false on the screen left all of
+    // the suite green.
+    await tester.longPress(find.byType(TableCard).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('act-command')));
+    await tester.pumpAndSettle();
+
+    expect(container.read(playProvider)!.zone('command-s1')!.cards,
+        hasLength(1));
+    expect(container.read(playProvider)!.zone('battlefield-s1')!.cards,
+        isEmpty);
   });
 
   testWidgets('a commander dropped on its corner goes home', (tester) async {
