@@ -16,6 +16,9 @@ import 'add_cards_screen.dart';
 import 'add_lands_screen.dart';
 import 'decks_controller.dart';
 import 'paste_list_screen.dart';
+import '../play/play_controller.dart';
+import '../play/play_screen.dart';
+import '../../table/shuffle.dart';
 
 class DeckScreen extends ConsumerWidget {
   const DeckScreen({super.key});
@@ -53,6 +56,19 @@ class DeckScreen extends ConsumerWidget {
       children: [
         _Counts(metrics: m, deck: deck),
         SizedBox(height: m.scaled(18)),
+        if (deck.slots.isNotEmpty)
+          MenuRow(
+            title: 'Play with this deck',
+            subtitle: 'shuffle, draw seven, and see how it goldfishes',
+            icon: Icons.play_arrow_rounded,
+            metrics: m,
+            onActivate: () {
+              ref.read(playProvider.notifier).start(deck, seed: freshSeed());
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
+              );
+            },
+          ),
         MenuRow(
           title: 'Add cards',
           subtitle: 'search the catalog and tap to add',

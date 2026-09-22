@@ -40,7 +40,7 @@ class MenuState {
         MenuEntry(
           id: MenuEntryId.play,
           title: 'Play',
-          subtitle: hasCatalog ? 'host a table or join by code' : 'needs a source',
+          subtitle: hasCatalog ? 'open a deck to play with it' : 'needs a source',
           enabled: hasCatalog,
         ),
         MenuEntry(
