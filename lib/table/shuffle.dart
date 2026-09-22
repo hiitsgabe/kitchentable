@@ -60,7 +60,17 @@ String commitToSeed(String seed) =>
 bool seedMatches(String commitment, String seed) =>
     commitToSeed(seed) == commitment;
 
+/// The range a fresh seed draws from.
+///
+/// Written as a literal and not as `1 << 32`, which is not the same number
+/// everywhere: dart2js shifts with 32 bit semantics, so anything shifted past
+/// 31 comes back as zero. `1 << 32` is 4294967296 on the VM and 0 in a
+/// browser, and `nextInt(0)` throws. That threw on every deal on the web and
+/// on none in a test, which is how it lived long enough to be the reason the
+/// game would not start.
+const seedRange = 0x100000000;
+
 /// A seed nobody chose on purpose. Not cryptographic, and it does not need to
 /// be: it is committed to before use, so guessing it later buys nothing.
 String freshSeed() =>
-    '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
+    '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(seedRange)}';
