@@ -41,7 +41,17 @@ class CardInstance {
   /// layout decides, which is the default and what most players will ever see.
   final ({double x, double y})? position;
 
-  CardInstance rotated() => copyWith(rotation: (rotation + 90) % 360);
+  /// Straight becomes turned, and anything else becomes straight.
+  ///
+  /// Not `(rotation + 90) % 360`, which was the first answer and is wrong for
+  /// the gesture it is bound to: four taps walked a card through upside down
+  /// on the way back to where it started. Upside down is a thing somebody
+  /// means, so it belongs on the menu and not on the way past.
+  CardInstance turned() => copyWith(rotation: rotation == 0 ? 90 : 0);
+
+  /// An exact angle, for the menu. Quarter turns, and it does not toggle.
+  CardInstance turnedTo(int degrees) =>
+      copyWith(rotation: degrees % 360);
 
   CardInstance flipped() => copyWith(faceDown: !faceDown);
 

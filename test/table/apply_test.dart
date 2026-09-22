@@ -198,4 +198,20 @@ void main() {
     expect(before.zone('library')!.size, 3);
     expect(before.zone('hand')!.size, 0);
   });
+
+  test('rotating twice leaves a card where it started', () {
+    final table = apply(_table(), const MoveCard(cardId: 'a', toZoneId: 'battlefield'));
+    final once = apply(table, const RotateCard('a'));
+    final twice = apply(once, const RotateCard('a'));
+
+    expect(once.locate('a')!.card.rotation, 90);
+    expect(twice.locate('a')!.card.rotation, 0);
+  });
+
+  test('rotating to an angle sets it', () {
+    final table = apply(_table(), const MoveCard(cardId: 'a', toZoneId: 'battlefield'));
+    final next = apply(table, const RotateCard('a', to: 180));
+
+    expect(next.locate('a')!.card.rotation, 180);
+  });
 }

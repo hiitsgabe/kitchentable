@@ -12,14 +12,6 @@ void main() {
     expect(card.position, isNull);
   });
 
-  test('rotating goes a quarter turn and wraps at a full one', () {
-    const card = CardInstance(id: 'i1', oracleId: 'x');
-
-    expect(card.rotated().rotation, 90);
-    expect(card.rotated().rotated().rotation, 180);
-    expect(card.rotated().rotated().rotated().rotated().rotation, 0);
-  });
-
   test('two cards of the same printing are still two cards', () {
     const a = CardInstance(id: 'i1', oracleId: 'mountain');
     const b = CardInstance(id: 'i2', oracleId: 'mountain');
@@ -44,5 +36,28 @@ void main() {
     final drained = card.withCounter('-1/-1', 2);
 
     expect(drained.counters['-1/-1'], 2);
+  });
+
+  test('a tap turns a card, and a second tap turns it back', () {
+    const card = CardInstance(id: 'c', oracleId: 'o');
+
+    // At a table a card is straight or it is turned. Ninety per tap walked it
+    // through upside down on the way back, which is what the player hit.
+    expect(card.turned().rotation, 90);
+    expect(card.turned().turned().rotation, 0);
+  });
+
+  test('a card turned any other way comes back straight on a tap', () {
+    const card = CardInstance(id: 'c', oracleId: 'o', rotation: 180);
+
+    expect(card.turned().rotation, 0);
+  });
+
+  test('an angle can be set outright', () {
+    const card = CardInstance(id: 'c', oracleId: 'o');
+
+    expect(card.turnedTo(180).rotation, 180);
+    expect(card.turnedTo(180).turnedTo(180).rotation, 180,
+        reason: 'setting an angle is not a toggle');
   });
 }
