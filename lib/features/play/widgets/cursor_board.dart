@@ -44,8 +44,14 @@ class CursorBoard extends StatefulWidget {
   final void Function(CardInstance) onActivate;
   final void Function(CardInstance) onInspect;
 
-  /// Where a card was dropped, normalized 0 to 1 against this mat.
-  final void Function(String cardId, double x, double y) onPlace;
+  /// Which pile a card was dropped on, and where on that pile's mat,
+  /// normalized 0 to 1.
+  ///
+  /// The pile is named rather than read back off the card, because a card can
+  /// arrive here from a hand, and then where it was is no guide at all to
+  /// where it should go.
+  final void Function(String zoneId, String cardId, double x, double y)
+      onPlace;
 
   /// The player's own multiplier on the card size. One is the mat exactly as
   /// the layout drew it.
@@ -125,17 +131,7 @@ class _CursorBoardState extends State<CursorBoard> {
 
   @override
   Widget build(BuildContext context) {
-    final m = widget.metrics;
     final cursor = _cursor;
-
-    if (cursor == null) {
-      return Center(
-        child: Text(
-          'Nothing on the battlefield',
-          style: TextStyle(fontSize: m.scaled(12), color: Palette.inkFaint),
-        ),
-      );
-    }
 
     return Focus(
       autofocus: true,
@@ -144,15 +140,19 @@ class _CursorBoardState extends State<CursorBoard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final zone in widget.zones)
-              if (zone.cards.isNotEmpty) _pile(zone, cursor),
+            for (final (i, zone) in widget.zones.indexed)
+              // The battlefield keeps its mat while there is nothing on it,
+              // because an empty mat is exactly where a card out of your hand
+              // has to land. A target that appears only once a card is
+              // already there could never take the first one.
+              if (i == 0 || zone.cards.isNotEmpty) _pile(zone, cursor),
           ],
         ),
       ),
     );
   }
 
-  Widget _pile(BoardZone zone, BoardCursor cursor) {
+  Widget _pile(BoardZone zone, BoardCursor? cursor) {
     final m = widget.metrics;
 
     return Padding(
@@ -175,12 +175,13 @@ class _CursorBoardState extends State<CursorBoard> {
                 width: constraints.maxWidth,
                 height: matSize.height * scale,
                 child: CardDropTarget(
-                  onDrop: (card, at) => _drop(card, at, scale),
+                  onDrop: (card, at) => _drop(zone, card, at, scale),
                   child: Stack(
                     // The box a drop is measured against, and the one the
                     // test measures it against too.
                     key: Key('mat-${zone.id}'),
                     children: [
+                      if (zone.cards.isEmpty) _nothingHere(),
                       for (var i = 0; i < zone.cards.length; i++)
                         _card(zone, i, cursor, scale),
                     ],
@@ -194,10 +195,25 @@ class _CursorBoardState extends State<CursorBoard> {
     );
   }
 
-  Widget _card(BoardZone zone, int index, BoardCursor cursor, double scale) {
+  /// Said inside the mat rather than instead of it, so the words and the
+  /// place a card can be put down are the same rectangle.
+  Widget _nothingHere() => Positioned.fill(
+        child: Center(
+          child: Text(
+            'Nothing on the battlefield',
+            style: TextStyle(
+              fontSize: widget.metrics.scaled(12),
+              color: Palette.inkFaint,
+            ),
+          ),
+        ),
+      );
+
+  Widget _card(BoardZone zone, int index, BoardCursor? cursor, double scale) {
     final m = widget.metrics;
     final card = zone.cards[index];
-    final ringed = zone.id == cursor.zoneId && index == cursor.index;
+    final ringed =
+        cursor != null && zone.id == cursor.zoneId && index == cursor.index;
     final spot = spotFor(
       position: card.position,
       index: index,
@@ -241,9 +257,10 @@ class _CursorBoardState extends State<CursorBoard> {
   /// Divided by the scale first, because the mat is drawn at whatever width
   /// the board was given and a drop has to mean the same thing on a phone and
   /// on a television.
-  void _drop(CardInstance card, Offset at, double scale) {
+  void _drop(BoardZone zone, CardInstance card, Offset at, double scale) {
     final mat = at / scale;
     widget.onPlace(
+      zone.id,
       card.id,
       clampDouble(mat.dx / matSize.width, 0, 1),
       clampDouble(mat.dy / matSize.height, 0, 1),

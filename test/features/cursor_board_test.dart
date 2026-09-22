@@ -12,7 +12,7 @@ Widget _host({
   void Function(CardInstance)? onActivate,
   void Function(CardInstance)? onInspect,
   Map<String, ({double x, double y})> placed = const {},
-  void Function(String id, double x, double y)? onPlace,
+  void Function(String zoneId, String id, double x, double y)? onPlace,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -43,7 +43,7 @@ Widget _host({
           printings: const {},
           onActivate: onActivate ?? (_) {},
           onInspect: onInspect ?? (_) {},
-          onPlace: onPlace ?? (_, _, _) {},
+          onPlace: onPlace ?? (_, _, _, _) {},
         ),
       ),
     );
@@ -148,7 +148,7 @@ void main() {
 
   testWidgets('dragging a card reports where it was dropped', (tester) async {
     ({String id, double x, double y})? dropped;
-    await tester.pumpWidget(_host(onPlace: (id, x, y) {
+    await tester.pumpWidget(_host(onPlace: (_, id, x, y) {
       dropped = (id: id, x: x, y: y);
     }));
     await tester.pump();
@@ -164,7 +164,7 @@ void main() {
   testWidgets('a drop is reported normalized, never in pixels',
       (tester) async {
     ({String id, double x, double y})? dropped;
-    await tester.pumpWidget(_host(onPlace: (id, x, y) {
+    await tester.pumpWidget(_host(onPlace: (_, id, x, y) {
       dropped = (id: id, x: x, y: y);
     }));
     await tester.pump();
@@ -189,7 +189,7 @@ void main() {
       (tester) async {
     Future<double> dropAfter(double dx) async {
       double? x;
-      await tester.pumpWidget(_host(onPlace: (_, at, _) => x = at));
+      await tester.pumpWidget(_host(onPlace: (_, _, at, _) => x = at));
       await tester.pump();
       await tester.drag(find.byType(TableCard).first, Offset(dx, 0));
       await tester.pump();
@@ -208,7 +208,7 @@ void main() {
   testWidgets('a card lands where the finger let go, not short of it',
       (tester) async {
     double? x;
-    await tester.pumpWidget(_host(onPlace: (_, at, _) => x = at));
+    await tester.pumpWidget(_host(onPlace: (_, _, at, _) => x = at));
     await tester.pump();
 
     final card = tester.getCenter(find.byType(TableCard).first);
@@ -234,7 +234,7 @@ void main() {
     CardInstance? acted;
     await tester.pumpWidget(_host(
       onActivate: (c) => acted = c,
-      onPlace: (_, _, _) {},
+      onPlace: (_, _, _, _) {},
     ));
     await tester.pump();
 
