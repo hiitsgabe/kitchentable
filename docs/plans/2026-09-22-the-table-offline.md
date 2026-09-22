@@ -849,11 +849,39 @@ import 'package:crypto/crypto.dart';
 
 import 'model/card_instance.dart';
 
+/// Turns a seed string into an int that every platform agrees on.
+///
+/// Not `seed.hashCode`. That was the first answer here and it is wrong: it is
+/// stable across runs and it is a DIFFERENT FUNCTION on the VM than on
+/// dart2js, and this app ships both. Measured on 2026 09 22:
+///
+///     'abc'  VM 756227931   JS 102006619
+///     'abd'  VM 458030030   JS 340630478
+///
+/// A phone and a browser at the same table would derive different orders from
+/// the identical committed seed, and the commitment would be worth nothing
+/// while appearing to work.
+///
+/// SHA-256 has a specification rather than an implementation, so its bytes are
+/// the same everywhere by construction. `Random(int)` is itself portable:
+/// `Random(42)` gives the same sequence on both, which is how the fault was
+/// pinned to the derivation and not to the generator.
+int seedToInt(String seed) {
+  final digest = sha256.convert(utf8.encode(seed)).bytes;
+  var value = 0;
+  // Four bytes, inside the 32 bits dart2js holds exactly. Random takes the low
+  // bits anyway, so a wider fold buys nothing and costs precision on the web.
+  for (var i = 0; i < 4; i++) {
+    value = (value << 8) | digest[i];
+  }
+  return value;
+}
+
 /// A Fisher Yates driven by a seed, so the same seed always gives the same
 /// order. Deterministic on purpose: it is what makes a shuffle checkable by
 /// somebody who was not holding the cards.
 List<CardInstance> shuffleWithSeed(List<CardInstance> cards, String seed) {
-  final random = Random(seed.hashCode);
+  final random = Random(seedToInt(seed));
   final out = [...cards];
 
   for (var i = out.length - 1; i > 0; i--) {
@@ -891,18 +919,29 @@ Expected: `crypto` appears under dependencies.
 - [ ] **Step 5: Run it and watch it pass**
 
 Run: `flutter test test/table/shuffle_test.dart`
-Expected: PASS, 7 tests.
+Expected: PASS, 10 tests.
 
-- [ ] **Step 6: Prove the tests bite, and question one line**
+- [ ] **Step 6: Prove the tests bite, and the seed derivation finding**
 
 Change the loop body so it never swaps (`final j = i;`) and confirm
 `it actually moves things` FAILS. Restore.
 
-Then read `Random(seed.hashCode)` and report back before committing. Dart's
-`String.hashCode` is not stable across runs of a program on every platform, and
-a shuffle that is only reproducible inside one process is not reproducible at
-all for plan 3, where two devices have to agree. Say whether you think this
-holds, and what you would use instead. Do NOT change it yet.
+This task originally shipped `Random(seed.hashCode)` and asked the implementer
+to investigate it. They did, and it was wrong, so the code above already has
+the fix. The finding is kept here because the shape of it is worth knowing:
+
+`String.hashCode` IS stable across runs of the VM. The worry as first written
+was wrong about that. What it is not is the same function on the VM and on
+dart2js, and this app ships both, so two seats would have disagreed while every
+test on either one passed.
+
+The control that settled it was checking `Random(42)` on both platforms and
+getting an identical sequence, which pinned the fault to the string to int
+derivation rather than to the generator.
+
+Three tests guard it now, and the frozen values in them were checked against
+Python's hashlib rather than against the implementation, because a test that
+only agrees with the code it tests passes happily while two platforms disagree.
 
 - [ ] **Step 7: Commit**
 

@@ -57,6 +57,33 @@ void main() {
         reason: 'a sha256 in hex, whatever the seed was');
   });
 
+  test('the seed becomes a number every platform agrees on', () {
+    // Frozen values, not a round trip. A test that only checks seedToInt
+    // against itself passes on any platform while two platforms disagree,
+    // which is exactly the bug this replaced: String.hashCode is stable per
+    // run and different on the VM and on dart2js. These come from SHA-256,
+    // which has a specification rather than an implementation.
+    expect(seedToInt('abc'), 0xBA7816BF);
+    expect(seedToInt('abd'), 0xA52D159F);
+    expect(seedToInt(''), 0xE3B0C442);
+  });
+
+  test('a one character change moves the number a long way', () {
+    // Not a real avalanche test, just enough to catch a derivation that only
+    // reads the length or the first byte.
+    expect(seedToInt('abc'), isNot(seedToInt('abd')));
+    expect(seedToInt('seed-1'), isNot(seedToInt('seed-2')));
+  });
+
+  test('the number is one dart2js can hold exactly', () {
+    for (final seed in ['abc', '', 'a much longer seed than that one']) {
+      final n = seedToInt(seed);
+      expect(n, inInclusiveRange(0, 0xFFFFFFFF),
+          reason: 'past 2^53 a browser starts rounding and the two platforms '
+              'stop agreeing again');
+    }
+  });
+
   test('shuffling an empty pile is not an event', () {
     expect(shuffleWithSeed(const [], 'abc'), isEmpty);
   });
