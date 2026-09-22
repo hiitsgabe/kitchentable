@@ -38,7 +38,7 @@ void main() {
 
     expect(state.initialFocus, MenuEntryId.sources);
     expect(
-      state.entries.firstWhere((e) => e.id == MenuEntryId.decks).enabled,
+      state.entries.firstWhere((e) => e.id == MenuEntryId.play).enabled,
       isFalse,
     );
   });

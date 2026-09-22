@@ -32,6 +32,7 @@ class Deck {
     required this.format,
     this.game = Game.magic,
     this.slots = const [],
+    this.knownCardCount,
   });
 
   final String id;
@@ -39,6 +40,12 @@ class Deck {
   final DeckFormat format;
   final Game game;
   final List<DeckSlot> slots;
+
+  /// How many cards the deck holds, when that was counted without loading
+  /// them. The deck list reads this: loading every card of every deck to draw
+  /// a row saying how many there are would be silly, and a row that cannot say
+  /// whether a deck is empty cannot dim itself either.
+  final int? knownCardCount;
 
   Iterable<DeckSlot> get main =>
       slots.where((s) => !s.sideboard && !s.commander);
@@ -64,12 +71,16 @@ class Deck {
       .where((s) => s.card.oracleId == oracleId)
       .fold(0, (n, s) => n + s.quantity);
 
+  /// The count to show, from whichever source knows it.
+  int get cardCount => slots.isNotEmpty ? mainCount : (knownCardCount ?? 0);
+
   Deck copyWith({String? name, List<DeckSlot>? slots}) => Deck(
         id: id,
         name: name ?? this.name,
         format: format,
         game: game,
         slots: slots ?? this.slots,
+        knownCardCount: knownCardCount,
       );
 }
 

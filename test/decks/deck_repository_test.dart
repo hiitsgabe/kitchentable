@@ -143,6 +143,51 @@ void main() {
     expect(all.where((d) => d.game == Game.pokemon).length, 1);
   });
 
+  test('the list knows how many cards each deck has, without loading them',
+      () async {
+    await repo.save(deck(slots: [
+      DeckSlot(card: _card('Sol Ring'), quantity: 1),
+      DeckSlot(card: _card('Mountain'), quantity: 37),
+    ]));
+    await repo.save(const Deck(
+      id: 'd2',
+      name: 'empty one',
+      format: DeckFormat.commander,
+    ));
+
+    final all = await repo.list();
+    final full = all.firstWhere((d) => d.id == 'd1');
+    final empty = all.firstWhere((d) => d.id == 'd2');
+
+    expect(full.slots, isEmpty, reason: 'the list still does not load cards');
+    expect(full.cardCount, 38);
+    expect(empty.cardCount, 0,
+        reason: 'an empty deck deals nothing, and its row dims itself on this');
+  });
+
+  test('the count leaves the sideboard out', () async {
+    await repo.save(Deck(
+      id: 'd3',
+      name: 'duel',
+      format: DeckFormat.standard,
+      slots: [
+        DeckSlot(card: _card('Sol Ring'), quantity: 4),
+        DeckSlot(card: _card('Mountain'), quantity: 2, sideboard: true),
+      ],
+    ));
+
+    final listed = (await repo.list()).firstWhere((d) => d.id == 'd3');
+    expect(listed.cardCount, 4);
+  });
+
+  test('a loaded deck counts its own cards, not the stored number', () async {
+    await repo.save(deck(slots: [DeckSlot(card: _card('Sol Ring'), quantity: 1)]));
+
+    final loaded = await repo.load('d1');
+    expect(loaded!.cardCount, 1);
+    expect(loaded.slots, isNotEmpty);
+  });
+
   test('deleting a deck takes its cards with it', () async {
     await repo.save(deck(slots: [DeckSlot(card: _card('Sol Ring'), quantity: 1)]));
     await repo.delete('d1');
