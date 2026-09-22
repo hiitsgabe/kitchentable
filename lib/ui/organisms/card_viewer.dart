@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../sources/model/catalog_card.dart';
+import '../../table/model/card_instance.dart';
 import '../tokens/metrics.dart';
 import '../atoms/card_image.dart';
 import '../tokens/palette.dart';
@@ -13,6 +14,13 @@ import 'card_shading.dart';
 /// The generic Magic back, served by Scryfall, for a card with only one face.
 const _genericBack =
     'https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg';
+
+/// What the viewer can ask for, beyond looking.
+///
+/// Turning a card ninety degrees is not here: that is the tap, on the table,
+/// where the player can see the board around it. These are the deliberate
+/// ones, which is why they are behind a press and hold.
+enum CardAction { upsideDown, straighten, flip, counterUp, counterDown }
 
 /// One card, lifted off the screen and turnable in the hand.
 ///
@@ -27,16 +35,39 @@ const _genericBack =
 /// no swap to cover, and what the edge actually did was flick a white line
 /// across the middle of the card on every single turn.
 class CardViewer extends StatefulWidget {
-  const CardViewer({super.key, required this.card});
+  const CardViewer({
+    super.key,
+    required this.card,
+    this.instance,
+    this.onAct,
+  });
 
   final CatalogCard card;
 
-  static Future<void> show(BuildContext context, CatalogCard card) =>
+  /// The card on a table, when there is one. Null from the deck builder,
+  /// where a printing is being looked at rather than a card being played, and
+  /// then the viewer offers nothing to do because there is nothing to do it
+  /// to.
+  final CardInstance? instance;
+
+  final void Function(CardAction)? onAct;
+
+  static Future<CardAction?> show(
+    BuildContext context,
+    CatalogCard card, {
+    CardInstance? instance,
+  }) =>
       Navigator.of(context).push(
-        PageRouteBuilder<void>(
+        // Not PageRouteBuilder<CardAction?>. push<T> already hands back a
+        // Future<T?>, so the route's own type argument is the non null one.
+        PageRouteBuilder<CardAction>(
           opaque: false,
           barrierColor: Colors.black.withValues(alpha: 0.78),
-          pageBuilder: (_, _, _) => CardViewer(card: card),
+          pageBuilder: (context, _, _) => CardViewer(
+            card: card,
+            instance: instance,
+            onAct: (action) => Navigator.of(context).pop(action),
+          ),
           transitionsBuilder: (_, animation, _, child) =>
               FadeTransition(opacity: animation, child: child),
         ),
@@ -121,79 +152,170 @@ class _CardViewerState extends State<CardViewer>
       body: GestureDetector(
         onTap: () => Navigator.of(context).maybePop(),
         behavior: HitTestBehavior.opaque,
-        // Centred on both axes, with the caption riding along underneath
-        // rather than pushing the card off centre.
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Listener(
-                // A mouse wheel is not a scale gesture, so it is caught
-                // separately. Without this, zoom would be touch only and the
-                // browser build could never read a card's text.
-                onPointerSignal: (event) {
-                  if (event is PointerScrollEvent) {
-                    setState(() {
-                      _zoom = (_zoom - event.scrollDelta.dy * 0.0016).clamp(
-                        1.0,
-                        3.2,
-                      );
-                    });
-                  }
-                },
-                child: GestureDetector(
-                  onTap: _flip,
-                  // Scale rather than pan, because a GestureDetector cannot
-                  // arbitrate both. focalPointDelta carries the drag, so the
-                  // turn and the pinch come from one recogniser.
-                  onScaleStart: (_) => _zoomAtGestureStart = _zoom,
-                  onScaleUpdate: (d) => setState(() {
-                    _zoom = (_zoomAtGestureStart * d.scale).clamp(1.0, 3.2);
-                    if (d.pointerCount == 1) {
-                      _yaw += d.focalPointDelta.dx * 0.011;
-                      // Inverted so dragging the top of the card away from
-                      // you tips the top away from you.
-                      _pitch = (_pitch - d.focalPointDelta.dy * 0.006).clamp(
-                        -0.45,
-                        0.45,
-                      );
-                    }
-                  }),
-                  onScaleEnd: (_) => _settle(),
-                  child: _Card(
-                    card: widget.card,
-                    yaw: _yaw,
-                    pitch: _pitch,
-                    width: width * _zoom,
+        // The bar is a sibling of the card, never a child of it. Everything
+        // under _Card lives inside a Matrix4 that is being turned in three
+        // dimensions, and a control mounted in there turns with it.
+        child: Stack(
+          children: [
+            // Centred on both axes, with the caption riding along underneath
+            // rather than pushing the card off centre.
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Listener(
+                    // A mouse wheel is not a scale gesture, so it is caught
+                    // separately. Without this, zoom would be touch only and
+                    // the browser build could never read a card's text.
+                    onPointerSignal: (event) {
+                      if (event is PointerScrollEvent) {
+                        setState(() {
+                          _zoom = (_zoom - event.scrollDelta.dy * 0.0016)
+                              .clamp(1.0, 3.2);
+                        });
+                      }
+                    },
+                    child: GestureDetector(
+                      onTap: _flip,
+                      // Scale rather than pan, because a GestureDetector
+                      // cannot arbitrate both. focalPointDelta carries the
+                      // drag, so the turn and the pinch come from one
+                      // recogniser.
+                      onScaleStart: (_) => _zoomAtGestureStart = _zoom,
+                      onScaleUpdate: (d) => setState(() {
+                        _zoom = (_zoomAtGestureStart * d.scale).clamp(1.0, 3.2);
+                        if (d.pointerCount == 1) {
+                          _yaw += d.focalPointDelta.dx * 0.011;
+                          // Inverted so dragging the top of the card away from
+                          // you tips the top away from you.
+                          _pitch = (_pitch - d.focalPointDelta.dy * 0.006)
+                              .clamp(-0.45, 0.45);
+                        }
+                      }),
+                      onScaleEnd: (_) => _settle(),
+                      child: _Card(
+                        card: widget.card,
+                        yaw: _yaw,
+                        pitch: _pitch,
+                        width: width * _zoom,
+                      ),
+                    ),
                   ),
-                ),
+                  SizedBox(height: m.scaled(26)),
+                  Text(
+                    widget.card.name,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: m.scaled(17),
+                      fontWeight: FontWeight.w600,
+                      color: Palette.ink,
+                    ),
+                  ),
+                  SizedBox(height: m.scaled(6)),
+                  Text(
+                    widget.card.imageBack == null
+                        ? 'drag to turn it over, pinch or scroll to read it'
+                        : 'drag to turn it over, it has a second face',
+                    style: TextStyle(
+                      fontSize: m.scaled(11),
+                      color: Palette.inkFaint,
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(height: m.scaled(26)),
-              Text(
-                widget.card.name,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: m.scaled(17),
-                  fontWeight: FontWeight.w600,
-                  color: Palette.ink,
-                ),
-              ),
-              SizedBox(height: m.scaled(6)),
-              Text(
-                widget.card.imageBack == null
-                    ? 'drag to turn it over, pinch or scroll to read it'
-                    : 'drag to turn it over, it has a second face',
-                style: TextStyle(
-                  fontSize: m.scaled(11),
-                  color: Palette.inkFaint,
-                ),
-              ),
-            ],
-          ),
+            ),
+            _actions(m),
+          ],
         ),
       ),
     );
   }
+
+  Widget _actions(Metrics m) {
+    final instance = widget.instance;
+    if (instance == null) return const SizedBox.shrink();
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Padding(
+        padding: EdgeInsets.all(m.safeInset),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (instance.rotation == 180)
+              _act(m, const Key('act-straighten'), Icons.straighten_rounded,
+                  'Straighten', CardAction.straighten)
+            else
+              _act(m, const Key('act-upside-down'),
+                  Icons.flip_camera_android_rounded, 'Upside down',
+                  CardAction.upsideDown),
+            SizedBox(width: m.scaled(10)),
+            _act(
+              m,
+              const Key('act-flip'),
+              Icons.layers_rounded,
+              instance.faceDown ? 'Face up' : 'Face down',
+              CardAction.flip,
+            ),
+            SizedBox(width: m.scaled(18)),
+            _act(m, const Key('act-counter-down'), Icons.remove_rounded, null,
+                CardAction.counterDown),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: m.scaled(10)),
+              child: Text(
+                '${instance.counters.values.fold(0, (a, b) => a + b)}',
+                style: TextStyle(
+                  fontSize: m.scaled(18),
+                  fontWeight: FontWeight.w700,
+                  color: Palette.ink,
+                ),
+              ),
+            ),
+            _act(m, const Key('act-counter-up'), Icons.add_rounded, null,
+                CardAction.counterUp),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _act(
+    Metrics m,
+    Key key,
+    IconData icon,
+    String? label,
+    CardAction action,
+  ) =>
+      GestureDetector(
+        key: key,
+        onTap: () => widget.onAct?.call(action),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: m.scaled(label == null ? 10 : 14),
+            vertical: m.scaled(10),
+          ),
+          decoration: BoxDecoration(
+            color: Palette.tile,
+            borderRadius: BorderRadius.circular(m.scaled(10)),
+            border: Border.all(color: Palette.tileEdge),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: m.scaled(17), color: Palette.inkMuted),
+              if (label != null) ...[
+                SizedBox(width: m.scaled(8)),
+                Text(
+                  label,
+                  style:
+                      TextStyle(fontSize: m.scaled(12), color: Palette.ink),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
 }
 
 class _Card extends StatelessWidget {
