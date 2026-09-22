@@ -2145,11 +2145,21 @@ In `lib/features/play/widgets/hand_sheet.dart`:
   the left.
 - Reorder by dragging. `ReorderableListView` is the obvious answer and it is
   the wrong one here: it wants its own scroll view, it fights the centring,
-  and its drag handle behaviour on a horizontal list is poor. Use the same
-  `Listener` plus `GestureDetector` pair `cursor_board.dart` already uses,
-  work out the index from the drop position and the card pitch, and call
-  `onReorder`. Read that file first; the touch slop problem it solves is the
-  same one here.
+  and its drag handle behaviour on a horizontal list is poor.
+
+  **Extract** the `Listener` plus `onPanStart` catch up out of
+  `cursor_board.dart` into a `Grabbable` widget under `widgets/` and have both
+  use it, rather than retyping it. Retyping brings the `kTouchSlop` bug back
+  and no case in this task would catch it, because this task asserts an index
+  and not a position.
+
+  `Grabbable` must record and catch up with **local** positions, not global.
+  A pan delta is already in the local space of the render object that got the
+  event. In `cursor_board` the two differ by a constant translation that
+  cancels in a subtraction, so it made no difference there; inside
+  `FreeCanvas` the mats live in an `InteractiveViewer`, where a screen pixel
+  is not a mat unit, and travel measured globally would overshoot by up to
+  `kTouchSlop` times the zoom.
 
 The screen wires `onReorder` to
 `MoveCard(cardId: id, toZoneId: hand.id, at: to)`.
