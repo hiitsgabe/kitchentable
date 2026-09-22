@@ -60,24 +60,32 @@ fourth time in this project that a method has existed only on paper, after
 lib/
   table/
     model/
-      seat.dart           MODIFY: a seat gains an owner
-      table_state.dart    MODIFY: whose turn, and who is looking
+      seat.dart            MODIFY  a seat gains an owner
+      seat_owner.dart      NEW     here, a peer, or nobody
     view/
-      seat_view.dart      NEW  what one seat looks like to one viewer
-  games/
-    magic_pack.dart       MODIFY: seats for a pod, not just one
-  table/setup.dart        MODIFY: sitDown seats several decks
+      seat_view.dart       NEW     one seat as one viewer sees it
+    setup.dart             MODIFY  sitDownTogether seats a pod
   features/play/
-    play_controller.dart  MODIFY: which local seat is looking
-    play_screen.dart      MODIFY: chooses a renderer
+    play_controller.dart   MODIFY  opens a pod, and who is looking
+    play_screen.dart       MODIFY  picks a renderer and wires the rest
+    board_cursor.dart      NEW     where the D-pad is pointing
     renderers/
-      stacked_seats.dart  NEW  bands, phone default
-      free_canvas.dart    NEW  pan and pinch, wide default
-      renderer_choice.dart NEW which one, and remembering it
+      renderer_choice.dart NEW     which view, and remembering it
+      stacked_seats.dart   NEW     bands, the phone default
+      mat_layout.dart      NEW     where a mat goes and a card sits on it
+      free_canvas.dart     NEW     pan and pinch, the wide default
     widgets/
-      seat_band.dart      NEW  one opponent, compressed
-      radar_strip.dart    NEW  every life total, always visible
+      radar_strip.dart     NEW     every life total, always visible
+      seat_band.dart       NEW     one opponent, compressed
+      cursor_board.dart    NEW     your own piles, walkable
+      hand_sheet.dart      MODIFY  a key per card, so a test can look for one
 ```
+
+Two files the first draft of this plan listed are not here. `table_state.dart`
+does not learn who is looking, because that is about this device rather than
+about the table and plan 3 replicates the table. `magic_pack.dart` did not need
+touching at all: it already took a seat id, and seating a pod turned out to be
+a loop in `setup.dart` around the function that seats one.
 
 ---
 
@@ -1027,29 +1035,2271 @@ git commit -m "Keep every life total on screen"
 
 ---
 
-## Task 6 onward
+## Task 6: A seat compressed into a band
 
-The remaining tasks build the two renderers themselves and are written after
-the first six land, because their shape depends on what `SeatView` turns out to
-be comfortable to draw from. Writing them now would be guessing at an interface
-that does not exist yet, which is the mistake this project has already made
-twice: the refusal path that no screen could read, and the seat that could not
-say who held it.
+The first widget that draws from a `SeatView` rather than from a `Seat`. An
+opponent's hand arrives here already emptied, so the band shows a number and
+there is no card in the widget tree to read off.
 
-What they will cover:
+**Files:**
+- Modify: `lib/table/view/seat_view.dart`
+- Modify: `test/table/seat_view_test.dart`
+- Create: `lib/features/play/widgets/seat_band.dart`
+- Test: `test/features/seat_band_test.dart`
 
-- **`seat_band.dart`**, one seat compressed into a band: name, life, hand count,
-  and a row of what is on their battlefield.
-- **`stacked_seats.dart`**, the bands stacked with yours pinned at the bottom
-  and taller, scrolling between them, tapping a band to expand it.
-- **`free_canvas.dart`**, the same seats on a pan and pinch surface, with the
-  card positions from `CardInstance.position` honoured in both.
-- **Switching which local seat is looking**, which is what makes a pod on one
-  device playable and what proves `SeatView` actually hides anything.
-- **The D-pad on a board**, walking card to card inside a zone and jumping
-  between zones on a separate button. This is the part of the D-pad requirement
-  the spec flagged as a real interaction problem and it is still unsolved.
+- [ ] **Step 1: Write the failing test for finding a pile by kind**
 
+Append to `test/table/seat_view_test.dart`, inside `main()`:
+
+```dart
+  test('a pile is found by kind', () {
+    final view = SeatView.of(_seat('s1'), viewer: 's1');
+
+    // Zone ids are built as `<kind>-<seatId>` in magic_pack. Every widget that
+    // wants a hand would otherwise paste that string together itself.
+    expect(view.pile('hand')!.id, 'hand-s1');
+    expect(view.pile('battlefield')!.count, 3);
+    expect(view.pile('sideboard'), isNull);
+  });
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/table/seat_view_test.dart`
+Expected: FAIL, `The method 'pile' isn't defined for the type 'SeatView'`.
+
+- [ ] **Step 3: Add the method**
+
+In `lib/table/view/seat_view.dart`, directly below `zone`:
+
+```dart
+  /// The pile of that kind: `pile('hand')`, `pile('battlefield')`.
+  ///
+  /// Zone ids are `<kind>-<seatId>` by construction in `magic_pack.dart`. A
+  /// game that names its piles differently passes its own kinds in and this
+  /// still holds, which is why the kind is a string and not an enum.
+  ZoneView? pile(String kind) => zone('$kind-$seatId');
+```
+
+- [ ] **Step 4: Run it and watch it pass**
+
+Run: `flutter test test/table/seat_view_test.dart`
+Expected: PASS, 8 tests.
+
+- [ ] **Step 5: Write the failing test for the band**
+
+Create `test/features/seat_band_test.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/widgets/seat_band.dart';
+import 'package:kitchentable/features/play/widgets/table_card.dart';
+import 'package:kitchentable/table/model/card_instance.dart';
+import 'package:kitchentable/table/model/seat.dart';
+import 'package:kitchentable/table/model/zone.dart';
+import 'package:kitchentable/table/view/seat_view.dart';
+import 'package:kitchentable/ui/tokens/metrics.dart';
+
+Zone _zone(String kind, String seatId, ZoneVisibility v, int n) => Zone(
+      id: '$kind-$seatId',
+      seatId: seatId,
+      label: kind,
+      visibility: v,
+      ordered: false,
+      cards: [
+        for (var i = 0; i < n; i++)
+          CardInstance(id: '$seatId-$kind-$i', oracleId: 'card$i'),
+      ],
+    );
+
+Seat _seat(String id, {int life = 40, int hand = 3, int board = 0}) => Seat(
+      id: id,
+      name: 'seat $id',
+      life: life,
+      zones: [
+        _zone('hand', id, ZoneVisibility.owner, hand),
+        _zone('battlefield', id, ZoneVisibility.public, board),
+      ],
+    );
+
+Widget _host(SeatView seat, {void Function()? onTap}) => MaterialApp(
+      home: Scaffold(
+        body: SeatBand(
+          metrics: Metrics.of(DeviceClass.handheld),
+          seat: seat,
+          printings: const {},
+          onTap: onTap ?? () {},
+        ),
+      ),
+    );
+
+void main() {
+  testWidgets('an opponent shows how many cards, never which', (tester) async {
+    final them = SeatView.of(_seat('s2', hand: 3), viewer: 's1');
+    await tester.pumpWidget(_host(them));
+
+    expect(find.text('hand 3'), findsOneWidget);
+    // Their battlefield is empty, so every card in the tree would have to have
+    // come out of their hand. There are none, because the view never carried
+    // them this far.
+    expect(find.byType(TableCard), findsNothing);
+  });
+
+  testWidgets('a battlefield is drawn, because everybody can see it',
+      (tester) async {
+    final them = SeatView.of(_seat('s2', board: 2), viewer: 's1');
+    await tester.pumpWidget(_host(them));
+
+    expect(find.byType(TableCard), findsNWidgets(2));
+  });
+
+  testWidgets('an empty battlefield says so', (tester) async {
+    final them = SeatView.of(_seat('s2'), viewer: 's1');
+    await tester.pumpWidget(_host(them));
+
+    expect(find.text('nothing out'), findsOneWidget);
+  });
+
+  testWidgets('life shows, and a dead seat still shows it', (tester) async {
+    final them = SeatView.of(_seat('s2', life: -2), viewer: 's1');
+    await tester.pumpWidget(_host(them));
+
+    expect(find.text('-2'), findsOneWidget);
+  });
+
+  testWidgets('tapping the band reports it', (tester) async {
+    var tapped = false;
+    final them = SeatView.of(_seat('s2'), viewer: 's1');
+    await tester.pumpWidget(_host(them, onTap: () => tapped = true));
+
+    await tester.tap(find.byKey(const Key('band-s2')));
+    await tester.pump();
+
+    expect(tapped, isTrue);
+  });
+}
+```
+
+- [ ] **Step 6: Run it and watch it fail**
+
+Run: `flutter test test/features/seat_band_test.dart`
+Expected: FAIL, `Error when reading 'lib/features/play/widgets/seat_band.dart'`.
+
+- [ ] **Step 7: Write the band**
+
+Create `lib/features/play/widgets/seat_band.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+
+import '../../../sources/model/catalog_card.dart';
+import '../../../table/view/seat_view.dart';
+import '../../../ui/tokens/metrics.dart';
+import '../../../ui/tokens/palette.dart';
+import 'table_card.dart';
+
+/// One seat, compressed: who they are, how much life, how many cards they are
+/// holding, and what they have on the battlefield.
+///
+/// It takes a [SeatView] and not a `Seat`, which is the whole point. A card
+/// this viewer may not see never arrives, so there is nothing in the widget
+/// tree to read off, screenshot, or accidentally draw.
+class SeatBand extends StatelessWidget {
+  const SeatBand({
+    super.key,
+    required this.metrics,
+    required this.seat,
+    required this.printings,
+    required this.onTap,
+    this.isTurn = false,
+    this.focused = false,
+  });
+
+  final Metrics metrics;
+  final SeatView seat;
+
+  /// Printings for whatever is on their battlefield. A card the catalog has
+  /// never heard of draws as a back, which [TableCard] already handles.
+  final Map<String, CatalogCard> printings;
+
+  final VoidCallback onTap;
+  final bool isTurn;
+  final bool focused;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+    final board = seat.pile('battlefield');
+    final hand = seat.pile('hand');
+
+    return GestureDetector(
+      key: Key('band-${seat.seatId}'),
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        margin: EdgeInsets.only(bottom: m.scaled(8)),
+        padding: EdgeInsets.all(m.scaled(10)),
+        decoration: BoxDecoration(
+          color: focused ? Palette.tileFocused : Palette.tile,
+          borderRadius: BorderRadius.circular(m.scaled(10)),
+          border: Border.all(
+            color: isTurn ? Palette.accent : Palette.tileEdge,
+            width: isTurn ? m.focusRing : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    seat.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        TextStyle(fontSize: m.scaled(13), color: Palette.ink),
+                  ),
+                ),
+                // The count and not the cards. At a real table everybody can
+                // see how many somebody is holding and nobody can see which.
+                Text(
+                  'hand ${hand?.count ?? 0}',
+                  style: TextStyle(
+                    fontSize: m.scaled(11),
+                    color: Palette.inkFaint,
+                  ),
+                ),
+                SizedBox(width: m.scaled(12)),
+                Text(
+                  '${seat.life}',
+                  style: TextStyle(
+                    fontSize: m.scaled(18),
+                    fontWeight: FontWeight.w700,
+                    color: seat.life <= 0 ? Palette.attention : Palette.ink,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: m.scaled(8)),
+            SizedBox(
+              height: m.scaled(58),
+              child: board == null || board.cards.isEmpty
+                  ? Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'nothing out',
+                        style: TextStyle(
+                          fontSize: m.scaled(11),
+                          color: Palette.inkFaint,
+                        ),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final card in board.cards)
+                            Padding(
+                              padding: EdgeInsets.only(right: m.scaled(6)),
+                              child: TableCard(
+                                metrics: m,
+                                instance: card,
+                                printing: printings[card.oracleId],
+                                width: m.scaled(40),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 8: Run both test files and watch them pass**
+
+Run: `flutter test test/features/seat_band_test.dart test/table/seat_view_test.dart`
+Expected: PASS, 13 tests.
+
+- [ ] **Step 9: Probe that the hiding test can fail**
+
+Change `_viewOf` in `lib/table/view/seat_view.dart` to `cards: zone.cards` and
+run `flutter test test/features/seat_band_test.dart`. The first case must fail
+with two TableCards found. Edit it back by hand, never with `git checkout`, and
+rerun.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add lib/table/view/seat_view.dart test/table/seat_view_test.dart \
+        lib/features/play/widgets/seat_band.dart test/features/seat_band_test.dart
+git commit -m "Draw an opponent as a number and a battlefield"
+```
+
+---
+
+## Task 7: A pod, and which seat is looking
+
+The table already seats several people. Nothing opens one, and nothing decides
+whose eyes the screen is behind. Both land here, and the second is the thing
+that makes `SeatView` more than a unit test.
+
+**Files:**
+- Modify: `lib/features/play/play_controller.dart`
+- Test: `test/features/pod_controller_test.dart`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `test/features/pod_controller_test.dart`:
+
+```dart
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/decks/model/deck.dart';
+import 'package:kitchentable/decks/model/deck_format.dart';
+import 'package:kitchentable/features/play/play_controller.dart';
+import 'package:kitchentable/sources/model/catalog_card.dart';
+import 'package:kitchentable/table/model/seat_owner.dart';
+import 'package:kitchentable/table/setup.dart';
+
+CatalogCard _card(String name) =>
+    CatalogCard(oracleId: name, name: name, typeLine: 'Instant', cmc: 1);
+
+Deck _deck(String name) => Deck(
+      id: name,
+      name: name,
+      format: DeckFormat.commander,
+      slots: [DeckSlot(card: _card('$name-card'), quantity: 60)],
+    );
+
+Player _here(String name) =>
+    (deck: _deck(name), name: name, owner: const SeatOwner.here());
+
+void main() {
+  late ProviderContainer container;
+
+  setUp(() => container = ProviderContainer());
+  tearDown(() => container.dispose());
+
+  PlayController controller() => container.read(playProvider.notifier);
+  ViewerSeat viewer() => container.read(viewerSeatProvider.notifier);
+
+  test('nobody is looking before a table opens', () {
+    expect(container.read(viewerSeatProvider), isNull);
+  });
+
+  test('a pod seats everybody and you are looking first', () {
+    controller().startPod(
+      players: [_here('you'), _here('Carla'), _here('Diego')],
+      seed: 'abc',
+    );
+
+    expect(container.read(playProvider)!.seats, hasLength(3));
+    expect(container.read(viewerSeatProvider), 's1');
+  });
+
+  test('one deck goes through the same door', () {
+    controller().start(_deck('solo'), seed: 'abc');
+
+    final table = container.read(playProvider)!;
+    expect(table.seats, hasLength(1));
+    expect(table.zone('hand-s1')!.size, 7);
+    // Solo is not a mode. It is the case where nobody else has joined, so the
+    // one seat is held here exactly like the other three would be.
+    expect(table.seats.single.owner.actableHere, isTrue);
+    expect(container.read(viewerSeatProvider), 's1');
+  });
+
+  test('looking through another local seat moves the viewer', () {
+    controller().startPod(players: [_here('you'), _here('Carla')], seed: 'abc');
+
+    expect(viewer().look('s2'), isTrue);
+    expect(container.read(viewerSeatProvider), 's2');
+  });
+
+  test('looking through a seat this device does not hold is refused', () {
+    controller().startPod(
+      players: [
+        _here('you'),
+        (deck: _deck('far'), name: 'Bruno', owner: const SeatOwner.peer('p1')),
+      ],
+      seed: 'abc',
+    );
+
+    // The one rule that makes hidden information mean anything on a device
+    // holding several seats: you may only look out of a chair you are in.
+    expect(viewer().look('s2'), isFalse);
+    expect(container.read(viewerSeatProvider), 's1');
+  });
+
+  test('looking at a seat that is not there is refused', () {
+    controller().startPod(players: [_here('you')], seed: 'abc');
+
+    expect(viewer().look('s9'), isFalse);
+    expect(container.read(viewerSeatProvider), 's1');
+  });
+
+  test('leaving puts nobody in the chair', () {
+    controller().startPod(players: [_here('you'), _here('Carla')], seed: 'abc');
+    viewer().look('s2');
+    controller().leave();
+
+    expect(container.read(playProvider), isNull);
+    // A stale viewer outlives its table and points at a seat that no longer
+    // exists, which the next table then inherits.
+    expect(container.read(viewerSeatProvider), isNull);
+  });
+
+  test('a new table reseats the viewer at its own first seat', () {
+    controller().startPod(players: [_here('you'), _here('Carla')], seed: 'abc');
+    viewer().look('s2');
+    controller().startPod(players: [_here('you')], seed: 'def');
+
+    expect(container.read(viewerSeatProvider), 's1');
+  });
+
+  test('a pod of peers only leaves nobody looking', () {
+    controller().startPod(
+      players: [
+        (deck: _deck('a'), name: 'Carla', owner: const SeatOwner.peer('p1')),
+        (deck: _deck('b'), name: 'Diego', owner: const SeatOwner.peer('p2')),
+      ],
+      seed: 'abc',
+    );
+
+    // A spectator: the table is open and this device holds no chair. Plan 3
+    // arrives here, and it must not land on somebody else's hand by default.
+    expect(container.read(viewerSeatProvider), isNull);
+  });
+}
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/features/pod_controller_test.dart`
+Expected: FAIL to compile, `Undefined name 'viewerSeatProvider'` and
+`The method 'startPod' isn't defined`.
+
+- [ ] **Step 3: Add the viewer and the pod door**
+
+In `lib/features/play/play_controller.dart`, add these imports:
+
+```dart
+import '../../table/model/seat_owner.dart';
+```
+
+Add below `playRefusalProvider`:
+
+```dart
+/// Which seat this device is looking out of.
+///
+/// A provider of its own rather than a field on [TableState], for the same
+/// reason the refusal is one: looking through a different seat does not change
+/// the table, so a field there would notify nobody. It is also the one thing
+/// here that is about this device and not about the game, which is why plan 3
+/// replicates the table and never this.
+class ViewerSeat extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  /// Refuses a chair this device is not in. Looking out of somebody else's
+  /// seat is the exact thing [SeatView] exists to prevent, so the guard lives
+  /// with the state and not in the screen, which is not the only caller it
+  /// will ever have.
+  bool look(String seatId) {
+    final seat = ref.read(playProvider)?.seat(seatId);
+    if (seat == null || !seat.owner.actableHere) return false;
+    state = seatId;
+    return true;
+  }
+
+  /// Seats the viewer without asking. Only for opening and closing a table,
+  /// where there is nothing to refuse yet.
+  void sit(String? seatId) => state = seatId;
+}
+
+final viewerSeatProvider =
+    NotifierProvider<ViewerSeat, String?>(ViewerSeat.new);
+```
+
+Replace `PlayController.start` with:
+
+```dart
+  void start(Deck deck, {String? seed}) => startPod(
+        players: [(deck: deck, name: 'you', owner: const SeatOwner.here())],
+        seed: seed,
+      );
+
+  /// Everybody at this device. Solo comes through here too: one player is a
+  /// pod of one, and a separate path for it is how the one seat case drifts
+  /// away from the four seat one without anybody noticing.
+  void startPod({required List<Player> players, String? seed}) {
+    if (players.isEmpty) return;
+
+    final table = sitDownTogether(players: players, seed: seed ?? freshSeed());
+    _session = TableSession(table);
+    _clearRefusal();
+    state = table;
+
+    final here = table.seats.where((s) => s.owner.actableHere).firstOrNull;
+    ref.read(viewerSeatProvider.notifier).sit(here?.id);
+  }
+```
+
+In `leave()`, below `_clearRefusal();`:
+
+```dart
+    ref.read(viewerSeatProvider.notifier).sit(null);
+```
+
+- [ ] **Step 4: Run the whole suite**
+
+Run: `flutter test`
+Expected: PASS. `play_controller_test.dart` and `play_screen_test.dart` both
+call `start` and must keep passing unchanged: a pod of one deals the same seven
+cards, because `sitDownTogether` derives `abc/s1` from `abc` and the one seat
+case went through `sitDown` with the raw seed before. **If the seven cards
+changed, they changed for everybody, and that is a real behaviour change to
+report rather than a test to update.**
+
+- [ ] **Step 5: Probe that the refusal test can fail**
+
+Change the guard to `if (seat == null) return false;` and run
+`flutter test test/features/pod_controller_test.dart`. The peer case must fail.
+Edit it back by hand and rerun.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/features/play/play_controller.dart test/features/pod_controller_test.dart
+git commit -m "Open a table for a pod, and decide whose eyes it is"
+```
+
+---
+
+## Task 8: Bands, stacked
+
+The phone renderer. Opponents above in a scrolling column, your own seat below
+and taller. The renderer decides where your seat goes and has no opinion about
+what is inside it, which is why it takes a widget.
+
+**Files:**
+- Create: `lib/features/play/renderers/stacked_seats.dart`
+- Test: `test/features/stacked_seats_test.dart`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `test/features/stacked_seats_test.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/renderers/stacked_seats.dart';
+import 'package:kitchentable/features/play/widgets/seat_band.dart';
+import 'package:kitchentable/table/model/card_instance.dart';
+import 'package:kitchentable/table/model/seat.dart';
+import 'package:kitchentable/table/model/zone.dart';
+import 'package:kitchentable/table/view/seat_view.dart';
+import 'package:kitchentable/ui/tokens/metrics.dart';
+
+Seat _seat(String id) => Seat(
+      id: id,
+      name: 'seat $id',
+      life: 40,
+      zones: [
+        Zone(
+          id: 'hand-$id',
+          seatId: id,
+          label: 'hand',
+          visibility: ZoneVisibility.owner,
+          ordered: false,
+          cards: [CardInstance(id: '$id-h0', oracleId: 'c0')],
+        ),
+        Zone(
+          id: 'battlefield-$id',
+          seatId: id,
+          label: 'battlefield',
+          visibility: ZoneVisibility.public,
+          ordered: false,
+        ),
+      ],
+    );
+
+Widget _host(
+  List<String> seatIds, {
+  String viewer = 's1',
+  void Function(String)? onFocusSeat,
+}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: StackedSeats(
+          metrics: Metrics.of(DeviceClass.handheld),
+          seats: [
+            for (final id in seatIds) SeatView.of(_seat(id), viewer: viewer),
+          ],
+          viewerSeatId: viewer,
+          printings: const {},
+          onFocusSeat: onFocusSeat ?? (_) {},
+          yours: const ColoredBox(
+            key: Key('your-seat'),
+            color: Color(0xFF000000),
+            child: SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+
+void main() {
+  testWidgets('everybody but you gets a band', (tester) async {
+    await tester.pumpWidget(_host(['s1', 's2', 's3', 's4']));
+
+    expect(find.byType(SeatBand), findsNWidgets(3));
+    expect(find.byKey(const Key('band-s1')), findsNothing);
+    expect(find.byKey(const Key('band-s4')), findsOneWidget);
+  });
+
+  testWidgets('your seat sits below every band', (tester) async {
+    await tester.pumpWidget(_host(['s1', 's2', 's3']));
+
+    final yours = tester.getRect(find.byKey(const Key('your-seat')));
+    for (final id in ['s2', 's3']) {
+      final band = tester.getRect(find.byKey(Key('band-$id')));
+      expect(yours.top, greaterThanOrEqualTo(band.bottom - 1),
+          reason: 'your seat must start at or below where $id ends');
+    }
+  });
+
+  testWidgets('a table of one is your seat and nothing else', (tester) async {
+    await tester.pumpWidget(_host(['s1']));
+
+    expect(find.byType(SeatBand), findsNothing);
+    expect(find.byKey(const Key('your-seat')), findsOneWidget);
+  });
+
+  testWidgets('tapping a band asks to look out of that seat', (tester) async {
+    String? asked;
+    await tester.pumpWidget(_host(['s1', 's2'], onFocusSeat: (id) => asked = id));
+
+    await tester.tap(find.byKey(const Key('band-s2')));
+    await tester.pump();
+
+    expect(asked, 's2');
+  });
+
+  testWidgets('a spectator gets a band for everybody', (tester) async {
+    // Nobody is looking, which is plan 3 arriving as a spectator. Every seat
+    // is somebody else, so every seat is a band.
+    await tester.pumpWidget(_host(['s1', 's2'], viewer: ''));
+
+    expect(find.byType(SeatBand), findsNWidgets(2));
+  });
+}
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/features/stacked_seats_test.dart`
+Expected: FAIL, `Error when reading
+'lib/features/play/renderers/stacked_seats.dart'`.
+
+- [ ] **Step 3: Write the renderer**
+
+Create `lib/features/play/renderers/stacked_seats.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+
+import '../../../sources/model/catalog_card.dart';
+import '../../../table/view/seat_view.dart';
+import '../../../ui/tokens/metrics.dart';
+import '../widgets/seat_band.dart';
+
+/// The phone view. Opponents stacked above, your own seat below and taller.
+///
+/// Bands rather than tabs, because a threat you are not looking at is a threat
+/// you forget, and Commander is the format where the rest of the table matters
+/// most. Nobody has to switch to anything to know they are about to die.
+class StackedSeats extends StatelessWidget {
+  const StackedSeats({
+    super.key,
+    required this.metrics,
+    required this.seats,
+    required this.viewerSeatId,
+    required this.printings,
+    required this.onFocusSeat,
+    required this.yours,
+    this.turnSeatId,
+    this.focusedSeatId,
+  });
+
+  final Metrics metrics;
+
+  /// Every seat, in table order, already filtered for this viewer.
+  final List<SeatView> seats;
+
+  /// Whose eyes. Empty or unknown means a spectator, and then every seat is
+  /// somebody else's.
+  final String viewerSeatId;
+
+  final Map<String, CatalogCard> printings;
+  final void Function(String seatId) onFocusSeat;
+
+  /// Your own seat, drawn by whoever owns that layout. This renderer decides
+  /// where it goes and has no opinion about what is in it, which is what keeps
+  /// the board, the piles and the hand out of here.
+  final Widget yours;
+
+  final String? turnSeatId;
+  final String? focusedSeatId;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+    final others = seats.where((s) => s.seatId != viewerSeatId).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (others.isNotEmpty)
+          Expanded(
+            flex: 2,
+            child: ListView(
+              padding: EdgeInsets.only(bottom: m.scaled(4)),
+              children: [
+                for (final seat in others)
+                  SeatBand(
+                    metrics: m,
+                    seat: seat,
+                    printings: printings,
+                    isTurn: seat.seatId == turnSeatId,
+                    focused: seat.seatId == focusedSeatId,
+                    onTap: () => onFocusSeat(seat.seatId),
+                  ),
+              ],
+            ),
+          ),
+        // Three to two: your own seat is where the game is played from, and a
+        // fair split makes a four card hand and four opponents equally cramped.
+        Expanded(flex: 3, child: yours),
+      ],
+    );
+  }
+}
+```
+
+- [ ] **Step 4: Run it and watch it pass**
+
+Run: `flutter test test/features/stacked_seats_test.dart`
+Expected: PASS, 5 tests.
+
+- [ ] **Step 5: Probe the geometry test**
+
+Swap the two children so `yours` comes first, and run the file. The geometry
+case must fail. Edit it back by hand and rerun.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/features/play/renderers/stacked_seats.dart \
+        test/features/stacked_seats_test.dart
+git commit -m "Stack the table, with your own seat at the bottom"
+```
+
+---
+
+## Task 9: Where a mat goes, and where a card goes on it
+
+The canvas needs arithmetic before it needs widgets. Doing it in the widget is
+how the answer becomes untestable and how the two renderers quietly stop
+agreeing about what a position means.
+
+**Files:**
+- Create: `lib/features/play/renderers/mat_layout.dart`
+- Test: `test/features/mat_layout_test.dart`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `test/features/mat_layout_test.dart`:
+
+```dart
+import 'dart:ui';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/renderers/mat_layout.dart';
+
+void main() {
+  test('two seats sit side by side', () {
+    final a = matFor(0, 2);
+    final b = matFor(1, 2);
+
+    expect(a.top, b.top);
+    expect(b.left, greaterThan(a.right));
+  });
+
+  test('four seats make a square and no two mats touch', () {
+    final mats = [for (var i = 0; i < 4; i++) matFor(i, 4)];
+
+    for (var i = 0; i < mats.length; i++) {
+      for (var j = i + 1; j < mats.length; j++) {
+        expect(mats[i].overlaps(mats[j]), isFalse,
+            reason: 'mat $i overlaps mat $j');
+      }
+    }
+    expect(mats[2].top, greaterThan(mats[0].bottom));
+  });
+
+  test('three seats leave the fourth place empty', () {
+    // Squeezing three into a row makes a card a smudge on a tablet. The gap
+    // where the fourth would be is the cheaper answer.
+    expect(matFor(2, 3).top, greaterThan(matFor(0, 3).bottom));
+    expect(matFor(2, 3).left, matFor(0, 3).left);
+  });
+
+  test('one seat gets the whole surface', () {
+    expect(matFor(0, 1), Rect.fromLTWH(0, 0, matSize.width, matSize.height));
+    expect(surfaceFor(1), matSize);
+  });
+
+  test('the surface is big enough for every mat', () {
+    for (final count in [1, 2, 3, 4, 5, 6]) {
+      final surface = surfaceFor(count);
+      for (var i = 0; i < count; i++) {
+        final mat = matFor(i, count);
+        expect(mat.right, lessThanOrEqualTo(surface.width),
+            reason: 'mat $i of $count runs off the right');
+        expect(mat.bottom, lessThanOrEqualTo(surface.height),
+            reason: 'mat $i of $count runs off the bottom');
+      }
+    }
+  });
+
+  const card = Size(90, 126);
+
+  test('a card with a position is centred on it', () {
+    final spot = spotFor(position: (x: 0.5, y: 0.5), index: 0, card: card);
+
+    expect(spot.dx, closeTo(matSize.width / 2 - card.width / 2, 0.01));
+    expect(spot.dy, closeTo(matSize.height / 2 - card.height / 2, 0.01));
+  });
+
+  test('a card at the very edge stays on the mat', () {
+    final spot = spotFor(position: (x: 1, y: 1), index: 0, card: card);
+
+    expect(spot.dx, closeTo(matSize.width - card.width, 0.01));
+    expect(spot.dy, closeTo(matSize.height - card.height, 0.01));
+    expect(spot.dx, greaterThanOrEqualTo(0));
+  });
+
+  test('a card without a position gets a slot, and keeps it', () {
+    final first = spotFor(position: null, index: 0, card: card);
+    final again = spotFor(position: null, index: 0, card: card);
+    final second = spotFor(position: null, index: 1, card: card);
+
+    // Cards must not jump around when one of them is turned, so the slot is a
+    // function of the index and nothing else.
+    expect(first, again);
+    expect(second.dx, greaterThan(first.dx));
+    expect(second.dy, first.dy);
+  });
+
+  test('the flow wraps rather than running off the mat', () {
+    final spots = [
+      for (var i = 0; i < 20; i++) spotFor(position: null, index: i, card: card),
+    ];
+
+    expect(spots.last.dy, greaterThan(spots.first.dy));
+    for (final spot in spots) {
+      expect(spot.dx + card.width, lessThanOrEqualTo(matSize.width));
+    }
+  });
+}
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/features/mat_layout_test.dart`
+Expected: FAIL, `Error when reading
+'lib/features/play/renderers/mat_layout.dart'`.
+
+- [ ] **Step 3: Write the arithmetic**
+
+Create `lib/features/play/renderers/mat_layout.dart`:
+
+```dart
+import 'dart:math' as math;
+import 'dart:ui';
+
+/// One seat's mat, in surface units. The canvas zooms, so these are not
+/// pixels and do not scale with the device.
+const matSize = Size(640, 380);
+
+/// Between mats, so two battlefields never read as one.
+const matGap = 40.0;
+
+/// Space kept clear inside a mat, and between cards laid out by flow.
+const matPadding = 16.0;
+
+/// Where a seat's mat sits on the shared surface.
+///
+/// A grid and not a ring. A ring was the first idea and it is wrong for a
+/// rectangle: seats land at angles where a card is either tiny or off the
+/// edge, and a phone rotated into landscape makes it worse. Two across, then
+/// down, and three seats leave the fourth place empty rather than squeezing.
+Rect matFor(int index, int count) {
+  final columns = count <= 1 ? 1 : 2;
+  final column = index % columns;
+  final row = index ~/ columns;
+
+  return Rect.fromLTWH(
+    column * (matSize.width + matGap),
+    row * (matSize.height + matGap),
+    matSize.width,
+    matSize.height,
+  );
+}
+
+/// How big the whole surface is, so the viewer knows what it is panning over.
+Size surfaceFor(int count) {
+  final seats = math.max(1, count);
+  final columns = seats <= 1 ? 1 : 2;
+  final rows = (seats / columns).ceil();
+
+  return Size(
+    columns * matSize.width + (columns - 1) * matGap,
+    rows * matSize.height + (rows - 1) * matGap,
+  );
+}
+
+/// Where a card sits inside its own mat.
+///
+/// A card carrying an `x,y` is centred on it, normalized against the mat and
+/// not against the screen, which is what lets both renderers show the same
+/// arrangement. A card without one falls into a slot that depends on the index
+/// and on nothing else, because cards must not jump around when one of them
+/// is turned.
+Offset spotFor({
+  required ({double x, double y})? position,
+  required int index,
+  required Size card,
+}) {
+  if (position == null) return _flowSpot(index, card);
+
+  return Offset(
+    clampDouble(
+      position.x * matSize.width - card.width / 2,
+      0,
+      matSize.width - card.width,
+    ),
+    clampDouble(
+      position.y * matSize.height - card.height / 2,
+      0,
+      matSize.height - card.height,
+    ),
+  );
+}
+
+Offset _flowSpot(int index, Size card) {
+  final perRow = math.max(
+    1,
+    ((matSize.width - matPadding) / (card.width + matPadding)).floor(),
+  );
+
+  return Offset(
+    matPadding + (index % perRow) * (card.width + matPadding),
+    matPadding + (index ~/ perRow) * (card.height + matPadding),
+  );
+}
+```
+
+- [ ] **Step 4: Run it and watch it pass**
+
+Run: `flutter test test/features/mat_layout_test.dart`
+Expected: PASS, 9 tests.
+
+- [ ] **Step 5: Probe the clamp**
+
+Delete the outer `clampDouble` on the x axis, returning the raw value, and run
+the file. The edge case must fail. Edit it back by hand and rerun.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/features/play/renderers/mat_layout.dart test/features/mat_layout_test.dart
+git commit -m "Work out where a mat goes before drawing one"
+```
+
+---
+
+## Task 10: The canvas
+
+The wide view. Every mat on one surface, pan and pinch, and the positions from
+`CardInstance.position` honoured. Nothing writes that field yet and this is the
+first thing that would show it if something did.
+
+**Files:**
+- Create: `lib/features/play/renderers/free_canvas.dart`
+- Test: `test/features/free_canvas_test.dart`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `test/features/free_canvas_test.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/renderers/free_canvas.dart';
+import 'package:kitchentable/features/play/widgets/table_card.dart';
+import 'package:kitchentable/table/model/card_instance.dart';
+import 'package:kitchentable/table/model/seat.dart';
+import 'package:kitchentable/table/model/zone.dart';
+import 'package:kitchentable/table/view/seat_view.dart';
+import 'package:kitchentable/ui/tokens/metrics.dart';
+
+Zone _zone(String kind, String seatId, ZoneVisibility v, List<CardInstance> c) =>
+    Zone(
+      id: '$kind-$seatId',
+      seatId: seatId,
+      label: kind,
+      visibility: v,
+      ordered: false,
+      cards: c,
+    );
+
+Seat _seat(String id, {int board = 1, int hand = 2}) => Seat(
+      id: id,
+      name: 'seat $id',
+      life: 40,
+      zones: [
+        _zone('battlefield', id, ZoneVisibility.public, [
+          for (var i = 0; i < board; i++)
+            CardInstance(id: '$id-b$i', oracleId: 'c$i'),
+        ]),
+        _zone('hand', id, ZoneVisibility.owner, [
+          for (var i = 0; i < hand; i++)
+            CardInstance(id: '$id-h$i', oracleId: 'c$i'),
+        ]),
+      ],
+    );
+
+Widget _host(
+  List<Seat> seats, {
+  String viewer = 's1',
+  void Function(CardInstance)? onTapCard,
+}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: FreeCanvas(
+          metrics: Metrics.of(DeviceClass.handheld),
+          seats: [for (final s in seats) SeatView.of(s, viewer: viewer)],
+          viewerSeatId: viewer,
+          printings: const {},
+          onTapCard: onTapCard ?? (_) {},
+          onInspectCard: (_) {},
+        ),
+      ),
+    );
+
+void main() {
+  testWidgets('every seat gets a mat with its name on it', (tester) async {
+    await tester.pumpWidget(_host([_seat('s1'), _seat('s2'), _seat('s3')]));
+
+    expect(find.byKey(const Key('mat-s1')), findsOneWidget);
+    expect(find.byKey(const Key('mat-s2')), findsOneWidget);
+    expect(find.byKey(const Key('mat-s3')), findsOneWidget);
+    expect(find.text('seat s2 · 40'), findsOneWidget);
+  });
+
+  testWidgets('a battlefield is drawn for everybody', (tester) async {
+    await tester.pumpWidget(_host([_seat('s1', board: 2), _seat('s2', board: 3)]));
+
+    expect(find.byType(TableCard), findsNWidgets(5));
+  });
+
+  testWidgets('no hand is on the canvas, not even your own', (tester) async {
+    await tester.pumpWidget(_host([_seat('s1', board: 1, hand: 2)]));
+
+    // The hand lives in its own sheet below the board, and a hand on the mat
+    // is the Arena mistake the spec rules out by geometry.
+    expect(find.byKey(const Key('card-s1-h0')), findsNothing);
+    expect(find.byKey(const Key('card-s1-b0')), findsOneWidget);
+  });
+
+  testWidgets('tapping a card reports it', (tester) async {
+    CardInstance? tapped;
+    await tester.pumpWidget(
+      _host([_seat('s1', board: 1)], onTapCard: (c) => tapped = c),
+    );
+
+    await tester.tap(find.byKey(const Key('card-s1-b0')));
+    await tester.pump();
+
+    expect(tapped?.id, 's1-b0');
+  });
+
+  testWidgets('a card that says where it is goes there', (tester) async {
+    final placed = Seat(
+      id: 's1',
+      name: 'seat s1',
+      life: 40,
+      zones: [
+        _zone('battlefield', 's1', ZoneVisibility.public, [
+          const CardInstance(
+            id: 's1-b0',
+            oracleId: 'c0',
+            position: (x: 0.9, y: 0.1),
+          ),
+          const CardInstance(id: 's1-b1', oracleId: 'c1'),
+        ]),
+      ],
+    );
+    await tester.pumpWidget(_host([placed]));
+
+    final positioned = tester.getRect(find.byKey(const Key('card-s1-b0')));
+    final flowed = tester.getRect(find.byKey(const Key('card-s1-b1')));
+
+    // Nothing writes position yet. This is the first thing that would show it
+    // if something did, which is the only reason the field is not dead code.
+    expect(positioned.left, greaterThan(flowed.left));
+  });
+}
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/features/free_canvas_test.dart`
+Expected: FAIL, `Error when reading
+'lib/features/play/renderers/free_canvas.dart'`.
+
+- [ ] **Step 3: Write the canvas**
+
+Create `lib/features/play/renderers/free_canvas.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+
+import '../../../sources/model/catalog_card.dart';
+import '../../../table/model/card_instance.dart';
+import '../../../table/view/seat_view.dart';
+import '../../../ui/tokens/metrics.dart';
+import '../../../ui/tokens/palette.dart';
+import '../widgets/table_card.dart';
+import 'mat_layout.dart';
+
+/// How big a card is in surface units. The canvas zooms, so this is fixed and
+/// [Metrics] is deliberately not consulted for it: a card must be the same
+/// size relative to the mat on a phone and on a television.
+const _cardOnMat = Size(90, 90 * 88 / 63);
+
+/// The wide view. Every mat on one surface you pan and pinch.
+///
+/// Only battlefields are here. A hand belongs to one person and lives in its
+/// own sheet below the board, which is the Arena rule the spec pins by
+/// geometry: you must be able to look at your hand and the table at once.
+class FreeCanvas extends StatelessWidget {
+  const FreeCanvas({
+    super.key,
+    required this.metrics,
+    required this.seats,
+    required this.viewerSeatId,
+    required this.printings,
+    required this.onTapCard,
+    required this.onInspectCard,
+    this.turnSeatId,
+  });
+
+  final Metrics metrics;
+  final List<SeatView> seats;
+  final String viewerSeatId;
+  final Map<String, CatalogCard> printings;
+  final void Function(CardInstance) onTapCard;
+  final void Function(CardInstance) onInspectCard;
+  final String? turnSeatId;
+
+  @override
+  Widget build(BuildContext context) {
+    final surface = surfaceFor(seats.length);
+
+    return InteractiveViewer(
+      constrained: false,
+      minScale: 0.2,
+      maxScale: 2.5,
+      boundaryMargin: const EdgeInsets.all(matGap),
+      child: SizedBox(
+        width: surface.width,
+        height: surface.height,
+        child: Stack(
+          children: [
+            for (var i = 0; i < seats.length; i++)
+              Positioned.fromRect(
+                rect: matFor(i, seats.length),
+                child: _Mat(
+                  metrics: metrics,
+                  seat: seats[i],
+                  printings: printings,
+                  isViewer: seats[i].seatId == viewerSeatId,
+                  isTurn: seats[i].seatId == turnSeatId,
+                  onTapCard: onTapCard,
+                  onInspectCard: onInspectCard,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Mat extends StatelessWidget {
+  const _Mat({
+    required this.metrics,
+    required this.seat,
+    required this.printings,
+    required this.isViewer,
+    required this.isTurn,
+    required this.onTapCard,
+    required this.onInspectCard,
+  });
+
+  final Metrics metrics;
+  final SeatView seat;
+  final Map<String, CatalogCard> printings;
+  final bool isViewer;
+  final bool isTurn;
+  final void Function(CardInstance) onTapCard;
+  final void Function(CardInstance) onInspectCard;
+
+  @override
+  Widget build(BuildContext context) {
+    final board = seat.pile('battlefield');
+    final cards = board?.cards ?? const <CardInstance>[];
+
+    return Container(
+      key: Key('mat-${seat.seatId}'),
+      decoration: BoxDecoration(
+        color: isViewer ? Palette.tileFocused : Palette.tile,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isTurn ? Palette.accent : Palette.tileEdge,
+          width: isTurn ? 3 : 1,
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            left: matPadding,
+            top: matPadding / 2,
+            child: Text(
+              '${seat.name} · ${seat.life}',
+              style: TextStyle(
+                fontSize: 18,
+                color: seat.life <= 0 ? Palette.attention : Palette.inkMuted,
+              ),
+            ),
+          ),
+          for (var i = 0; i < cards.length; i++)
+            _place(cards[i], i),
+        ],
+      ),
+    );
+  }
+
+  Widget _place(CardInstance card, int index) {
+    final spot = spotFor(
+      position: card.position,
+      index: index,
+      card: _cardOnMat,
+    );
+
+    return Positioned(
+      key: Key('card-${card.id}'),
+      left: spot.dx,
+      // Below the seat's name, which sits in the padding at the top.
+      top: spot.dy + matPadding,
+      child: TableCard(
+        metrics: metrics,
+        instance: card,
+        printing: printings[card.oracleId],
+        width: _cardOnMat.width,
+        onTap: () => onTapCard(card),
+        onLongPress: () => onInspectCard(card),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 4: Run it and watch it pass**
+
+Run: `flutter test test/features/free_canvas_test.dart`
+Expected: PASS, 5 tests.
+
+If the tap case fails with the card outside the hit area, it is the surface
+being larger than the test window: add
+`tester.view.physicalSize = const Size(1400, 1000);`, `devicePixelRatio = 1`
+and `addTearDown(tester.view.resetPhysicalSize)` to that case rather than
+changing the widget.
+
+- [ ] **Step 5: Probe that the hand test can fail**
+
+Change `seat.pile('battlefield')` to
+`ZoneView(id: 'x', label: 'x', count: 0, readable: true, cards: [...seat.pile('battlefield')!.cards, ...?seat.pile('hand')?.cards])`
+temporarily, run the file, and confirm the hand case fails. Edit it back by
+hand and rerun.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/features/play/renderers/free_canvas.dart test/features/free_canvas_test.dart
+git commit -m "Put every mat on one surface you can pan"
+```
+
+---
+
+## Task 11: The screen picks one
+
+Everything built so far is unreachable. `RadarStrip`, `SeatBand`,
+`StackedSeats`, `FreeCanvas`, `rendererFor` and `ViewerSeat.look` have no
+caller between them, which is the fifth time in this project that a thing has
+existed only on paper. This task is where that stops.
+
+**Files:**
+- Modify: `lib/features/play/play_screen.dart`
+- Modify: `test/features/play_screen_test.dart`
+
+- [ ] **Step 1: Write the failing tests**
+
+Replace the `_seated` helper in `test/features/play_screen_test.dart` with
+these two, keeping every existing case working through `_seated`:
+
+```dart
+Future<ProviderContainer> _seated(WidgetTester tester) =>
+    _seatedPod(tester, ['you']);
+
+Future<ProviderContainer> _seatedPod(
+  WidgetTester tester,
+  List<String> names, {
+  Size window = const Size(390, 844),
+}) async {
+  tester.view.physicalSize = window;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
+  final container = ProviderContainer(
+    overrides: [catalogDbProvider.overrideWithValue(null)],
+  );
+  addTearDown(container.dispose);
+  container.read(playProvider.notifier).startPod(
+        players: [
+          for (final name in names)
+            (deck: _deck(), name: name, owner: const SeatOwner.here()),
+        ],
+        seed: 'abc',
+      );
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: PlayScreen()),
+    ),
+  );
+  await tester.pump();
+  return container;
+}
+```
+
+Add these imports to the file:
+
+```dart
+import 'package:kitchentable/features/play/renderers/free_canvas.dart';
+import 'package:kitchentable/features/play/renderers/stacked_seats.dart';
+import 'package:kitchentable/features/play/widgets/radar_strip.dart';
+import 'package:kitchentable/features/play/widgets/seat_band.dart';
+import 'package:kitchentable/table/model/seat_owner.dart';
+```
+
+Append these cases inside `main()`:
+
+```dart
+  testWidgets('a narrow window stacks the bands', (tester) async {
+    await _seatedPod(tester, ['you', 'Carla', 'Diego']);
+
+    expect(find.byType(StackedSeats), findsOneWidget);
+    expect(find.byType(FreeCanvas), findsNothing);
+    expect(find.byType(SeatBand), findsNWidgets(2));
+  });
+
+  testWidgets('a wide window opens the canvas', (tester) async {
+    await _seatedPod(tester, ['you', 'Carla'],
+        window: const Size(1280, 800));
+
+    expect(find.byType(FreeCanvas), findsOneWidget);
+    expect(find.byType(StackedSeats), findsNothing);
+  });
+
+  testWidgets('every life total is on screen whichever view it is',
+      (tester) async {
+    await _seatedPod(tester, ['you', 'Carla', 'Diego']);
+
+    expect(find.byType(RadarStrip), findsOneWidget);
+  });
+
+  testWidgets('your hand is yours and theirs is a number', (tester) async {
+    final container = await _seatedPod(tester, ['you', 'Carla']);
+    final theirs = container.read(playProvider)!.zone('hand-s2')!;
+
+    for (final card in theirs.cards) {
+      expect(find.byKey(Key('hand-card-${card.id}')), findsNothing,
+          reason: 'a card from somebody else s hand reached the widget tree');
+    }
+    expect(find.text('hand 7'), findsOneWidget);
+  });
+
+  testWidgets('looking out of another local seat swaps whose hand it is',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you', 'Carla']);
+
+    await tester.tap(find.byKey(const Key('band-s2')));
+    await tester.pump();
+
+    expect(container.read(viewerSeatProvider), 's2');
+    // The seat you left is now the one drawn as a band.
+    expect(find.byKey(const Key('band-s1')), findsOneWidget);
+    expect(find.byKey(const Key('band-s2')), findsNothing);
+  });
+
+  testWidgets('the hand still sits below the board in a pod', (tester) async {
+    await _seatedPod(tester, ['you', 'Carla', 'Diego']);
+
+    final board = tester.getRect(find.byKey(const Key('your-board')));
+    final hand = tester.getRect(find.byType(HandSheet));
+
+    expect(hand.top, greaterThanOrEqualTo(board.bottom - 1),
+        reason: 'the hand must start at or below where your board ends');
+  });
+```
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Run: `flutter test test/features/play_screen_test.dart`
+Expected: FAIL. The compile errors come first, and then the new cases fail on
+`StackedSeats` not being in the tree.
+
+- [ ] **Step 3: Wire the screen**
+
+In `lib/features/play/play_screen.dart`, add these imports:
+
+```dart
+import '../../table/view/seat_view.dart';
+import 'renderers/free_canvas.dart';
+import 'renderers/renderer_choice.dart';
+import 'renderers/stacked_seats.dart';
+import 'widgets/radar_strip.dart';
+```
+
+Replace everything in `build` from `final seat = table.seats.first;` to the end
+of the method with:
+
+```dart
+    final viewerId = ref.watch(viewerSeatProvider) ?? '';
+    final views = [
+      for (final s in table.seats) SeatView.of(s, viewer: viewerId),
+    ];
+    // A spectator has no seat. It draws the table and offers no controls, and
+    // plan 3 is where somebody arrives that way for real.
+    final seat = table.seat(viewerId) ?? table.seats.first;
+    final mine = seat.id == viewerId;
+
+    final hand = table.zone('hand-${seat.id}')!;
+    final battlefield = table.zone('battlefield-${seat.id}')!;
+    final library = table.zone('library-${seat.id}')!;
+    final graveyard = table.zone('graveyard-${seat.id}')!;
+
+    final renderer = rendererFor(
+      width: media.size.width,
+      chosen: ref.watch(rendererChoiceProvider),
+    );
+
+    final yours = Column(
+      key: const Key('your-seat'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: KeyedSubtree(
+            key: const Key('your-board'),
+            child: _Battlefield(
+              metrics: m,
+              cards: battlefield.cards,
+              printings: _printings,
+              onTap: (c) => play.run(RotateCard(c.id)),
+              onInspect: _inspect,
+            ),
+          ),
+        ),
+        SizedBox(height: m.scaled(10)),
+        _Piles(
+          metrics: m,
+          librarySize: library.size,
+          graveyardSize: graveyard.size,
+          onDraw: () => play.run(DrawCards(
+            fromZoneId: library.id,
+            toZoneId: hand.id,
+            count: 1,
+          )),
+        ),
+        HandSheet(
+          metrics: m,
+          cards: mine ? hand.cards : const [],
+          printings: _printings,
+          onPlay: (c) => play.run(
+            MoveCard(cardId: c.id, toZoneId: battlefield.id),
+          ),
+          onInspect: _inspect,
+        ),
+      ],
+    );
+
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(m.safeInset),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _TopBar(
+                metrics: m,
+                seatName: seat.name,
+                life: seat.life,
+                canUndo: play.canUndo,
+                renderer: renderer,
+                onSwitchRenderer: () => ref
+                    .read(rendererChoiceProvider.notifier)
+                    .choose(renderer == TableRenderer.stackedSeats
+                        ? TableRenderer.freeCanvas
+                        : TableRenderer.stackedSeats),
+                onLife: (by) => play.run(ChangeLife(seatId: seat.id, by: by)),
+                onUndo: play.undo,
+                onLeave: () {
+                  play.leave();
+                  Navigator.of(context).maybePop();
+                },
+              ),
+              if (views.length > 1) ...[
+                SizedBox(height: m.scaled(10)),
+                RadarStrip(
+                  metrics: m,
+                  seats: [
+                    for (final v in views)
+                      (seatId: v.seatId, name: v.name, life: v.life),
+                  ],
+                  focusedSeatId: viewerId,
+                  onJump: _look,
+                ),
+              ],
+              SizedBox(height: m.scaled(12)),
+              Expanded(
+                child: switch (renderer) {
+                  TableRenderer.stackedSeats => StackedSeats(
+                      metrics: m,
+                      seats: views,
+                      viewerSeatId: viewerId,
+                      printings: _printings,
+                      turnSeatId: table.turnSeatId,
+                      onFocusSeat: _look,
+                      yours: yours,
+                    ),
+                  TableRenderer.freeCanvas => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: FreeCanvas(
+                            metrics: m,
+                            seats: views,
+                            viewerSeatId: viewerId,
+                            printings: _printings,
+                            turnSeatId: table.turnSeatId,
+                            onTapCard: (c) => play.run(RotateCard(c.id)),
+                            onInspectCard: _inspect,
+                          ),
+                        ),
+                        // The hand stays below the surface in both renderers.
+                        // A hand floating over the canvas is the one thing the
+                        // spec rules out by geometry.
+                        HandSheet(
+                          key: const Key('your-board'),
+                          metrics: m,
+                          cards: mine ? hand.cards : const [],
+                          printings: _printings,
+                          onPlay: (c) => play.run(
+                            MoveCard(cardId: c.id, toZoneId: battlefield.id),
+                          ),
+                          onInspect: _inspect,
+                        ),
+                      ],
+                    ),
+                },
+              ),
+              HintBar(
+                metrics: m,
+                hints: const [
+                  Hint(button: 'A', label: 'tap to turn'),
+                  Hint(button: 'B', label: 'back'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Moves the viewer, and says out loud when it will not move.
+  ///
+  /// A seat somebody else holds is watched and not played, and a tap that does
+  /// nothing silently is the bug this project has already shipped once, on the
+  /// Play row that refused without a word.
+  void _look(String seatId) {
+    if (ref.read(viewerSeatProvider.notifier).look(seatId)) return;
+    Toast.show(
+      context,
+      'That seat is not yours to look out of',
+      icon: Icons.visibility_off_rounded,
+    );
+  }
+```
+
+The `Key('your-board')` on `HandSheet` in the canvas branch is wrong and the
+geometry case will catch it: the key belongs on the surface above the hand, not
+on the hand. Put it on the `Expanded` holding `FreeCanvas` with a
+`KeyedSubtree` the same way the stacked branch does, and leave the `HandSheet`
+unkeyed.
+
+In `_TopBar`, add the two fields and the button. New fields:
+
+```dart
+  final TableRenderer renderer;
+  final VoidCallback onSwitchRenderer;
+```
+
+and in its `Row`, directly before the undo pill:
+
+```dart
+        _Pill(
+          metrics: m,
+          key: const Key('switch-renderer'),
+          icon: renderer == TableRenderer.stackedSeats
+              ? Icons.grid_view_rounded
+              : Icons.view_agenda_rounded,
+          onTap: onSwitchRenderer,
+        ),
+        SizedBox(width: m.scaled(12)),
+```
+
+`_TopBar` needs `import 'renderers/renderer_choice.dart';`, which the file
+already has from the list above.
+
+In `HandSheet`, give each card a key so a hand card can be looked for by id.
+In `lib/features/play/widgets/hand_sheet.dart`, on the `TableCard` it builds,
+add:
+
+```dart
+              key: Key('hand-card-${card.id}'),
+```
+
+- [ ] **Step 4: Run the whole suite**
+
+Run: `flutter test`
+Expected: PASS. Watch `play_entry_test.dart` and `play_controller_test.dart`
+in particular: they go through `start`, which now goes through `startPod`.
+
+- [ ] **Step 5: Run analyze**
+
+Run: `flutter analyze`
+Expected: `No issues found!`
+
+- [ ] **Step 6: Probe that the hidden hand test can fail**
+
+Change `cards: mine ? hand.cards : const []` to `cards: hand.cards` and run
+`flutter test test/features/play_screen_test.dart`. The swap case must fail
+after the tap, because you would be holding somebody else's seven cards. Edit
+it back by hand and rerun.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add lib/features/play/play_screen.dart lib/features/play/widgets/hand_sheet.dart \
+        test/features/play_screen_test.dart
+git commit -m "Draw the whole pod, and let you sit somewhere else"
+```
+
+---
+
+## Task 12: Walking a board with a D-pad
+
+The half of the D-pad requirement the spec flagged as unsolved. A battlefield
+is a two dimensional pile and a D-pad has four directions, so left and right
+walk the cards and a separate button changes pile. Up and down meaning both at
+once was the first idea, and it makes every zone change feel like an accident.
+
+**Files:**
+- Create: `lib/features/play/board_cursor.dart`
+- Test: `test/features/board_cursor_test.dart`
+- Create: `lib/features/play/widgets/cursor_board.dart`
+- Test: `test/features/cursor_board_test.dart`
+
+- [ ] **Step 1: Write the failing test for the cursor**
+
+Create `test/features/board_cursor_test.dart`:
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/board_cursor.dart';
+
+const _board = [
+  (id: 'battlefield-s1', size: 3),
+  (id: 'graveyard-s1', size: 0),
+  (id: 'hand-s1', size: 2),
+];
+
+void main() {
+  test('it starts on the first pile with something in it', () {
+    final cursor = BoardCursor.start(_board)!;
+
+    expect(cursor.zoneId, 'battlefield-s1');
+    expect(cursor.index, 0);
+  });
+
+  test('it starts nowhere when there is nothing anywhere', () {
+    expect(BoardCursor.start(const [(id: 'battlefield-s1', size: 0)]), isNull);
+    expect(BoardCursor.start(const []), isNull);
+  });
+
+  test('stepping walks along the pile', () {
+    final cursor = BoardCursor.start(_board)!.step(1, zones: _board);
+
+    expect(cursor.index, 1);
+    expect(cursor.zoneId, 'battlefield-s1');
+  });
+
+  test('stepping past the end stays at the end', () {
+    var cursor = BoardCursor.start(_board)!;
+    for (var i = 0; i < 9; i++) {
+      cursor = cursor.step(1, zones: _board);
+    }
+
+    // Clamped and not wrapped. A player pressing right twice on a board of one
+    // card should see nothing happen rather than see the ring teleport, and a
+    // wrap on a pile of one is indistinguishable from a dead button.
+    expect(cursor.index, 2);
+  });
+
+  test('stepping back past the front stays at the front', () {
+    final cursor = BoardCursor.start(_board)!.step(-1, zones: _board);
+
+    expect(cursor.index, 0);
+  });
+
+  test('changing pile skips the empty ones', () {
+    final cursor = BoardCursor.start(_board)!.changeZone(1, zones: _board);
+
+    expect(cursor.zoneId, 'hand-s1');
+    expect(cursor.index, 0);
+  });
+
+  test('changing pile wraps round the table', () {
+    final cursor = BoardCursor.start(_board)!
+        .changeZone(1, zones: _board)
+        .changeZone(1, zones: _board);
+
+    expect(cursor.zoneId, 'battlefield-s1');
+  });
+
+  test('changing pile backwards works too', () {
+    final cursor = BoardCursor.start(_board)!.changeZone(-1, zones: _board);
+
+    expect(cursor.zoneId, 'hand-s1');
+  });
+
+  test('it stays put when every other pile is empty', () {
+    const only = [
+      (id: 'battlefield-s1', size: 2),
+      (id: 'graveyard-s1', size: 0),
+    ];
+    final cursor = BoardCursor.start(only)!.step(1, zones: only);
+
+    expect(cursor.changeZone(1, zones: only).zoneId, 'battlefield-s1');
+    expect(cursor.changeZone(1, zones: only).index, 1,
+        reason: 'a pile change that changes nothing must not move the ring');
+  });
+
+  test('a pile that shrank under the cursor pulls it back', () {
+    const before = [(id: 'battlefield-s1', size: 5)];
+    const after = [(id: 'battlefield-s1', size: 2)];
+    var cursor = BoardCursor.start(before)!;
+    for (var i = 0; i < 4; i++) {
+      cursor = cursor.step(1, zones: before);
+    }
+
+    // Playing the card the ring was on is the common case, and the index it
+    // was holding no longer exists.
+    expect(cursor.step(0, zones: after).index, 1);
+  });
+}
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/features/board_cursor_test.dart`
+Expected: FAIL, `Error when reading 'lib/features/play/board_cursor.dart'`.
+
+- [ ] **Step 3: Write the cursor**
+
+Create `lib/features/play/board_cursor.dart`:
+
+```dart
+import 'package:flutter/foundation.dart';
+
+/// A pile and how many are in it, which is all the cursor needs to know.
+typedef CursorZone = ({String id, int size});
+
+/// Where the D-pad is pointing.
+///
+/// Left and right walk the cards, a separate button changes pile. This is the
+/// half of the D-pad requirement the spec flagged as a real interaction
+/// problem: a board is two dimensional and a D-pad is four directions, and
+/// making up and down mean both a row change and a pile change turns every
+/// zone change into an accident.
+@immutable
+class BoardCursor {
+  const BoardCursor({required this.zoneId, required this.index});
+
+  final String zoneId;
+  final int index;
+
+  /// Null when there is nothing to point at anywhere, which is a fresh table
+  /// with an empty battlefield and a screen that should show no ring at all.
+  static BoardCursor? start(List<CursorZone> zones) {
+    final zone = zones.where((z) => z.size > 0).firstOrNull;
+    if (zone == null) return null;
+    return BoardCursor(zoneId: zone.id, index: 0);
+  }
+
+  /// Walks along the pile, clamped at both ends. Pass 0 to re-clamp after the
+  /// pile has changed under it, which happens every time a card is played.
+  BoardCursor step(int by, {required List<CursorZone> zones}) {
+    final size = _sizeOf(zoneId, zones);
+    if (size == 0) return this;
+    final next = (index + by).clamp(0, size - 1);
+    return BoardCursor(zoneId: zoneId, index: next);
+  }
+
+  /// Moves to the next pile with something in it, wrapping. Empty piles are
+  /// skipped rather than landed on: a ring around nothing is a dead end the
+  /// player has to press through.
+  BoardCursor changeZone(int by, {required List<CursorZone> zones}) {
+    if (zones.isEmpty) return this;
+    final at = zones.indexWhere((z) => z.id == zoneId);
+    if (at < 0) return this;
+
+    for (var hop = 1; hop <= zones.length; hop++) {
+      final zone = zones[(at + by * hop) % zones.length];
+      if (zone.size == 0 || zone.id == zoneId) continue;
+      return BoardCursor(zoneId: zone.id, index: 0);
+    }
+    return this;
+  }
+
+  int _sizeOf(String id, List<CursorZone> zones) =>
+      zones.where((z) => z.id == id).map((z) => z.size).firstOrNull ?? 0;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BoardCursor && other.zoneId == zoneId && other.index == index;
+
+  @override
+  int get hashCode => Object.hash(zoneId, index);
+}
+```
+
+The `%` on a negative left operand in Dart returns a non negative result, which
+is why `changeZone(-1)` needs no special case. That is not true in every
+language and it is the reason this is a one liner here.
+
+- [ ] **Step 4: Run it and watch it pass**
+
+Run: `flutter test test/features/board_cursor_test.dart`
+Expected: PASS, 10 tests.
+
+- [ ] **Step 5: Write the failing test for the board**
+
+Create `test/features/cursor_board_test.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/widgets/cursor_board.dart';
+import 'package:kitchentable/table/model/card_instance.dart';
+import 'package:kitchentable/ui/tokens/metrics.dart';
+
+List<CardInstance> _cards(int n) => [
+      for (var i = 0; i < n; i++)
+        CardInstance(id: 'b$i', oracleId: 'card$i'),
+    ];
+
+Widget _host({
+  int board = 3,
+  int graveyard = 0,
+  void Function(CardInstance)? onActivate,
+}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: CursorBoard(
+          metrics: Metrics.of(DeviceClass.tv),
+          zones: [
+            (id: 'battlefield-s1', label: 'Battlefield', cards: _cards(board)),
+            (
+              id: 'graveyard-s1',
+              label: 'Graveyard',
+              cards: [
+                for (var i = 0; i < graveyard; i++)
+                  CardInstance(id: 'g$i', oracleId: 'card$i'),
+              ],
+            ),
+          ],
+          printings: const {},
+          onActivate: onActivate ?? (_) {},
+          onInspect: (_) {},
+        ),
+      ),
+    );
+
+void main() {
+  testWidgets('the ring starts on the first card', (tester) async {
+    await tester.pumpWidget(_host());
+    await tester.pump();
+
+    expect(find.byKey(const Key('ring-b0')), findsOneWidget);
+    expect(find.byKey(const Key('ring-b1')), findsNothing);
+  });
+
+  testWidgets('right walks the ring along', (tester) async {
+    await tester.pumpWidget(_host());
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+
+    expect(find.byKey(const Key('ring-b1')), findsOneWidget);
+    expect(find.byKey(const Key('ring-b0')), findsNothing);
+  });
+
+  testWidgets('the shoulder button changes pile', (tester) async {
+    await tester.pumpWidget(_host(graveyard: 2));
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+
+    expect(find.byKey(const Key('ring-g0')), findsOneWidget);
+  });
+
+  testWidgets('select acts on the card under the ring', (tester) async {
+    CardInstance? acted;
+    await tester.pumpWidget(_host(onActivate: (c) => acted = c));
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(acted?.id, 'b1');
+  });
+
+  testWidgets('an empty board draws no ring and does not crash',
+      (tester) async {
+    await tester.pumpWidget(_host(board: 0));
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+
+    expect(find.textContaining('Nothing'), findsOneWidget);
+  });
+}
+```
+
+- [ ] **Step 6: Run it and watch it fail**
+
+Run: `flutter test test/features/cursor_board_test.dart`
+Expected: FAIL, `Error when reading
+'lib/features/play/widgets/cursor_board.dart'`.
+
+- [ ] **Step 7: Write the board**
+
+Create `lib/features/play/widgets/cursor_board.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../../sources/model/catalog_card.dart';
+import '../../../table/model/card_instance.dart';
+import '../../../ui/tokens/metrics.dart';
+import '../../../ui/tokens/palette.dart';
+import '../board_cursor.dart';
+import 'table_card.dart';
+
+/// A pile as this widget draws it.
+typedef BoardZone = ({String id, String label, List<CardInstance> cards});
+
+/// Your own piles, walkable with a D-pad.
+///
+/// The keys are handled here and not through `Shortcuts` and `Actions`,
+/// because `WidgetsApp.defaultActions` has no handler for `ActivateIntent` at
+/// all: the intent is mapped and lands nowhere. That was already found once in
+/// this project, on the menu row that would not answer a controller.
+class CursorBoard extends StatefulWidget {
+  const CursorBoard({
+    super.key,
+    required this.metrics,
+    required this.zones,
+    required this.printings,
+    required this.onActivate,
+    required this.onInspect,
+  });
+
+  final Metrics metrics;
+  final List<BoardZone> zones;
+  final Map<String, CatalogCard> printings;
+
+  /// A press of select, on whatever the ring is around.
+  final void Function(CardInstance) onActivate;
+  final void Function(CardInstance) onInspect;
+
+  @override
+  State<CursorBoard> createState() => _CursorBoardState();
+}
+
+class _CursorBoardState extends State<CursorBoard> {
+  BoardCursor? _cursor;
+
+  List<CursorZone> get _sizes =>
+      [for (final z in widget.zones) (id: z.id, size: z.cards.length)];
+
+  @override
+  void initState() {
+    super.initState();
+    _cursor = BoardCursor.start(_sizes);
+  }
+
+  @override
+  void didUpdateWidget(CursorBoard old) {
+    super.didUpdateWidget(old);
+    // A card was played out of the pile the ring was on, so the index it held
+    // may no longer exist. Re-clamping is what step(0) is for.
+    final cursor = _cursor;
+    _cursor = cursor == null
+        ? BoardCursor.start(_sizes)
+        : cursor.step(0, zones: _sizes);
+  }
+
+  CardInstance? get _under {
+    final cursor = _cursor;
+    if (cursor == null) return null;
+    final zone = widget.zones.where((z) => z.id == cursor.zoneId).firstOrNull;
+    if (zone == null || cursor.index >= zone.cards.length) return null;
+    return zone.cards[cursor.index];
+  }
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final cursor = _cursor;
+    if (cursor == null) return KeyEventResult.ignored;
+
+    final key = event.logicalKey;
+    BoardCursor? next;
+
+    if (key == LogicalKeyboardKey.arrowRight) {
+      next = cursor.step(1, zones: _sizes);
+    } else if (key == LogicalKeyboardKey.arrowLeft) {
+      next = cursor.step(-1, zones: _sizes);
+    } else if (key == LogicalKeyboardKey.arrowDown ||
+        key == LogicalKeyboardKey.gameButtonRight1) {
+      next = cursor.changeZone(1, zones: _sizes);
+    } else if (key == LogicalKeyboardKey.arrowUp ||
+        key == LogicalKeyboardKey.gameButtonLeft1) {
+      next = cursor.changeZone(-1, zones: _sizes);
+    } else if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.select ||
+        key == LogicalKeyboardKey.gameButtonA) {
+      final card = _under;
+      if (card != null) widget.onActivate(card);
+      return KeyEventResult.handled;
+    } else {
+      return KeyEventResult.ignored;
+    }
+
+    setState(() => _cursor = next);
+    return KeyEventResult.handled;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = widget.metrics;
+    final cursor = _cursor;
+
+    if (cursor == null) {
+      return Center(
+        child: Text(
+          'Nothing on the battlefield',
+          style: TextStyle(fontSize: m.scaled(12), color: Palette.inkFaint),
+        ),
+      );
+    }
+
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _onKey,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final zone in widget.zones)
+              if (zone.cards.isNotEmpty) _pile(zone, cursor),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _pile(BoardZone zone, BoardCursor cursor) {
+    final m = widget.metrics;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: m.scaled(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            zone.label,
+            style: TextStyle(fontSize: m.scaled(11), color: Palette.inkFaint),
+          ),
+          SizedBox(height: m.scaled(6)),
+          Wrap(
+            spacing: m.scaled(8),
+            runSpacing: m.scaled(10),
+            children: [
+              for (var i = 0; i < zone.cards.length; i++)
+                _card(zone, i, cursor),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _card(BoardZone zone, int index, BoardCursor cursor) {
+    final m = widget.metrics;
+    final card = zone.cards[index];
+    final ringed = zone.id == cursor.zoneId && index == cursor.index;
+
+    return Container(
+      key: ringed ? Key('ring-${card.id}') : null,
+      padding: EdgeInsets.all(m.focusRing),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(m.scaled(8)),
+        border: Border.all(
+          color: ringed ? Palette.accent : Colors.transparent,
+          width: m.focusRing,
+        ),
+      ),
+      child: TableCard(
+        metrics: m,
+        instance: card,
+        printing: widget.printings[card.oracleId],
+        width: m.scaled(70),
+        onTap: () => widget.onActivate(card),
+        onLongPress: () => widget.onInspect(card),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 8: Run it and watch it pass**
+
+Run: `flutter test test/features/cursor_board_test.dart`
+Expected: PASS, 5 tests.
+
+If the key cases report ignored, the `Focus` did not take focus: add
+`await tester.pumpAndSettle();` after the first `pump`, and only if that fails
+give the `Focus` an explicit `FocusNode` the test can request. Do not reach for
+`Shortcuts` and `Actions`, for the reason in the class comment.
+
+- [ ] **Step 9: Use it on the screen**
+
+In `lib/features/play/play_screen.dart`, replace the `_Battlefield` inside
+`yours` with:
+
+```dart
+            child: CursorBoard(
+              key: const Key('your-board'),
+              metrics: m,
+              zones: [
+                (
+                  id: battlefield.id,
+                  label: battlefield.label,
+                  cards: battlefield.cards
+                ),
+                (
+                  id: graveyard.id,
+                  label: graveyard.label,
+                  cards: graveyard.cards
+                ),
+              ],
+              printings: _printings,
+              onActivate: (c) => play.run(RotateCard(c.id)),
+              onInspect: _inspect,
+            ),
+```
+
+and drop the `KeyedSubtree` that was carrying the key. Delete the now unused
+`_Battlefield` class from the bottom of the file, and add
+`import 'widgets/cursor_board.dart';`.
+
+- [ ] **Step 10: Run the whole suite and analyze**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`. `play_screen_test.dart` has a case that
+taps a battlefield card to turn it, which now goes through `CursorBoard`'s own
+`onTap`. It must still pass: if it does not, the tap is landing on the ring
+padding, and the fix is `behavior: HitTestBehavior.opaque` in `TableCard`
+rather than a looser assertion.
+
+- [ ] **Step 11: Probe that the ring moves for a reason**
+
+Change `step(1, ...)` to `step(0, ...)` on the right arrow and run
+`flutter test test/features/cursor_board_test.dart`. Two cases must fail. Edit
+it back by hand and rerun.
+
+- [ ] **Step 12: Commit**
+
+```bash
+git add lib/features/play/board_cursor.dart lib/features/play/widgets/cursor_board.dart \
+        lib/features/play/play_screen.dart test/features/board_cursor_test.dart \
+        test/features/cursor_board_test.dart
+git commit -m "Walk a board with a D-pad, and change pile on a shoulder"
+```
+
+---
 ## What this plan deliberately leaves out
 
 - **The network, entirely.** `SeatOwner.peer` exists and nothing constructs it.
