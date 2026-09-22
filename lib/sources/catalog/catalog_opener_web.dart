@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
 bool get catalogIsAvailable => true;
@@ -17,5 +18,16 @@ QueryExecutor openCatalog() => driftDatabase(
       web: DriftWebOptions(
         sqlite3Wasm: Uri.parse('sqlite3.wasm'),
         driftWorker: Uri.parse('drift_worker.js'),
+        // Says which storage the browser actually gave us. drift falls back
+        // when OPFS and IndexedDB are both unavailable, and the fallback keeps
+        // everything in memory: the app works perfectly for one session and
+        // forgets it all on reload. That failure is indistinguishable from
+        // saving being broken, so it gets printed rather than guessed at.
+        onResult: (result) {
+          debugPrint(
+            'catalog storage: ${result.chosenImplementation}, '
+            'missing features: ${result.missingFeatures}',
+          );
+        },
       ),
     );

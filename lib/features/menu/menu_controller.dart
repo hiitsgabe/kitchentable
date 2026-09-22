@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sources/catalog/catalog_db.dart';
 import '../../sources/catalog/catalog_opener.dart';
 
-enum MenuEntryId { play, decks, sources, settings }
+enum MenuEntryId { decks, sources, settings }
 
 class MenuEntry {
   const MenuEntry({
@@ -34,23 +34,17 @@ class MenuState {
       hasCatalog ? '$cardCount CARDS' : 'NO SOURCES CONFIGURED';
 
   MenuEntryId get initialFocus =>
-      hasCatalog ? MenuEntryId.play : MenuEntryId.sources;
+      hasCatalog ? MenuEntryId.decks : MenuEntryId.sources;
 
   List<MenuEntry> get entries => [
-        MenuEntry(
-          id: MenuEntryId.play,
-          title: 'Play',
-          // It opens the deck list, because a table is started from a deck and
-          // a deck is where the shuffling begins. An entry called Play that is
-          // permanently dimmed is exactly where somebody looks first for a way
-          // to start a game, and this one led nowhere for a whole slice.
-          subtitle: hasCatalog ? 'pick a deck and sit down' : 'needs a source',
-          enabled: hasCatalog,
-        ),
+        // One entry, not two. There was a Play and a Decks, and once Play
+        // stopped being a dead end they both opened the same screen, which is
+        // worse than the dead end was: two rows on a four row menu doing the
+        // same thing. A table is started from a deck, so this is that door.
         MenuEntry(
           id: MenuEntryId.decks,
           title: 'Decks',
-          subtitle: hasCatalog ? 'no decks yet' : 'needs a source',
+          subtitle: hasCatalog ? 'build them, and play with them' : 'needs a source',
           enabled: hasCatalog,
         ),
         MenuEntry(

@@ -45,7 +45,6 @@ class MenuScreen extends ConsumerWidget {
 }
 
 IconData _iconFor(MenuEntryId id) => switch (id) {
-      MenuEntryId.play => Icons.play_arrow_rounded,
       MenuEntryId.decks => Icons.style_rounded,
       MenuEntryId.sources => Icons.download_rounded,
       MenuEntryId.settings => Icons.tune_rounded,
@@ -86,13 +85,9 @@ class _Menu extends StatelessWidget {
   void _open(BuildContext context, MenuEntryId id) {
     final screen = switch (id) {
       MenuEntryId.sources => const SourcesScreen(),
-      // Play and Decks land in the same place on purpose. A table is started
-      // from a deck, so both roads lead to the deck list, and the one called
-      // Play stops being a dead end.
-      MenuEntryId.decks || MenuEntryId.play => const GamesScreen(),
+      MenuEntryId.decks => const GamesScreen(),
       MenuEntryId.settings => const SettingsScreen(),
     };
-    if (screen == null) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => screen),
     );
