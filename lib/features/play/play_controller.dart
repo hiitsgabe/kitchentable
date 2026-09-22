@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/deck.dart';
+import '../../decks/model/game.dart';
 import '../../table/actions/table_action.dart';
 import '../../table/model/seat_owner.dart';
 import '../../table/model/table_state.dart';
@@ -61,6 +62,17 @@ class PlayController extends Notifier<TableState?> {
   TableSession? _session;
   Referee _referee = const PermissiveReferee();
 
+  /// Which game each seat's deck came from.
+  ///
+  /// Here and not on [TableState] because the table is game agnostic on
+  /// purpose: it moves cards between zones and could not tell a Commander
+  /// deck from a Pokemon one. The deck knows, and the deck is only in reach
+  /// while the table is being opened, so what it said is kept here for
+  /// whoever has to draw a card back afterwards.
+  Map<String, Game> _games = const {};
+
+  Game? gameAt(String seatId) => _games[seatId];
+
 
   @override
   TableState? build() => null;
@@ -77,6 +89,13 @@ class PlayController extends Notifier<TableState?> {
     if (players.isEmpty) return;
 
     final table = sitDownTogether(players: players, seed: seed ?? freshSeed());
+    // sitDownTogether seats the players in the order they arrived, so the
+    // two lists line up. Matching on the id it minted would tie this to that
+    // id's spelling instead.
+    _games = {
+      for (var i = 0; i < table.seats.length; i++)
+        table.seats[i].id: players[i].deck.game,
+    };
     _session = TableSession(table);
     _clearRefusal();
     state = table;
@@ -125,6 +144,7 @@ class PlayController extends Notifier<TableState?> {
 
   void leave() {
     _session = null;
+    _games = const {};
     _clearRefusal();
     ref.read(viewerSeatProvider.notifier).sit(null);
     state = null;

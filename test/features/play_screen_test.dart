@@ -364,6 +364,22 @@ void main() {
     expect(screen.right - deck.right, lessThan(screen.width * 0.2),
         reason: 'and close to the edge, not adrift');
   });
+
+  testWidgets('the pile on the table is drawn with the game\'s back',
+      (tester) async {
+    await _seatedPod(tester, ['you']);
+
+    // The table is game agnostic and has no idea this is Magic. The deck
+    // said so as it was opened, and the pile having a picture on it at all
+    // is the only proof the screen can still reach what the deck said.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('library-stack')),
+        matching: find.byKey(const Key('card-back-art')),
+      ),
+      findsWidgets,
+    );
+  });
 }
 
 class _GrumpyReferee implements Referee {

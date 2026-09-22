@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/features/play/widgets/library_stack.dart';
+import 'package:kitchentable/ui/atoms/card_art.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
 Widget _host({
   int count = 60,
   double width = 70,
+  Game? game,
   VoidCallback? onDraw,
   VoidCallback? onWork,
 }) =>
@@ -16,6 +19,7 @@ Widget _host({
             metrics: Metrics.of(DeviceClass.handheld),
             count: count,
             width: width,
+            game: game,
             onDraw: onDraw ?? () {},
             onWork: onWork ?? () {},
           ),
@@ -86,5 +90,17 @@ void main() {
     await tester.pump();
 
     expect(worked, 1);
+  });
+
+  testWidgets('the pile is drawn as card backs', (tester) async {
+    await tester.pumpWidget(_host(count: 8, game: Game.magic));
+    await tester.pump();
+
+    // The top card and the leaves under it. A blank tile reads as a hole in
+    // the table rather than as a deck, and the pile was already made of
+    // CardBacks before this, so counting those proves nothing: what is new
+    // is that each one has the game's picture on it.
+    expect(find.byType(CardBack), findsNWidgets(9));
+    expect(find.byKey(const Key('card-back-art')), findsNWidgets(9));
   });
 }
