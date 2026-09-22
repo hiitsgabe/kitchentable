@@ -57,6 +57,13 @@ class SeatView {
   ZoneView? zone(String zoneId) =>
       zones.where((z) => z.id == zoneId).firstOrNull;
 
+  /// The pile of that kind: `pile('hand')`, `pile('battlefield')`.
+  ///
+  /// Zone ids are `<kind>-<seatId>` by construction in `magic_pack.dart`. A
+  /// game that names its piles differently passes its own kinds in and this
+  /// still holds, which is why the kind is a string and not an enum.
+  ZoneView? pile(String kind) => zone('$kind-$seatId');
+
   static SeatView of(Seat seat, {required String viewer}) => SeatView(
         seatId: seat.id,
         name: seat.name,
