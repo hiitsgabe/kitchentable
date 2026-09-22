@@ -252,8 +252,18 @@ class _CardViewerState extends State<CardViewer>
       alignment: Alignment.bottomCenter,
       child: Padding(
         padding: EdgeInsets.all(m.safeInset),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        // Wrapped, not a Row. Four controls with words on them are 358 points
+        // wide and a phone is 390 before the safe inset, so a Row overflowed
+        // by 141 points before the command zone button existed and by 190
+        // after. Nothing saw it because this is only ever built at 800 wide
+        // in a test. Two lines on a phone and one on anything wider, with
+        // every control still readable, which is why this is a Wrap rather
+        // than a FittedBox or a scroll with half the buttons off the edge.
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: m.scaled(10),
+          runSpacing: m.scaled(10),
           children: [
             if (instance.rotation == 180)
               _act(m, const Key('act-straighten'), Icons.straighten_rounded,
@@ -262,7 +272,6 @@ class _CardViewerState extends State<CardViewer>
               _act(m, const Key('act-upside-down'),
                   Icons.flip_camera_android_rounded, 'Upside down',
                   CardAction.upsideDown),
-            SizedBox(width: m.scaled(10)),
             _act(
               m,
               const Key('act-flip'),
@@ -271,11 +280,9 @@ class _CardViewerState extends State<CardViewer>
               CardAction.flip,
             ),
             if (widget.hasCommandZone) ...[
-              SizedBox(width: m.scaled(10)),
               _act(m, const Key('act-command'), Icons.home_rounded, null,
                   CardAction.commandZone),
             ],
-            SizedBox(width: m.scaled(18)),
             _act(m, const Key('act-counter-down'), Icons.remove_rounded, null,
                 CardAction.counterDown),
             Padding(

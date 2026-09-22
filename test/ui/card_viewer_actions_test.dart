@@ -28,6 +28,24 @@ Widget _host({
     );
 
 void main() {
+  testWidgets('the action bar fits a phone', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(id: 'a', oracleId: 'o'),
+      hasCommandZone: true,
+    ));
+    await tester.pump();
+
+    // Every other case in this file runs at the default 800 wide, where the
+    // bar has always fitted. On a phone a Row of these overflowed by 152
+    // points, and had by 141 since before the command zone button existed:
+    // nothing saw it because nothing ever built this at phone width.
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('with no card behind it, it is just a viewer', (tester) async {
     await tester.pumpWidget(_host());
     await tester.pump();
