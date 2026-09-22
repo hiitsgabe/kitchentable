@@ -1273,11 +1273,24 @@ class LibraryStack extends StatelessWidget {
 }
 ```
 
-`CardBack` may not exist. Read `lib/ui/atoms/card_art.dart` and
-`lib/features/play/widgets/table_card.dart` first: `TableCard` already draws a
-back for a face down card or a card with no printing, and that box is the
-thing to reuse or to lift into a small widget. If lifting it out changes
-`TableCard`, run the whole suite, not just this file.
+`CardBack` does not exist. `card_art.dart` has `CardArt` and a private
+`_Fallback`; the only back in the repo is an inline `Container` inside
+`TableCard.build`, drawn for a face down card or one with no printing. Lift it
+into `card_art.dart` as a public `CardBack` and point `TableCard` at it.
+`table_card.dart` already imports `card_art.dart`, so no new imports anywhere.
+
+It takes **only a width**: the box uses no metrics, its radius is
+`width * 0.05` and its border is the default hairline. A required parameter
+the widget never reads is dead weight.
+
+Use it for the leaves of the pile too. The block above draws them as an inline
+`Container` whose decoration is a character for character copy of the same
+box, and leaving a second copy in the file you just deduplicated is the wrong
+half of the instruction.
+
+Lifting it changes `TableCard`, so run the whole suite before committing, not
+just this file: four test files assert `find.byType(TableCard)` or
+`getCenter(find.byType(TableCard))`.
 
 - [ ] **Step 4: Run it and watch it pass**
 
@@ -1293,8 +1306,11 @@ Edit it back by hand after each, never with `git checkout`, and rerun.
 
 - [ ] **Step 6: Commit**
 
+`CardBack` has to come from somewhere, so this is four files, not two.
+
 ```bash
-git add lib/features/play/widgets/library_stack.dart \
+git add lib/features/play/widgets/library_stack.dart lib/ui/atoms/card_art.dart \
+        lib/features/play/widgets/table_card.dart \
         test/features/library_stack_test.dart
 git commit -m "Draw the deck as a pile that gets thinner"
 ```
@@ -1511,7 +1527,8 @@ typedef Placement = ({String cardId, Landing to});
 /// Turns a set of choices into moves.
 ///
 /// No new verb. `MoveCard` carries an `at`, and `Zone.add` inserts there, so
-/// the top is index zero and the bottom is the size. The moves come back as a
+/// the top is index zero and the bottom is however long the pile is when the
+/// card actually goes back, which is not the size it started at. The moves come back as a
 /// list rather than being applied here, because the caller is a controller
 /// with a session and an undo stack and this is arithmetic.
 ///
@@ -1528,23 +1545,34 @@ List<TableAction> arrange({
 }) {
   final moves = <TableAction>[];
 
+  // How many of these have left the library for good by now. A card sent to
+  // the bottom goes straight back in, so it costs nothing; one sent to a hand
+  // or a graveyard does not, and every bottom after it lands in a pile that is
+  // one shorter than the size we were handed.
+  var gone = 0;
+
   for (final placement in placements) {
     switch (placement.to) {
       case Landing.bottom:
+        // Minus one on top of that because `_move` takes the card out of the
+        // library before putting it back, so the list it inserts into is
+        // shorter again than the one that was counted.
         moves.add(MoveCard(
           cardId: placement.cardId,
           toZoneId: libraryId,
-          at: librarySize - 1,
+          at: librarySize - gone - 1,
         ));
       case Landing.graveyard:
         if (graveyardId != null) {
           moves.add(
             MoveCard(cardId: placement.cardId, toZoneId: graveyardId),
           );
+          gone++;
         }
       case Landing.hand:
         if (handId != null) {
           moves.add(MoveCard(cardId: placement.cardId, toZoneId: handId));
+          gone++;
         }
       case Landing.top:
         break;
@@ -1562,11 +1590,21 @@ List<TableAction> arrange({
 }
 ```
 
-**The `at: librarySize - 1` is the part to get right and the part the tests
-pin.** `_move` in `apply.dart` takes the card out of the pile before putting it
-back, so the list it inserts into is one shorter than the one that was counted.
-If the bottom case comes out with the card second from last, that is this off
-by one, and the fix is here rather than in the test.
+**The bottom index is the part to get right and the part the tests pin, and it
+is not a constant.** Two separate subtractions:
+
+- `_move` in `apply.dart` takes the card out of the pile before putting it
+  back, so the list it inserts into is one shorter than the one that was
+  counted. That is the `- 1`.
+- A single arrangement can also send cards to a hand or a graveyard, and those
+  do not come back. Every bottom after one of them lands in a pile shorter
+  again. That is `gone`.
+
+An earlier draft of this block used a flat `at: librarySize - 1` on the belief
+that the bottom index was fixed. It is not, and it does not misplace the card,
+it **throws**: `List.insert` raises above `length`, so the impulse case dies
+with `RangeError: Invalid value: Not in inclusive range 0..2: 3`. If a later
+task copies a flat index from anywhere, it will crash the same way.
 
 - [ ] **Step 4: Run it and watch it pass**
 
@@ -1576,8 +1614,15 @@ Expected: PASS, 7 tests.
 - [ ] **Step 5: Probe**
 
 Change `placements.reversed` to `placements`. The first case must fail on the
-order coming back as `a, b` instead of `b, a`. Then change `librarySize - 1` to
-`librarySize`. Say which cases fail and on which assertion. Edit each back by
+order coming back as `a, b` instead of `b, a`.
+
+Then the arithmetic, and **one probe is not enough here**. Dropping either
+subtraction makes `List.insert` throw, so three cases go red by exception
+inside `apply` and their `expect` never runs: that proves the code does not
+crash and says nothing about where the card lands. Run a third variant that
+lands the card in the wrong place without throwing, `at: librarySize - gone - 2`,
+and confirm three real assertion failures naming the position. Say which
+assertion failed each time, not just that the case went red. Edit each back by
 hand and rerun.
 
 - [ ] **Step 6: Commit**
