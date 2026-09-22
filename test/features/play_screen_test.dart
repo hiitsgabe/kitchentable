@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kitchentable/decks/model/deck.dart';
 import 'package:kitchentable/decks/model/deck_format.dart';
 import 'package:kitchentable/features/play/play_controller.dart';
@@ -252,6 +253,33 @@ void main() {
       container.read(playProvider)!.locate(card.id)!.card.position,
       (x: 0.3, y: 0.6),
     );
+  });
+
+  testWidgets('the size pills reach the cards on the board', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pump();
+
+    final before = tester.getSize(find.byType(TableCard).first).width;
+
+    // Three separate things are being crossed here and nothing else crosses
+    // them: the pill has to reach the provider, the provider has to reach the
+    // screen's rebuild, and the screen has to hand the scale to the renderer.
+    await tester.tap(find.byKey(const Key('cards-bigger')));
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(find.byType(TableCard).first).width,
+        greaterThan(before));
+
+    await tester.tap(find.byKey(const Key('cards-smaller')));
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(find.byType(TableCard).first).width,
+        closeTo(before, 0.01));
   });
 
   testWidgets('dragging a card on the screen writes where it landed',
