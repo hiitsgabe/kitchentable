@@ -21,7 +21,7 @@ void main() {
 
     expect(find.text('NO SOURCES CONFIGURED'), findsOneWidget);
     expect(find.text('start here'), findsOneWidget);
-    expect(find.text('needs a source'), findsNWidgets(2));
+    expect(find.text('needs a source'), findsOneWidget);
   });
 
   testWidgets('a loaded catalog shows the real count', (tester) async {
@@ -31,7 +31,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('36079 CARDS'), findsOneWidget);
-    expect(find.text('pick a deck and sit down'), findsOneWidget);
+    expect(find.text('build them, and play with them'), findsOneWidget);
   });
 
   // The two tests above only read text, and MenuState computes those strings
@@ -49,7 +49,6 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(rowFor(tester, 'Play').enabled, isFalse);
     expect(rowFor(tester, 'Decks').enabled, isFalse);
     expect(rowFor(tester, 'Sources').enabled, isTrue);
     expect(rowFor(tester, 'Settings').enabled, isTrue);
@@ -70,16 +69,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(rowFor(tester, 'Sources').autofocus, isTrue);
-    expect(rowFor(tester, 'Play').autofocus, isFalse);
+    expect(rowFor(tester, 'Decks').autofocus, isFalse);
   });
 
-  testWidgets('focus moves to Play once there are cards', (tester) async {
+  testWidgets('focus moves to Decks once there are cards', (tester) async {
     await tester.pumpWidget(_host(
       const MenuState(cardCount: 36079, enabledSources: 1),
     ));
     await tester.pumpAndSettle();
 
-    expect(rowFor(tester, 'Play').autofocus, isTrue);
+    expect(rowFor(tester, 'Decks').autofocus, isTrue);
     expect(rowFor(tester, 'Sources').autofocus, isFalse);
   });
 }

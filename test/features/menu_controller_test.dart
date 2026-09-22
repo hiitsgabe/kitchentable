@@ -7,9 +7,11 @@ void main() {
     const state = MenuState(cardCount: 0, enabledSources: 0);
     final entries = state.entries;
 
-    expect(entries.firstWhere((e) => e.id == MenuEntryId.play).enabled, isFalse);
     expect(entries.firstWhere((e) => e.id == MenuEntryId.decks).enabled, isFalse);
     expect(state.initialFocus, MenuEntryId.sources);
+    // One door to decks, not two. There used to be a Play as well, and once
+    // it stopped being a dead end the two opened the same screen.
+    expect(entries.length, 3);
   });
 
   test('sources and settings are always reachable', () {
@@ -22,12 +24,12 @@ void main() {
         entries.firstWhere((e) => e.id == MenuEntryId.settings).enabled, isTrue);
   });
 
-  test('with a catalog, play opens and focus moves to it', () {
+  test('with a catalog, decks opens and focus moves to it', () {
     const state = MenuState(cardCount: 36079, enabledSources: 1);
 
-    expect(state.entries.firstWhere((e) => e.id == MenuEntryId.play).enabled,
+    expect(state.entries.firstWhere((e) => e.id == MenuEntryId.decks).enabled,
         isTrue);
-    expect(state.initialFocus, MenuEntryId.play);
+    expect(state.initialFocus, MenuEntryId.decks);
   });
 
   test('the header counts the real catalog', () {
@@ -39,7 +41,7 @@ void main() {
 
   test('a shut entry says why it is shut', () {
     const state = MenuState(cardCount: 0, enabledSources: 0);
-    expect(state.entries.firstWhere((e) => e.id == MenuEntryId.play).subtitle,
+    expect(state.entries.firstWhere((e) => e.id == MenuEntryId.decks).subtitle,
         'needs a source');
   });
 }
