@@ -137,6 +137,9 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                 MoveCard(cardId: c.id, toZoneId: battlefield.id),
               ),
               onInspect: _inspect,
+              onSendHome: (c) => play.run(
+                MoveCard(cardId: c.id, toZoneId: command.id),
+              ),
             ),
           ),
         Expanded(
@@ -396,8 +399,12 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     final printing = _printings[instance.oracleId];
     if (printing == null) return;
 
+    final table = ref.read(playProvider);
+    final viewerId = ref.read(viewerSeatProvider) ?? '';
+    final command = table?.zone('command-$viewerId');
+
     final action = await CardViewer.show(context, printing,
-        instance: instance);
+        instance: instance, hasCommandZone: command != null);
     if (action == null || !mounted) return;
 
     final play = ref.read(playProvider.notifier);
@@ -412,6 +419,12 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
         play.run(ChangeCounter(cardId: instance.id, kind: '+1/+1', by: 1));
       case CardAction.counterDown:
         play.run(ChangeCounter(cardId: instance.id, kind: '+1/+1', by: -1));
+      case CardAction.commandZone:
+        // Offered only when the zone is there, so the null case is a viewer
+        // that has outlived the table rather than a format without a corner.
+        if (command != null) {
+          play.run(MoveCard(cardId: instance.id, toZoneId: command.id));
+        }
     }
   }
 }

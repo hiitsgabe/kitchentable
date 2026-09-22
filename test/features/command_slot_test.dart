@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/widgets/card_drag.dart';
 import 'package:kitchentable/features/play/widgets/command_slot.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
 import 'package:kitchentable/table/model/card_instance.dart';
@@ -20,6 +21,7 @@ Widget _host({
           width: 60,
           onTap: onTap ?? (_) {},
           onInspect: (_) {},
+          onSendHome: (_) {},
         ),
       ),
     );
@@ -60,5 +62,40 @@ void main() {
     await tester.pump();
 
     expect(tapped?.id, 'c0');
+  });
+
+  testWidgets('a card dropped on the corner is reported', (tester) async {
+    CardInstance? sent;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Column(
+          children: [
+            DraggableCard(
+              card: const CardInstance(id: 'x', oracleId: 'General'),
+              child: const SizedBox(key: Key('loose'), width: 40, height: 56),
+            ),
+            Expanded(
+              child: CommandSlot(
+                metrics: Metrics.of(DeviceClass.handheld),
+                cards: const [],
+                printings: const {},
+                width: 60,
+                onTap: (_) {},
+                onInspect: (_) {},
+                onSendHome: (c) => sent = c,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    final to = tester.getCenter(find.byType(CommandSlot));
+    final from = tester.getCenter(find.byKey(const Key('loose')));
+    await tester.dragFrom(from, to - from);
+    await tester.pumpAndSettle();
+
+    expect(sent?.id, 'x');
   });
 }
