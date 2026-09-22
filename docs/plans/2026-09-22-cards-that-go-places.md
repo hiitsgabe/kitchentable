@@ -737,7 +737,12 @@ Append to `test/features/play_screen_test.dart`:
   testWidgets('a card dragged out of your hand lands where you dropped it',
       (tester) async {
     final container = await _seatedPod(tester, ['you']);
-    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+    // cards[3] and not cards.first. At index 0 the `at` argument is 0 either
+    // way and an empty battlefield accepts insert(0, ...), so the case would
+    // pass with or without the guard that stops a card arriving from another
+    // zone carrying its old index. Without that guard this throws
+    // `RangeError: Only valid value is 0: 3` inside Zone.add.
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards[3];
 
     final board = tester.getRect(find.byKey(const Key('your-board')));
     final from = tester.getCenter(find.byKey(Key('hand-card-${card.id}')));
@@ -778,6 +783,20 @@ tap case passes already.
 
 - [ ] **Step 3: Wire it**
 
+**The empty battlefield is not a drop target at all.** `CursorBoard.build`
+returns early with a bare centred `Text` when `BoardCursor.start` is null, and
+`_pile` only runs for a zone with cards in it. So on a fresh table there is
+nowhere for the first card out of your hand to land, and the rest of this step
+has nothing to accept with. Keep the first pile's mat while it is empty, with
+the words inside it as a `Positioned.fill`, and let `cursor` be nullable
+through `_pile` and `_card`.
+
+**`onPlace` must name the pile.** `CursorBoard` renders one target per pile,
+so passing `battlefield.id` blindly moves a graveyard card onto the
+battlefield: a silent regression of what Task 3 shipped, covered by nothing.
+The signature is `(String zoneId, String cardId, double x, double y)`. In
+`FreeCanvas` there is one target, the viewer's own mat, so it passes its own.
+
 The hand's cards are already `DraggableCard` after Task 3. The board's
 `CardDropTarget` has to accept a card that is not already on it: when the
 dropped card is in another zone, the move is
@@ -802,8 +821,13 @@ Expected: PASS and `No issues found!`.
 
 Make the board's target always pass `found.zone.id` as the destination. The
 drag case must fail on the battlefield not containing the card. Then drop the
-`position` from the move: it must fail on `position, isNotNull`. Say which
-assertion each time. Edit back by hand and rerun.
+`position` from the move: it must fail on `position, isNotNull`.
+
+Then drop the `already` guard and pass the source index unconditionally.
+**Against `cards.first` this survives**, which is why the case drags
+`cards[3]`: at index 0 the guard makes no difference.
+
+Say which assertion each time. Edit back by hand and rerun.
 
 - [ ] **Step 6: Commit**
 
@@ -904,7 +928,14 @@ Append to `test/features/play_screen_test.dart`:
 
 ```dart
   testWidgets('a commander dropped on its corner goes home', (tester) async {
-    final container = await _seatedPod(tester, ['you']);
+    // This file's _deck() is sixty Mountains with no commander slot, so the
+    // command zone exists and is empty and `.cards.first` throws. Add
+    // off-by-default `commander` to _deck and `withCommander` to _seatedPod,
+    // with the commander an extra card on top of the sixty so the `53 after a
+    // hand of seven` assertion stays true and `find.byType(TableCard).first`
+    // still points at the battlefield.
+    final container =
+        await _seatedPod(tester, ['you'], withCommander: true);
     final play = container.read(playProvider.notifier);
     final commander =
         container.read(playProvider)!.zone('command-s1')!.cards.first;
@@ -971,6 +1002,24 @@ git commit -m "Send the commander home, by hand or from the big view"
 ```
 
 ---
+
+## What running it found, after it was written
+
+Three things nothing in the suite could have caught, all fixed in `6bb079d`.
+
+**The viewer's action row did not fit a phone.** It overflowed by 152 points
+at 390 wide, and by 141 before this plan added a button to it. Every case in
+that file runs at the default 800, where it has always fitted. It is a `Wrap`
+now, and a case at phone width fails if it goes back to a `Row`.
+
+**The screen's half of the viewer wiring was unpinned.** `hasCommandZone:
+false` left the whole suite green. It could not be tested because the screen
+refuses to open the big view for a card with no printing, and the pod harness
+runs with no catalog. The harness takes an optional in memory one now, off for
+every other case.
+
+**The shuffle case compared the top card**, which collides at 1/53, measured
+at 1.904% over two hundred thousand shuffles. It compares the whole order now.
 
 ## What this plan deliberately leaves out
 
