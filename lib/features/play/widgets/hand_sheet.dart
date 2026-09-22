@@ -4,7 +4,7 @@ import '../../../sources/model/catalog_card.dart';
 import '../../../table/model/card_instance.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
-import 'grabbable.dart';
+import 'card_drag.dart';
 import 'table_card.dart';
 
 /// The hand, along the bottom, scrolling sideways.
@@ -37,8 +37,15 @@ class HandSheet extends StatefulWidget {
 }
 
 class _HandSheetState extends State<HandSheet> {
-  /// How far sideways each card has been dragged and not yet let go of.
-  final _dragging = <String, double>{};
+  /// Held because a hand too long to fit scrolls, and how far it has been
+  /// scrolled is part of reading where a card was let go.
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,70 +83,71 @@ class _HandSheetState extends State<HandSheet> {
         // left of the screen, so that one starts at the edge and scrolls, as
         // it always did.
         if (widget.cards.length * pitch > constraints.maxWidth) {
-          return ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: widget.cards.length,
-            separatorBuilder: (_, _) => SizedBox(width: gap),
-            itemBuilder: (_, i) => _card(m, i, width, pitch),
+          return CardDropTarget(
+            onDrop: (card, at) => _drop(
+              card,
+              at.dx + (_scroll.hasClients ? _scroll.offset : 0),
+              pitch,
+            ),
+            child: ListView.separated(
+              controller: _scroll,
+              scrollDirection: Axis.horizontal,
+              itemCount: widget.cards.length,
+              separatorBuilder: (_, _) => SizedBox(width: gap),
+              itemBuilder: (_, i) => _card(m, i, width),
+            ),
           );
         }
 
+        // The target is the row and not the sheet, so the arithmetic below
+        // counts from the first card rather than from wherever centring
+        // happened to put it.
         return Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < widget.cards.length; i++) ...[
-                if (i > 0) SizedBox(width: gap),
-                _card(m, i, width, pitch),
+          child: CardDropTarget(
+            onDrop: (card, at) => _drop(card, at.dx, pitch),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < widget.cards.length; i++) ...[
+                  if (i > 0) SizedBox(width: gap),
+                  _card(m, i, width),
+                ],
               ],
-            ],
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _card(Metrics m, int index, double width, double pitch) {
+  Widget _card(Metrics m, int index, double width) {
     final card = widget.cards[index];
 
-    return Transform.translate(
-      offset: Offset(_dragging[card.id] ?? 0, 0),
-      child: Grabbable(
-        onMove: (delta) => _drag(card.id, delta.dx),
-        onDrop: () => _drop(index, pitch),
-        child: TableCard(
-          key: Key('hand-card-${card.id}'),
-          metrics: m,
-          instance: card,
-          printing: widget.printings[card.oracleId],
-          width: width,
-          onTap: () => widget.onPlay(card),
-          onLongPress: () => widget.onInspect(card),
-        ),
+    return DraggableCard(
+      card: card,
+      child: TableCard(
+        key: Key('hand-card-${card.id}'),
+        metrics: m,
+        instance: card,
+        printing: widget.printings[card.oracleId],
+        width: width,
+        onTap: () => widget.onPlay(card),
+        onLongPress: () => widget.onInspect(card),
       ),
     );
   }
 
-  void _drag(String cardId, double dx) {
-    setState(() {
-      _dragging[cardId] = (_dragging[cardId] ?? 0) + dx;
-    });
-  }
-
-  /// Which card the gap it was let go over belongs to.
+  /// Which place in the hand the card was let go over.
   ///
-  /// One pitch of travel is one place along, because every card in the hand is
-  /// the same width. A card dragged off either end stops at the end rather
-  /// than falling out of the hand.
-  void _drop(int index, double pitch) {
-    final card = widget.cards[index];
-    final moved = _dragging.remove(card.id);
-    setState(() {});
-    if (moved == null) return;
+  /// Every card in the hand is the same width, so the place is the distance
+  /// from the front of the hand over one pitch. A card let go past either end
+  /// stops at the end rather than falling out of the hand.
+  void _drop(CardInstance card, double x, double pitch) {
+    final from = widget.cards.indexWhere((c) => c.id == card.id);
+    if (from < 0) return;
 
-    final to =
-        (index + (moved / pitch).round()).clamp(0, widget.cards.length - 1);
-    if (to == index) return;
+    final to = (x / pitch).floor().clamp(0, widget.cards.length - 1);
+    if (to == from) return;
     widget.onReorder(card.id, to);
   }
 }

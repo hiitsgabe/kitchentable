@@ -211,20 +211,23 @@ void main() {
     await tester.pumpWidget(_host(onPlace: (_, at, _) => x = at));
     await tester.pump();
 
-    final from = tester.getCenter(find.byType(TableCard).first);
-    final gesture = await tester.startGesture(from);
-    await gesture.moveBy(const Offset(200, 0));
-    await tester.pump();
-    final under = tester.getCenter(find.byType(TableCard).first);
-    await gesture.up();
-    await tester.pump();
+    final card = tester.getCenter(find.byType(TableCard).first);
+    await tester.drag(find.byType(TableCard).first, const Offset(200, 0));
+    await tester.pumpAndSettle();
 
-    // The drag recogniser swallows kTouchSlop before it reports anything, so
-    // a card driven by deltas alone trails the finger by that much for the
-    // whole drag and is reported short of where it was released.
-    expect((under.dx - (from.dx + 200)).abs(), lessThan(1),
-        reason: 'the card must sit under the finger, not behind it');
-    expect(x, isNotNull);
+    final mat = tester.getRect(find.byKey(const Key('mat-battlefield-s1')));
+    // Where the pointer actually ended, normalised against the mat it ended
+    // over. A drag driven by summed deltas used to land about kTouchSlop
+    // short of this, because the first stretch of travel is never reported;
+    // a drop position taken from the pointer cannot.
+    //
+    // A billionth, and not the fiftieth of a mat a drag used to need. The
+    // tolerance is here only because the two sides divide in a different
+    // order and the last bit of the double disagrees: measured at
+    // 0.35281250000000003 against 0.3528125. Anything looser is room for the
+    // old bug to hide in, since eighteen pixels of an eight hundred pixel mat
+    // is 0.0225.
+    expect(x, closeTo((card.dx + 200 - mat.left) / mat.width, 1e-9));
   });
 
   testWidgets('a drag does not also activate the card', (tester) async {

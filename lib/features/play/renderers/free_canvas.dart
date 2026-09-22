@@ -7,7 +7,7 @@ import '../../../table/model/card_instance.dart';
 import '../../../table/view/seat_view.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
-import '../widgets/grabbable.dart';
+import '../widgets/card_drag.dart';
 import '../widgets/table_card.dart';
 import 'mat_layout.dart';
 
@@ -93,7 +93,7 @@ class FreeCanvas extends StatelessWidget {
   }
 }
 
-class _Mat extends StatefulWidget {
+class _Mat extends StatelessWidget {
   const _Mat({
     required this.metrics,
     required this.seat,
@@ -116,52 +116,52 @@ class _Mat extends StatefulWidget {
   final void Function(String cardId, double x, double y) onPlace;
   final double cardScale;
 
-  @override
-  State<_Mat> createState() => _MatState();
-}
-
-class _MatState extends State<_Mat> {
-  /// Where a card has been dragged to but not yet dropped, in mat units.
-  final _dragging = <String, Offset>{};
-
   /// The card as this mat lays it out. The whole size scales and not just the
   /// drawn width, so a bigger card is still centred on its own spot and still
   /// leaves a gap in the flow.
-  Size get _cardSize => _cardOnMat * widget.cardScale;
+  Size get _cardSize => _cardOnMat * cardScale;
 
   @override
   Widget build(BuildContext context) {
-    final seat = widget.seat;
     final board = seat.pile('battlefield');
     final cards = board?.cards ?? const <CardInstance>[];
+
+    // Keyed apart from the mat because the mat's border insets it by the
+    // border's width, so this and not the mat is the box a position is
+    // measured against, and the two are a unit out.
+    final surface = Stack(
+      key: Key('mat-surface-${seat.seatId}'),
+      children: [
+        Positioned(
+          left: matPadding,
+          top: matPadding / 2,
+          child: Text(
+            '${seat.name} · ${seat.life}',
+            style: TextStyle(
+              fontSize: 18,
+              color: seat.life <= 0 ? Palette.attention : Palette.inkMuted,
+            ),
+          ),
+        ),
+        for (var i = 0; i < cards.length; i++)
+          _place(cards[i], i),
+      ],
+    );
 
     return Container(
       key: Key('mat-${seat.seatId}'),
       decoration: BoxDecoration(
-        color: widget.isViewer ? Palette.tileFocused : Palette.tile,
+        color: isViewer ? Palette.tileFocused : Palette.tile,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: widget.isTurn ? Palette.accent : Palette.tileEdge,
-          width: widget.isTurn ? 3 : 1,
+          color: isTurn ? Palette.accent : Palette.tileEdge,
+          width: isTurn ? 3 : 1,
         ),
       ),
-      child: Stack(
-        children: [
-          Positioned(
-            left: matPadding,
-            top: matPadding / 2,
-            child: Text(
-              '${seat.name} · ${seat.life}',
-              style: TextStyle(
-                fontSize: 18,
-                color: seat.life <= 0 ? Palette.attention : Palette.inkMuted,
-              ),
-            ),
-          ),
-          for (var i = 0; i < cards.length; i++)
-            _place(cards[i], i),
-        ],
-      ),
+      // Only your own mat takes a card. Letting go over somebody else's is
+      // letting go over nothing, and the card stays where it was, which is
+      // what it did when a foreign card simply could not be picked up.
+      child: isViewer ? CardDropTarget(onDrop: _drop, child: surface) : surface,
     );
   }
 
@@ -171,55 +171,42 @@ class _MatState extends State<_Mat> {
       index: index,
       card: _cardSize,
     );
-    final pending = _dragging[card.id] ?? Offset.zero;
 
     final face = TableCard(
-      metrics: widget.metrics,
+      metrics: metrics,
       instance: card,
-      printing: widget.printings[card.oracleId],
+      printing: printings[card.oracleId],
       width: _cardSize.width,
-      onTap: () => widget.onTapCard(card),
-      onLongPress: () => widget.onInspectCard(card),
+      onTap: () => onTapCard(card),
+      onLongPress: () => onInspectCard(card),
     );
 
     return Positioned(
       key: Key('card-${card.id}'),
-      left: spot.dx + pending.dx,
+      left: spot.dx,
       // Below the seat's name, which sits in the padding at the top.
-      top: spot.dy + matPadding + pending.dy,
+      top: spot.dy + matPadding,
       // A card on somebody else's mat is theirs to move, so it is not even
       // picked up: no drag, no half move that snaps back.
-      child: widget.isViewer
-          ? Grabbable(
-              onMove: (delta) => _drag(card.id, delta),
-              onDrop: () => _drop(card, spot),
-              child: face,
-            )
-          : face,
+      child: DraggableCard(card: card, canDrag: isViewer, child: face),
     );
   }
 
-  void _drag(String cardId, Offset delta) {
-    setState(() {
-      _dragging[cardId] = (_dragging[cardId] ?? Offset.zero) + delta;
-    });
-  }
-
-  void _drop(CardInstance card, Offset from) {
-    final moved = _dragging.remove(card.id);
-    setState(() {});
-    if (moved == null) return;
-
-    // The centre of where the card ended up, normalized against the mat. The
-    // centre and not the corner, because spotFor centres a positioned card and
-    // the two have to be inverses or a card walks on every drag. The padding
-    // the name sits in is left out of both, so it cancels.
-    final at =
-        from + moved + Offset(_cardSize.width / 2, _cardSize.height / 2);
-    widget.onPlace(
+  void _drop(CardInstance card, Offset at) {
+    // Where the pointer was let go, in this mat's own units, which the
+    // canvas's zoom is already out of: globalToLocal walks the
+    // InteractiveViewer's transform, so a screen pixel on a zoomed table is
+    // not mistaken for a mat unit.
+    //
+    // The card rides centred on the finger, so the pointer is the card's new
+    // centre and spotFor is its inverse. The padding the seat's name sits in
+    // shifts every card down and so is in the reported position too: it used
+    // to cancel between two numbers in the same frame, and now it has to come
+    // back out by hand.
+    onPlace(
       card.id,
       clampDouble(at.dx / matSize.width, 0, 1),
-      clampDouble(at.dy / matSize.height, 0, 1),
+      clampDouble((at.dy - matPadding) / matSize.height, 0, 1),
     );
   }
 }
