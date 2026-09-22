@@ -134,8 +134,16 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
             printings: _printings,
             onActivate: (c) => play.run(RotateCard(c.id)),
             onInspect: _inspect,
-            // Nothing on this screen honours a drop yet.
-            onPlace: (_, _, _) {},
+            onPlace: (cardId, x, y) {
+              final found = ref.read(playProvider)?.locate(cardId);
+              if (found == null) return;
+              play.run(MoveCard(
+                cardId: cardId,
+                toZoneId: found.zone.id,
+                at: found.zone.cards.indexWhere((c) => c.id == cardId),
+                position: (x: x, y: y),
+              ));
+            },
           ),
         ),
         SizedBox(height: m.scaled(10)),
@@ -271,9 +279,28 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     );
   }
 
-  void _inspect(CardInstance instance) {
+  /// The long press: the big card, and the controls on it.
+  Future<void> _inspect(CardInstance instance) async {
     final printing = _printings[instance.oracleId];
-    if (printing != null) CardViewer.show(context, printing);
+    if (printing == null) return;
+
+    final action = await CardViewer.show(context, printing,
+        instance: instance);
+    if (action == null || !mounted) return;
+
+    final play = ref.read(playProvider.notifier);
+    switch (action) {
+      case CardAction.upsideDown:
+        play.run(RotateCard(instance.id, to: 180));
+      case CardAction.straighten:
+        play.run(RotateCard(instance.id, to: 0));
+      case CardAction.flip:
+        play.run(FlipCard(instance.id));
+      case CardAction.counterUp:
+        play.run(ChangeCounter(cardId: instance.id, kind: '+1/+1', by: 1));
+      case CardAction.counterDown:
+        play.run(ChangeCounter(cardId: instance.id, kind: '+1/+1', by: -1));
+    }
   }
 }
 

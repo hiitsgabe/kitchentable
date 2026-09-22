@@ -228,6 +228,31 @@ void main() {
         reason: 'the hand must start at or below where your board ends');
   });
 
+  testWidgets('a drop is written onto the card', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final table = container.read(playProvider)!;
+    final card = table.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pump();
+
+    play.run(MoveCard(
+      cardId: card.id,
+      toZoneId: 'battlefield-s1',
+      at: 0,
+      position: (x: 0.3, y: 0.6),
+    ));
+    await tester.pump();
+
+    // CardInstance.position has existed since plan 2 with nothing writing to
+    // it. This is the first thing in the app that does.
+    expect(
+      container.read(playProvider)!.locate(card.id)!.card.position,
+      (x: 0.3, y: 0.6),
+    );
+  });
+
 }
 
 class _GrumpyReferee implements Referee {
