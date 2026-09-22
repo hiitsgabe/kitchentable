@@ -6,6 +6,10 @@ import 'package:kitchentable/decks/model/deck_format.dart';
 import 'package:kitchentable/features/play/play_controller.dart';
 import 'package:kitchentable/features/menu/menu_controller.dart';
 import 'package:kitchentable/features/play/play_screen.dart';
+import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
+import 'package:kitchentable/table/actions/table_action.dart';
+import 'package:kitchentable/table/model/table_state.dart';
+import 'package:kitchentable/table/referee/referee.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 
 CatalogCard _card(String name) => CatalogCard(
@@ -84,6 +88,38 @@ void main() {
     expect(container.read(playProvider.notifier).canUndo, isTrue);
   });
 
+  testWidgets('the hand sits below the board and never on top of it',
+      (tester) async {
+    await _seated(tester);
+
+    final board = tester.getRect(find.byType(Expanded).first);
+    final hand = tester.getRect(find.byType(HandSheet));
+
+    // Arena opens the hand into a fan across the battlefield, so you cannot
+    // look at your hand and the board at once. Converting HandSheet to a modal
+    // sheet or a Stack overlay later would take the suite green all the way to
+    // that mistake, so the rule is pinned by geometry rather than by comment.
+    expect(hand.top, greaterThanOrEqualTo(board.bottom - 1),
+        reason: 'the hand must start at or below where the board ends');
+  });
+
+  testWidgets('a refusal is said out loud', (tester) async {
+    final container = await _seated(tester);
+    container.read(playProvider.notifier).useReferee(const _GrumpyReferee());
+
+    container.read(playProvider.notifier).run(
+          const ChangeLife(seatId: 's1', by: -5),
+        );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('not on my watch'), findsOneWidget);
+
+    // The toast takes itself away on a timer, and a test that ends while that
+    // timer is armed fails on a pending timer rather than on its assertion.
+    await tester.pump(const Duration(seconds: 2));
+  });
+
   testWidgets('life goes down and back up', (tester) async {
     final container = await _seated(tester);
 
@@ -92,4 +128,15 @@ void main() {
 
     expect(container.read(playProvider)!.seat('s1')!.life, 39);
   });
+}
+
+class _GrumpyReferee implements Referee {
+  const _GrumpyReferee();
+
+  @override
+  Refusal? review(TableState table, TableAction action) =>
+      const Refusal('not on my watch');
+
+  @override
+  List<String>? legalTargets(TableState table, String cardId) => null;
 }

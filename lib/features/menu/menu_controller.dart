@@ -66,9 +66,9 @@ class MenuState {
       ];
 }
 
-/// Null where there is no local catalog, which today means the web build. The
-/// menu then renders with zero cards, which is the truth there rather than a
-/// crash. See catalog_opener_web.dart.
+/// Null where there is no local catalog. Both real builds have one today, so
+/// only tests reach the null branch, and they use it to stand in for a
+/// platform without one. See catalog_opener_web.dart, which used to refuse.
 final catalogDbProvider = Provider<CatalogDb?>((ref) {
   if (!catalogIsAvailable) return null;
   final db = CatalogDb();
