@@ -139,6 +139,25 @@ void main() {
     expect(deck().quantityOf('mountain'), 4);
   });
 
+  test('renaming sticks, and survives closing the deck', () async {
+    await editor().rename('Atraxa superfriends');
+    expect(deck().name, 'Atraxa superfriends');
+
+    editor().close();
+    await editor().open('d1');
+
+    expect(deck().name, 'Atraxa superfriends',
+        reason: 'the name is on the deck, not on the screen that set it');
+  });
+
+  test('renaming leaves the cards alone', () async {
+    await editor().add(DeckSlot(card: _card('Sol Ring'), quantity: 1));
+    await editor().rename('a new name');
+
+    expect(deck().quantityOf('sol ring'), 1);
+    expect(deck().format, DeckFormat.commander);
+  });
+
   test('a pasted list is written once, not once per card', () async {
     await editor().addAll([
       DeckSlot(card: _card('Sol Ring'), quantity: 1),
