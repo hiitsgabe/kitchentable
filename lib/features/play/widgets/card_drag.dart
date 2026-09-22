@@ -4,9 +4,11 @@ import '../../../table/model/card_instance.dart';
 
 /// A card you can pick up and drop somewhere else.
 ///
-/// This replaces a pan based `Grabbable`, which could only tell its own
-/// parent anything and so could never move a card from a hand onto a mat or
-/// from a mat into a corner.
+/// This replaces an earlier pan based drag, which reported deltas to whatever
+/// widget contained it and so could never move a card from a hand onto a mat
+/// or from a mat into a corner. That design also had to hand back the
+/// `kTouchSlop` the recogniser swallows before it reports anything; here the
+/// drop position comes from the pointer, so there is nothing to hand back.
 ///
 /// The feedback is the card itself at full size and what is left behind is a
 /// faint outline, so it still looks like the card is moving rather than like
@@ -65,19 +67,13 @@ class CardDropTarget extends StatelessWidget {
     super.key,
     required this.onDrop,
     required this.child,
-    this.accepts,
   });
 
   final void Function(CardInstance card, Offset at) onDrop;
   final Widget child;
 
-  /// Null accepts anything. A corner that only takes a commander says so.
-  final bool Function(CardInstance)? accepts;
-
   @override
   Widget build(BuildContext context) => DragTarget<CardInstance>(
-        onWillAcceptWithDetails: (details) =>
-            accepts?.call(details.data) ?? true,
         onAcceptWithDetails: (details) {
           final box = context.findRenderObject() as RenderBox?;
           if (box == null) return;

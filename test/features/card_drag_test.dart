@@ -76,8 +76,8 @@ void main() {
 
     // Local to the target, so a mat can normalise it without knowing where on
     // the screen it happens to be. The pointer's real position, not a sum of
-    // deltas, which is why the slop that Grabbable existed to fix cannot come
-    // back here.
+    // deltas, which is why the touch slop the old pan based drag had to
+    // compensate for cannot come back here.
     //
     // Exactly, and not within a pixel or two. A sum of deltas has to be
     // approximate because the first kTouchSlop of travel is never reported;
