@@ -13,6 +13,11 @@ import 'package:flutter/material.dart';
 /// recogniser has decided anything, and the first [onMove] hands back the
 /// travel the recogniser swallowed.
 ///
+/// Everything here is in the child's own coordinates, which is what a drag
+/// delta already is. The canvas draws its mats inside an `InteractiveViewer`,
+/// so on a zoomed table screen pixels and mat units are not the same thing,
+/// and handing back travel measured in the wrong one would overshoot.
+///
 /// There is one of these rather than a copy in each renderer because the
 /// mistake is easy to make twice and invisible both times.
 class Grabbable extends StatefulWidget {
@@ -42,7 +47,7 @@ class _GrabbableState extends State<Grabbable> {
 
   @override
   Widget build(BuildContext context) => Listener(
-        onPointerDown: (event) => _grabbedAt = event.position,
+        onPointerDown: (event) => _grabbedAt = event.localPosition,
         child: GestureDetector(
           onPanStart: _start,
           onPanUpdate: (details) => widget.onMove(details.delta),
@@ -54,6 +59,6 @@ class _GrabbableState extends State<Grabbable> {
   void _start(DragStartDetails details) {
     final grabbed = _grabbedAt;
     if (grabbed == null) return;
-    widget.onMove(details.globalPosition - grabbed);
+    widget.onMove(details.localPosition - grabbed);
   }
 }

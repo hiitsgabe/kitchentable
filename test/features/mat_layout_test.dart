@@ -88,4 +88,30 @@ void main() {
       expect(spot.dx + card.width, lessThanOrEqualTo(matSize.width));
     }
   });
+
+  test('your own seat is the one nearest your hand', () {
+    // Four seats, you are second in table order. The hand sits under the
+    // canvas, so nearest means bottom, and bottom means last.
+    final order = seatOrder(count: 4, viewerAt: 1);
+
+    expect(order.last, 1);
+    expect(order.toSet(), {0, 1, 2, 3});
+  });
+
+  test('the others keep going round the table in order', () {
+    final order = seatOrder(count: 4, viewerAt: 1);
+
+    // Turn order still reads round the table from the seat after yours, which
+    // is the order you will be passing priority in.
+    expect(order, [2, 3, 0, 1]);
+  });
+
+  test('a spectator changes nothing', () {
+    expect(seatOrder(count: 3, viewerAt: null), [0, 1, 2]);
+    expect(seatOrder(count: 3, viewerAt: 9), [0, 1, 2]);
+  });
+
+  test('a table of one is a table of one', () {
+    expect(seatOrder(count: 1, viewerAt: 0), [0]);
+  });
 }

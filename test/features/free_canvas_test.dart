@@ -38,6 +38,7 @@ Widget _host(
   List<Seat> seats, {
   String viewer = 's1',
   void Function(CardInstance)? onTapCard,
+  void Function(String cardId, double x, double y)? onPlace,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -48,6 +49,7 @@ Widget _host(
           printings: const {},
           onTapCard: onTapCard ?? (_) {},
           onInspectCard: (_) {},
+          onPlace: onPlace ?? (_, _, _) {},
         ),
       ),
     );
@@ -113,5 +115,51 @@ void main() {
     // Nothing writes position yet. This is the first thing that would show it
     // if something did, which is the only reason the field is not dead code.
     expect(positioned.left, greaterThan(flowed.left));
+  });
+
+  testWidgets('you can move your own cards here too', (tester) async {
+    ({String id, double x, double y})? dropped;
+    await tester.pumpWidget(_host(
+      [_seat('s1', board: 1)],
+      onPlace: (id, x, y) => dropped = (id: id, x: x, y: y),
+    ));
+    await tester.pump();
+
+    await tester.drag(find.byKey(const Key('card-s1-b0')),
+        const Offset(120, 60));
+    await tester.pump();
+
+    expect(dropped?.id, 's1-b0');
+    expect(dropped!.x, inExclusiveRange(0, 1));
+  });
+
+  testWidgets('somebody else s cards are not yours to move', (tester) async {
+    ({String id, double x, double y})? dropped;
+    await tester.pumpWidget(_host(
+      [_seat('s1', board: 1), _seat('s2', board: 1)],
+      onPlace: (id, x, y) => dropped = (id: id, x: x, y: y),
+    ));
+    await tester.pump();
+
+    await tester.drag(find.byKey(const Key('card-s2-b0')),
+        const Offset(120, 60));
+    await tester.pump();
+
+    expect(dropped, isNull);
+  });
+
+  testWidgets('your mat is the last one, nearest your hand', (tester) async {
+    await tester.pumpWidget(_host(
+      [_seat('s1'), _seat('s2'), _seat('s3')],
+      viewer: 's2',
+    ));
+    await tester.pump();
+
+    final mine = tester.getRect(find.byKey(const Key('mat-s2')));
+    for (final id in ['s1', 's3']) {
+      expect(mine.top, greaterThanOrEqualTo(
+        tester.getRect(find.byKey(Key('mat-$id'))).top,
+      ), reason: 'mat $id should not be below yours');
+    }
   });
 }
