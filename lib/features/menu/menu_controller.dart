@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sources/catalog/catalog_db.dart';
 import '../../sources/catalog/catalog_opener.dart';
 
-enum MenuEntryId { decks, sources, settings }
+enum MenuEntryId { play, decks, sources, settings }
 
 class MenuEntry {
   const MenuEntry({
@@ -34,17 +34,23 @@ class MenuState {
       hasCatalog ? '$cardCount CARDS' : 'NO SOURCES CONFIGURED';
 
   MenuEntryId get initialFocus =>
-      hasCatalog ? MenuEntryId.decks : MenuEntryId.sources;
+      hasCatalog ? MenuEntryId.play : MenuEntryId.sources;
 
   List<MenuEntry> get entries => [
-        // One entry, not two. There was a Play and a Decks, and once Play
-        // stopped being a dead end they both opened the same screen, which is
-        // worse than the dead end was: two rows on a four row menu doing the
-        // same thing. A table is started from a deck, so this is that door.
+        // Play and Decks show the same decks and go somewhere different, which
+        // is the difference worth having. Play deals immediately, Decks opens
+        // the editor. They were briefly the same screen, and two rows doing one
+        // thing was worse than the dead end that came before it.
+        MenuEntry(
+          id: MenuEntryId.play,
+          title: 'Play',
+          subtitle: hasCatalog ? 'pick a deck and it deals' : 'needs a source',
+          enabled: hasCatalog,
+        ),
         MenuEntry(
           id: MenuEntryId.decks,
           title: 'Decks',
-          subtitle: hasCatalog ? 'build them, and play with them' : 'needs a source',
+          subtitle: hasCatalog ? 'build one, or change one' : 'needs a source',
           enabled: hasCatalog,
         ),
         MenuEntry(

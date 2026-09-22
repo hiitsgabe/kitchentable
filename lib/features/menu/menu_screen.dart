@@ -7,6 +7,7 @@ import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../decks/games_screen.dart';
+import '../decks/play_decks_screen.dart';
 import '../settings/settings_screen.dart';
 import '../sources/sources_screen.dart';
 import 'menu_controller.dart';
@@ -45,6 +46,7 @@ class MenuScreen extends ConsumerWidget {
 }
 
 IconData _iconFor(MenuEntryId id) => switch (id) {
+      MenuEntryId.play => Icons.play_arrow_rounded,
       MenuEntryId.decks => Icons.style_rounded,
       MenuEntryId.sources => Icons.download_rounded,
       MenuEntryId.settings => Icons.tune_rounded,
@@ -85,6 +87,7 @@ class _Menu extends StatelessWidget {
   void _open(BuildContext context, MenuEntryId id) {
     final screen = switch (id) {
       MenuEntryId.sources => const SourcesScreen(),
+      MenuEntryId.play => const PlayDecksScreen(),
       MenuEntryId.decks => const GamesScreen(),
       MenuEntryId.settings => const SettingsScreen(),
     };

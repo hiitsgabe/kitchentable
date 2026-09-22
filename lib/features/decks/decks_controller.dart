@@ -32,9 +32,23 @@ class DeckEditor extends Notifier<Deck?> {
 
   void close() => state = null;
 
+  /// Set when the last write to disk failed.
+  ///
+  /// The state is updated before the save is awaited, so a failed write leaves
+  /// the screen showing cards the database never got: the deck looks saved and
+  /// is not. That is the worst way for this to fail and it used to be silent,
+  /// because nothing was watching the future.
+  String? lastSaveError;
+
   Future<void> _persist(Deck next) async {
     state = next;
-    await ref.read(deckRepositoryProvider)?.save(next);
+    try {
+      await ref.read(deckRepositoryProvider)?.save(next);
+      lastSaveError = null;
+    } catch (e) {
+      lastSaveError = '$e';
+      rethrow;
+    }
     ref.invalidate(decksProvider);
   }
 
