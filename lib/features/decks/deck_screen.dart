@@ -26,10 +26,12 @@ class DeckScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final deck = ref.watch(deckEditorProvider);
 
     if (deck == null) {
@@ -56,19 +58,25 @@ class DeckScreen extends ConsumerWidget {
       children: [
         _Counts(metrics: m, deck: deck),
         SizedBox(height: m.scaled(18)),
-        if (deck.slots.isNotEmpty)
-          MenuRow(
-            title: 'Play with this deck',
-            subtitle: 'shuffle, draw seven, and see how it goldfishes',
-            icon: Icons.play_arrow_rounded,
-            metrics: m,
-            onActivate: () {
-              ref.read(playProvider.notifier).start(deck, seed: freshSeed());
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
-              );
-            },
-          ),
+        // Present and dimmed rather than absent, which is what every other
+        // dead row in this app does: Play and Decks on the menu, a game with
+        // no catalog, a source that is not built, the plus button at a copy
+        // limit. A row that vanishes teaches nobody that the feature exists.
+        MenuRow(
+          title: 'Play with this deck',
+          subtitle: deck.slots.isEmpty
+              ? 'add some cards first'
+              : 'shuffle, draw seven, and see how it goldfishes',
+          icon: Icons.play_arrow_rounded,
+          enabled: deck.slots.isNotEmpty,
+          metrics: m,
+          onActivate: () {
+            ref.read(playProvider.notifier).start(deck, seed: freshSeed());
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const PlayScreen()));
+          },
+        ),
         MenuRow(
           title: 'Add cards',
           subtitle: 'search the catalog and tap to add',
@@ -164,17 +172,17 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: metrics.scaled(10)),
-        child: Text(
-          text.toUpperCase(),
-          style: TextStyle(
-            fontSize: metrics.scaled(10),
-            letterSpacing: 1.3,
-            fontWeight: FontWeight.w500,
-            color: Palette.inkFaint,
-          ),
-        ),
-      );
+    padding: EdgeInsets.only(bottom: metrics.scaled(10)),
+    child: Text(
+      text.toUpperCase(),
+      style: TextStyle(
+        fontSize: metrics.scaled(10),
+        letterSpacing: 1.3,
+        fontWeight: FontWeight.w500,
+        color: Palette.inkFaint,
+      ),
+    ),
+  );
 }
 
 class _SlotRow extends ConsumerWidget {
@@ -308,7 +316,9 @@ class _Step extends StatelessWidget {
         child: Icon(
           icon,
           size: m.scaled(17),
-          color: enabled ? Palette.inkMuted : Palette.inkFaint.withValues(alpha: 0.4),
+          color: enabled
+              ? Palette.inkMuted
+              : Palette.inkFaint.withValues(alpha: 0.4),
         ),
       ),
     );
