@@ -158,6 +158,46 @@ void main() {
     expect(deck().format, DeckFormat.commander);
   });
 
+  test('a commander can stand down and go back to the deck', () async {
+    final atraxa = DeckSlot(card: _card('Atraxa'), quantity: 1);
+    await editor().add(atraxa);
+    await editor().makeCommander(atraxa);
+    expect(deck().commanders.length, 1);
+
+    await editor().standDownCommander();
+
+    expect(deck().commanders, isEmpty);
+    expect(deck().quantityOf('atraxa'), 1,
+        reason: 'standing down returns the card, it does not destroy it');
+  });
+
+  test('promoting a commander survives closing the deck', () async {
+    final atraxa = DeckSlot(card: _card('Atraxa'), quantity: 1);
+    await editor().add(atraxa);
+    await editor().makeCommander(atraxa);
+
+    editor().close();
+    await editor().open('d1');
+
+    expect(deck().commanders.single.card.name, 'Atraxa',
+        reason: 'the job is on the deck, not on the screen that assigned it');
+  });
+
+  test('a commander counts inside the hundred, not beside it', () async {
+    await editor().addAll([
+      DeckSlot(card: _card('Atraxa'), quantity: 1),
+      DeckSlot(card: _card('Mountain', typeLine: 'Basic Land - Mountain'), quantity: 9),
+    ]);
+    final before = deck().mainCount;
+
+    await editor().makeCommander(
+      DeckSlot(card: _card('Atraxa'), quantity: 1),
+    );
+
+    expect(deck().mainCount, before,
+        reason: 'promoting moves a card between piles, it does not add one');
+  });
+
   test('a pasted list is written once, not once per card', () async {
     await editor().addAll([
       DeckSlot(card: _card('Sol Ring'), quantity: 1),
