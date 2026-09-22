@@ -535,7 +535,11 @@ Change the widget's fields and `show`:
     CardInstance? instance,
   }) =>
       Navigator.of(context).push(
-        PageRouteBuilder<CardAction?>(
+        // Not `PageRouteBuilder<CardAction?>`. `push<T>` already hands back
+        // a `Future<T?>`, so declaring the return as `Future<CardAction?>`
+        // infers `T = CardAction` and the parameter is `Route<CardAction>`.
+        // Doubling the nullability does not compile.
+        PageRouteBuilder<CardAction>(
           opaque: false,
           barrierColor: Colors.black.withValues(alpha: 0.78),
           pageBuilder: (context, _, _) => CardViewer(
@@ -551,10 +555,42 @@ Change the widget's fields and `show`:
 
 Add `import '../../table/model/card_instance.dart';` to the file.
 
-In `_CardViewerState.build`, below the rotating card and above whatever closes
-the overlay, add the bar. Read the build method before placing it: the card is
-centred in a `Stack`, so the bar goes in that `Stack` as a bottom aligned
-child, not inside the transform, or it will rotate with the card.
+In `_CardViewerState.build`, add the bar as a sibling of the card.
+
+**There is no `Stack` in that build method to put it in.** The structure is
+`Scaffold > GestureDetector(onTap: maybePop) > Center > Column[...]`, and the
+only `Stack` in the file is inside `_Card`, which is the wrong one twice over:
+its second child is the `Matrix4` transform, and it is sized to the card. So
+introduce one. Wrap the existing `Center` unchanged and make `_actions(m)` the
+second child, inside the dismiss `GestureDetector` so tapping the background
+still closes the overlay:
+
+```dart
+        // The bar is a sibling of the card, never a child of it. Everything
+        // under _Card lives inside a Matrix4 that is being turned in three
+        // dimensions, and a control mounted in there turns with it.
+        child: Stack(
+          children: [
+            Center(
+              child: Column(
+                // the existing column, reindented and otherwise untouched
+              ),
+            ),
+            _actions(m),
+          ],
+        ),
+```
+
+The reindent is most of the diff. Two `.clamp` expressions stop fitting in 80
+columns at the new depth and need rewrapping; no logic in them changes. Do not
+run `dart format` on the file: this repo is not format clean, 99 of 131 files
+under `lib` and `test` would change, and the file keeps its hand maintained
+wrapping.
+
+The bar's buttons sit inside the `GestureDetector` whose `onTap` is
+`maybePop`. The inner detector wins the gesture arena, so the buttons work and
+the background still dismisses. Cases 3 and 6 measure that rather than assume
+it: if the barrier won, `onAct` would never fire and both would fail.
 
 ```dart
   Widget _actions(Metrics m) {
@@ -660,9 +696,23 @@ that ignores it. If any caller breaks, say which.
 
 - [ ] **Step 5: Probe**
 
-Delete the `if (instance == null) return const SizedBox.shrink();` guard. The
-first case must fail. Edit it back by hand, never with `git checkout`, and
-rerun.
+Do not delete the `if (instance == null) return const SizedBox.shrink();`
+guard. That guard is what promotes `instance` from `CardInstance?`, so
+removing it fails to compile, which kills the file at load and takes all six
+cases down together. A red run where every case dies is not a probe: it cannot
+tell case 1 apart from the other five.
+
+Substitute a stand in instead, which keeps the behavioural change and still
+compiles:
+
+```dart
+    final instance =
+        widget.instance ?? const CardInstance(id: '', oracleId: '');
+```
+
+Exactly one case must fail, the first, on `act-flip` being found where the
+deck builder expects nothing. Edit it back by hand, never with `git checkout`,
+and rerun.
 
 - [ ] **Step 6: Commit**
 
