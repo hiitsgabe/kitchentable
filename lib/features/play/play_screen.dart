@@ -5,6 +5,7 @@ import '../../sources/model/catalog_card.dart';
 import '../../table/actions/table_action.dart';
 import '../../table/model/card_instance.dart';
 import '../../ui/atoms/hint_bar.dart';
+import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/card_viewer.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
@@ -58,6 +59,17 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     ));
     final table = ref.watch(playProvider);
     final play = ref.read(playProvider.notifier);
+
+    // The referee's refusal, said out loud. Nothing refuses anything while the
+    // permissive referee is the only one there is, so this path never fires
+    // today. It is here because the argument for building the referee's chair
+    // was that the screen pays its cost on day one, and for one commit the
+    // screen did not: the controller recorded a refusal that nothing read.
+    ref.listen(playRefusalProvider, (_, refusal) {
+      if (refusal != null) {
+        Toast.show(context, refusal.reason, icon: Icons.block_rounded);
+      }
+    });
 
     if (table == null) {
       return ScreenFrame(

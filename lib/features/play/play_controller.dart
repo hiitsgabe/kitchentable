@@ -9,13 +9,27 @@ import '../../table/shuffle.dart';
 import '../../table/table_session.dart';
 
 /// The table currently being played, or null when nobody is at one.
+/// Why the last action was turned down.
+///
+/// A provider of its own rather than a field, and that is not decoration. A
+/// refused action leaves the table exactly as it was, by design, so
+/// `ref.watch(playProvider)` gets no notification and the screen never
+/// rebuilds. A field here would be written, never read, and silently useless:
+/// it was, for exactly one commit.
+class PlayRefusal extends Notifier<Refusal?> {
+  @override
+  Refusal? build() => null;
+
+  void say(Refusal? refusal) => state = refusal;
+}
+
+final playRefusalProvider =
+    NotifierProvider<PlayRefusal, Refusal?>(PlayRefusal.new);
+
 class PlayController extends Notifier<TableState?> {
   TableSession? _session;
   Referee _referee = const PermissiveReferee();
 
-  /// Why the last action was turned down, for the screen to say out loud.
-  /// Always null while the permissive referee is the only one there is.
-  Refusal? lastRefusal;
 
   @override
   TableState? build() => null;
@@ -27,7 +41,7 @@ class PlayController extends Notifier<TableState?> {
       seed: seed ?? freshSeed(),
     );
     _session = TableSession(table);
-    lastRefusal = null;
+    _clearRefusal();
     state = table;
   }
 
@@ -41,13 +55,14 @@ class PlayController extends Notifier<TableState?> {
 
     final refusal = _referee.review(session.state, action);
     if (refusal != null) {
-      lastRefusal = refusal;
-      // Deliberately not rethrowing or swallowing. The screen reads this and
-      // says it, which is the behaviour a real engine will need on day one.
+      // Not thrown and not swallowed. The screen listens to the refusal
+      // provider and says this out loud, which is the behaviour a real engine
+      // will need on the day it arrives.
+      ref.read(playRefusalProvider.notifier).say(refusal);
       return;
     }
 
-    lastRefusal = null;
+    _clearRefusal();
     session.run(action);
     state = session.state;
   }
@@ -56,7 +71,7 @@ class PlayController extends Notifier<TableState?> {
     final session = _session;
     if (session == null) return;
     session.undo();
-    lastRefusal = null;
+    _clearRefusal();
     state = session.state;
   }
 
@@ -70,9 +85,14 @@ class PlayController extends Notifier<TableState?> {
 
   void leave() {
     _session = null;
-    lastRefusal = null;
+    _clearRefusal();
     state = null;
   }
+
+  void _clearRefusal() => ref.read(playRefusalProvider.notifier).say(null);
+
+  /// Kept so a caller can ask without watching. The screen watches instead.
+  Refusal? get lastRefusal => ref.read(playRefusalProvider);
 }
 
 final playProvider =
