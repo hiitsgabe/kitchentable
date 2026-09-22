@@ -16,6 +16,7 @@ import 'play_controller.dart';
 import 'renderers/free_canvas.dart';
 import 'renderers/renderer_choice.dart';
 import 'renderers/stacked_seats.dart';
+import 'widgets/command_slot.dart';
 import 'widgets/cursor_board.dart';
 import 'widgets/hand_sheet.dart';
 import 'widgets/radar_strip.dart';
@@ -105,6 +106,9 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     final battlefield = table.zone('battlefield-${seat.id}')!;
     final library = table.zone('library-${seat.id}')!;
     final graveyard = table.zone('graveyard-${seat.id}')!;
+    // Null in a format without commanders: magicZonesFor only makes this zone
+    // when the format asks for one.
+    final command = table.zone('command-${seat.id}');
 
     final renderer = rendererFor(
       width: media.size.width,
@@ -115,6 +119,20 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
       key: const Key('your-seat'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (command != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: CommandSlot(
+              metrics: m,
+              cards: command.cards,
+              printings: _printings,
+              width: m.scaled(52),
+              onTap: (c) => play.run(
+                MoveCard(cardId: c.id, toZoneId: battlefield.id),
+              ),
+              onInspect: _inspect,
+            ),
+          ),
         Expanded(
           child: CursorBoard(
             key: const Key('your-board'),

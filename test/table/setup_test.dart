@@ -127,4 +127,24 @@ void main() {
     final table = sitDown(deck: _deck(), seatName: 'you', seed: 'abc');
     expect(table.seats.single.zones.every((z) => z.isEmpty), isTrue);
   });
+
+  test('a commander is out of the deck before a shuffle can touch it', () {
+    final table = sitDown(
+      deck: _deck(slots: [
+        DeckSlot(card: _card('General'), quantity: 1, commander: true),
+        DeckSlot(card: _card('Mountain'), quantity: 99),
+      ]),
+      seatName: 'you',
+      seed: 'abc',
+    );
+
+    final command = table.zone('command-s1')!;
+    final library = table.zone('library-s1')!;
+
+    expect(command.cards, hasLength(1));
+    expect(library.cards.any((c) => c.oracleId == 'General'), isFalse,
+        reason: 'the commander must never be in the deck');
+    expect(table.zone('hand-s1')!.cards.any((c) => c.oracleId == 'General'),
+        isFalse);
+  });
 }
