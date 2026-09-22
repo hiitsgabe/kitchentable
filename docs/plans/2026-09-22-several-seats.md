@@ -2684,21 +2684,23 @@ of the method with:
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Expanded(
-                          child: FreeCanvas(
-                            metrics: m,
-                            seats: views,
-                            viewerSeatId: viewerId,
-                            printings: _printings,
-                            turnSeatId: table.turnSeatId,
-                            onTapCard: (c) => play.run(RotateCard(c.id)),
-                            onInspectCard: _inspect,
+                          child: KeyedSubtree(
+                            key: const Key('your-board'),
+                            child: FreeCanvas(
+                              metrics: m,
+                              seats: views,
+                              viewerSeatId: viewerId,
+                              printings: _printings,
+                              turnSeatId: table.turnSeatId,
+                              onTapCard: (c) => play.run(RotateCard(c.id)),
+                              onInspectCard: _inspect,
+                            ),
                           ),
                         ),
                         // The hand stays below the surface in both renderers.
                         // A hand floating over the canvas is the one thing the
                         // spec rules out by geometry.
                         HandSheet(
-                          key: const Key('your-board'),
                           metrics: m,
                           cards: mine ? hand.cards : const [],
                           printings: _printings,
@@ -2740,11 +2742,12 @@ of the method with:
   }
 ```
 
-The `Key('your-board')` on `HandSheet` in the canvas branch is wrong and the
-geometry case will catch it: the key belongs on the surface above the hand, not
-on the hand. Put it on the `Expanded` holding `FreeCanvas` with a
-`KeyedSubtree` the same way the stacked branch does, and leave the `HandSheet`
-unkeyed.
+`Key('your-board')` names the surface above the hand in both branches, never
+the hand itself. Only one branch is ever in the tree, so the key is unique.
+Note that the geometry case runs at 390x844, which picks the stacked renderer,
+so it does not exercise this branch: nothing here would have caught the key on
+the wrong widget, which is why the code is written out rather than left to a
+correction.
 
 In `_TopBar`, add the two fields and the button. New fields:
 
