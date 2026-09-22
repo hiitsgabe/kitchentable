@@ -191,6 +191,9 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
             MoveCard(cardId: c.id, toZoneId: battlefield.id),
           ),
           onInspect: _inspect,
+          onReorder: (id, to) => play.run(
+            MoveCard(cardId: id, toZoneId: hand.id, at: to),
+          ),
         ),
       ],
     );
@@ -275,6 +278,9 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                             MoveCard(cardId: c.id, toZoneId: battlefield.id),
                           ),
                           onInspect: _inspect,
+                          onReorder: (id, to) => play.run(
+                            MoveCard(cardId: id, toZoneId: hand.id, at: to),
+                          ),
                         ),
                       ],
                     ),
