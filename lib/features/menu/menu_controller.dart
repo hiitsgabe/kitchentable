@@ -40,7 +40,11 @@ class MenuState {
         MenuEntry(
           id: MenuEntryId.play,
           title: 'Play',
-          subtitle: hasCatalog ? 'open a deck to play with it' : 'needs a source',
+          // It opens the deck list, because a table is started from a deck and
+          // a deck is where the shuffling begins. An entry called Play that is
+          // permanently dimmed is exactly where somebody looks first for a way
+          // to start a game, and this one led nowhere for a whole slice.
+          subtitle: hasCatalog ? 'pick a deck and sit down' : 'needs a source',
           enabled: hasCatalog,
         ),
         MenuEntry(

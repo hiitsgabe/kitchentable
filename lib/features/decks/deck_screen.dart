@@ -15,6 +15,7 @@ import '../../ui/tokens/palette.dart';
 import 'add_cards_screen.dart';
 import 'add_lands_screen.dart';
 import 'decks_controller.dart';
+import 'rename_deck_screen.dart';
 import 'paste_list_screen.dart';
 import '../play/play_controller.dart';
 import '../play/play_screen.dart';
@@ -76,6 +77,15 @@ class DeckScreen extends ConsumerWidget {
               context,
             ).push(MaterialPageRoute<void>(builder: (_) => const PlayScreen()));
           },
+        ),
+        MenuRow(
+          title: 'Rename',
+          subtitle: 'it is called "${deck.name}"',
+          icon: Icons.edit_rounded,
+          metrics: m,
+          onActivate: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const RenameDeckScreen()),
+          ),
         ),
         MenuRow(
           title: 'Add cards',
