@@ -194,30 +194,51 @@ class _CursorBoardState extends State<CursorBoard> {
     return Positioned(
       left: (spot.dx + pending.dx) * scale,
       top: (spot.dy + pending.dy) * scale,
-      child: GestureDetector(
-        onPanEnd: (details) => _drop(zone, card, spot, scale),
-        onPanUpdate: (details) => _drag(card.id, details.delta / scale),
-        child: Container(
-          key: ringed ? Key('ring-${card.id}') : null,
-          padding: EdgeInsets.all(m.focusRing),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(m.scaled(8)),
-            border: Border.all(
-              color: ringed ? Palette.accent : Colors.transparent,
-              width: m.focusRing,
+      child: Listener(
+        // The raw touch down, before the drag recogniser has decided anything.
+        // onPanStart does not fire until the finger has travelled kTouchSlop,
+        // and that travel is never reported, so a card driven by deltas alone
+        // trails the finger by about eighteen logical pixels for the whole
+        // drag and lands short of where it was let go. Measured at sixteen mat
+        // units on a drop that geometry said should be a hundred and nine.
+        onPointerDown: (event) => _grabbedAt = event.position,
+        child: GestureDetector(
+          onPanStart: (details) => _catchUp(card.id, details, scale),
+          onPanEnd: (details) => _drop(zone, card, spot, scale),
+          onPanUpdate: (details) => _drag(card.id, details.delta / scale),
+          child: Container(
+            key: ringed ? Key('ring-${card.id}') : null,
+            padding: EdgeInsets.all(m.focusRing),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(m.scaled(8)),
+              border: Border.all(
+                color: ringed ? Palette.accent : Colors.transparent,
+                width: m.focusRing,
+              ),
             ),
-          ),
-          child: TableCard(
-            metrics: m,
-            instance: card,
-            printing: widget.printings[card.oracleId],
-            width: _cardOnMat.width * scale,
-            onTap: () => widget.onActivate(card),
-            onLongPress: () => widget.onInspect(card),
+            child: TableCard(
+              metrics: m,
+              instance: card,
+              printing: widget.printings[card.oracleId],
+              width: _cardOnMat.width * scale,
+              onTap: () => widget.onActivate(card),
+              onLongPress: () => widget.onInspect(card),
+            ),
           ),
         ),
       ),
     );
+  }
+
+  /// Where the finger went down, before the drag was recognised.
+  Offset? _grabbedAt;
+
+  /// Gives the card back the travel the recogniser swallowed, so it sits under
+  /// the finger from the first frame instead of trailing it.
+  void _catchUp(String cardId, DragStartDetails details, double scale) {
+    final grabbed = _grabbedAt;
+    if (grabbed == null) return;
+    _drag(cardId, (details.globalPosition - grabbed) / scale);
   }
 
   void _drag(String cardId, Offset delta) {
