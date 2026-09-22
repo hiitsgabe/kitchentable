@@ -1634,18 +1634,720 @@ git commit -m "Work out where cards go after you have looked at them"
 
 ---
 
-## Tasks 7 onward
+## Task 7: Working the deck
 
-Written after 5 and 6 land, for the reason this plan has already been right
-about twice: the sheet that drives `arrange` draws a row per card with a
-destination on it, and what that row wants to be depends on how the stack and
-the hover ended up looking.
+`LibraryStack` and `arrange` both have no caller. That is the sixth time in
+this project that something has been built for a reader that never arrived,
+after `rename`, `makeCommander`, the refusal path, `seenBy` and the two
+renderers. This task is where they get one.
 
-They cover:
+**Files:**
+- Create: `lib/features/play/widgets/deck_sheet.dart`
+- Modify: `lib/features/play/play_screen.dart`
+- Test: `test/features/deck_sheet_test.dart`, `test/features/play_screen_test.dart`
 
-- **The sheet itself**, a row per card with its destination, over the top N.
-- **Shuffling on purpose**, behind a confirmation, and both wired to
-  `LibraryStack.onWork`.
-- **The hand centred and reorderable.**
-- **Your own mat nearest your hand** in the all players view, and dragging
-  your own cards there, which plan A left out on purpose.
+- [ ] **Step 1: Write the failing test for the sheet**
+
+Create `test/features/deck_sheet_test.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/look_at_top.dart';
+import 'package:kitchentable/features/play/widgets/deck_sheet.dart';
+import 'package:kitchentable/table/model/card_instance.dart';
+import 'package:kitchentable/ui/tokens/metrics.dart';
+
+List<CardInstance> _top(int n) => [
+      for (var i = 0; i < n; i++)
+        CardInstance(id: 'c$i', oracleId: 'card$i'),
+    ];
+
+Widget _host({
+  int count = 53,
+  VoidCallback? onShuffle,
+  void Function(List<Placement>)? onArrange,
+  Future<List<CardInstance>> Function(int)? peek,
+}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: DeckSheet(
+          metrics: Metrics.of(DeviceClass.handheld),
+          count: count,
+          printings: const {},
+          peek: peek ?? (n) async => _top(n),
+          onShuffle: onShuffle ?? () {},
+          onArrange: onArrange ?? (_) {},
+        ),
+      ),
+    );
+
+void main() {
+  testWidgets('it opens on the choices, not on the cards', (tester) async {
+    await tester.pumpWidget(_host());
+    await tester.pump();
+
+    // A library is hidden from everybody, its owner included. Opening this
+    // sheet must not itself reveal anything: looking is a deliberate second
+    // act.
+    expect(find.byKey(const Key('deck-shuffle')), findsOneWidget);
+    expect(find.byKey(const Key('deck-look')), findsOneWidget);
+    expect(find.byKey(const Key('peeked-c0')), findsNothing);
+  });
+
+  testWidgets('shuffling asks first', (tester) async {
+    var shuffled = 0;
+    await tester.pumpWidget(_host(onShuffle: () => shuffled++));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('deck-shuffle')));
+    await tester.pumpAndSettle();
+
+    // Nothing has happened yet. Shuffling is the one act at a table that
+    // cannot be undone by looking, so it gets a question.
+    expect(shuffled, 0);
+    expect(find.byKey(const Key('confirm-shuffle')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('confirm-shuffle')));
+    await tester.pumpAndSettle();
+
+    expect(shuffled, 1);
+  });
+
+  testWidgets('backing out of a shuffle shuffles nothing', (tester) async {
+    var shuffled = 0;
+    await tester.pumpWidget(_host(onShuffle: () => shuffled++));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('deck-shuffle')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('cancel-shuffle')));
+    await tester.pumpAndSettle();
+
+    expect(shuffled, 0);
+  });
+
+  testWidgets('looking shows the top cards', (tester) async {
+    await tester.pumpWidget(_host());
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('deck-look')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('peeked-c0')), findsOneWidget);
+    expect(find.byKey(const Key('peeked-c1')), findsOneWidget);
+  });
+
+  testWidgets('each card gets a destination and the choices come back',
+      (tester) async {
+    List<Placement>? arranged;
+    await tester.pumpWidget(_host(onArrange: (p) => arranged = p));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('deck-look')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('bottom-c0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('deck-done')));
+    await tester.pumpAndSettle();
+
+    // Everything looked at comes back, not only the ones that were touched:
+    // a card left alone is a card going back on top, and `arrange` needs it
+    // in the list to know its order.
+    expect(arranged, hasLength(2));
+    expect(arranged!.first, (cardId: 'c0', to: Landing.bottom));
+    expect(arranged!.last, (cardId: 'c1', to: Landing.top));
+  });
+
+  testWidgets('looking at a deck with fewer cards than asked for',
+      (tester) async {
+    await tester.pumpWidget(_host(count: 1, peek: (n) async => _top(1)));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('deck-look')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('peeked-c0')), findsOneWidget);
+    expect(find.byKey(const Key('peeked-c1')), findsNothing);
+  });
+
+  testWidgets('an empty deck offers nothing to look at', (tester) async {
+    await tester.pumpWidget(_host(count: 0, peek: (n) async => const []));
+    await tester.pump();
+
+    expect(find.byKey(const Key('deck-look')), findsNothing);
+    expect(find.byKey(const Key('deck-shuffle')), findsNothing);
+  });
+}
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/features/deck_sheet_test.dart`
+Expected: FAIL, `Error when reading
+'lib/features/play/widgets/deck_sheet.dart'`.
+
+- [ ] **Step 3: Write the sheet**
+
+Create `lib/features/play/widgets/deck_sheet.dart`. The shape, which the
+implementer fills in following the idiom of `card_menu`-less sheets already in
+this repo (`CardViewer.show` is the nearest thing, read it):
+
+- A `StatefulWidget` with three states: the choices, the confirmation, and the
+  looked at cards. One widget rather than three routes, because backing out of
+  a shuffle has to land back on the choices and not on the table.
+- `peek` is `Future<List<CardInstance>> Function(int)`. The sheet does not
+  reach into the table itself: the screen passes a function, which keeps the
+  library's contents out of this widget until somebody asks.
+- How many to look at: two buttons, `look-2` and `look-5`, plus whatever the
+  implementer finds reads well. **Do not** build a number picker; scry 1 and
+  scry 2 are most of Magic and a stepper is three taps for a number nobody
+  changes.
+- Each looked at card is a row keyed `peeked-<id>` with destination buttons
+  keyed `top-<id>`, `bottom-<id>`, `graveyard-<id>` and `hand-<id>`. The
+  default is top, so a card nobody touches goes back where it was.
+- `deck-done` calls `onArrange` with **every** card in the order they are
+  shown, not only the ones that were touched, because `arrange` derives the
+  top pile's order from that list.
+- Reordering the rows is not in this task. The order shown is the order they
+  came off the deck, and the destinations are the lever. Dragging rows to
+  reorder the top pile is a real want and it is written down in what this plan
+  leaves out.
+
+**Do not change the library zone's visibility.** It is `hidden`, and it stays
+hidden: looking is a screen state, and the cards handed over by `peek` never
+enter a `SeatView`.
+
+- [ ] **Step 4: Run it and watch it pass**
+
+Run: `flutter test test/features/deck_sheet_test.dart`
+Expected: PASS, 7 tests.
+
+- [ ] **Step 5: Probe**
+
+Two, and check **which assertion** fails each time.
+
+- Make `deck-shuffle` call `onShuffle` directly with no confirmation. The
+  second case must fail on `expect(shuffled, 0)` and the third on its own
+  assertion.
+- Make `deck-done` send only the cards whose destination was touched. The
+  fifth case must fail on `hasLength(2)`.
+
+Edit each back by hand, never with `git checkout`, and rerun.
+
+- [ ] **Step 6: Put it on the screen**
+
+In `lib/features/play/play_screen.dart`, replace `_Piles` inside `yours` with
+`LibraryStack`, and delete `_Piles` once nothing calls it:
+
+```dart
+        LibraryStack(
+          metrics: m,
+          count: library.size,
+          width: m.scaled(46) * cardScale,
+          onDraw: () => play.run(DrawCards(
+            fromZoneId: library.id,
+            toZoneId: hand.id,
+            count: 1,
+          )),
+          onWork: _workTheDeck,
+        ),
+```
+
+and the method:
+
+```dart
+  /// Shuffling, and looking at the top.
+  ///
+  /// `peek` reads the library straight off the table rather than through a
+  /// `SeatView`, and that is deliberate: a `SeatView` correctly hides a
+  /// library from everybody, its owner included, and this is the one act that
+  /// is allowed to look. It is also why it is a callback and not a field, so
+  /// the cards exist only while the sheet is open.
+  Future<void> _workTheDeck() async {
+    final table = ref.read(playProvider);
+    final seatId = ref.read(viewerSeatProvider);
+    if (table == null || seatId == null) return;
+
+    final library = table.zone('library-$seatId');
+    if (library == null) return;
+
+    final media = MediaQuery.of(context);
+    final m = Metrics.of(classifyDevice(
+      size: media.size,
+      hasTouch: media.navigationMode == NavigationMode.traditional,
+    ));
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Palette.surface,
+      isScrollControlled: true,
+      builder: (sheet) => DeckSheet(
+        metrics: m,
+        count: library.size,
+        printings: _printings,
+        peek: (n) async => library.cards.take(n).toList(),
+        onShuffle: () {
+          Navigator.of(sheet).pop();
+          ref.read(playProvider.notifier).run(
+                ShuffleZone(zoneId: library.id, seed: freshSeed()),
+              );
+        },
+        onArrange: (placements) {
+          Navigator.of(sheet).pop();
+          final play = ref.read(playProvider.notifier);
+          for (final move in arrange(
+            libraryId: library.id,
+            placements: placements,
+            librarySize: library.size,
+            graveyardId: table.zone('graveyard-$seatId')?.id,
+            handId: table.zone('hand-$seatId')?.id,
+          )) {
+            play.run(move);
+          }
+        },
+      ),
+    );
+  }
+```
+
+- [ ] **Step 7: Bite the wiring**
+
+The seam between the sheet and the table is the part that ships untested
+otherwise, which has happened twice on this project already. Append to
+`test/features/play_screen_test.dart`:
+
+```dart
+  testWidgets('the deck can be shuffled from the table', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final before =
+        container.read(playProvider)!.zone('library-s1')!.cards.first.id;
+
+    await tester.tap(find.byKey(const Key('library-work')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('deck-shuffle')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirm-shuffle')));
+    await tester.pumpAndSettle();
+
+    final after =
+        container.read(playProvider)!.zone('library-s1')!.cards.first.id;
+
+    // 53 cards, so the same card staying on top is a one in fifty three
+    // coincidence rather than a flake worth tolerating. If this is ever seen
+    // failing, check the seed before loosening it.
+    expect(after, isNot(before));
+    expect(container.read(playProvider)!.zone('library-s1')!.cards,
+        hasLength(53));
+  });
+
+  testWidgets('a card sent to the bottom from the sheet goes there',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final top = container.read(playProvider)!.zone('library-s1')!.cards.first;
+
+    await tester.tap(find.byKey(const Key('library-work')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('deck-look')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('bottom-${top.id}')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('deck-done')));
+    await tester.pumpAndSettle();
+
+    final library = container.read(playProvider)!.zone('library-s1')!;
+    expect(library.cards.last.id, top.id);
+    expect(library.cards, hasLength(53));
+  });
+```
+
+- [ ] **Step 8: Run everything**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`, with `flutter test 2>&1 | grep -c
+"WARNING"` still 0.
+
+The two `your-board` geometry cases measure the board's rect against the hand.
+`LibraryStack` is taller than the `_Piles` row it replaces, both sit between
+the board and the hand, and neither goes below the hand, so both must still
+pass. If either fails, report the rects rather than adjusting the assertion.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add lib/features/play test/features/deck_sheet_test.dart \
+        test/features/play_screen_test.dart
+git commit -m "Shuffle on purpose, and look at the top of your own deck"
+```
+
+---
+
+## Task 8: The hand, centred and yours to arrange
+
+**Files:**
+- Modify: `lib/features/play/widgets/hand_sheet.dart`
+- Test: `test/features/hand_sheet_test.dart`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `test/features/hand_sheet_test.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
+import 'package:kitchentable/features/play/widgets/table_card.dart';
+import 'package:kitchentable/table/model/card_instance.dart';
+import 'package:kitchentable/ui/tokens/metrics.dart';
+
+List<CardInstance> _hand(int n) => [
+      for (var i = 0; i < n; i++)
+        CardInstance(id: 'h$i', oracleId: 'card$i'),
+    ];
+
+Widget _host({
+  int cards = 3,
+  void Function(String cardId, int to)? onReorder,
+}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: HandSheet(
+          metrics: Metrics.of(DeviceClass.handheld),
+          cards: _hand(cards),
+          printings: const {},
+          onPlay: (_) {},
+          onInspect: (_) {},
+          onReorder: onReorder ?? (_, _) {},
+        ),
+      ),
+    );
+
+void main() {
+  testWidgets('a few cards sit in the middle, not against the left edge',
+      (tester) async {
+    await tester.pumpWidget(_host(cards: 3));
+    await tester.pump();
+
+    final sheet = tester.getRect(find.byType(HandSheet));
+    final first = tester.getRect(find.byType(TableCard).first);
+    final last = tester.getRect(find.byType(TableCard).last);
+
+    final leftGap = first.left - sheet.left;
+    final rightGap = sheet.right - last.right;
+
+    expect(leftGap, greaterThan(1), reason: 'it was pinned to the left edge');
+    expect(leftGap, closeTo(rightGap, 1));
+  });
+
+  testWidgets('a full hand still fills the width and scrolls', (tester) async {
+    await tester.pumpWidget(_host(cards: 30));
+    await tester.pump();
+
+    final sheet = tester.getRect(find.byType(HandSheet));
+    final first = tester.getRect(find.byType(TableCard).first);
+
+    // Centring a hand that does not fit would push its left edge off screen.
+    expect(first.left, closeTo(sheet.left, 12));
+  });
+
+  testWidgets('an empty hand says so', (tester) async {
+    await tester.pumpWidget(_host(cards: 0));
+
+    expect(find.textContaining('No cards'), findsOneWidget);
+  });
+
+  testWidgets('a card dragged sideways reports where it was put',
+      (tester) async {
+    ({String id, int to})? moved;
+    await tester.pumpWidget(_host(
+      cards: 4,
+      onReorder: (id, to) => moved = (id: id, to: to),
+    ));
+    await tester.pump();
+
+    final third = tester.getCenter(find.byType(TableCard).at(2));
+    final gesture = await tester.startGesture(third);
+    await tester.pump(const Duration(milliseconds: 40));
+    await gesture.moveTo(tester.getCenter(find.byType(TableCard).first));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(moved?.id, 'h2');
+    expect(moved?.to, 0);
+  });
+
+  testWidgets('a tap still plays the card', (tester) async {
+    CardInstance? played;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: HandSheet(
+          metrics: Metrics.of(DeviceClass.handheld),
+          cards: _hand(3),
+          printings: const {},
+          onPlay: (c) => played = c,
+          onInspect: (_) {},
+          onReorder: (_, _) {},
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    // Adding a drag to a widget that already had a tap is how a tap stops
+    // working. It did, once, on the board.
+    await tester.tap(find.byType(TableCard).first);
+    await tester.pump();
+
+    expect(played?.id, 'h0');
+  });
+}
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/features/hand_sheet_test.dart`
+Expected: FAIL to compile, `No named parameter with the name 'onReorder'`.
+
+- [ ] **Step 3: Rebuild the hand**
+
+In `lib/features/play/widgets/hand_sheet.dart`:
+
+- Add `required this.onReorder` with the type
+  `void Function(String cardId, int to)`.
+- Centre when the cards fit. Wrap the scroll view in a `LayoutBuilder` and
+  compare `cards.length * (cardWidth + gap)` against `constraints.maxWidth`;
+  when it fits, a `Center` with a `Row`, when it does not, the scrolling list
+  it already has. **Do not** reach for `ListView`'s `shrinkWrap` to fake it:
+  the case above measures both edges and a shrink wrapped list still starts at
+  the left.
+- Reorder by dragging. `ReorderableListView` is the obvious answer and it is
+  the wrong one here: it wants its own scroll view, it fights the centring,
+  and its drag handle behaviour on a horizontal list is poor. Use the same
+  `Listener` plus `GestureDetector` pair `cursor_board.dart` already uses,
+  work out the index from the drop position and the card pitch, and call
+  `onReorder`. Read that file first; the touch slop problem it solves is the
+  same one here.
+
+The screen wires `onReorder` to
+`MoveCard(cardId: id, toZoneId: hand.id, at: to)`.
+
+- [ ] **Step 4: Run it and watch it pass**
+
+Run: `flutter test test/features/hand_sheet_test.dart`
+Expected: PASS, 5 tests.
+
+- [ ] **Step 5: Probe**
+
+Remove the centring, going back to a plain left aligned list. The first case
+must fail on `leftGap` and not on the closeTo. Then make the drop index always
+0: the fourth case must fail on `moved?.to`. Say which assertion each time.
+Edit back by hand and rerun.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/features/play test/features/hand_sheet_test.dart
+git commit -m "Centre the hand, and let it be rearranged"
+```
+
+---
+
+## Task 9: Your own seat, nearest you
+
+Two things the player asked for that are one change: in the all players view
+your mat should be the one closest to your hand, and you should be able to
+move your own cards there.
+
+**Files:**
+- Modify: `lib/features/play/renderers/free_canvas.dart`
+- Modify: `lib/features/play/renderers/mat_layout.dart`
+- Test: `test/features/mat_layout_test.dart`, `test/features/free_canvas_test.dart`
+
+- [ ] **Step 1: Write the failing test for the order**
+
+Append to `test/features/mat_layout_test.dart`:
+
+```dart
+  test('your own seat is the one nearest your hand', () {
+    // Four seats, you are second in table order. The hand sits under the
+    // canvas, so nearest means bottom, and bottom means last.
+    final order = seatOrder(count: 4, viewerAt: 1);
+
+    expect(order.last, 1);
+    expect(order.toSet(), {0, 1, 2, 3});
+  });
+
+  test('the others keep going round the table in order', () {
+    final order = seatOrder(count: 4, viewerAt: 1);
+
+    // Turn order still reads round the table from the seat after yours, which
+    // is the order you will be passing priority in.
+    expect(order, [2, 3, 0, 1]);
+  });
+
+  test('a spectator changes nothing', () {
+    expect(seatOrder(count: 3, viewerAt: null), [0, 1, 2]);
+    expect(seatOrder(count: 3, viewerAt: 9), [0, 1, 2]);
+  });
+
+  test('a table of one is a table of one', () {
+    expect(seatOrder(count: 1, viewerAt: 0), [0]);
+  });
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/features/mat_layout_test.dart`
+Expected: FAIL, `Method not found: 'seatOrder'`.
+
+- [ ] **Step 3: Write it**
+
+In `lib/features/play/renderers/mat_layout.dart`:
+
+```dart
+/// Which seat goes in which mat, so yours is the one nearest your hand.
+///
+/// The hand sits under the canvas, so nearest is last. The rest keep going
+/// round the table from the seat after yours, which is the order priority
+/// passes in, so the arrangement on screen matches the one people say out
+/// loud.
+///
+/// Returns positions into the seat list, not seat ids.
+List<int> seatOrder({required int count, required int? viewerAt}) {
+  if (viewerAt == null || viewerAt < 0 || viewerAt >= count) {
+    return [for (var i = 0; i < count; i++) i];
+  }
+  return [
+    for (var i = 1; i <= count; i++) (viewerAt + i) % count,
+  ];
+}
+```
+
+- [ ] **Step 4: Run it and watch it pass**
+
+Run: `flutter test test/features/mat_layout_test.dart`
+Expected: PASS, 13 tests.
+
+- [ ] **Step 5: Use it, and let the canvas be dragged**
+
+In `free_canvas.dart`, walk `seatOrder` instead of the raw index:
+
+```dart
+            for (final (slot, seatAt)
+                in seatOrder(
+                  count: seats.length,
+                  viewerAt: seats.indexWhere((s) => s.seatId == viewerSeatId),
+                ).indexed)
+              Positioned.fromRect(
+                rect: matFor(slot, seats.length),
+                child: _Mat(seat: seats[seatAt], ...),
+              ),
+```
+
+`indexWhere` returns -1 for a spectator, which `seatOrder` already treats as
+no viewer.
+
+Then give `_Mat` the same drag `CursorBoard` has, **only on your own mat**: a
+card on somebody else's mat is theirs to move. Add `onPlace` to `FreeCanvas`
+and pass it through to `_Mat`, which wires it only when `isViewer`. Lift the
+`Listener` plus `onPanStart` catch up from `cursor_board.dart` rather than
+writing a second one: **the touch slop bug is the same bug and it will be back
+if this is retyped.** If that means extracting it into a small widget both use,
+do that and say so.
+
+- [ ] **Step 6: Write the failing tests for the canvas drag**
+
+Append to `test/features/free_canvas_test.dart`:
+
+```dart
+  testWidgets('you can move your own cards here too', (tester) async {
+    ({String id, double x, double y})? dropped;
+    await tester.pumpWidget(_host(
+      [_seat('s1', board: 1)],
+      onPlace: (id, x, y) => dropped = (id: id, x: x, y: y),
+    ));
+    await tester.pump();
+
+    await tester.drag(find.byKey(const Key('card-s1-b0')),
+        const Offset(120, 60));
+    await tester.pump();
+
+    expect(dropped?.id, 's1-b0');
+    expect(dropped!.x, inExclusiveRange(0, 1));
+  });
+
+  testWidgets('somebody else s cards are not yours to move', (tester) async {
+    ({String id, double x, double y})? dropped;
+    await tester.pumpWidget(_host(
+      [_seat('s1', board: 1), _seat('s2', board: 1)],
+      onPlace: (id, x, y) => dropped = (id: id, x: x, y: y),
+    ));
+    await tester.pump();
+
+    await tester.drag(find.byKey(const Key('card-s2-b0')),
+        const Offset(120, 60));
+    await tester.pump();
+
+    expect(dropped, isNull);
+  });
+
+  testWidgets('your mat is the last one, nearest your hand', (tester) async {
+    await tester.pumpWidget(_host(
+      [_seat('s1'), _seat('s2'), _seat('s3')],
+      viewer: 's2',
+    ));
+    await tester.pump();
+
+    final mine = tester.getRect(find.byKey(const Key('mat-s2')));
+    for (final id in ['s1', 's3']) {
+      expect(mine.top, greaterThanOrEqualTo(
+        tester.getRect(find.byKey(Key('mat-$id'))).top,
+      ), reason: 'mat $id should not be below yours');
+    }
+  });
+```
+
+`_host` needs the `onPlace` argument adding, defaulting to a no-op so the
+existing cases keep working.
+
+- [ ] **Step 7: Run everything**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`, WARNING count 0.
+
+`free_canvas_test.dart` has a case asserting a positioned card sits right of a
+flowed one, and another asserting every seat gets a mat. Reordering the mats
+changes which rect `mat-s1` is, so if either moves, say which and what the
+rects were before adjusting anything.
+
+- [ ] **Step 8: Probe**
+
+Change `seatOrder` to return the plain range always. The two ordering cases in
+`mat_layout_test.dart` and the canvas one must fail. Then make `_Mat` wire
+`onPlace` regardless of `isViewer`: the case about somebody else's cards must
+fail on `expect(dropped, isNull)`. Say which assertion each time. Edit back by
+hand and rerun.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add lib/features/play/renderers test/features/mat_layout_test.dart \
+        test/features/free_canvas_test.dart
+git commit -m "Put your own mat nearest you, and let you move your own cards on it"
+```
+
+---
+
+## What this plan deliberately leaves out
+
+- **Reordering the looked at cards.** The sheet's rows come off the deck in
+  order and the destinations are the lever. Dragging a row to choose the top
+  pile's order is a real want and it is the next thing here.
+- **Fateseal.** Looking at somebody else's library needs somebody else, which
+  is plan 4.
+- **Dragging between piles.** A drop lands on the mat it started on, on the
+  board and on the canvas alike.
+- **A number picker for how many to look at.** Two buttons, because scry 1 and
+  scry 2 are most of Magic and a stepper is three taps for a number nobody
+  changes.
