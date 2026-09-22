@@ -36,15 +36,7 @@ class TableCard extends StatelessWidget {
     final card = printing;
 
     final face = instance.faceDown || card == null
-        ? Container(
-            width: width,
-            height: width * 88 / 63,
-            decoration: BoxDecoration(
-              color: Palette.tile,
-              borderRadius: BorderRadius.circular(width * 0.05),
-              border: Border.all(color: Palette.tileEdge),
-            ),
-          )
+        ? CardBack(width: width)
         : CardArt(metrics: m, card: card, width: width);
 
     // Wrapped here and not by each caller, so a card on a board, in a hand
