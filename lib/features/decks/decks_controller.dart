@@ -133,6 +133,19 @@ class DeckEditor extends Notifier<Deck?> {
     await _persist(deck.copyWith(slots: slots));
   }
 
+  /// Sends the commander back to the deck it came from.
+  Future<void> standDownCommander() async {
+    final deck = state;
+    if (deck == null) return;
+
+    final slots = [
+      for (final s in deck.slots)
+        if (s.commander) DeckSlot(card: s.card, quantity: s.quantity) else s,
+    ];
+
+    await _persist(deck.copyWith(slots: slots));
+  }
+
   Future<void> makeCommander(DeckSlot slot) async {
     final deck = state;
     if (deck == null) return;

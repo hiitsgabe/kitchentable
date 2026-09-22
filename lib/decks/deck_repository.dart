@@ -24,8 +24,11 @@ class DeckRepository {
           ]))
         .get();
 
-    // Deliberately without slots. The list screen shows a name and a format,
-    // and loading every card of every deck to draw that would be silly.
+    // Deliberately without slots. The list screen shows a name, a format and a
+    // count, and loading every card of every deck to draw that would be silly.
+    // The count comes from one grouped query instead.
+    final counts = await _cardCounts();
+
     return rows
         .map((r) => Deck(
               id: r.id,
@@ -33,8 +36,25 @@ class DeckRepository {
               format: _formatFrom(r.format),
               game: _gameFrom(r.game),
               slots: const [],
+              knownCardCount: counts[r.id] ?? 0,
             ))
         .toList();
+  }
+
+  /// How many cards each deck holds, counting the sideboard out, in one query
+  /// rather than one per deck.
+  Future<Map<String, int>> _cardCounts() async {
+    final total = db.deckCards.quantity.sum();
+    final query = db.selectOnly(db.deckCards)
+      ..addColumns([db.deckCards.deckId, total])
+      ..where(db.deckCards.sideboard.equals(false))
+      ..groupBy([db.deckCards.deckId]);
+
+    final rows = await query.get();
+    return {
+      for (final row in rows)
+        row.read(db.deckCards.deckId)!: row.read(total) ?? 0,
+    };
   }
 
   Future<Deck?> load(String id) async {
