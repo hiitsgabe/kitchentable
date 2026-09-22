@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/deck.dart';
 import '../../table/actions/table_action.dart';
+import '../../table/model/seat_owner.dart';
 import '../../table/model/table_state.dart';
 import '../../table/referee/referee.dart';
 import '../../table/setup.dart';
@@ -26,6 +27,36 @@ class PlayRefusal extends Notifier<Refusal?> {
 final playRefusalProvider =
     NotifierProvider<PlayRefusal, Refusal?>(PlayRefusal.new);
 
+/// Which seat this device is looking out of.
+///
+/// A provider of its own rather than a field on [TableState], for the same
+/// reason the refusal is one: looking through a different seat does not change
+/// the table, so a field there would notify nobody. It is also the one thing
+/// here that is about this device and not about the game, which is why plan 3
+/// replicates the table and never this.
+class ViewerSeat extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  /// Refuses a chair this device is not in. Looking out of somebody else's
+  /// seat is the exact thing [SeatView] exists to prevent, so the guard lives
+  /// with the state and not in the screen, which is not the only caller it
+  /// will ever have.
+  bool look(String seatId) {
+    final seat = ref.read(playProvider)?.seat(seatId);
+    if (seat == null || !seat.owner.actableHere) return false;
+    state = seatId;
+    return true;
+  }
+
+  /// Seats the viewer without asking. Only for opening and closing a table,
+  /// where there is nothing to refuse yet.
+  void sit(String? seatId) => state = seatId;
+}
+
+final viewerSeatProvider =
+    NotifierProvider<ViewerSeat, String?>(ViewerSeat.new);
+
 class PlayController extends Notifier<TableState?> {
   TableSession? _session;
   Referee _referee = const PermissiveReferee();
@@ -34,15 +65,24 @@ class PlayController extends Notifier<TableState?> {
   @override
   TableState? build() => null;
 
-  void start(Deck deck, {String? seed}) {
-    final table = sitDown(
-      deck: deck,
-      seatName: 'you',
-      seed: seed ?? freshSeed(),
-    );
+  void start(Deck deck, {String? seed}) => startPod(
+        players: [(deck: deck, name: 'you', owner: const SeatOwner.here())],
+        seed: seed,
+      );
+
+  /// Everybody at this device. Solo comes through here too: one player is a
+  /// pod of one, and a separate path for it is how the one seat case drifts
+  /// away from the four seat one without anybody noticing.
+  void startPod({required List<Player> players, String? seed}) {
+    if (players.isEmpty) return;
+
+    final table = sitDownTogether(players: players, seed: seed ?? freshSeed());
     _session = TableSession(table);
     _clearRefusal();
     state = table;
+
+    final here = table.seats.where((s) => s.owner.actableHere).firstOrNull;
+    ref.read(viewerSeatProvider.notifier).sit(here?.id);
   }
 
   /// Swaps the referee. There is one, and the seat is built so a real engine
@@ -86,6 +126,7 @@ class PlayController extends Notifier<TableState?> {
   void leave() {
     _session = null;
     _clearRefusal();
+    ref.read(viewerSeatProvider.notifier).sit(null);
     state = null;
   }
 
