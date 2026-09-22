@@ -17,9 +17,6 @@ import 'add_lands_screen.dart';
 import 'decks_controller.dart';
 import 'rename_deck_screen.dart';
 import 'paste_list_screen.dart';
-import '../play/play_controller.dart';
-import '../play/play_screen.dart';
-import '../../table/shuffle.dart';
 
 class DeckScreen extends ConsumerWidget {
   const DeckScreen({super.key});
@@ -59,25 +56,6 @@ class DeckScreen extends ConsumerWidget {
       children: [
         _Counts(metrics: m, deck: deck),
         SizedBox(height: m.scaled(18)),
-        // Present and dimmed rather than absent, which is what every other
-        // dead row in this app does: Play and Decks on the menu, a game with
-        // no catalog, a source that is not built, the plus button at a copy
-        // limit. A row that vanishes teaches nobody that the feature exists.
-        MenuRow(
-          title: 'Play with this deck',
-          subtitle: deck.slots.isEmpty
-              ? 'add some cards first'
-              : 'shuffle, draw seven, and see how it goldfishes',
-          icon: Icons.play_arrow_rounded,
-          enabled: deck.slots.isNotEmpty,
-          metrics: m,
-          onActivate: () {
-            ref.read(playProvider.notifier).start(deck, seed: freshSeed());
-            Navigator.of(
-              context,
-            ).push(MaterialPageRoute<void>(builder: (_) => const PlayScreen()));
-          },
-        ),
         MenuRow(
           title: 'Rename',
           subtitle: 'it is called "${deck.name}"',

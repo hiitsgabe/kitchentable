@@ -6,6 +6,7 @@ import '../../decks/model/game.dart';
 import '../../table/shuffle.dart';
 import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
+import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../play/play_controller.dart';
@@ -78,12 +79,55 @@ class PlayDecksScreen extends ConsumerWidget {
 
   /// Loads the deck's cards first. The list is deliberately read without them,
   /// so dealing straight from a row would sit down at an empty table.
+  ///
+  /// Every way this can fail now says so. The first version returned quietly
+  /// on a null repository or a deck that would not load, which is exactly the
+  /// nothing somebody reported: tap a deck, watch the screen not change, and
+  /// have no idea whether the app refused or missed the tap.
   Future<void> _deal(BuildContext context, WidgetRef ref, Deck deck) async {
-    final full = await ref.read(deckRepositoryProvider)?.load(deck.id);
-    if (full == null || !context.mounted) return;
+    final repo = ref.read(deckRepositoryProvider);
+    if (repo == null) {
+      Toast.show(
+        context,
+        'No catalog on this build, so there is nothing to deal',
+        icon: Icons.block_rounded,
+      );
+      return;
+    }
+
+    final Deck? full;
+    try {
+      full = await repo.load(deck.id);
+    } catch (e) {
+      if (context.mounted) {
+        Toast.show(context, 'Could not read that deck: $e',
+            icon: Icons.block_rounded);
+      }
+      return;
+    }
+
+    if (!context.mounted) return;
+
+    if (full == null) {
+      Toast.show(context, 'That deck is no longer there',
+          icon: Icons.block_rounded);
+      return;
+    }
+    if (full.slots.isEmpty) {
+      Toast.show(context, 'That deck has no cards in it yet',
+          icon: Icons.block_rounded);
+      return;
+    }
 
     ref.read(playProvider.notifier).start(full, seed: freshSeed());
-    if (!context.mounted) return;
+
+    final table = ref.read(playProvider);
+    if (table == null) {
+      Toast.show(context, 'The table would not come up',
+          icon: Icons.block_rounded);
+      return;
+    }
+
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
     );
