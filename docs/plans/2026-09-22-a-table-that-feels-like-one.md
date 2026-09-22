@@ -2162,9 +2162,22 @@ Expected: PASS, 5 tests.
 - [ ] **Step 5: Probe**
 
 Remove the centring, going back to a plain left aligned list. The first case
-must fail on `leftGap` and not on the closeTo. Then make the drop index always
-0: the fourth case must fail on `moved?.to`. Say which assertion each time.
-Edit back by hand and rerun.
+must fail on `leftGap` and not on the closeTo.
+
+**Do not probe by forcing the drop index to 0.** The fourth case drags onto
+the first card and expects 0, so hardwiring 0 forces the right answer and the
+mutation survives. No production code can fail an assertion by agreeing with
+it. Flip the sign of the pitch step instead,
+`index - (moved / pitch).round()`, which produces 3 where 0 is expected and
+fails on `moved?.to` by value.
+
+Then break `Grabbable`, returning `Offset.zero` from its catch up. Two cases
+fall in two different files, and they are not equally strong: the hand case
+fails on `moved?.id` being null, because with the travel swallowed the card
+lands where it started and `onReorder` is never called, which is liveness
+only. The one that guards the slop fix by value is
+`a card lands where the finger let go` in `cursor_board_test.dart`. Say which
+assertion each time. Edit back by hand and rerun.
 
 - [ ] **Step 6: Commit**
 
@@ -2370,6 +2383,15 @@ git commit -m "Put your own mat nearest you, and let you move your own cards on 
   is plan 4.
 - **Dragging between piles.** A drop lands on the mat it started on, on the
   board and on the canvas alike.
+- **Scrolling a hand by dragging a card.** With reorder on the cards, the
+  card's pan recogniser wins the gesture arena over the list's scroll, so on a
+  hand wider than the sheet, about twelve cards at handheld metrics, dragging
+  a card rearranges it instead of scrolling. Scrolling then needs the gaps
+  between cards, or a wheel. Reorder was the ask and it matters most on
+  exactly the hands that are too wide, so it stays on both branches until
+  somebody decides between a drag handle, a lift delay that would collide with
+  the long press that inspects, and wrapping the hand onto two rows instead of
+  scrolling it at all.
 - **A number picker for how many to look at.** Two buttons, because scry 1 and
   scry 2 are most of Magic and a stepper is three taps for a number nobody
   changes.
