@@ -34,9 +34,12 @@ class MoveCard extends TableAction {
   final ({double x, double y})? position;
 }
 
+/// Turns a card. With no angle it is a toggle, straight to turned and back,
+/// which is the tap. With one it sets that angle, which is the menu.
 class RotateCard extends TableAction {
-  const RotateCard(this.cardId);
+  const RotateCard(this.cardId, {this.to});
   final String cardId;
+  final int? to;
 }
 
 class FlipCard extends TableAction {

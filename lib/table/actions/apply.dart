@@ -12,7 +12,11 @@ import 'table_action.dart';
 /// that somebody already moved, you just find it gone.
 TableState apply(TableState table, TableAction action) => switch (action) {
       MoveCard() => _move(table, action),
-      RotateCard() => _onCard(table, action.cardId, (c) => c.rotated()),
+      RotateCard() => _onCard(
+          table,
+          action.cardId,
+          (c) => action.to == null ? c.turned() : c.turnedTo(action.to!),
+        ),
       FlipCard() => _onCard(table, action.cardId, (c) => c.flipped()),
       ChangeCounter() => _onCard(
           table,
