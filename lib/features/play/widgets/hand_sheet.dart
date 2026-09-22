@@ -51,6 +51,7 @@ class HandSheet extends StatelessWidget {
                 itemCount: cards.length,
                 separatorBuilder: (_, _) => SizedBox(width: m.scaled(6)),
                 itemBuilder: (_, i) => TableCard(
+                  key: Key('hand-card-${cards[i].id}'),
                   metrics: m,
                   instance: cards[i],
                   printing: printings[cards[i].oracleId],

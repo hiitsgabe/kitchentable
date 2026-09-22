@@ -6,7 +6,12 @@ import 'package:kitchentable/decks/model/deck_format.dart';
 import 'package:kitchentable/features/play/play_controller.dart';
 import 'package:kitchentable/features/menu/menu_controller.dart';
 import 'package:kitchentable/features/play/play_screen.dart';
+import 'package:kitchentable/features/play/renderers/free_canvas.dart';
+import 'package:kitchentable/features/play/renderers/stacked_seats.dart';
 import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
+import 'package:kitchentable/features/play/widgets/radar_strip.dart';
+import 'package:kitchentable/features/play/widgets/seat_band.dart';
+import 'package:kitchentable/table/model/seat_owner.dart';
 import 'package:kitchentable/table/actions/table_action.dart';
 import 'package:kitchentable/table/model/table_state.dart';
 import 'package:kitchentable/table/referee/referee.dart';
@@ -26,12 +31,30 @@ Deck _deck() => Deck(
       slots: [DeckSlot(card: _card('Mountain'), quantity: 60)],
     );
 
-Future<ProviderContainer> _seated(WidgetTester tester) async {
+Future<ProviderContainer> _seated(WidgetTester tester) =>
+    _seatedPod(tester, ['you']);
+
+Future<ProviderContainer> _seatedPod(
+  WidgetTester tester,
+  List<String> names, {
+  Size window = const Size(390, 844),
+}) async {
+  tester.view.physicalSize = window;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
   final container = ProviderContainer(
     overrides: [catalogDbProvider.overrideWithValue(null)],
   );
   addTearDown(container.dispose);
-  container.read(playProvider.notifier).start(_deck(), seed: 'abc');
+  container.read(playProvider.notifier).startPod(
+        players: [
+          for (final name in names)
+            (deck: _deck(), name: name, owner: const SeatOwner.here()),
+        ],
+        seed: 'abc',
+      );
 
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -128,6 +151,64 @@ void main() {
 
     expect(container.read(playProvider)!.seat('s1')!.life, 39);
   });
+
+  testWidgets('a narrow window stacks the bands', (tester) async {
+    await _seatedPod(tester, ['you', 'Carla', 'Diego']);
+
+    expect(find.byType(StackedSeats), findsOneWidget);
+    expect(find.byType(FreeCanvas), findsNothing);
+    expect(find.byType(SeatBand), findsNWidgets(2));
+  });
+
+  testWidgets('a wide window opens the canvas', (tester) async {
+    await _seatedPod(tester, ['you', 'Carla'],
+        window: const Size(1280, 800));
+
+    expect(find.byType(FreeCanvas), findsOneWidget);
+    expect(find.byType(StackedSeats), findsNothing);
+  });
+
+  testWidgets('every life total is on screen whichever view it is',
+      (tester) async {
+    await _seatedPod(tester, ['you', 'Carla', 'Diego']);
+
+    expect(find.byType(RadarStrip), findsOneWidget);
+  });
+
+  testWidgets('your hand is yours and theirs is a number', (tester) async {
+    final container = await _seatedPod(tester, ['you', 'Carla']);
+    final theirs = container.read(playProvider)!.zone('hand-s2')!;
+
+    for (final card in theirs.cards) {
+      expect(find.byKey(Key('hand-card-${card.id}')), findsNothing,
+          reason: 'a card from somebody else s hand reached the widget tree');
+    }
+    expect(find.text('hand 7'), findsOneWidget);
+  });
+
+  testWidgets('looking out of another local seat swaps whose hand it is',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you', 'Carla']);
+
+    await tester.tap(find.byKey(const Key('band-s2')));
+    await tester.pump();
+
+    expect(container.read(viewerSeatProvider), 's2');
+    // The seat you left is now the one drawn as a band.
+    expect(find.byKey(const Key('band-s1')), findsOneWidget);
+    expect(find.byKey(const Key('band-s2')), findsNothing);
+  });
+
+  testWidgets('the hand still sits below the board in a pod', (tester) async {
+    await _seatedPod(tester, ['you', 'Carla', 'Diego']);
+
+    final board = tester.getRect(find.byKey(const Key('your-board')));
+    final hand = tester.getRect(find.byType(HandSheet));
+
+    expect(hand.top, greaterThanOrEqualTo(board.bottom - 1),
+        reason: 'the hand must start at or below where your board ends');
+  });
+
 }
 
 class _GrumpyReferee implements Referee {
