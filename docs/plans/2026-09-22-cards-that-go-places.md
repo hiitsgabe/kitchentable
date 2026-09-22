@@ -312,14 +312,590 @@ git commit -m "Make the deck look like a deck"
 
 ---
 
-## Tasks 3 onward
+## Why `Grabbable` goes, and what replaces it
 
-The drag rewrite, written after these two land so it is built against the
-layout they leave rather than the one before it. It covers:
+`Grabbable` works. It solves a real bug, it is tested, and the card moving
+live under the finger is the part the player liked. Three things argued about
+before replacing it, written down so nobody reverses this by accident:
 
-- **`Draggable` and `DragTarget` replacing `Grabbable`**, so one gesture
-  serves moving a card on its own mat and moving it somewhere else.
-- **Your hand onto the table**, dropping a card where you want it instead of
-  tapping it into a flow slot.
-- **The commander going home**, by dropping it on its corner and by an action
-  in the big view for when it dies with a finger nowhere near it.
+**It cannot cross a widget boundary.** It reports deltas to whoever owns it.
+A card in the hand cannot tell the mat anything, and a card on the mat cannot
+tell the command slot anything. Three of the four asks in this plan need
+exactly that.
+
+**Keeping it for one case and adding `Draggable` for the other is worse than
+either.** A board card that slides under your finger and a hand card that
+spawns a ghost are two different gestures in one screen.
+
+**`Draggable` can look identical to `Grabbable`.** `feedback` is what follows
+the pointer, so it is the card at full size; `childWhenDragging` is what is
+left behind, so it is a faint outline. The card appears to move, and the drop
+carries a real pointer position rather than a sum of deltas.
+
+**The slop bug cannot exist under `Draggable`,** which is the point.
+`Grabbable`'s whole reason was that the first `kTouchSlop` of travel is never
+reported as a delta. `DragTarget.onAcceptWithDetails` is handed where the
+pointer actually was, not a running total, so there is nothing to lose.
+
+**The case that measured the slop bug changes meaning and must be rewritten,
+not deleted.** `a card lands where the finger let go, not short of it` in
+`cursor_board_test.dart` asserts that the card's own rect has moved with the
+finger mid drag. Under `Draggable` the card does not move, the feedback does,
+so that assertion is about the wrong widget. Rewrite it to assert the
+**reported drop position** matches where the pointer was released. That is the
+property the old case was reaching for through a proxy, and it is stronger.
+Say in your report what the case looked like before and after.
+
+---
+
+## Task 3: One gesture, anywhere
+
+**Files:**
+- Delete: `lib/features/play/widgets/grabbable.dart`
+- Create: `lib/features/play/widgets/card_drag.dart`
+- Modify: `lib/features/play/widgets/cursor_board.dart`
+- Modify: `lib/features/play/renderers/free_canvas.dart`
+- Modify: `lib/features/play/widgets/hand_sheet.dart`
+- Test: `test/features/card_drag_test.dart`, and the existing drag cases
+
+- [ ] **Step 1: Write the failing test**
+
+Create `test/features/card_drag_test.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/widgets/card_drag.dart';
+import 'package:kitchentable/table/model/card_instance.dart';
+
+const _card = CardInstance(id: 'a', oracleId: 'o');
+
+Widget _host({
+  void Function(CardInstance, Offset)? onDrop,
+  bool canDrag = true,
+}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: Column(
+          children: [
+            SizedBox(
+              height: 120,
+              child: Center(
+                child: DraggableCard(
+                  card: _card,
+                  canDrag: canDrag,
+                  child: const SizedBox(
+                    key: Key('the-card'),
+                    width: 60,
+                    height: 84,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: CardDropTarget(
+                onDrop: onDrop ?? (_, _) {},
+                child: const SizedBox.expand(
+                  key: Key('the-target'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+void main() {
+  testWidgets('a card dropped on a target arrives there', (tester) async {
+    CardInstance? dropped;
+    await tester.pumpWidget(_host(onDrop: (c, _) => dropped = c));
+    await tester.pump();
+
+    await tester.drag(
+      find.byKey(const Key('the-card')),
+      tester.getCenter(find.byKey(const Key('the-target'))) -
+          tester.getCenter(find.byKey(const Key('the-card'))),
+    );
+    await tester.pumpAndSettle();
+
+    expect(dropped?.id, 'a');
+  });
+
+  testWidgets('where it was let go is reported in the target s own space',
+      (tester) async {
+    Offset? at;
+    await tester.pumpWidget(_host(onDrop: (_, where) => at = where));
+    await tester.pump();
+
+    final target = tester.getRect(find.byKey(const Key('the-target')));
+    final from = tester.getCenter(find.byKey(const Key('the-card')));
+    final to = target.topLeft + const Offset(40, 30);
+
+    await tester.drag(find.byKey(const Key('the-card')), to - from);
+    await tester.pumpAndSettle();
+
+    // Local to the target, so a mat can normalise it without knowing where on
+    // the screen it happens to be. The pointer's real position, not a sum of
+    // deltas, which is why the slop that Grabbable existed to fix cannot come
+    // back here.
+    expect(at!.dx, closeTo(40, 2));
+    expect(at!.dy, closeTo(30, 2));
+  });
+
+  testWidgets('a card nobody may move does not move', (tester) async {
+    CardInstance? dropped;
+    await tester.pumpWidget(_host(canDrag: false, onDrop: (c, _) => dropped = c));
+    await tester.pump();
+
+    await tester.drag(find.byKey(const Key('the-card')), const Offset(0, 200));
+    await tester.pumpAndSettle();
+
+    // Somebody else's card on somebody else's mat.
+    expect(dropped, isNull);
+  });
+
+  testWidgets('a drop outside every target reports nothing', (tester) async {
+    CardInstance? dropped;
+    await tester.pumpWidget(_host(onDrop: (c, _) => dropped = c));
+    await tester.pump();
+
+    await tester.drag(
+      find.byKey(const Key('the-card')),
+      const Offset(0, -60),
+    );
+    await tester.pumpAndSettle();
+
+    expect(dropped, isNull);
+  });
+}
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/features/card_drag_test.dart`
+Expected: FAIL, `Error when reading
+'lib/features/play/widgets/card_drag.dart'`.
+
+- [ ] **Step 3: Write the pair**
+
+Create `lib/features/play/widgets/card_drag.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+
+import '../../../table/model/card_instance.dart';
+
+/// A card you can pick up and drop somewhere else.
+///
+/// This replaces a pan based `Grabbable`, which could only tell its own
+/// parent anything and so could never move a card from a hand onto a mat or
+/// from a mat into a corner.
+///
+/// The feedback is the card itself at full size and what is left behind is a
+/// faint outline, so it still looks like the card is moving rather than like
+/// a ghost being spawned. That was the part worth keeping.
+class DraggableCard extends StatelessWidget {
+  const DraggableCard({
+    super.key,
+    required this.card,
+    required this.child,
+    this.canDrag = true,
+  });
+
+  final CardInstance card;
+  final Widget child;
+
+  /// False for a card on somebody else's mat. It is theirs to move.
+  final bool canDrag;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!canDrag) return child;
+
+    return Draggable<CardInstance>(
+      data: card,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Opacity(opacity: 0.92, child: child),
+      ),
+      childWhenDragging: Opacity(opacity: 0.25, child: child),
+      child: child,
+    );
+  }
+}
+
+/// Somewhere a card can land.
+///
+/// Reports where the pointer was when it was released, in this widget's own
+/// coordinates, so a mat can normalise against itself without knowing where
+/// on the screen it is. The position comes from the pointer rather than from
+/// a sum of deltas, which is why the `kTouchSlop` that the old pan based drag
+/// had to compensate for cannot come back here.
+class CardDropTarget extends StatelessWidget {
+  const CardDropTarget({
+    super.key,
+    required this.onDrop,
+    required this.child,
+    this.accepts,
+  });
+
+  final void Function(CardInstance card, Offset at) onDrop;
+  final Widget child;
+
+  /// Null accepts anything. A corner that only takes a commander says so.
+  final bool Function(CardInstance)? accepts;
+
+  @override
+  Widget build(BuildContext context) => DragTarget<CardInstance>(
+        onWillAcceptWithDetails: (details) =>
+            accepts?.call(details.data) ?? true,
+        onAcceptWithDetails: (details) {
+          final box = context.findRenderObject() as RenderBox?;
+          if (box == null) return;
+          onDrop(details.data, box.globalToLocal(details.offset));
+        },
+        builder: (context, _, _) => child,
+      );
+}
+```
+
+`details.offset` is the global position of the **top left of the feedback**,
+not of the pointer. The test above drags the card's centre to a point and
+expects that point back, so if the numbers come out a half card off, that is
+this: add half the card back, or use `details.offset` plus the grab offset.
+Work out which from the failing numbers rather than guessing, and say what you
+found.
+
+- [ ] **Step 4: Run it and watch it pass**
+
+Run: `flutter test test/features/card_drag_test.dart`
+Expected: PASS, 4 tests.
+
+- [ ] **Step 5: Move the three callers over**
+
+`cursor_board.dart`, `free_canvas.dart` and `hand_sheet.dart` all use
+`Grabbable`. Replace each with `DraggableCard`, and make the mat in the first
+two a `CardDropTarget` that normalises the reported offset against its own
+size and calls the `onPlace` it already has.
+
+The hand's reorder is the odd one: it is a drop on the hand itself, and the
+index comes from the x it is dropped at over the card pitch. Same
+`CardDropTarget`, different arithmetic.
+
+Delete `grabbable.dart`. `grep -rn Grabbable lib/ test/` must come back empty.
+
+- [ ] **Step 6: Rewrite the slop case**
+
+In `cursor_board_test.dart`, `a card lands where the finger let go, not short
+of it` measures the card's own rect mid drag. Under `Draggable` the card does
+not move, so that assertion is about the wrong widget now. Rewrite it to
+assert the **reported** position:
+
+```dart
+  testWidgets('a card lands where the finger let go, not short of it',
+      (tester) async {
+    double? x;
+    await tester.pumpWidget(_host(onPlace: (_, at, _) => x = at));
+    await tester.pump();
+
+    final card = tester.getCenter(find.byType(TableCard).first);
+    await tester.drag(find.byType(TableCard).first, const Offset(200, 0));
+    await tester.pumpAndSettle();
+
+    final mat = tester.getRect(find.byKey(const Key('mat-surface')));
+    // Where the pointer actually ended, normalised. A drag driven by summed
+    // deltas used to land about kTouchSlop short of this; a drop position
+    // taken from the pointer cannot.
+    expect(x, closeTo((card.dx + 200 - mat.left) / mat.width, 0.02));
+  });
+```
+
+`Key('mat-surface')` may not exist; add it to whatever box the normalisation
+is against, or use the target's rect another way and say what you did.
+
+- [ ] **Step 7: Run everything**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`, WARNING count 0.
+
+Every existing drag case in `cursor_board_test.dart`, `free_canvas_test.dart`,
+`hand_sheet_test.dart` and `play_screen_test.dart` has to keep passing. They
+use `tester.drag`, which drives `Draggable` as well as it drove the pan, but
+they assert **reported** values and those may now be exact where they were
+approximate. If a `closeTo` starts passing with a tighter tolerance, tighten
+it and say so. If one fails, report the numbers before changing anything.
+
+- [ ] **Step 8: Probe**
+
+Return `details.offset` without `globalToLocal`. The second case must fail on
+`at!.dx`, by value. Then make `canDrag` ignored. The third case must fail on
+`expect(dropped, isNull)`. Say which assertion each time. Edit back by hand
+and rerun.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add lib/features/play test/features
+git commit -m "One gesture for moving a card, wherever it is going"
+```
+
+---
+
+## Task 4: Your hand onto the table
+
+**Files:**
+- Modify: `lib/features/play/widgets/hand_sheet.dart`
+- Modify: `lib/features/play/play_screen.dart`
+- Test: `test/features/play_screen_test.dart`
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `test/features/play_screen_test.dart`:
+
+```dart
+  testWidgets('a card dragged out of your hand lands where you dropped it',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    final board = tester.getRect(find.byKey(const Key('your-board')));
+    final from = tester.getCenter(find.byKey(Key('hand-card-${card.id}')));
+
+    await tester.dragFrom(from, board.center - from);
+    await tester.pumpAndSettle();
+
+    final table = container.read(playProvider)!;
+    expect(table.zone('battlefield-s1')!.cards.map((c) => c.id),
+        contains(card.id));
+    expect(table.zone('hand-s1')!.cards.map((c) => c.id),
+        isNot(contains(card.id)));
+
+    // And where it was dropped, not in the next free flow slot. This is the
+    // whole ask: tapping already played a card, into a slot chosen for you.
+    expect(table.locate(card.id)!.card.position, isNotNull);
+  });
+
+  testWidgets('tapping a card in hand still plays it', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    await tester.tap(find.byKey(Key('hand-card-${card.id}')));
+    await tester.pumpAndSettle();
+
+    // Dragging is an addition, not a replacement. A tap is still the fastest
+    // way to put a land down and the player did not ask to lose it.
+    expect(container.read(playProvider)!.zone('battlefield-s1')!.cards,
+        hasLength(1));
+  });
+```
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Run: `flutter test test/features/play_screen_test.dart`
+Expected: the drag case FAILS on the battlefield not containing the card. The
+tap case passes already.
+
+- [ ] **Step 3: Wire it**
+
+The hand's cards are already `DraggableCard` after Task 3. The board's
+`CardDropTarget` has to accept a card that is not already on it: when the
+dropped card is in another zone, the move is
+`MoveCard(cardId: ..., toZoneId: battlefield, position: ...)` with no `at`,
+and when it is already there it is the reposition Task 3 wired.
+
+In `play_screen.dart`, `_place` already takes `(cardId, x, y)` and looks the
+card up. It works for both: `found.zone.id` is where the card **is**, so a
+card coming from the hand would be moved back into the hand. Give `_place` the
+destination zone explicitly instead, and pass `battlefield.id` from the board's
+target.
+
+Keep `at` only when the card is already in that zone. A card arriving from
+elsewhere has no index to preserve.
+
+- [ ] **Step 4: Run everything**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`.
+
+- [ ] **Step 5: Probe**
+
+Make the board's target always pass `found.zone.id` as the destination. The
+drag case must fail on the battlefield not containing the card. Then drop the
+`position` from the move: it must fail on `position, isNotNull`. Say which
+assertion each time. Edit back by hand and rerun.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/features/play test/features/play_screen_test.dart
+git commit -m "Put a card where you want it straight out of your hand"
+```
+
+---
+
+## Task 5: The commander goes home
+
+Two ways, because a commander leaves the battlefield in two circumstances: you
+put it back, and it dies while your finger is nowhere near it.
+
+**Files:**
+- Modify: `lib/features/play/widgets/command_slot.dart`
+- Modify: `lib/ui/organisms/card_viewer.dart`
+- Modify: `lib/features/play/play_screen.dart`
+- Test: `test/features/command_slot_test.dart`, `test/ui/card_viewer_actions_test.dart`, `test/features/play_screen_test.dart`
+
+- [ ] **Step 1: Write the failing tests**
+
+Append to `test/features/command_slot_test.dart`:
+
+```dart
+  testWidgets('a card dropped on the corner is reported', (tester) async {
+    CardInstance? sent;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Column(
+          children: [
+            DraggableCard(
+              card: const CardInstance(id: 'x', oracleId: 'General'),
+              child: const SizedBox(key: Key('loose'), width: 40, height: 56),
+            ),
+            Expanded(
+              child: CommandSlot(
+                metrics: Metrics.of(DeviceClass.handheld),
+                cards: const [],
+                printings: const {},
+                width: 60,
+                onTap: (_) {},
+                onInspect: (_) {},
+                onSendHome: (c) => sent = c,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    final to = tester.getCenter(find.byType(CommandSlot));
+    final from = tester.getCenter(find.byKey(const Key('loose')));
+    await tester.dragFrom(from, to - from);
+    await tester.pumpAndSettle();
+
+    expect(sent?.id, 'x');
+  });
+```
+
+Append to `test/ui/card_viewer_actions_test.dart`:
+
+```dart
+  testWidgets('a card can be sent to the command zone from the big view',
+      (tester) async {
+    CardAction? acted;
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(id: 'a', oracleId: 'o'),
+      onAct: (a) => acted = a,
+      hasCommandZone: true,
+    ));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('act-command')));
+    await tester.pump();
+
+    expect(acted, CardAction.commandZone);
+  });
+
+  testWidgets('a table with no command zone does not offer it',
+      (tester) async {
+    await tester.pumpWidget(
+      _host(instance: const CardInstance(id: 'a', oracleId: 'o')),
+    );
+    await tester.pump();
+
+    // Standard and Pauper have no such corner, and an action that moves a
+    // card into a zone that does not exist is a silent no op.
+    expect(find.byKey(const Key('act-command')), findsNothing);
+  });
+```
+
+`_host` in that file needs a `hasCommandZone` argument, defaulting false.
+
+Append to `test/features/play_screen_test.dart`:
+
+```dart
+  testWidgets('a commander dropped on its corner goes home', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final commander =
+        container.read(playProvider)!.zone('command-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: commander.id, toZoneId: 'battlefield-s1'));
+    await tester.pump();
+
+    final corner = tester.getCenter(find.byType(CommandSlot));
+    final from = tester.getCenter(find.byType(TableCard).first);
+    await tester.dragFrom(from, corner - from);
+    await tester.pumpAndSettle();
+
+    expect(container.read(playProvider)!.zone('command-s1')!.cards,
+        hasLength(1));
+    expect(container.read(playProvider)!.zone('battlefield-s1')!.cards,
+        isEmpty);
+  });
+```
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Run: `flutter test test/features/command_slot_test.dart test/ui/card_viewer_actions_test.dart test/features/play_screen_test.dart`
+Expected: FAIL to compile on `onSendHome`, `hasCommandZone` and
+`CardAction.commandZone`.
+
+- [ ] **Step 3: Write it**
+
+- `CommandSlot` gains `required this.onSendHome` and wraps its whole column in
+  a `CardDropTarget`.
+- `CardAction` gains `commandZone`. `CardViewer` gains
+  `bool hasCommandZone = false` and shows an `act-command` button only when it
+  is true and `instance` is not null.
+- `play_screen.dart` passes `hasCommandZone: table.zone('command-$viewerId')
+  != null` into the viewer, handles the new case with
+  `MoveCard(cardId: ..., toZoneId: 'command-$viewerId')`, and wires
+  `onSendHome` to the same move.
+
+**A commander is not the only thing that belongs in a command zone.** Emblems
+and companions live there too, and the app has no notion of either, so the
+corner accepts any card rather than checking. Do not add an `accepts` that
+filters on the deck's commander: the player is the one who knows.
+
+- [ ] **Step 4: Run them and watch them pass**
+
+Run the three files. Expected: PASS.
+
+- [ ] **Step 5: Run everything**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`, WARNING count 0.
+
+- [ ] **Step 6: Probe**
+
+Make `CommandSlot`'s target ignore the drop. The slot case and the screen case
+must both fail, and say on which assertion. Then remove the `hasCommandZone`
+guard on the viewer button: the case about a table with no command zone must
+fail. Edit each back by hand and rerun.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add lib/features/play lib/ui/organisms/card_viewer.dart test/features test/ui
+git commit -m "Send the commander home, by hand or from the big view"
+```
+
+---
+
+## What this plan deliberately leaves out
+
+- **Dropping on a graveyard or an exile.** `CardDropTarget` makes it a few
+  lines each and there is no screen room decided for them yet.
+- **Dragging onto somebody else's mat.** It needs an answer to what that even
+  means, which is a rules question and the referee's chair is still empty.
+- **A Pokemon card back.** The app has no Pokemon catalog and no source that
+  serves one, so the back arrives with the catalog.
