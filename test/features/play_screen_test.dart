@@ -94,7 +94,7 @@ void main() {
       (tester) async {
     final container = await _seated(tester);
 
-    await tester.tap(find.byKey(const Key('draw')));
+    await tester.tap(find.byKey(const Key('library-draw')));
     await tester.pump();
 
     expect(container.read(playProvider)!.zone('library-s1')!.size, 52);
@@ -107,7 +107,7 @@ void main() {
 
     expect(container.read(playProvider.notifier).canUndo, isFalse);
 
-    await tester.tap(find.byKey(const Key('draw')));
+    await tester.tap(find.byKey(const Key('library-draw')));
     await tester.pump();
 
     expect(container.read(playProvider.notifier).canUndo, isTrue);
@@ -309,6 +309,47 @@ void main() {
     );
   });
 
+  testWidgets('the deck can be shuffled from the table', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final before =
+        container.read(playProvider)!.zone('library-s1')!.cards.first.id;
+
+    await tester.tap(find.byKey(const Key('library-work')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('deck-shuffle')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirm-shuffle')));
+    await tester.pumpAndSettle();
+
+    final after =
+        container.read(playProvider)!.zone('library-s1')!.cards.first.id;
+
+    // 53 cards, so the same card staying on top is a one in fifty three
+    // coincidence rather than a flake worth tolerating. If this is ever seen
+    // failing, check the seed before loosening it.
+    expect(after, isNot(before));
+    expect(container.read(playProvider)!.zone('library-s1')!.cards,
+        hasLength(53));
+  });
+
+  testWidgets('a card sent to the bottom from the sheet goes there',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final top = container.read(playProvider)!.zone('library-s1')!.cards.first;
+
+    await tester.tap(find.byKey(const Key('library-work')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('deck-look')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('bottom-${top.id}')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('deck-done')));
+    await tester.pumpAndSettle();
+
+    final library = container.read(playProvider)!.zone('library-s1')!;
+    expect(library.cards.last.id, top.id);
+    expect(library.cards, hasLength(53));
+  });
 }
 
 class _GrumpyReferee implements Referee {
