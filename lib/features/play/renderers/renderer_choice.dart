@@ -6,18 +6,7 @@ enum TableRenderer {
   stackedSeats,
 
   /// Every seat on a surface you pan and pinch.
-  freeCanvas;
-
-  String get label => switch (this) {
-        TableRenderer.stackedSeats => 'Bands',
-        TableRenderer.freeCanvas => 'Canvas',
-      };
-
-  String get describe => switch (this) {
-        TableRenderer.stackedSeats =>
-          'one seat per band, yours at the bottom',
-        TableRenderer.freeCanvas => 'the whole table, pan and pinch',
-      };
+  freeCanvas,
 }
 
 /// Wide enough for four seats side by side without a card becoming a smudge.
