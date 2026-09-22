@@ -9,7 +9,7 @@ import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import '../board_cursor.dart';
 import '../renderers/mat_layout.dart';
-import 'grabbable.dart';
+import 'card_drag.dart';
 import 'table_card.dart';
 
 /// A pile as this widget draws it.
@@ -57,9 +57,6 @@ class CursorBoard extends StatefulWidget {
 
 class _CursorBoardState extends State<CursorBoard> {
   BoardCursor? _cursor;
-
-  /// Where a card has been dragged to but not yet dropped, in mat units.
-  final _dragging = <String, Offset>{};
 
   /// The card as this board lays it out. The whole size scales and not just
   /// the drawn width, so a bigger card is still centred on its own spot and
@@ -177,11 +174,17 @@ class _CursorBoardState extends State<CursorBoard> {
               return SizedBox(
                 width: constraints.maxWidth,
                 height: matSize.height * scale,
-                child: Stack(
-                  children: [
-                    for (var i = 0; i < zone.cards.length; i++)
-                      _card(zone, i, cursor, scale),
-                  ],
+                child: CardDropTarget(
+                  onDrop: (card, at) => _drop(card, at, scale),
+                  child: Stack(
+                    // The box a drop is measured against, and the one the
+                    // test measures it against too.
+                    key: Key('mat-${zone.id}'),
+                    children: [
+                      for (var i = 0; i < zone.cards.length; i++)
+                        _card(zone, i, cursor, scale),
+                    ],
+                  ),
                 ),
               );
             },
@@ -200,14 +203,12 @@ class _CursorBoardState extends State<CursorBoard> {
       index: index,
       card: _cardSize,
     );
-    final pending = _dragging[card.id] ?? Offset.zero;
 
     return Positioned(
-      left: (spot.dx + pending.dx) * scale,
-      top: (spot.dy + pending.dy) * scale,
-      child: Grabbable(
-        onMove: (delta) => _drag(card.id, delta / scale),
-        onDrop: () => _drop(zone, card, spot, scale),
+      left: spot.dx * scale,
+      top: spot.dy * scale,
+      child: DraggableCard(
+        card: card,
         child: Container(
           key: ringed ? Key('ring-${card.id}') : null,
           padding: EdgeInsets.all(m.focusRing),
@@ -231,26 +232,21 @@ class _CursorBoardState extends State<CursorBoard> {
     );
   }
 
-  void _drag(String cardId, Offset delta) {
-    setState(() {
-      _dragging[cardId] = (_dragging[cardId] ?? Offset.zero) + delta;
-    });
-  }
-
-  void _drop(BoardZone zone, CardInstance card, Offset from, double scale) {
-    final moved = _dragging.remove(card.id);
-    if (moved == null) return;
-
-    // The centre of where the card ended up, normalized against the mat. The
-    // centre and not the corner, because spotFor centres a positioned card
-    // and the two have to be inverses or a card walks on every drag.
-    final at =
-        from + moved + Offset(_cardSize.width / 2, _cardSize.height / 2);
-    setState(() {});
+  /// Where the pointer was let go, normalized against this mat.
+  ///
+  /// The card rides centred on the finger, so the pointer is the card's new
+  /// centre, and spotFor centres a positioned card on the number it is given:
+  /// the two are inverses, which is what stops a card walking on every drag.
+  ///
+  /// Divided by the scale first, because the mat is drawn at whatever width
+  /// the board was given and a drop has to mean the same thing on a phone and
+  /// on a television.
+  void _drop(CardInstance card, Offset at, double scale) {
+    final mat = at / scale;
     widget.onPlace(
       card.id,
-      clampDouble(at.dx / matSize.width, 0, 1),
-      clampDouble(at.dy / matSize.height, 0, 1),
+      clampDouble(mat.dx / matSize.width, 0, 1),
+      clampDouble(mat.dy / matSize.height, 0, 1),
     );
   }
 }
