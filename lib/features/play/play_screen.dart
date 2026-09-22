@@ -163,16 +163,19 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
           ),
         ),
         SizedBox(height: m.scaled(10)),
-        LibraryStack(
-          metrics: m,
-          count: library.size,
-          width: m.scaled(46) * cardScale,
-          onDraw: () => play.run(DrawCards(
-            fromZoneId: library.id,
-            toZoneId: hand.id,
-            count: 1,
-          )),
-          onWork: _workTheDeck,
+        Align(
+          alignment: Alignment.centerRight,
+          child: LibraryStack(
+            metrics: m,
+            count: library.size,
+            width: m.scaled(46) * cardScale,
+            onDraw: () => play.run(DrawCards(
+              fromZoneId: library.id,
+              toZoneId: hand.id,
+              count: 1,
+            )),
+            onWork: _workTheDeck,
+          ),
         ),
         HandSheet(
           metrics: m,

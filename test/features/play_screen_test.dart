@@ -350,6 +350,20 @@ void main() {
     expect(library.cards.last.id, top.id);
     expect(library.cards, hasLength(53));
   });
+  testWidgets('the deck sits to the right, not in the middle',
+      (tester) async {
+    await _seatedPod(tester, ['you']);
+
+    final screen = tester.getRect(find.byType(PlayScreen));
+    final deck = tester.getRect(find.byKey(const Key('library-stack')));
+
+    // A deck sits by your right hand at a table. In the middle it reads as
+    // part of the battlefield.
+    expect(deck.center.dx, greaterThan(screen.center.dx),
+        reason: 'the deck must be on the right half');
+    expect(screen.right - deck.right, lessThan(screen.width * 0.2),
+        reason: 'and close to the edge, not adrift');
+  });
 }
 
 class _GrumpyReferee implements Referee {
