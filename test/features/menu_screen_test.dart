@@ -31,7 +31,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('36079 CARDS'), findsOneWidget);
-    expect(find.text('host a table or join by code'), findsOneWidget);
+    expect(find.text('open a deck to play with it'), findsOneWidget);
   });
 
   // The two tests above only read text, and MenuState computes those strings
