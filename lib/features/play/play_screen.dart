@@ -134,6 +134,8 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
             printings: _printings,
             onActivate: (c) => play.run(RotateCard(c.id)),
             onInspect: _inspect,
+            // Nothing on this screen honours a drop yet.
+            onPlace: (_, _, _) {},
           ),
         ),
         SizedBox(height: m.scaled(10)),
