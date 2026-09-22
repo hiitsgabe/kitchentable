@@ -1138,8 +1138,49 @@ Append to `test/features/play_screen_test.dart`, inside `main()`:
 - [ ] **Step 2: Run it**
 
 Run: `flutter test test/features/play_screen_test.dart`
-Expected: PASS. It exercises the controller rather than the widget, and is here
-so the screen's wiring has something to be checked against in Step 4.
+Expected: PASS, with no production change. It drives the reducer, which has
+been able to place a card since plan 2, so it is a premise and not a test of
+anything this task adds.
+
+**On its own it leaves this task's whole point untested.** The closure the
+task adds to the screen is never executed by it, so a typo there would ship
+green. Step 2a covers that.
+
+- [ ] **Step 2a: Write the case that bites the wiring**
+
+Append to `test/features/play_screen_test.dart`, and add
+`import 'package:kitchentable/features/play/widgets/table_card.dart';`:
+
+```dart
+  testWidgets('dragging a card on the screen writes where it landed',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pump();
+
+    // The case above drives the reducer, which was already able to do this.
+    // This one goes through the screen's own onPlace closure, which nothing
+    // else in the suite touches: a typo in it would ship silently.
+    await tester.drag(find.byType(TableCard).first, const Offset(70, 50));
+    await tester.pump();
+
+    final placed = container.read(playProvider)!.locate(card.id)!.card;
+    expect(placed.position, isNotNull);
+    expect(placed.position!.x, greaterThan(0));
+    expect(placed.position!.x, lessThan(1));
+
+    // The drag must not have moved it out of its pile or reordered it.
+    expect(
+      container.read(playProvider)!.zone('battlefield-s1')!.cards,
+      hasLength(1),
+    );
+  });
+```
+
+It fails until Step 3 wires `onPlace`.
 
 - [ ] **Step 3: Wire the screen**
 
@@ -1197,6 +1238,13 @@ must not open an empty viewer.
 Run: `flutter test && flutter analyze`
 Expected: PASS and `No issues found!`.
 
+- [ ] **Step 4a: Probe**
+
+Delete `position: (x: x, y: y),` from the `MoveCard` inside the screen's
+`onPlace`. The Step 2a case must fail and it must be the only one: the Step 1
+case passes under this mutation, which is the proof it was blind to the
+wiring. Edit it back by hand, never with `git checkout`, and rerun.
+
 - [ ] **Step 5: Commit**
 
 ```bash
@@ -1247,10 +1295,21 @@ Append to `test/features/play_entry_test.dart`, inside `main()`:
   });
 ```
 
-Read `test/features/play_entry_test.dart` before writing this: it has its own
-harness and its own names for things. Adapt the helper call and the keys to
-what is already there rather than inventing `_listed` if something else exists,
-and say in your report what you adapted.
+**There is no harness in that file to adapt to.** It was twenty one lines of
+two plain `MenuState` unit tests with no `flutter_test` widget imports, no
+container and no screen, and `PlayDecksScreen` had no widget test anywhere in
+the repository. `_listed` and all three keys below are new, and so are the
+keys on the rows: `MenuRow` takes a `super.key` and no row in the file passed
+one.
+
+Build the harness by overriding `deckRepositoryProvider` with a stand in
+rather than by opening a real database. `test/decks/deck_editor_test.dart`
+uses a real `CatalogDb.forTesting(NativeDatabase.memory())`, and that puts
+disk IO inside `testWidgets`' fake async, which hangs. Override
+`catalogDbProvider` with null too, so the `PlayScreen` this pushes does not go
+looking for printings. The stand in needs `list()` returning decks with a
+count and no slots and `load()` returning the full deck, because that split is
+what `_hydrate` exists to cross.
 
 - [ ] **Step 3: Add the second seat**
 
@@ -1266,7 +1325,10 @@ on one device holds all its own chairs.
     final full = <Player>[];
     for (var i = 0; i < decks.length; i++) {
       final deck = await _hydrate(decks[i]);
-      if (deck == null) return;
+      // The mounted check is not decoration: without it
+      // use_build_context_synchronously fires on the context use downstream
+      // of the await, and this repo's analyze baseline is all clean.
+      if (deck == null || !mounted) return;
       full.add((
         deck: deck,
         name: i == 0 ? 'you' : 'seat ${i + 1}',
@@ -1275,9 +1337,17 @@ on one device holds all its own chairs.
     }
 
     ref.read(playProvider.notifier).startPod(players: full, seed: freshSeed());
-    if (mounted) Navigator.of(context).pushNamed('/play');
+    await _open();
   }
 ```
+
+**There is no named `/play` route in this app.** An earlier draft of this
+block pushed one and it would have thrown at runtime with no case catching it,
+because the case only reads `playProvider`. The live `_deal` pushes a
+`MaterialPageRoute<void>(builder: (_) => const PlayScreen())`. Extract that
+push, together with the 'The table would not come up' toast that follows a
+still null `playProvider`, into an `_open()` that both paths call: that is the
+fifth toast, and `_hydrate` carries the other four.
 
 `_hydrate` is whatever the existing `_deal` already does to turn a stored deck
 into one with catalog cards in it. Do not duplicate that logic: extract it from
@@ -1289,6 +1359,13 @@ bug this screen already shipped once.
 
 Run: `flutter test && flutter analyze`
 Expected: PASS and `No issues found!`.
+
+- [ ] **Step 4a: Probe**
+
+Delete `position: (x: x, y: y),` from the `MoveCard` inside the screen's
+`onPlace`. The Step 2a case must fail and it must be the only one: the Step 1
+case passes under this mutation, which is the proof it was blind to the
+wiring. Edit it back by hand, never with `git checkout`, and rerun.
 
 - [ ] **Step 5: Probe**
 
