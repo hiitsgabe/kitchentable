@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../table/actions/table_action.dart';
 import '../../table/model/card_instance.dart';
+import '../../table/shuffle.dart';
 import '../../table/view/seat_view.dart';
 import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/toast.dart';
@@ -13,13 +14,16 @@ import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../menu/menu_controller.dart';
 import 'card_size.dart';
+import 'look_at_top.dart';
 import 'play_controller.dart';
 import 'renderers/free_canvas.dart';
 import 'renderers/renderer_choice.dart';
 import 'renderers/stacked_seats.dart';
 import 'widgets/command_slot.dart';
 import 'widgets/cursor_board.dart';
+import 'widgets/deck_sheet.dart';
 import 'widgets/hand_sheet.dart';
+import 'widgets/library_stack.dart';
 import 'widgets/radar_strip.dart';
 
 class PlayScreen extends ConsumerStatefulWidget {
@@ -168,15 +172,16 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
           ),
         ),
         SizedBox(height: m.scaled(10)),
-        _Piles(
+        LibraryStack(
           metrics: m,
-          librarySize: library.size,
-          graveyardSize: graveyard.size,
+          count: library.size,
+          width: m.scaled(46) * cardScale,
           onDraw: () => play.run(DrawCards(
             fromZoneId: library.id,
             toZoneId: hand.id,
             count: 1,
           )),
+          onWork: _workTheDeck,
         ),
         HandSheet(
           metrics: m,
@@ -300,6 +305,59 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
       context,
       'That seat is not yours to look out of',
       icon: Icons.visibility_off_rounded,
+    );
+  }
+
+  /// Shuffling, and looking at the top.
+  ///
+  /// `peek` reads the library straight off the table rather than through a
+  /// `SeatView`, and that is deliberate: a `SeatView` correctly hides a
+  /// library from everybody, its owner included, and this is the one act that
+  /// is allowed to look. It is also why it is a callback and not a field, so
+  /// the cards exist only while the sheet is open.
+  Future<void> _workTheDeck() async {
+    final table = ref.read(playProvider);
+    final seatId = ref.read(viewerSeatProvider);
+    if (table == null || seatId == null) return;
+
+    final library = table.zone('library-$seatId');
+    if (library == null) return;
+
+    final media = MediaQuery.of(context);
+    final m = Metrics.of(classifyDevice(
+      size: media.size,
+      hasTouch: media.navigationMode == NavigationMode.traditional,
+    ));
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Palette.surface,
+      isScrollControlled: true,
+      builder: (sheet) => DeckSheet(
+        metrics: m,
+        count: library.size,
+        printings: _printings,
+        peek: (n) async => library.cards.take(n).toList(),
+        onShuffle: () {
+          Navigator.of(sheet).pop();
+          ref.read(playProvider.notifier).run(
+                ShuffleZone(zoneId: library.id, seed: freshSeed()),
+              );
+        },
+        onArrange: (placements) {
+          Navigator.of(sheet).pop();
+          final play = ref.read(playProvider.notifier);
+          for (final move in arrange(
+            libraryId: library.id,
+            placements: placements,
+            librarySize: library.size,
+            graveyardId: table.zone('graveyard-$seatId')?.id,
+            handId: table.zone('hand-$seatId')?.id,
+          )) {
+            play.run(move);
+          }
+        },
+      ),
     );
   }
 
@@ -466,55 +524,6 @@ class _Pill extends StatelessWidget {
         ),
         child: Icon(icon, size: m.scaled(17), color: Palette.inkMuted),
       ),
-    );
-  }
-}
-
-class _Piles extends StatelessWidget {
-  const _Piles({
-    required this.metrics,
-    required this.librarySize,
-    required this.graveyardSize,
-    required this.onDraw,
-  });
-
-  final Metrics metrics;
-  final int librarySize;
-  final int graveyardSize;
-  final VoidCallback onDraw;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = metrics;
-
-    return Row(
-      children: [
-        GestureDetector(
-          key: const Key('draw'),
-          onTap: onDraw,
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: m.scaled(14),
-              vertical: m.scaled(9),
-            ),
-            decoration: BoxDecoration(
-              color: Palette.tile,
-              borderRadius: BorderRadius.circular(m.scaled(10)),
-              border: Border.all(color: Palette.tileEdge),
-            ),
-            child: Text(
-              'Draw · $librarySize',
-              style: TextStyle(fontSize: m.scaled(13), color: Palette.ink),
-            ),
-          ),
-        ),
-        SizedBox(width: m.scaled(10)),
-        Text(
-          'Graveyard $graveyardSize',
-          style: TextStyle(fontSize: m.scaled(12), color: Palette.inkFaint),
-        ),
-      ],
     );
   }
 }
