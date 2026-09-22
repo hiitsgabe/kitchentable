@@ -21,7 +21,9 @@ The player used the pod build on 2026 09 22 and gave a list.
 
 **"qualidade baixa".** Measured rather than guessed: `TableCard` calls
 `CardArt` without `large`, so the battlefield draws Scryfall's `small` file,
-146 pixels wide. On the player's window a card is about 270 logical points,
+146 pixels wide. Running the task found it is broader than that: **no call
+site anywhere passed `large:`**, all five left it at its default, so the card
+viewer that fills the screen was drawing thumbnails too. On the player's window a card is about 270 logical points,
 which at devicePixelRatio 2 is 540 device pixels. A thumbnail is being blown
 up three and a half times. This is not a `normal` versus `large` question, it
 is the board asking for a thumbnail.
@@ -89,8 +91,10 @@ lib/
 - Modify: `lib/sources/model/catalog_card.dart`
 - Modify: `lib/sources/catalog/catalog_db.dart`
 - Modify: `lib/ui/atoms/card_art.dart`
-- Modify: `lib/features/play/widgets/table_card.dart`
-- Test: `test/ui/card_art_test.dart`, `test/sources/catalog_card_test.dart`
+- Test: `test/ui/card_art_test.dart`, `test/sources/card_faces_test.dart`
+- Modify: `lib/features/sources/` (the stale pictures line and its provider)
+
+`table_card.dart` needs no change: it never passed `large`, which is the bug.
 
 - [ ] **Step 1: Write the failing test for picking a file**
 
@@ -180,14 +184,21 @@ In `lib/sources/model/catalog_card.dart`, add the field beside `imageNormal`:
   final String? imageLarge;
 ```
 
-and in `fromJson`, beside the other two:
+and in `fromScryfall`, beside the other two (the method is `fromScryfall`,
+not `fromJson`):
 
 ```dart
       imageLarge: images?['large'] as String?,
 ```
 
-Read the file first: `fromJson` already resolves `images` from `image_uris` or
-from the first face, so this is one line using what is there.
+Read the file first: `fromScryfall` already resolves `images` from
+`image_uris` or from the first face, so this is one line using what is there.
+
+**Pin that line.** Throwing the large URL away at import cannot be recovered
+without refetching the whole catalog, so append to
+`test/sources/card_faces_test.dart`: a record with a `large` keeps it, a
+record without one reports null, and a transforming card takes the front
+face's. Returning null from that line must fail two of the three.
 
 In `lib/sources/catalog/catalog_db.dart`, add to the `Cards` table beside
 `imageNormal`:
@@ -227,7 +238,11 @@ In `lib/ui/atoms/card_art.dart`, above the class:
 ///
 /// Null when the card has no picture at all, which is a token or a card from a
 /// source that was cleared.
-String? artFor(CatalogCard card, {required double width, required double pixelRatio}) {
+String? artFor(
+  CatalogCard card, {
+  required double width,
+  required double pixelRatio,
+}) {
   final needed = width * pixelRatio;
   if (needed > 488 && card.imageLarge != null) return card.imageLarge;
   if (needed > 146 && card.imageNormal != null) return card.imageNormal;
@@ -245,11 +260,10 @@ Replace the `large` parameter's use inside `build`:
     );
 ```
 
-Leave the `large` field in place for now if other callers pass it; it becomes
-unused and `flutter analyze` will say so, which is the signal to delete it and
-its call sites. Do delete it: an unused parameter that used to choose the
-picture is exactly the kind of thing that gets passed again later by somebody
-expecting it to work.
+Grep `CardArt(` for callers passing `large:` before deciding what to do with
+the field. The answer is none, so delete the field and its use outright: an
+unused parameter that used to choose the picture is exactly the kind of thing
+somebody passes again later expecting it to work.
 
 - [ ] **Step 4: Run it and watch it pass**
 
@@ -262,9 +276,10 @@ without `imageLarge`, which is fine because it is optional. If analyze reports
 
 - [ ] **Step 5: Probe**
 
-Change `needed > 146` to `needed > 1460`. The battlefield case and the pixel
-ratio case must fail. Edit it back by hand, never with `git checkout`, and
-rerun.
+Change `needed > 146` to `needed > 1460`. Three cases must fail, not two: the
+battlefield one, the pixel ratio one, and the fallback one, which crosses the
+same threshold on its way to the normal file. Edit it back by hand, never with
+`git checkout`, and rerun.
 
 - [ ] **Step 6: Say so in the app**
 
@@ -272,8 +287,12 @@ A catalog imported before this runs has no large images and will keep drawing
 the normal file. That is correct and invisible, which is the problem: the
 player will re-read this sentence rather than re-import.
 
-In the sources screen, where the catalog's card count is shown, add a line
-when any card has a null `imageLarge`:
+**The sources screen shows no card count.** That count lives in the menu
+headline, `lib/features/menu/menu_controller.dart:34`. Put the line at the end
+of the sources screen's `children` in the faint style `_Note` uses in
+`import_screen.dart`, and put the provider in
+`lib/features/sources/import_controller.dart` so the commit's `git add` covers
+it. The line, shown when any card has a null `imageLarge`:
 
 ```dart
   'Imported before sharper pictures were added. Re-import to get them.'
@@ -285,6 +304,9 @@ does for status lines. Add a `Future<bool> needsBetterPictures()` to
 
 ```dart
   /// True when anything in the catalog predates the large image column.
+  ///
+  /// `AsyncValue.value` is already nullable in riverpod 3.4.3, so the screen
+  /// reads `ref.watch(...).value ?? false`. There is no `valueOrNull`.
   Future<bool> needsBetterPictures() async {
     final query = select(cards)
       ..where((c) => c.imageLarge.isNull())
@@ -295,9 +317,17 @@ does for status lines. Add a `Future<bool> needsBetterPictures()` to
 
 - [ ] **Step 7: Commit**
 
+Making the sources screen watch the catalog makes its three widget cases
+construct a real `CatalogDb`, and drift warns twice about a second instance.
+Those cases are about the source list, so add
+`catalogDbProvider.overrideWithValue(null)` to
+`test/features/sources_screen_test.dart`. The suite's warning count must be
+zero before and after this task: `flutter test 2>&1 | grep -c "WARNING"`.
+
 ```bash
-git add lib/sources lib/ui/atoms/card_art.dart lib/features/play/widgets/table_card.dart \
-        lib/features/sources test/ui/card_art_test.dart
+git add lib/sources lib/ui/atoms/card_art.dart lib/features/sources \
+        test/ui/card_art_test.dart test/sources/card_faces_test.dart \
+        test/features/sources_screen_test.dart
 git commit -m "Stop drawing the board with thumbnails"
 ```
 
@@ -557,9 +587,15 @@ pass. If either fails, say which and what the rects were.
 
 - [ ] **Step 9: Probe**
 
-In `setup.dart`, change `(slot.commander ? command : library)` to
-`(false ? command : library)`. The Step 1 case must fail on the library
-containing `General`. Edit it back by hand and rerun.
+`(false ? command : library)` is the obvious mutation and it is the wrong
+one: it empties the command zone, so `expect(command.cards, hasLength(1))`
+throws first and the library assertion never runs. That proves the case is
+alive and leaves the assertion you care about unprobed.
+
+Leak instead, keeping the command zone intact: add
+`if (slot.commander) library.add(card);` after the existing line. The library
+assertion then fires with its own reason string. Edit it back by hand and
+rerun.
 
 - [ ] **Step 10: Commit**
 
