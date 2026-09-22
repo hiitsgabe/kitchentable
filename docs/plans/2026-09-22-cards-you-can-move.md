@@ -779,8 +779,52 @@ Append to `test/features/cursor_board_test.dart`, inside `main()`:
 
     // 0 to 1 against this seat's mat, which is what lets a phone and a
     // television show the same arrangement.
-    expect(dropped!.x, inInclusiveRange(0, 1));
-    expect(dropped!.y, inInclusiveRange(0, 1));
+    //
+    // Strictly inside, not merely within. Production clamps its own output to
+    // 0 and 1, so asserting the range asserts the clamp's postcondition and
+    // cannot fail whatever the arithmetic does.
+    expect(dropped!.x, lessThan(1));
+    expect(dropped!.y, lessThan(1));
+    expect(dropped!.x, greaterThan(0));
+  });
+
+  testWidgets('a longer drag lands further along than a shorter one',
+      (tester) async {
+    Future<double> dropAfter(double dx) async {
+      double? x;
+      await tester.pumpWidget(_host(onPlace: (_, at, _) => x = at));
+      await tester.pump();
+      await tester.drag(find.byType(TableCard).first, Offset(dx, 0));
+      await tester.pump();
+      return x!;
+    }
+
+    final short = await dropAfter(40);
+    final long = await dropAfter(120);
+
+    // Two drags of different lengths have to land in different places. In
+    // pixels both are past the mat's width and both clamp to 1.0, so this is
+    // the assertion the range check could not make.
+    expect(long, greaterThan(short));
+  });
+
+  testWidgets('a card lands where the finger let go, not short of it',
+      (tester) async {
+    double? x;
+    await tester.pumpWidget(_host(onPlace: (_, at, _) => x = at));
+    await tester.pump();
+
+    final from = tester.getCenter(find.byType(TableCard).first);
+    final gesture = await tester.startGesture(from);
+    await gesture.moveBy(const Offset(200, 0));
+    await tester.pump();
+    final under = tester.getCenter(find.byType(TableCard).first);
+    await gesture.up();
+    await tester.pump();
+
+    expect((under.dx - (from.dx + 200)).abs(), lessThan(1),
+        reason: 'the card must sit under the finger, not behind it');
+    expect(x, isNotNull);
   });
 
   testWidgets('a drag does not also activate the card', (tester) async {
@@ -987,7 +1031,8 @@ include the pending offset, so change the `Positioned` to:
 - [ ] **Step 4: Run the file**
 
 Run: `flutter test test/features/cursor_board_test.dart`
-Expected: PASS, 11 tests.
+Expected: PASS, 13 tests. The file had seven cases before this task, not five:
+the four key event ones, two touch ones, and the empty board.
 
 The key-event cases and the touch cases must all still pass. If the tap case
 now fails because the pan gesture swallows it, that is real: a `GestureDetector`
@@ -997,9 +1042,52 @@ the assertion.
 
 - [ ] **Step 5: Probe**
 
-Change the normalization to return pixels: `at.dx` instead of
-`at.dx / matSize.width`. The normalized case must fail. Edit it back by hand
-and rerun.
+Change the normalization to return pixels, `at.dx` instead of
+`at.dx / matSize.width`, **keeping the clamp**. The normalized case and the
+longer drag case must both fail.
+
+The first draft of this task asserted `inInclusiveRange(0, 1)` there and this
+exact mutation survived it: the real value is 93 mat units, the clamp
+saturates it to 1.0, and 1.0 is in range. The case named "never in pixels"
+was the one case in the file that could not detect pixels. If either of those
+two cases passes under this mutation, the assertions have drifted back to
+asserting the clamp's own postcondition.
+
+- [ ] **Step 5a: The slop**
+
+The drag recogniser swallows `kTouchSlop`, about eighteen logical pixels,
+before `onPanStart` fires, and that travel is never reported. A card driven by
+`details.delta` alone therefore trails the finger by that much for the whole
+drag and is released short of where it was let go. Measured: a drop the
+geometry puts at 109 mat units arrives at 93.
+
+Wrap the card's `GestureDetector` in a `Listener` that records the raw touch
+down, and hand the swallowed travel back when the drag starts:
+
+```dart
+      child: Listener(
+        onPointerDown: (event) => _grabbedAt = event.position,
+        child: GestureDetector(
+          onPanStart: (details) => _catchUp(card.id, details, scale),
+          onPanEnd: (details) => _drop(zone, card, spot, scale),
+          onPanUpdate: (details) => _drag(card.id, details.delta / scale),
+```
+
+```dart
+  /// Where the finger went down, before the drag was recognised.
+  Offset? _grabbedAt;
+
+  /// Gives the card back the travel the recogniser swallowed, so it sits
+  /// under the finger from the first frame instead of trailing it.
+  void _catchUp(String cardId, DragStartDetails details, double scale) {
+    final grabbed = _grabbedAt;
+    if (grabbed == null) return;
+    _drag(cardId, (details.globalPosition - grabbed) / scale);
+  }
+```
+
+Probe it by passing `Offset.zero` instead. The case named "a card lands where
+the finger let go" must fail, and only it. Edit it back by hand and rerun.
 
 - [ ] **Step 6: Commit**
 
