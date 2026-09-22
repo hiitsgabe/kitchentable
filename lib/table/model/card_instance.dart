@@ -46,10 +46,10 @@ class CardInstance {
   /// Not `(rotation + 90) % 360`, which was the first answer and is wrong for
   /// the gesture it is bound to: four taps walked a card through upside down
   /// on the way back to where it started. Upside down is a thing somebody
-  /// means, so it belongs on the menu and not on the way past.
+  /// means, so it lives behind a press and hold and not on the way past.
   CardInstance turned() => copyWith(rotation: rotation == 0 ? 90 : 0);
 
-  /// An exact angle, for the menu. Quarter turns, and it does not toggle.
+  /// An exact angle, for the big view. Quarter turns, and it does not toggle.
   CardInstance turnedTo(int degrees) =>
       copyWith(rotation: degrees % 360);
 
