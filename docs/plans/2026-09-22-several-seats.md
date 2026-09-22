@@ -2841,6 +2841,7 @@ once was the first idea, and it makes every zone change feel like an accident.
 - Test: `test/features/board_cursor_test.dart`
 - Create: `lib/features/play/widgets/cursor_board.dart`
 - Test: `test/features/cursor_board_test.dart`
+- Modify: `lib/features/play/play_screen.dart` (replaces `_Battlefield`)
 
 - [ ] **Step 1: Write the failing test for the cursor**
 
@@ -3367,11 +3368,71 @@ and drop the `KeyedSubtree` that was carrying the key. Delete the now unused
 - [ ] **Step 10: Run the whole suite and analyze**
 
 Run: `flutter test && flutter analyze`
-Expected: PASS and `No issues found!`. `play_screen_test.dart` has a case that
-taps a battlefield card to turn it, which now goes through `CursorBoard`'s own
-`onTap`. It must still pass: if it does not, the tap is landing on the ring
-padding, and the fix is `behavior: HitTestBehavior.opaque` in `TableCard`
-rather than a looser assertion.
+Expected: PASS and `No issues found!`.
+
+Deleting `_Battlefield` leaves `import 'widgets/table_card.dart';` unused in
+`play_screen.dart`, which is a warning and not an info. Delete it too.
+
+The two geometry cases measuring `Key('your-board')` keep passing, and for a
+reason worth knowing rather than by luck: both helpers start a fresh table
+where the battlefield and graveyard are empty, `BoardCursor.start` returns
+null for that, and `CursorBoard` renders the same centred "Nothing on the
+battlefield" filling the same `Expanded`. `KeyedSubtree` was a pass through,
+so the measured rect is unchanged.
+
+**Nothing in the suite taps a battlefield card.** An earlier draft of this
+step claimed `play_screen_test.dart` had such a case as a safety net for the
+`onTap` path. It does not: both `RotateCard` tests are pure reducer tests in
+`test/table/apply_test.dart` that never build a widget. The touch path through
+`CursorBoard` therefore arrives with no coverage at all, and Step 11a adds it.
+
+- [ ] **Step 11a: Cover the touch path**
+
+Every case in `cursor_board_test.dart` drives the board with key events, on a
+widget that is reached by thumb far more often than by D-pad. Add
+`onInspect` to the test's `_host` alongside `onActivate`, import
+`widgets/table_card.dart`, and add two cases:
+
+```dart
+  testWidgets('a tap acts on the card touched, not the one ringed',
+      (tester) async {
+    CardInstance? acted;
+    await tester.pumpWidget(_host(onActivate: (c) => acted = c));
+    await tester.pump();
+
+    // The ring is on b0 and the finger is on b2. This board is reached by
+    // thumb far more often than by D-pad, and the two must not disagree about
+    // which card the player meant.
+    expect(find.byKey(const Key('ring-b0')), findsOneWidget);
+    await tester.tap(find.byType(TableCard).at(2));
+    await tester.pump();
+
+    expect(acted?.id, 'b2');
+  });
+
+  testWidgets('a long press inspects rather than acts', (tester) async {
+    CardInstance? acted;
+    CardInstance? inspected;
+    await tester.pumpWidget(_host(
+      onActivate: (c) => acted = c,
+      onInspect: (c) => inspected = c,
+    ));
+    await tester.pump();
+
+    await tester.longPress(find.byType(TableCard).at(1));
+    await tester.pump();
+
+    expect(inspected?.id, 'b1');
+    expect(acted, isNull, reason: 'a long press must not also turn the card');
+  });
+```
+
+The cards carry no key of their own, only the ring does, so they are found by
+type and position. The order is the `Wrap`'s order, which is the zone's order.
+
+Probe it by routing the tap through the cursor instead of the card:
+`onTap: () => widget.onActivate(zone.cards[cursor.index])`. The tap case must
+fail, and only it. Edit it back by hand and rerun.
 
 - [ ] **Step 11: Probe that the ring moves for a reason**
 
