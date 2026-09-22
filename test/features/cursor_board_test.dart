@@ -174,8 +174,57 @@ void main() {
 
     // 0 to 1 against this seat's mat, which is what lets a phone and a
     // television show the same arrangement.
-    expect(dropped!.x, inInclusiveRange(0, 1));
-    expect(dropped!.y, inInclusiveRange(0, 1));
+    //
+    // Strictly inside the range, not merely within it. Production clamps its
+    // own output to 0 and 1, so asserting the range is asserting the clamp's
+    // postcondition and cannot fail whatever the arithmetic does. A mutation
+    // that reported raw pixels survived exactly that assertion, because 93
+    // clamps to 1.0 and 1.0 is in range.
+    expect(dropped!.x, lessThan(1));
+    expect(dropped!.y, lessThan(1));
+    expect(dropped!.x, greaterThan(0));
+  });
+
+  testWidgets('a longer drag lands further along than a shorter one',
+      (tester) async {
+    Future<double> dropAfter(double dx) async {
+      double? x;
+      await tester.pumpWidget(_host(onPlace: (_, at, _) => x = at));
+      await tester.pump();
+      await tester.drag(find.byType(TableCard).first, Offset(dx, 0));
+      await tester.pump();
+      return x!;
+    }
+
+    final short = await dropAfter(40);
+    final long = await dropAfter(120);
+
+    // Two drags of different lengths have to land in different places. In
+    // pixels both would be past the mat's width and both would clamp to 1.0,
+    // so this is the assertion the range check could not make.
+    expect(long, greaterThan(short));
+  });
+
+  testWidgets('a card lands where the finger let go, not short of it',
+      (tester) async {
+    double? x;
+    await tester.pumpWidget(_host(onPlace: (_, at, _) => x = at));
+    await tester.pump();
+
+    final from = tester.getCenter(find.byType(TableCard).first);
+    final gesture = await tester.startGesture(from);
+    await gesture.moveBy(const Offset(200, 0));
+    await tester.pump();
+    final under = tester.getCenter(find.byType(TableCard).first);
+    await gesture.up();
+    await tester.pump();
+
+    // The drag recogniser swallows kTouchSlop before it reports anything, so
+    // a card driven by deltas alone trails the finger by that much for the
+    // whole drag and is reported short of where it was released.
+    expect((under.dx - (from.dx + 200)).abs(), lessThan(1),
+        reason: 'the card must sit under the finger, not behind it');
+    expect(x, isNotNull);
   });
 
   testWidgets('a drag does not also activate the card', (tester) async {
