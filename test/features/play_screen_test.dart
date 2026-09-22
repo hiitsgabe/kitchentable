@@ -380,6 +380,45 @@ void main() {
       findsWidgets,
     );
   });
+
+  testWidgets('a card dragged out of your hand lands where you dropped it',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    // The fourth card and not the first. A card arriving from somewhere else
+    // has no place in this pile to keep, and a move that carries its old one
+    // over asks an empty battlefield to insert at 3, which throws. The first
+    // card would go in at 0 either way and prove nothing.
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards[3];
+
+    final board = tester.getRect(find.byKey(const Key('your-board')));
+    final from = tester.getCenter(find.byKey(Key('hand-card-${card.id}')));
+
+    await tester.dragFrom(from, board.center - from);
+    await tester.pumpAndSettle();
+
+    final table = container.read(playProvider)!;
+    expect(table.zone('battlefield-s1')!.cards.map((c) => c.id),
+        contains(card.id));
+    expect(table.zone('hand-s1')!.cards.map((c) => c.id),
+        isNot(contains(card.id)));
+
+    // And where it was dropped, not in the next free flow slot. This is the
+    // whole ask: tapping already played a card, into a slot chosen for you.
+    expect(table.locate(card.id)!.card.position, isNotNull);
+  });
+
+  testWidgets('tapping a card in hand still plays it', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    await tester.tap(find.byKey(Key('hand-card-${card.id}')));
+    await tester.pumpAndSettle();
+
+    // Dragging is an addition, not a replacement. A tap is still the fastest
+    // way to put a land down and the player did not ask to lose it.
+    expect(container.read(playProvider)!.zone('battlefield-s1')!.cards,
+        hasLength(1));
+  });
 }
 
 class _GrumpyReferee implements Referee {

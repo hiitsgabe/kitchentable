@@ -259,7 +259,11 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                               turnSeatId: table.turnSeatId,
                               onTapCard: (c) => play.run(RotateCard(c.id)),
                               onInspectCard: _inspect,
-                              onPlace: _place,
+                              // Only your own mat takes a drop, and yours is
+                              // this battlefield, so the canvas has no pile
+                              // to name that this is not.
+                              onPlace: (id, x, y) =>
+                                  _place(battlefield.id, id, x, y),
                             ),
                           ),
                         ),
@@ -298,17 +302,24 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
 
   /// Puts a card down where it was dropped, in whichever renderer dropped it.
   ///
-  /// The card keeps its place in its own pile: this says where on the mat it
-  /// is lying, and nothing else. Both renderers normalize against the same mat
-  /// so a drag on the canvas and a drag on the D-pad board mean the same
-  /// thing.
-  void _place(String cardId, double x, double y) {
+  /// The pile is the one that took the drop and not the one the card is in.
+  /// Reading it off the card works right up until the card comes out of your
+  /// hand, and then it moves it neatly back into your hand.
+  ///
+  /// A card already on that pile keeps its place in it: this says where on the
+  /// mat it is lying, and nothing else. One arriving from somewhere else has
+  /// no place there to keep. Both renderers normalize against the same mat so
+  /// a drag on the canvas and a drag on the D-pad board mean the same thing.
+  void _place(String toZoneId, String cardId, double x, double y) {
     final found = ref.read(playProvider)?.locate(cardId);
     if (found == null) return;
+    final already = found.zone.id == toZoneId;
     ref.read(playProvider.notifier).run(MoveCard(
           cardId: cardId,
-          toZoneId: found.zone.id,
-          at: found.zone.cards.indexWhere((c) => c.id == cardId),
+          toZoneId: toZoneId,
+          at: already
+              ? found.zone.cards.indexWhere((c) => c.id == cardId)
+              : null,
           position: (x: x, y: y),
         ));
   }
