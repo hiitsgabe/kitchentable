@@ -108,33 +108,104 @@ MTGJSON ships real booster structure. Checked against Foundations on
 3 out of 1000, drawing from sheets of 80 commons, 101 uncommons and 140
 rare/mythic. This is weighted sampling, not an approximation of one.
 
-The host generates packs, holds them, and rotates. Every other player only ever
-talks to the host, so nobody needs a connection to anybody else.
+The host generates packs and rotates them. A pack's contents become public the
+moment it has been picked through, so unlike a library it needs no hiding, only
+a committed seed proving nobody chose what was in it.
 
 ## The network
 
-WebRTC data channels in a star. Whoever starts the game is the authority: they
-own the state, apply every intent and broadcast the result.
+**This section replaces an earlier one, and the change is worth reading.**
 
-The star is not an optimization, it falls out of two problems at once. A full
-mesh of four players needs six pairings, a star needs three. And hidden
-information needs one owner, otherwise every client can lie about its own hand
-and its own shuffle.
+The first version chose a star: one host owning the state and broadcasting it,
+argued for on two grounds, that a mesh of four needs six pairings against a
+star's three, and that hidden information needs a single owner.
 
-Trusting the host is the same contract as trusting the person who shuffles at a
-physical table.
+Both grounds held. The star was rejected anyway, because it fails at the thing
+players actually hit: **if the host's connection drops, the game is over.**
+Everyone will be on mobile data on different networks, so that is not an edge
+case, it is Tuesday. A game that cannot survive one person going through a
+tunnel is not a game people will use.
 
-### Pairing
+So: **a full mesh, every seat replicating the whole state, with the host role
+able to move.**
 
-A short code or a QR, passed around however the players already talk. No
-signaling server, no lobby service, no account.
+### Host migration
 
-Raw SDP is about 2500 bytes. QWBP compresses WebRTC signaling to 55 to 100
-bytes, which fits in a typed code. Worth evaluating before writing our own.
+Whoever created the table is the host. If they drop, the next seat in a fixed
+order takes over, and the game continues. If the original comes back, they take
+the role again. This is a standard pattern in peer to peer games and it is the
+reason the mesh is worth its cost.
 
-For contrast, Pokemon TCG Pocket makes players leave the app and send a
-password out of band to play a friend. Doing better than that is a low bar and
-we should clear it on day one.
+It has a known attack, and the fix is cheap but only if it is built in from the
+start. Succession needs an order. The obvious order is each peer saying when it
+joined, and a modified client then claims to have joined first, wins every
+succession, and pushes whatever state it likes the moment it takes over. So the
+host **stamps** a monotonic sequence number on each peer at handshake, and
+succession reads that rather than anything a peer says about itself.
+
+### The link is a rendezvous, not an address
+
+A link cannot reach a phone. Mobile carriers put everyone behind CGNAT, where
+the public address is not yours and forwarding a port does nothing. A tunnel
+would fix it and a tunnel is a central server owned by somebody else, which is
+the one thing this project refuses. It also would not help: ngrok and its kind
+have never carried UDP.
+
+The fix is that the link names a **meeting place** instead of an address. Both
+sides go to a public relay, introduce themselves, and everything after that is
+direct. The relay sees the handshake and never sees the game.
+
+Nostr is the relay network: hundreds of independent relays, no account, no
+owner, tiny messages. Trystero does exactly this in JavaScript and defaults to
+Nostr. In Dart the pieces exist and are current, `ndk`, `dart_nostr`, and
+`flutter_webrtc`, all published within the last few months.
+
+So the link is `.../#room=k7-42q`, carrying a **name rather than an address**.
+It works with no DNS of ours, no tunnel, no open port and no server. It is also
+reusable and works in both directions, unlike a code carrying an SDP offer,
+which is single use and needs a second code coming back.
+
+### Relay, still
+
+About one connection in ten to twenty needs TURN, and mobile carriers are the
+worst case: symmetric CGNAT gives a different external port per destination, so
+the address STUN discovers is useless to the other peer. No trick avoids this.
+The question is only who pays for the bandwidth.
+
+The app ships with no relay configured, says plainly when a connection has
+failed this way, and takes a TURN server the player supplies.
+
+## Who can see what
+
+Replicating everything to everyone would mean every peer holds every hand. That
+is a real cost and it is paid selectively.
+
+**The board, graveyards and exile are public.** Replicated in the clear,
+because they already are in a real game. This is free.
+
+**A hand is encrypted to its owner.** Everybody else holds a blob they cannot
+read, which is mathematics rather than trust. Playing a card publishes it in
+the clear along with proof it was that blob. This is cheap.
+
+**A library is the hard one, and the obvious answer is backwards.** Encrypting
+it to its owner would let you read your own deck, which is a worse cheat than
+the one being fixed. The requirement is not "nobody but me", it is **nobody,
+including me**, until the card is drawn.
+
+The chosen protocol is two layers and two neighbours. The player on your left
+shuffles and encrypts your deck; the player on your right shuffles again on top
+without being able to read underneath. Neither of them alone knows the order,
+and you know it least of all. Drawing means asking both for the key to that
+position.
+
+Its honest leak: **whoever hands you a key learns which card you drew.** One
+card at a time, and only if that person is deliberately looking.
+
+Closing that leak is mental poker, which is a solved problem with libraries and
+a shuffle proof measured in tens of milliseconds, and which exists only in
+JavaScript. It is deferred, not dismissed, and the revealing step is built as a
+seam so it can arrive without rewriting the table. That is the same move the
+referee's chair made, and that one worked.
 
 ### Relay
 
@@ -149,8 +220,15 @@ author runs infrastructure, which is the one thing this project refuses.
 ### Shuffling
 
 Seeded and deterministic, with the seat committing to a hash of the seed before
-the shuffle and revealing it after. Anyone who cares can verify the host did
-not cook the pack. This costs almost nothing now and cannot be retrofitted.
+the shuffle and revealing it after, so anybody who cares can check that nobody
+cooked the pack.
+
+Note what this does and does not buy once libraries are hidden, above. A public
+seed proves nobody **chose** the order, and it also means anybody can recompute
+it, which is precisely why a seed alone cannot hide a library. The commitment
+protects a draft pack, where the contents become public anyway, and the two
+layer protocol protects a library, where they must not. They are different jobs
+and both are needed.
 
 ## The referee slot
 
