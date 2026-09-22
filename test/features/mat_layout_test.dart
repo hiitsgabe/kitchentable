@@ -1,0 +1,91 @@
+import 'dart:ui';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/renderers/mat_layout.dart';
+
+void main() {
+  test('two seats sit side by side', () {
+    final a = matFor(0, 2);
+    final b = matFor(1, 2);
+
+    expect(a.top, b.top);
+    expect(b.left, greaterThan(a.right));
+  });
+
+  test('four seats make a square and no two mats touch', () {
+    final mats = [for (var i = 0; i < 4; i++) matFor(i, 4)];
+
+    for (var i = 0; i < mats.length; i++) {
+      for (var j = i + 1; j < mats.length; j++) {
+        expect(mats[i].overlaps(mats[j]), isFalse,
+            reason: 'mat $i overlaps mat $j');
+      }
+    }
+    expect(mats[2].top, greaterThan(mats[0].bottom));
+  });
+
+  test('three seats leave the fourth place empty', () {
+    // Squeezing three into a row makes a card a smudge on a tablet. The gap
+    // where the fourth would be is the cheaper answer.
+    expect(matFor(2, 3).top, greaterThan(matFor(0, 3).bottom));
+    expect(matFor(2, 3).left, matFor(0, 3).left);
+  });
+
+  test('one seat gets the whole surface', () {
+    expect(matFor(0, 1), Rect.fromLTWH(0, 0, matSize.width, matSize.height));
+    expect(surfaceFor(1), matSize);
+  });
+
+  test('the surface is big enough for every mat', () {
+    for (final count in [1, 2, 3, 4, 5, 6]) {
+      final surface = surfaceFor(count);
+      for (var i = 0; i < count; i++) {
+        final mat = matFor(i, count);
+        expect(mat.right, lessThanOrEqualTo(surface.width),
+            reason: 'mat $i of $count runs off the right');
+        expect(mat.bottom, lessThanOrEqualTo(surface.height),
+            reason: 'mat $i of $count runs off the bottom');
+      }
+    }
+  });
+
+  const card = Size(90, 126);
+
+  test('a card with a position is centred on it', () {
+    final spot = spotFor(position: (x: 0.5, y: 0.5), index: 0, card: card);
+
+    expect(spot.dx, closeTo(matSize.width / 2 - card.width / 2, 0.01));
+    expect(spot.dy, closeTo(matSize.height / 2 - card.height / 2, 0.01));
+  });
+
+  test('a card at the very edge stays on the mat', () {
+    final spot = spotFor(position: (x: 1, y: 1), index: 0, card: card);
+
+    expect(spot.dx, closeTo(matSize.width - card.width, 0.01));
+    expect(spot.dy, closeTo(matSize.height - card.height, 0.01));
+    expect(spot.dx, greaterThanOrEqualTo(0));
+  });
+
+  test('a card without a position gets a slot, and keeps it', () {
+    final first = spotFor(position: null, index: 0, card: card);
+    final again = spotFor(position: null, index: 0, card: card);
+    final second = spotFor(position: null, index: 1, card: card);
+
+    // Cards must not jump around when one of them is turned, so the slot is a
+    // function of the index and nothing else.
+    expect(first, again);
+    expect(second.dx, greaterThan(first.dx));
+    expect(second.dy, first.dy);
+  });
+
+  test('the flow wraps rather than running off the mat', () {
+    final spots = [
+      for (var i = 0; i < 20; i++) spotFor(position: null, index: i, card: card),
+    ];
+
+    expect(spots.last.dy, greaterThan(spots.first.dy));
+    for (final spot in spots) {
+      expect(spot.dx + card.width, lessThanOrEqualTo(matSize.width));
+    }
+  });
+}
