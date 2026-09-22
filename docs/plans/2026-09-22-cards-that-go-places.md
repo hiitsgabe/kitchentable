@@ -422,6 +422,11 @@ Widget _host({
                     height: 84,
                   ),
                 ),
+                // A bare SizedBox is a RenderConstrainedBox: no hitTestSelf
+                // and no child, so nothing in it is ever in a hit path. Every
+                // tester.drag on it needs warnIfMissed: false, and the
+                // Draggable above needs an opaque hitTestBehavior or the drag
+                // never starts at all.
               ),
             ),
             Expanded(
@@ -546,9 +551,27 @@ class DraggableCard extends StatelessWidget {
 
     return Draggable<CardInstance>(
       data: card,
+      // The whole card rectangle is the grab area, rounded corners and
+      // transparent gaps included. Without this the default is
+      // HitTestBehavior.deferToChild, and a child that is not itself in a hit
+      // path, which a bare SizedBox never is, means the drag never starts.
+      hitTestBehavior: HitTestBehavior.opaque,
+      // Anchored on the pointer, so `details.offset` IS the pointer rather
+      // than the feedback's top left, and the feedback is counter translated
+      // so the card still rides under the finger. Two things fall out of it
+      // that the default anchor gets wrong: _DragAvatar hit tests at the
+      // feedback's top left, so the target that accepts would be the one
+      // under the card's corner and not under your finger; and the reported
+      // drop is the card's new centre, which makes spotFor its exact inverse.
+      // The cost is that the card recentres on your finger when you pick it
+      // up instead of keeping the exact grab point.
+      dragAnchorStrategy: pointerDragAnchorStrategy,
       feedback: Material(
         color: Colors.transparent,
-        child: Opacity(opacity: 0.92, child: child),
+        child: FractionalTranslation(
+          translation: const Offset(-0.5, -0.5),
+          child: Opacity(opacity: 0.92, child: child),
+        ),
       ),
       childWhenDragging: Opacity(opacity: 0.25, child: child),
       child: child,
@@ -568,19 +591,13 @@ class CardDropTarget extends StatelessWidget {
     super.key,
     required this.onDrop,
     required this.child,
-    this.accepts,
   });
 
   final void Function(CardInstance card, Offset at) onDrop;
   final Widget child;
 
-  /// Null accepts anything. A corner that only takes a commander says so.
-  final bool Function(CardInstance)? accepts;
-
   @override
   Widget build(BuildContext context) => DragTarget<CardInstance>(
-        onWillAcceptWithDetails: (details) =>
-            accepts?.call(details.data) ?? true,
         onAcceptWithDetails: (details) {
           final box = context.findRenderObject() as RenderBox?;
           if (box == null) return;
@@ -591,12 +608,17 @@ class CardDropTarget extends StatelessWidget {
 }
 ```
 
-`details.offset` is the global position of the **top left of the feedback**,
-not of the pointer. The test above drags the card's centre to a point and
-expects that point back, so if the numbers come out a half card off, that is
-this: add half the card back, or use `details.offset` plus the grab offset.
-Work out which from the failing numbers rather than guessing, and say what you
-found.
+**Do not correct `details.offset` with arithmetic.** By default it is the
+global top left of the feedback, and the miss is exactly half the card,
+because `tester.drag` always grabs the centre. In the field a finger can grab
+a corner, so "half the card" is the wrong general rule and the test cannot
+tell it apart from the right one. `DragTargetDetails` carries no grab offset,
+so the correction is structural: anchor the drag on the pointer, as the block
+above does.
+
+With that anchor the reported position is **exact**, not approximate. Assert
+equality rather than a tolerance: a tolerance there is room for the old bug to
+hide in.
 
 - [ ] **Step 4: Run it and watch it pass**
 
@@ -642,8 +664,21 @@ assert the **reported** position:
   });
 ```
 
-`Key('mat-surface')` may not exist; add it to whatever box the normalisation
-is against, or use the target's rect another way and say what you did.
+There is no single `mat-surface`: `cursor_board` draws one mat per pile, so
+the key is `Key('mat-${zone.id}')` and the case reads
+`Key('mat-battlefield-s1')`.
+
+**Key the surface, not the mat.** The mat's `Container` has a
+`Border.all(width: 1)`, and a `BoxDecoration` border insets its child, so the
+box a drop is normalised against is the `Stack` inside: one unit in and two
+narrower. Measuring against the mat's own rect is off by `1/640`. The cards
+are laid out inside that same `Stack` in `matSize` units, so production is
+right and it is the test that has to point at the surface.
+
+Exact equality misses by one ULP, because the two sides divide in a different
+order: `Expected: <0.3528125> Actual: <0.35281250000000003>`. Use `1e-9`,
+which is seven orders of magnitude below the eighteen pixels of an eight
+hundred pixel mat that the bug would cost.
 
 - [ ] **Step 7: Run everything**
 
@@ -659,9 +694,23 @@ it and say so. If one fails, report the numbers before changing anything.
 
 - [ ] **Step 8: Probe**
 
-Return `details.offset` without `globalToLocal`. The second case must fail on
-`at!.dx`, by value. Then make `canDrag` ignored. The third case must fail on
-`expect(dropped, isNull)`. Say which assertion each time. Edit back by hand
+Return `details.offset` without `globalToLocal`. The second case fails on
+**`at!.dy`**, not `at!.dx`: the target spans the host's full width, so its
+left edge is 0 and the global and local x are the same number.
+
+Then make `canDrag` ignored. The third case must fail on
+`expect(dropped, isNull)`.
+
+Then revert the pointer anchor to Flutter's default. The rewritten slop case
+must fail short by about half a card.
+
+Then flip the sign of the `matPadding` correction in `free_canvas._drop`.
+**It survives**, because nothing in `free_canvas_test.dart` asserts the
+vertical at all: every case there checks `x`. Add a round trip case, drop a
+card, hand the reported position straight back to the mat, assert it is drawn
+where the finger let go, and the flip then costs exactly two `matPadding`.
+
+Say which assertion failed each time, with its line. Edit each back by hand
 and rerun.
 
 - [ ] **Step 9: Commit**
