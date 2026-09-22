@@ -82,4 +82,14 @@ void main() {
     expect(view.life, 40);
     expect(view.name, 's1');
   });
+
+  test('a pile is found by kind', () {
+    final view = SeatView.of(_seat('s1'), viewer: 's1');
+
+    // Zone ids are built as `<kind>-<seatId>` in magic_pack. Every widget that
+    // wants a hand would otherwise paste that string together itself.
+    expect(view.pile('hand')!.id, 'hand-s1');
+    expect(view.pile('battlefield')!.count, 3);
+    expect(view.pile('sideboard'), isNull);
+  });
 }
