@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/features/play/widgets/cursor_board.dart';
+import 'package:kitchentable/features/play/widgets/table_card.dart';
 import 'package:kitchentable/table/model/card_instance.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
@@ -14,6 +15,7 @@ Widget _host({
   int board = 3,
   int graveyard = 0,
   void Function(CardInstance)? onActivate,
+  void Function(CardInstance)? onInspect,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -32,7 +34,7 @@ Widget _host({
           ],
           printings: const {},
           onActivate: onActivate ?? (_) {},
-          onInspect: (_) {},
+          onInspect: onInspect ?? (_) {},
         ),
       ),
     );
@@ -78,6 +80,38 @@ void main() {
     await tester.pump();
 
     expect(acted?.id, 'b1');
+  });
+
+  testWidgets('a tap acts on the card touched, not the one ringed',
+      (tester) async {
+    CardInstance? acted;
+    await tester.pumpWidget(_host(onActivate: (c) => acted = c));
+    await tester.pump();
+
+    // The ring is on b0 and the finger is on b2. This board is reached by
+    // thumb far more often than by D-pad, and the two must not disagree about
+    // which card the player meant.
+    expect(find.byKey(const Key('ring-b0')), findsOneWidget);
+    await tester.tap(find.byType(TableCard).at(2));
+    await tester.pump();
+
+    expect(acted?.id, 'b2');
+  });
+
+  testWidgets('a long press inspects rather than acts', (tester) async {
+    CardInstance? acted;
+    CardInstance? inspected;
+    await tester.pumpWidget(_host(
+      onActivate: (c) => acted = c,
+      onInspect: (c) => inspected = c,
+    ));
+    await tester.pump();
+
+    await tester.longPress(find.byType(TableCard).at(1));
+    await tester.pump();
+
+    expect(inspected?.id, 'b1');
+    expect(acted, isNull, reason: 'a long press must not also turn the card');
   });
 
   testWidgets('an empty board draws no ring and does not crash',
