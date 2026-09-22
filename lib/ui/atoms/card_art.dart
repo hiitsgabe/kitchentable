@@ -76,6 +76,31 @@ class CardArt extends StatelessWidget {
   }
 }
 
+/// The back of a card.
+///
+/// A face down permanent, a card the catalog has never heard of, and every
+/// leaf of a library except the one on top are all the same box, which is why
+/// it lives here rather than inside whichever widget wanted it first.
+///
+/// Deliberately not a picture. Magic's back is not in anything we import and
+/// inventing one would be a lie about what is underneath.
+class CardBack extends StatelessWidget {
+  const CardBack({super.key, required this.width});
+
+  final double width;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: width,
+        height: width * 88 / 63,
+        decoration: BoxDecoration(
+          color: Palette.tile,
+          borderRadius: BorderRadius.circular(width * 0.05),
+          border: Border.all(color: Palette.tileEdge),
+        ),
+      );
+}
+
 /// Shown when a card has no image, which happens for a token or a card the
 /// source did not carry art for. Prints the name rather than an error icon,
 /// because the name is what the player needed from the picture anyway.
