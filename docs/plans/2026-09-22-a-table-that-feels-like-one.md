@@ -1800,10 +1800,11 @@ this repo (`CardViewer.show` is the nearest thing, read it):
 - `peek` is `Future<List<CardInstance>> Function(int)`. The sheet does not
   reach into the table itself: the screen passes a function, which keeps the
   library's contents out of this widget until somebody asks.
-- How many to look at: two buttons, `look-2` and `look-5`, plus whatever the
-  implementer finds reads well. **Do not** build a number picker; scry 1 and
-  scry 2 are most of Magic and a stepper is three taps for a number nobody
-  changes.
+- How many to look at: two buttons. The two card one carries `deck-look`,
+  because that is the key the dictated test taps before expecting exactly two
+  placements back, and a widget carries one key. The other is `look-5`. There
+  is no `look-2`. **Do not** build a number picker; scry 1 and scry 2 are most
+  of Magic and a stepper is three taps for a number nobody changes.
 - Each looked at card is a row keyed `peeked-<id>` with destination buttons
   keyed `top-<id>`, `bottom-<id>`, `graveyard-<id>` and `hand-<id>`. The
   default is top, so a card nobody touches goes back where it was.
@@ -1829,8 +1830,12 @@ Expected: PASS, 7 tests.
 Two, and check **which assertion** fails each time.
 
 - Make `deck-shuffle` call `onShuffle` directly with no confirmation. The
-  second case must fail on `expect(shuffled, 0)` and the third on its own
-  assertion.
+  second case fails on `expect(shuffled, 0)`, which is its own assertion. The
+  third does **not**: with no confirmation stage there is no `cancel-shuffle`
+  to tap, so it dies on the finder and its assertion never runs. That is
+  liveness only. Follow it with a variant that keeps the stage and makes
+  `cancel-shuffle` shuffle anyway, so the third case fails on its own
+  `expect(shuffled, 0)` with a wrong value.
 - Make `deck-done` send only the cards whose destination was touched. The
   fifth case must fail on `hasLength(2)`.
 
@@ -1839,7 +1844,19 @@ Edit each back by hand, never with `git checkout`, and rerun.
 - [ ] **Step 6: Put it on the screen**
 
 In `lib/features/play/play_screen.dart`, replace `_Piles` inside `yours` with
-`LibraryStack`, and delete `_Piles` once nothing calls it:
+`LibraryStack`, and delete `_Piles` once nothing calls it.
+
+**`_Piles` owns `Key('draw')` and two existing cases tap it.** Deleting the
+widget takes the key with it, and
+`drawing takes one off the library and adds one to the hand` and
+`undo is offered only once there is something to undo` both fail on the
+finder, not on a matcher. Retarget both to `Key('library-draw')`, which is
+what `LibraryStack` owns. The assertions after the tap do not change.
+
+**The 'Graveyard N' count goes with it.** Nothing asserts it and `CursorBoard`
+already draws the graveyard zone with its cards in it, so this is a smaller
+duplicate disappearing rather than a loss. The `graveyard` local stays, used
+by `CursorBoard`.
 
 ```dart
         LibraryStack(
@@ -1967,6 +1984,11 @@ otherwise, which has happened twice on this project already. Append to
 Run: `flutter test && flutter analyze`
 Expected: PASS and `No issues found!`, with `flutter test 2>&1 | grep -c
 "WARNING"` still 0.
+
+Watch for a `RenderFlex overflowed by 0.500 pixels` from the destination
+buttons on a 390 point phone. Half a pixel is still a rendering error: give
+each chip an `Expanded` so the four share the row rather than sizing to their
+words.
 
 The two `your-board` geometry cases measure the board's rect against the hand.
 `LibraryStack` is taller than the `_Piles` row it replaces, both sit between
