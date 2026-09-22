@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../decks/model/game.dart';
 import '../../../ui/atoms/card_art.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
@@ -28,11 +29,17 @@ class LibraryStack extends StatelessWidget {
     required this.width,
     required this.onDraw,
     required this.onWork,
+    this.game,
   });
 
   final Metrics metrics;
   final int count;
   final double width;
+
+  /// Whose back the pile is drawn with. Null draws the plain box, which is
+  /// what a pile the app cannot name a back for has always looked like.
+  final Game? game;
+
   final VoidCallback onDraw;
 
   /// Shuffle, look at the top, and whatever else arrives later.
@@ -55,13 +62,13 @@ class LibraryStack extends StatelessWidget {
             Positioned(
               left: (leaves - i) * _leafStep,
               top: (leaves - i) * _leafStep,
-              child: CardBack(width: width),
+              child: CardBack(width: width, game: game),
             ),
           if (count > 0)
             Positioned(
               left: lift,
               top: lift,
-              child: CardBack(width: width),
+              child: CardBack(width: width, game: game),
             ),
         ],
       ),

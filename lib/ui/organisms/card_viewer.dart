@@ -4,16 +4,14 @@ import 'package:flutter/gestures.dart';
 
 import 'package:flutter/material.dart';
 
+import '../../decks/model/game.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../table/model/card_instance.dart';
 import '../tokens/metrics.dart';
+import '../atoms/card_art.dart';
 import '../atoms/card_image.dart';
 import '../tokens/palette.dart';
 import 'card_shading.dart';
-
-/// The generic Magic back, served by Scryfall, for a card with only one face.
-const _genericBack =
-    'https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg';
 
 /// What the viewer can ask for, beyond looking.
 ///
@@ -340,7 +338,10 @@ class _Card extends StatelessWidget {
     final showingBack = light.showingBack;
     final openness = light.openness;
     final frontUrl = card.imageNormal ?? card.imageSmall;
-    final backUrl = card.imageBack ?? _genericBack;
+    // A card with only one face turns over onto its game's back, which is
+    // the same one the pile in front of you is drawn with. There used to be
+    // a second copy of the Magic URL here.
+    final backUrl = card.imageBack ?? backFor(Game.magic);
 
     return Stack(
       alignment: Alignment.center,

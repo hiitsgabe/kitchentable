@@ -169,6 +169,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
             metrics: m,
             count: library.size,
             width: m.scaled(46) * cardScale,
+            game: play.gameAt(seat.id),
             onDraw: () => play.run(DrawCards(
               fromZoneId: library.id,
               toZoneId: hand.id,

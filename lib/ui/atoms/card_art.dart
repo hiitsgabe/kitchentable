@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../decks/model/game.dart';
 import '../../sources/model/catalog_card.dart';
 import '../tokens/metrics.dart';
 import '../tokens/palette.dart';
@@ -76,29 +77,70 @@ class CardArt extends StatelessWidget {
   }
 }
 
+/// The generic Magic back, served by Scryfall. Every Magic card has this one
+/// on the other side, so turning a card over onto it invents nothing.
+const _magicBack =
+    'https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg';
+
+/// The back of a card, per game.
+///
+/// Magic's is the one Scryfall serves, which `CardViewer` has turned cards
+/// over onto since plan 1. It lives here rather than in the viewer because
+/// there is one back per game and both the viewer and the deck pile want it.
+///
+/// Null for a game the app has no back for, and for no game at all, which is
+/// a token or a card the table knows nothing about.
+String? backFor(Game? game) => switch (game) {
+      Game.magic => _magicBack,
+      // Nothing the app imports serves a Pokemon back, there is no Pokemon
+      // catalog to ask, and a fan site is not a source. It arrives with the
+      // catalog that serves it. Until then the pile draws the plain box,
+      // which is already what the table draws when it knows nothing.
+      Game.pokemon => null,
+      null => null,
+    };
+
 /// The back of a card.
 ///
 /// A face down permanent, a card the catalog has never heard of, and every
 /// leaf of a library except the one on top are all the same box, which is why
 /// it lives here rather than inside whichever widget wanted it first.
 ///
-/// Deliberately not a picture. Magic's back is not in anything we import and
-/// inventing one would be a lie about what is underneath.
+/// With a game it is that game's back, because which back it is says which
+/// game is on the table before anybody reads a word. Without one, or for a
+/// game with no back to fetch, it stays the plain box.
 class CardBack extends StatelessWidget {
-  const CardBack({super.key, required this.width});
+  const CardBack({super.key, required this.width, this.game});
 
   final double width;
+  final Game? game;
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: width,
-        height: width * 88 / 63,
-        decoration: BoxDecoration(
-          color: Palette.tile,
-          borderRadius: BorderRadius.circular(width * 0.05),
-          border: Border.all(color: Palette.tileEdge),
-        ),
-      );
+  Widget build(BuildContext context) {
+    final height = width * 88 / 63;
+    final url = backFor(game);
+    final blank = DecoratedBox(
+      decoration: BoxDecoration(
+        color: Palette.tile,
+        border: Border.all(color: Palette.tileEdge),
+      ),
+    );
+
+    return SizedBox(
+      width: width,
+      height: height,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(width * 0.05),
+        child: url == null
+            ? blank
+            : CardImage(
+                key: const Key('card-back-art'),
+                url: url,
+                fallback: blank,
+              ),
+      ),
+    );
+  }
 }
 
 /// Shown when a card has no image, which happens for a token or a card the
