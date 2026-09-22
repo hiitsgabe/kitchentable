@@ -5,6 +5,27 @@ import '../tokens/metrics.dart';
 import '../tokens/palette.dart';
 import 'card_image.dart';
 
+/// Which file to fetch for a card drawn this big.
+///
+/// Scryfall's sizes are small 146, normal 488 and large 672 pixels wide. The
+/// board used to ask for small whatever it was drawing, so a card at 90 points
+/// on a two times screen was a 146 pixel picture stretched to 180 and then to
+/// 540 when the player opened the window wide. That is what "qualidade baixa"
+/// was.
+///
+/// Null when the card has no picture at all, which is a token or a card from a
+/// source that was cleared.
+String? artFor(
+  CatalogCard card, {
+  required double width,
+  required double pixelRatio,
+}) {
+  final needed = width * pixelRatio;
+  if (needed > 488 && card.imageLarge != null) return card.imageLarge;
+  if (needed > 146 && card.imageNormal != null) return card.imageNormal;
+  return card.imageSmall ?? card.imageNormal ?? card.imageLarge;
+}
+
 /// A card, as a picture.
 ///
 /// Fetched one at a time and cached on the device, never in bulk. A whole
@@ -18,16 +39,11 @@ class CardArt extends StatelessWidget {
     required this.metrics,
     required this.card,
     required this.width,
-    this.large = false,
   });
 
   final Metrics metrics;
   final CatalogCard card;
   final double width;
-
-  /// Uses the bigger file. Worth it when the card fills a screen, wasteful in a
-  /// list where it would be scaled down to a thumbnail anyway.
-  final bool large;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +52,11 @@ class CardArt extends StatelessWidget {
     // in that ratio, so the box never has to guess.
     final height = width * 88 / 63;
     final radius = BorderRadius.circular(width * 0.045);
-    final url = large ? (card.imageNormal ?? card.imageSmall) : card.imageSmall;
+    final url = artFor(
+      card,
+      width: width,
+      pixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1,
+    );
 
     return ClipRRect(
       borderRadius: radius,

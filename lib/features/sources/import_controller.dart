@@ -105,5 +105,17 @@ class ImportNotifier extends Notifier<ImportState> {
   }
 }
 
+/// Whether the catalog predates the large image column. A re-import is the
+/// only thing that fills it in, and nothing else on screen says so, so the
+/// Sources screen is where it has to be said.
+///
+/// A missing catalog answers false, and so does a query that throws: telling
+/// somebody to re-import is only worth doing when we know it would help.
+final betterPicturesProvider = FutureProvider<bool>((ref) async {
+  final db = ref.watch(catalogDbProvider);
+  if (db == null) return false;
+  return db.needsBetterPictures();
+});
+
 final importProvider =
     NotifierProvider<ImportNotifier, ImportState>(ImportNotifier.new);

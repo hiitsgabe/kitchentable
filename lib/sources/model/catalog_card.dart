@@ -16,6 +16,7 @@ class CatalogCard {
     this.legalities = const {},
     this.imageSmall,
     this.imageNormal,
+    this.imageLarge,
     this.imageBack,
   });
 
@@ -33,6 +34,11 @@ class CatalogCard {
   final Map<String, String> legalities;
   final String? imageSmall;
   final String? imageNormal;
+
+  /// Scryfall's `large`, 672 pixels wide. The biggest the app ever needs: the
+  /// `png` above it is 745 wide and several times the bytes for a card that
+  /// is already sharper than any screen here draws it.
+  final String? imageLarge;
 
   /// The second face, for a card that has one. Null on an ordinary card, which
   /// then turns over onto the generic Magic back instead.
@@ -74,6 +80,7 @@ class CatalogCard {
           .map((k, v) => MapEntry(k, v as String)),
       imageSmall: images?['small'] as String?,
       imageNormal: images?['normal'] as String?,
+      imageLarge: images?['large'] as String?,
       imageBack: back,
     );
   }

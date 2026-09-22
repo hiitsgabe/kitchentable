@@ -7,6 +7,8 @@ import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
+import '../../ui/tokens/palette.dart';
+import 'import_controller.dart';
 import 'import_screen.dart';
 
 String formatMegabytes(int bytes) =>
@@ -29,6 +31,7 @@ class SourcesScreen extends ConsumerWidget {
       size: media.size,
       hasTouch: media.navigationMode == NavigationMode.traditional,
     ));
+    final dim = ref.watch(betterPicturesProvider).value ?? false;
 
     return ScreenFrame(
       metrics: m,
@@ -52,6 +55,19 @@ class SourcesScreen extends ConsumerWidget {
             onActivate: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => ImportScreen(source: source),
+              ),
+            ),
+          ),
+        if (dim)
+          Padding(
+            padding: EdgeInsets.only(top: m.scaled(12), left: m.scaled(2)),
+            child: Text(
+              'Imported before sharper pictures were added. Re-import to get '
+              'them.',
+              style: TextStyle(
+                fontSize: m.scaled(12),
+                height: 1.5,
+                color: Palette.inkFaint,
               ),
             ),
           ),

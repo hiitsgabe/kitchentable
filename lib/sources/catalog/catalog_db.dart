@@ -23,6 +23,7 @@ class Cards extends Table {
   TextColumn get legalities => text()();
   TextColumn get imageSmall => text().nullable()();
   TextColumn get imageNormal => text().nullable()();
+  TextColumn get imageLarge => text().nullable()();
   TextColumn get imageBack => text().nullable()();
 
   @override
@@ -64,7 +65,7 @@ class CatalogDb extends _$CatalogDb {
   CatalogDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -86,6 +87,11 @@ class CatalogDb extends _$CatalogDb {
             // A reimport fills it in.
             await m.addColumn(cards, cards.imageBack);
           }
+          if (from < 5) {
+            // Null on every existing row, which falls back to the normal file
+            // the way those cards already drew. A reimport fills it in.
+            await m.addColumn(cards, cards.imageLarge);
+          }
         },
       );
 
@@ -93,6 +99,14 @@ class CatalogDb extends _$CatalogDb {
     final count = countAll();
     final query = selectOnly(cards)..addColumns([count]);
     return await query.map((row) => row.read(count)!).getSingle();
+  }
+
+  /// True when anything in the catalog predates the large image column.
+  Future<bool> needsBetterPictures() async {
+    final query = select(cards)
+      ..where((c) => c.imageLarge.isNull())
+      ..limit(1);
+    return await query.getSingleOrNull() != null;
   }
 
   /// One transaction for the whole batch. Inserting 36000 rows one statement at
@@ -159,6 +173,7 @@ class CatalogDb extends _$CatalogDb {
         legalities: jsonEncode(c.legalities),
         imageSmall: Value(c.imageSmall),
         imageNormal: Value(c.imageNormal),
+        imageLarge: Value(c.imageLarge),
         imageBack: Value(c.imageBack),
       );
 
@@ -178,6 +193,7 @@ class CatalogDb extends _$CatalogDb {
             .map((k, v) => MapEntry(k, v as String)),
         imageSmall: row.imageSmall,
         imageNormal: row.imageNormal,
+        imageLarge: row.imageLarge,
         imageBack: row.imageBack,
       );
 }
