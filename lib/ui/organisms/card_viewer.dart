@@ -18,7 +18,14 @@ import 'card_shading.dart';
 /// Turning a card ninety degrees is not here: that is the tap, on the table,
 /// where the player can see the board around it. These are the deliberate
 /// ones, which is why they are behind a press and hold.
-enum CardAction { upsideDown, straighten, flip, counterUp, counterDown }
+enum CardAction {
+  upsideDown,
+  straighten,
+  flip,
+  counterUp,
+  counterDown,
+  commandZone,
+}
 
 /// One card, lifted off the screen and turnable in the hand.
 ///
@@ -38,6 +45,7 @@ class CardViewer extends StatefulWidget {
     required this.card,
     this.instance,
     this.onAct,
+    this.hasCommandZone = false,
   });
 
   final CatalogCard card;
@@ -50,10 +58,16 @@ class CardViewer extends StatefulWidget {
 
   final void Function(CardAction)? onAct;
 
+  /// Whether this table has a command zone at all. Standard and Pauper have
+  /// no such corner, and an action that moves a card into a zone that is not
+  /// there is a button that does nothing.
+  final bool hasCommandZone;
+
   static Future<CardAction?> show(
     BuildContext context,
     CatalogCard card, {
     CardInstance? instance,
+    bool hasCommandZone = false,
   }) =>
       Navigator.of(context).push(
         // Not PageRouteBuilder<CardAction?>. push<T> already hands back a
@@ -64,6 +78,7 @@ class CardViewer extends StatefulWidget {
           pageBuilder: (context, _, _) => CardViewer(
             card: card,
             instance: instance,
+            hasCommandZone: hasCommandZone,
             onAct: (action) => Navigator.of(context).pop(action),
           ),
           transitionsBuilder: (_, animation, _, child) =>
@@ -255,6 +270,11 @@ class _CardViewerState extends State<CardViewer>
               instance.faceDown ? 'Face up' : 'Face down',
               CardAction.flip,
             ),
+            if (widget.hasCommandZone) ...[
+              SizedBox(width: m.scaled(10)),
+              _act(m, const Key('act-command'), Icons.home_rounded, null,
+                  CardAction.commandZone),
+            ],
             SizedBox(width: m.scaled(18)),
             _act(m, const Key('act-counter-down'), Icons.remove_rounded, null,
                 CardAction.counterDown),

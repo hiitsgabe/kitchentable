@@ -4,6 +4,7 @@ import '../../../sources/model/catalog_card.dart';
 import '../../../table/model/card_instance.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
+import 'card_drag.dart';
 import 'table_card.dart';
 
 /// The commander, out where everybody can see it.
@@ -22,6 +23,7 @@ class CommandSlot extends StatelessWidget {
     required this.width,
     required this.onTap,
     required this.onInspect,
+    required this.onSendHome,
   });
 
   final Metrics metrics;
@@ -31,47 +33,60 @@ class CommandSlot extends StatelessWidget {
   final void Function(CardInstance) onTap;
   final void Function(CardInstance) onInspect;
 
+  /// A card let go over the corner, whatever it is.
+  ///
+  /// A commander is not the only thing that belongs in a command zone:
+  /// emblems and companions live there too and the app has no notion of
+  /// either, so the corner takes any card rather than checking one against
+  /// the deck. The player is the one who knows.
+  final void Function(CardInstance) onSendHome;
+
   @override
   Widget build(BuildContext context) {
     final m = metrics;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Command',
-          style: TextStyle(fontSize: m.scaled(10), color: Palette.inkFaint),
-        ),
-        SizedBox(height: m.scaled(4)),
-        if (cards.isEmpty)
-          Container(
-            width: width,
-            height: width * 88 / 63,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(width * 0.05),
-              border: Border.all(color: Palette.tileEdge),
-            ),
-          )
-        else
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final card in cards)
-                Padding(
-                  padding: EdgeInsets.only(left: m.scaled(6)),
-                  child: TableCard(
-                    metrics: m,
-                    instance: card,
-                    printing: printings[card.oracleId],
-                    width: width,
-                    onTap: () => onTap(card),
-                    onLongPress: () => onInspect(card),
-                  ),
-                ),
-            ],
-          ),
-      ],
+    return CardDropTarget(
+      onDrop: (card, _) => onSendHome(card),
+      child: _corner(m),
     );
   }
+
+  Widget _corner(Metrics m) => Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Command',
+            style: TextStyle(fontSize: m.scaled(10), color: Palette.inkFaint),
+          ),
+          SizedBox(height: m.scaled(4)),
+          if (cards.isEmpty)
+            Container(
+              width: width,
+              height: width * 88 / 63,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(width * 0.05),
+                border: Border.all(color: Palette.tileEdge),
+              ),
+            )
+          else
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final card in cards)
+                  Padding(
+                    padding: EdgeInsets.only(left: m.scaled(6)),
+                    child: TableCard(
+                      metrics: m,
+                      instance: card,
+                      printing: printings[card.oracleId],
+                      width: width,
+                      onTap: () => onTap(card),
+                      onLongPress: () => onInspect(card),
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      );
 }

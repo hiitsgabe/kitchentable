@@ -9,6 +9,7 @@ import 'package:kitchentable/features/menu/menu_controller.dart';
 import 'package:kitchentable/features/play/play_screen.dart';
 import 'package:kitchentable/features/play/renderers/free_canvas.dart';
 import 'package:kitchentable/features/play/renderers/stacked_seats.dart';
+import 'package:kitchentable/features/play/widgets/command_slot.dart';
 import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
 import 'package:kitchentable/features/play/widgets/radar_strip.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
@@ -26,11 +27,18 @@ CatalogCard _card(String name) => CatalogCard(
       cmc: 1,
     );
 
-Deck _deck() => Deck(
+/// Sixty cards either way, so the library is 53 after an opening hand
+/// whether or not somebody is leading it. The commander is an extra card on
+/// top, which is what a real Commander deck is.
+Deck _deck({bool commander = false}) => Deck(
       id: 'd1',
       name: 'a deck',
       format: DeckFormat.commander,
-      slots: [DeckSlot(card: _card('Mountain'), quantity: 60)],
+      slots: [
+        DeckSlot(card: _card('Mountain'), quantity: 60),
+        if (commander)
+          DeckSlot(card: _card('General'), quantity: 1, commander: true),
+      ],
     );
 
 Future<ProviderContainer> _seated(WidgetTester tester) =>
@@ -40,6 +48,7 @@ Future<ProviderContainer> _seatedPod(
   WidgetTester tester,
   List<String> names, {
   Size window = const Size(390, 844),
+  bool withCommander = false,
 }) async {
   tester.view.physicalSize = window;
   tester.view.devicePixelRatio = 1;
@@ -53,7 +62,11 @@ Future<ProviderContainer> _seatedPod(
   container.read(playProvider.notifier).startPod(
         players: [
           for (final name in names)
-            (deck: _deck(), name: name, owner: const SeatOwner.here()),
+            (
+              deck: _deck(commander: withCommander),
+              name: name,
+              owner: const SeatOwner.here()
+            ),
         ],
         seed: 'abc',
       );
@@ -418,6 +431,26 @@ void main() {
     // way to put a land down and the player did not ask to lose it.
     expect(container.read(playProvider)!.zone('battlefield-s1')!.cards,
         hasLength(1));
+  });
+
+  testWidgets('a commander dropped on its corner goes home', (tester) async {
+    final container = await _seatedPod(tester, ['you'], withCommander: true);
+    final play = container.read(playProvider.notifier);
+    final commander =
+        container.read(playProvider)!.zone('command-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: commander.id, toZoneId: 'battlefield-s1'));
+    await tester.pump();
+
+    final corner = tester.getCenter(find.byType(CommandSlot));
+    final from = tester.getCenter(find.byType(TableCard).first);
+    await tester.dragFrom(from, corner - from);
+    await tester.pumpAndSettle();
+
+    expect(container.read(playProvider)!.zone('command-s1')!.cards,
+        hasLength(1));
+    expect(container.read(playProvider)!.zone('battlefield-s1')!.cards,
+        isEmpty);
   });
 }
 

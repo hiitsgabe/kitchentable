@@ -14,6 +14,7 @@ const _printing = CatalogCard(
 Widget _host({
   CardInstance? instance,
   void Function(CardAction)? onAct,
+  bool hasCommandZone = false,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -21,6 +22,7 @@ Widget _host({
           card: _printing,
           instance: instance,
           onAct: onAct,
+          hasCommandZone: hasCommandZone,
         ),
       ),
     );
@@ -100,5 +102,33 @@ void main() {
     await tester.pump();
 
     expect(acted, [CardAction.counterUp, CardAction.counterDown]);
+  });
+
+  testWidgets('a card can be sent to the command zone from the big view',
+      (tester) async {
+    CardAction? acted;
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(id: 'a', oracleId: 'o'),
+      onAct: (a) => acted = a,
+      hasCommandZone: true,
+    ));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('act-command')));
+    await tester.pump();
+
+    expect(acted, CardAction.commandZone);
+  });
+
+  testWidgets('a table with no command zone does not offer it',
+      (tester) async {
+    await tester.pumpWidget(
+      _host(instance: const CardInstance(id: 'a', oracleId: 'o')),
+    );
+    await tester.pump();
+
+    // Standard and Pauper have no such corner, and an action that moves a
+    // card into a zone that does not exist is a silent no op.
+    expect(find.byKey(const Key('act-command')), findsNothing);
   });
 }
