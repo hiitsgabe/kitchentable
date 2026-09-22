@@ -1698,8 +1698,21 @@ Widget _host(
       ),
     );
 
+
+/// The default 800x600 surface leaves the band column 240 logical pixels,
+/// which is two of a 122 pixel band: the rest scrolls, and a band in the cache
+/// region is offstage, where the default finders will not look. These cases
+/// are about where a band goes, not about scrolling, so give the surface room
+/// for every band to be on screen at once.
+void _roomForBands(WidgetTester tester) {
+  tester.view.physicalSize = const Size(2400, 3000);
+  tester.view.devicePixelRatio = 3;
+  addTearDown(tester.view.reset);
+}
+
 void main() {
   testWidgets('everybody but you gets a band', (tester) async {
+    _roomForBands(tester);
     await tester.pumpWidget(_host(['s1', 's2', 's3', 's4']));
 
     expect(find.byType(SeatBand), findsNWidgets(3));
@@ -1708,6 +1721,7 @@ void main() {
   });
 
   testWidgets('your seat sits below every band', (tester) async {
+    _roomForBands(tester);
     await tester.pumpWidget(_host(['s1', 's2', 's3']));
 
     final yours = tester.getRect(find.byKey(const Key('your-seat')));
@@ -1719,6 +1733,7 @@ void main() {
   });
 
   testWidgets('a table of one is your seat and nothing else', (tester) async {
+    _roomForBands(tester);
     await tester.pumpWidget(_host(['s1']));
 
     expect(find.byType(SeatBand), findsNothing);
@@ -1726,6 +1741,7 @@ void main() {
   });
 
   testWidgets('tapping a band asks to look out of that seat', (tester) async {
+    _roomForBands(tester);
     String? asked;
     await tester.pumpWidget(_host(['s1', 's2'], onFocusSeat: (id) => asked = id));
 
@@ -1736,6 +1752,7 @@ void main() {
   });
 
   testWidgets('a spectator gets a band for everybody', (tester) async {
+    _roomForBands(tester);
     // Nobody is looking, which is plan 3 arriving as a spectator. Every seat
     // is somebody else, so every seat is a band.
     await tester.pumpWidget(_host(['s1', 's2'], viewer: ''));
@@ -1840,6 +1857,12 @@ class StackedSeats extends StatelessWidget {
 
 Run: `flutter test test/features/stacked_seats_test.dart`
 Expected: PASS, 5 tests.
+
+Without `_roomForBands` two of them fail, and the renderer is not at fault:
+three bands are 366 logical pixels and the band column on the default surface
+is 240, so the third lands in the `ListView` cache region where it is built
+but offstage, and `find.byType` skips offstage by default. The first draft of
+this task had no `_roomForBands` and hit exactly that.
 
 - [ ] **Step 5: Probe the geometry test**
 
