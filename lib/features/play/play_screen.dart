@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../table/actions/table_action.dart';
 import '../../table/model/card_instance.dart';
+import '../../table/view/seat_view.dart';
 import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/card_viewer.dart';
@@ -12,7 +13,11 @@ import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../menu/menu_controller.dart';
 import 'play_controller.dart';
+import 'renderers/free_canvas.dart';
+import 'renderers/renderer_choice.dart';
+import 'renderers/stacked_seats.dart';
 import 'widgets/hand_sheet.dart';
+import 'widgets/radar_strip.dart';
 import 'widgets/table_card.dart';
 
 class PlayScreen extends ConsumerStatefulWidget {
@@ -87,11 +92,63 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
       );
     }
 
-    final seat = table.seats.first;
+    final viewerId = ref.watch(viewerSeatProvider) ?? '';
+    final views = [
+      for (final s in table.seats) SeatView.of(s, viewer: viewerId),
+    ];
+    // A spectator has no seat. It draws the table and offers no controls, and
+    // plan 3 is where somebody arrives that way for real.
+    final seat = table.seat(viewerId) ?? table.seats.first;
+    final mine = seat.id == viewerId;
+
     final hand = table.zone('hand-${seat.id}')!;
     final battlefield = table.zone('battlefield-${seat.id}')!;
     final library = table.zone('library-${seat.id}')!;
     final graveyard = table.zone('graveyard-${seat.id}')!;
+
+    final renderer = rendererFor(
+      width: media.size.width,
+      chosen: ref.watch(rendererChoiceProvider),
+    );
+
+    final yours = Column(
+      key: const Key('your-seat'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: KeyedSubtree(
+            key: const Key('your-board'),
+            child: _Battlefield(
+              metrics: m,
+              cards: battlefield.cards,
+              printings: _printings,
+              onTap: (c) => play.run(RotateCard(c.id)),
+              onInspect: _inspect,
+            ),
+          ),
+        ),
+        SizedBox(height: m.scaled(10)),
+        _Piles(
+          metrics: m,
+          librarySize: library.size,
+          graveyardSize: graveyard.size,
+          onDraw: () => play.run(DrawCards(
+            fromZoneId: library.id,
+            toZoneId: hand.id,
+            count: 1,
+          )),
+        ),
+        HandSheet(
+          metrics: m,
+          cards: mine ? hand.cards : const [],
+          printings: _printings,
+          onPlay: (c) => play.run(
+            MoveCard(cardId: c.id, toZoneId: battlefield.id),
+          ),
+          onInspect: _inspect,
+        ),
+      ],
+    );
 
     return Scaffold(
       body: SafeArea(
@@ -105,43 +162,75 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                 seatName: seat.name,
                 life: seat.life,
                 canUndo: play.canUndo,
-                onLife: (by) =>
-                    play.run(ChangeLife(seatId: seat.id, by: by)),
+                renderer: renderer,
+                onSwitchRenderer: () => ref
+                    .read(rendererChoiceProvider.notifier)
+                    .choose(renderer == TableRenderer.stackedSeats
+                        ? TableRenderer.freeCanvas
+                        : TableRenderer.stackedSeats),
+                onLife: (by) => play.run(ChangeLife(seatId: seat.id, by: by)),
                 onUndo: play.undo,
                 onLeave: () {
                   play.leave();
                   Navigator.of(context).maybePop();
                 },
               ),
+              if (views.length > 1) ...[
+                SizedBox(height: m.scaled(10)),
+                RadarStrip(
+                  metrics: m,
+                  seats: [
+                    for (final v in views)
+                      (seatId: v.seatId, name: v.name, life: v.life),
+                  ],
+                  focusedSeatId: viewerId,
+                  onJump: _look,
+                ),
+              ],
               SizedBox(height: m.scaled(12)),
               Expanded(
-                child: _Battlefield(
-                  metrics: m,
-                  cards: battlefield.cards,
-                  printings: _printings,
-                  onTap: (c) => play.run(RotateCard(c.id)),
-                  onInspect: _inspect,
-                ),
-              ),
-              SizedBox(height: m.scaled(10)),
-              _Piles(
-                metrics: m,
-                librarySize: library.size,
-                graveyardSize: graveyard.size,
-                onDraw: () => play.run(DrawCards(
-                  fromZoneId: library.id,
-                  toZoneId: hand.id,
-                  count: 1,
-                )),
-              ),
-              HandSheet(
-                metrics: m,
-                cards: hand.cards,
-                printings: _printings,
-                onPlay: (c) => play.run(
-                  MoveCard(cardId: c.id, toZoneId: battlefield.id),
-                ),
-                onInspect: _inspect,
+                child: switch (renderer) {
+                  TableRenderer.stackedSeats => StackedSeats(
+                      metrics: m,
+                      seats: views,
+                      viewerSeatId: viewerId,
+                      printings: _printings,
+                      turnSeatId: table.turnSeatId,
+                      onFocusSeat: _look,
+                      yours: yours,
+                    ),
+                  TableRenderer.freeCanvas => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: KeyedSubtree(
+                            key: const Key('your-board'),
+                            child: FreeCanvas(
+                              metrics: m,
+                              seats: views,
+                              viewerSeatId: viewerId,
+                              printings: _printings,
+                              turnSeatId: table.turnSeatId,
+                              onTapCard: (c) => play.run(RotateCard(c.id)),
+                              onInspectCard: _inspect,
+                            ),
+                          ),
+                        ),
+                        // The hand stays below the surface in both renderers.
+                        // A hand floating over the canvas is the one thing the
+                        // spec rules out by geometry.
+                        HandSheet(
+                          metrics: m,
+                          cards: mine ? hand.cards : const [],
+                          printings: _printings,
+                          onPlay: (c) => play.run(
+                            MoveCard(cardId: c.id, toZoneId: battlefield.id),
+                          ),
+                          onInspect: _inspect,
+                        ),
+                      ],
+                    ),
+                },
               ),
               HintBar(
                 metrics: m,
@@ -157,6 +246,20 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     );
   }
 
+  /// Moves the viewer, and says out loud when it will not move.
+  ///
+  /// A seat somebody else holds is watched and not played, and a tap that does
+  /// nothing silently is the bug this project has already shipped once, on the
+  /// Play row that refused without a word.
+  void _look(String seatId) {
+    if (ref.read(viewerSeatProvider.notifier).look(seatId)) return;
+    Toast.show(
+      context,
+      'That seat is not yours to look out of',
+      icon: Icons.visibility_off_rounded,
+    );
+  }
+
   void _inspect(CardInstance instance) {
     final printing = _printings[instance.oracleId];
     if (printing != null) CardViewer.show(context, printing);
@@ -169,6 +272,8 @@ class _TopBar extends StatelessWidget {
     required this.seatName,
     required this.life,
     required this.canUndo,
+    required this.renderer,
+    required this.onSwitchRenderer,
     required this.onLife,
     required this.onUndo,
     required this.onLeave,
@@ -178,6 +283,8 @@ class _TopBar extends StatelessWidget {
   final String seatName;
   final int life;
   final bool canUndo;
+  final TableRenderer renderer;
+  final VoidCallback onSwitchRenderer;
   final void Function(int) onLife;
   final VoidCallback onUndo;
   final VoidCallback onLeave;
@@ -225,6 +332,15 @@ class _TopBar extends StatelessWidget {
           key: const Key('life-up'),
           icon: Icons.add_rounded,
           onTap: () => onLife(1),
+        ),
+        SizedBox(width: m.scaled(12)),
+        _Pill(
+          metrics: m,
+          key: const Key('switch-renderer'),
+          icon: renderer == TableRenderer.stackedSeats
+              ? Icons.grid_view_rounded
+              : Icons.view_agenda_rounded,
+          onTap: onSwitchRenderer,
         ),
         SizedBox(width: m.scaled(12)),
         Opacity(
