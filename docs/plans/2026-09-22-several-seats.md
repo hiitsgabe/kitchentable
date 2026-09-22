@@ -750,18 +750,7 @@ enum TableRenderer {
   stackedSeats,
 
   /// Every seat on a surface you pan and pinch.
-  freeCanvas;
-
-  String get label => switch (this) {
-        TableRenderer.stackedSeats => 'Bands',
-        TableRenderer.freeCanvas => 'Canvas',
-      };
-
-  String get describe => switch (this) {
-        TableRenderer.stackedSeats =>
-          'one seat per band, yours at the bottom',
-        TableRenderer.freeCanvas => 'the whole table, pan and pinch',
-      };
+  freeCanvas,
 }
 
 /// Wide enough for four seats side by side without a card becoming a smudge.
@@ -2527,6 +2516,25 @@ Append these cases inside `main()`:
     expect(find.text('hand 7'), findsOneWidget);
   });
 
+  testWidgets('a spectator is shown no hand at all', (tester) async {
+    final container = await _seatedPod(tester, ['you', 'Carla']);
+    container.read(viewerSeatProvider.notifier).sit(null);
+    await tester.pump();
+
+    // Plan 3 arrives here: the table is open and this device holds no chair.
+    // The seat the screen falls back to drawing is still somebody's, and its
+    // hand is not this device's to see. Every other case in this file has a
+    // local seat, which makes this the only one where the `mine` guard on
+    // HandSheet is load bearing at all.
+    final table = container.read(playProvider)!;
+    for (final seat in table.seats) {
+      for (final card in table.zone('hand-${seat.id}')!.cards) {
+        expect(find.byKey(Key('hand-card-${card.id}')), findsNothing,
+            reason: 'a spectator was handed ${seat.id} s cards');
+      }
+    }
+  });
+
   testWidgets('looking out of another local seat swaps whose hand it is',
       (tester) async {
     final container = await _seatedPod(tester, ['you', 'Carla']);
@@ -2774,11 +2782,11 @@ and in its `Row`, directly before the undo pill:
 already has from the list above.
 
 In `HandSheet`, give each card a key so a hand card can be looked for by id.
-In `lib/features/play/widgets/hand_sheet.dart`, on the `TableCard` it builds,
-add:
+The `itemBuilder` in `lib/features/play/widgets/hand_sheet.dart` indexes
+`cards[i]` and has no `card` variable, so the key reads:
 
 ```dart
-              key: Key('hand-card-${card.id}'),
+                  key: Key('hand-card-${cards[i].id}'),
 ```
 
 - [ ] **Step 4: Run the whole suite**
@@ -2794,10 +2802,22 @@ Expected: `No issues found!`
 
 - [ ] **Step 6: Probe that the hidden hand test can fail**
 
-Change `cards: mine ? hand.cards : const []` to `cards: hand.cards` and run
-`flutter test test/features/play_screen_test.dart`. The swap case must fail
-after the tap, because you would be holding somebody else's seven cards. Edit
-it back by hand and rerun.
+Change `cards: mine ? hand.cards : const []` to `cards: hand.cards` in both
+branches and run `flutter test test/features/play_screen_test.dart`. The
+spectator case must fail, and it must be the only one.
+
+**Not the swap case, and this is worth understanding before you run it.**
+`mine` is `seat.id == viewerId`, and `seat` is already
+`table.seat(viewerId) ?? table.seats.first`, so after looking out of s2 the
+viewer IS s2 and the hand drawn is s2's own either way. `mine` is false in
+exactly one state: a viewer matching no seat, which is the spectator. Every
+other case in the file seats somebody, which makes the two sides of the
+ternary the same expression there.
+
+What keeps another player's hand out of the tree in the seated case is not
+`mine` at all, it is `SeatView`: `SeatBand` reads a hand whose cards are
+already empty and draws only the count. Two independent guards for two
+different states, and each needs its own case.
 
 - [ ] **Step 7: Commit**
 
