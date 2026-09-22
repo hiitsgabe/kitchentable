@@ -1,3 +1,5 @@
+import 'dart:ui' show clampDouble;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -6,10 +8,14 @@ import '../../../table/model/card_instance.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import '../board_cursor.dart';
+import '../renderers/mat_layout.dart';
 import 'table_card.dart';
 
 /// A pile as this widget draws it.
 typedef BoardZone = ({String id, String label, List<CardInstance> cards});
+
+/// The same card size the canvas uses, so both renderers place alike.
+const _cardOnMat = Size(90, 90 * 88 / 63);
 
 /// Your own piles, walkable with a D-pad.
 ///
@@ -25,6 +31,7 @@ class CursorBoard extends StatefulWidget {
     required this.printings,
     required this.onActivate,
     required this.onInspect,
+    required this.onPlace,
   });
 
   final Metrics metrics;
@@ -35,12 +42,18 @@ class CursorBoard extends StatefulWidget {
   final void Function(CardInstance) onActivate;
   final void Function(CardInstance) onInspect;
 
+  /// Where a card was dropped, normalized 0 to 1 against this mat.
+  final void Function(String cardId, double x, double y) onPlace;
+
   @override
   State<CursorBoard> createState() => _CursorBoardState();
 }
 
 class _CursorBoardState extends State<CursorBoard> {
   BoardCursor? _cursor;
+
+  /// Where a card has been dragged to but not yet dropped, in mat units.
+  final _dragging = <String, Offset>{};
 
   List<CursorZone> get _sizes =>
       [for (final z in widget.zones) (id: z.id, size: z.cards.length)];
@@ -144,42 +157,89 @@ class _CursorBoardState extends State<CursorBoard> {
             style: TextStyle(fontSize: m.scaled(11), color: Palette.inkFaint),
           ),
           SizedBox(height: m.scaled(6)),
-          Wrap(
-            spacing: m.scaled(8),
-            runSpacing: m.scaled(10),
-            children: [
-              for (var i = 0; i < zone.cards.length; i++)
-                _card(zone, i, cursor),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // The mat keeps its shape whatever the window does, so a drag
+              // on a phone and the same drag on a television land on the same
+              // normalized spot.
+              final scale = constraints.maxWidth / matSize.width;
+              return SizedBox(
+                width: constraints.maxWidth,
+                height: matSize.height * scale,
+                child: Stack(
+                  children: [
+                    for (var i = 0; i < zone.cards.length; i++)
+                      _card(zone, i, cursor, scale),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _card(BoardZone zone, int index, BoardCursor cursor) {
+  Widget _card(BoardZone zone, int index, BoardCursor cursor, double scale) {
     final m = widget.metrics;
     final card = zone.cards[index];
     final ringed = zone.id == cursor.zoneId && index == cursor.index;
+    final spot = spotFor(
+      position: card.position,
+      index: index,
+      card: _cardOnMat,
+    );
+    final pending = _dragging[card.id] ?? Offset.zero;
 
-    return Container(
-      key: ringed ? Key('ring-${card.id}') : null,
-      padding: EdgeInsets.all(m.focusRing),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(m.scaled(8)),
-        border: Border.all(
-          color: ringed ? Palette.accent : Colors.transparent,
-          width: m.focusRing,
+    return Positioned(
+      left: (spot.dx + pending.dx) * scale,
+      top: (spot.dy + pending.dy) * scale,
+      child: GestureDetector(
+        onPanEnd: (details) => _drop(zone, card, spot, scale),
+        onPanUpdate: (details) => _drag(card.id, details.delta / scale),
+        child: Container(
+          key: ringed ? Key('ring-${card.id}') : null,
+          padding: EdgeInsets.all(m.focusRing),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(m.scaled(8)),
+            border: Border.all(
+              color: ringed ? Palette.accent : Colors.transparent,
+              width: m.focusRing,
+            ),
+          ),
+          child: TableCard(
+            metrics: m,
+            instance: card,
+            printing: widget.printings[card.oracleId],
+            width: _cardOnMat.width * scale,
+            onTap: () => widget.onActivate(card),
+            onLongPress: () => widget.onInspect(card),
+          ),
         ),
       ),
-      child: TableCard(
-        metrics: m,
-        instance: card,
-        printing: widget.printings[card.oracleId],
-        width: m.scaled(70),
-        onTap: () => widget.onActivate(card),
-        onLongPress: () => widget.onInspect(card),
-      ),
+    );
+  }
+
+  void _drag(String cardId, Offset delta) {
+    setState(() {
+      _dragging[cardId] = (_dragging[cardId] ?? Offset.zero) + delta;
+    });
+  }
+
+  void _drop(BoardZone zone, CardInstance card, Offset from, double scale) {
+    final moved = _dragging.remove(card.id);
+    if (moved == null) return;
+
+    // The centre of where the card ended up, normalized against the mat. The
+    // centre and not the corner, because spotFor centres a positioned card
+    // and the two have to be inverses or a card walks on every drag.
+    final at =
+        from + moved + Offset(_cardOnMat.width / 2, _cardOnMat.height / 2);
+    setState(() {});
+    widget.onPlace(
+      card.id,
+      clampDouble(at.dx / matSize.width, 0, 1),
+      clampDouble(at.dy / matSize.height, 0, 1),
     );
   }
 }
