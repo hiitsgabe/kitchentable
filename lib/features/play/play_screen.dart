@@ -16,9 +16,9 @@ import 'play_controller.dart';
 import 'renderers/free_canvas.dart';
 import 'renderers/renderer_choice.dart';
 import 'renderers/stacked_seats.dart';
+import 'widgets/cursor_board.dart';
 import 'widgets/hand_sheet.dart';
 import 'widgets/radar_strip.dart';
-import 'widgets/table_card.dart';
 
 class PlayScreen extends ConsumerStatefulWidget {
   const PlayScreen({super.key});
@@ -116,15 +116,24 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: KeyedSubtree(
+          child: CursorBoard(
             key: const Key('your-board'),
-            child: _Battlefield(
-              metrics: m,
-              cards: battlefield.cards,
-              printings: _printings,
-              onTap: (c) => play.run(RotateCard(c.id)),
-              onInspect: _inspect,
-            ),
+            metrics: m,
+            zones: [
+              (
+                id: battlefield.id,
+                label: battlefield.label,
+                cards: battlefield.cards
+              ),
+              (
+                id: graveyard.id,
+                label: graveyard.label,
+                cards: graveyard.cards
+              ),
+            ],
+            printings: _printings,
+            onActivate: (c) => play.run(RotateCard(c.id)),
+            onInspect: _inspect,
           ),
         ),
         SizedBox(height: m.scaled(10)),
@@ -385,54 +394,6 @@ class _Pill extends StatelessWidget {
           border: Border.all(color: Palette.tileEdge),
         ),
         child: Icon(icon, size: m.scaled(17), color: Palette.inkMuted),
-      ),
-    );
-  }
-}
-
-class _Battlefield extends StatelessWidget {
-  const _Battlefield({
-    required this.metrics,
-    required this.cards,
-    required this.printings,
-    required this.onTap,
-    required this.onInspect,
-  });
-
-  final Metrics metrics;
-  final List<CardInstance> cards;
-  final Map<String, CatalogCard> printings;
-  final void Function(CardInstance) onTap;
-  final void Function(CardInstance) onInspect;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = metrics;
-
-    if (cards.isEmpty) {
-      return Center(
-        child: Text(
-          'Nothing on the battlefield',
-          style: TextStyle(fontSize: m.scaled(12), color: Palette.inkFaint),
-        ),
-      );
-    }
-
-    return SingleChildScrollView(
-      child: Wrap(
-        spacing: m.scaled(8),
-        runSpacing: m.scaled(10),
-        children: [
-          for (final card in cards)
-            TableCard(
-              metrics: m,
-              instance: card,
-              printing: printings[card.oracleId],
-              width: m.scaled(70),
-              onTap: () => onTap(card),
-              onLongPress: () => onInspect(card),
-            ),
-        ],
       ),
     );
   }
