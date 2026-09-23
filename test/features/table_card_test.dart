@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/decks/model/game.dart';
@@ -12,7 +13,13 @@ import 'package:kitchentable/ui/tokens/metrics.dart';
 /// Null on purpose rather than for want of a fixture: a token has no printing
 /// and neither has a card from a source somebody cleared, so the back is what
 /// this widget draws most often, and nothing here is about the art.
-Widget _host(CardInstance instance, {Game? game}) => MaterialApp(
+Widget _host(
+  CardInstance instance, {
+  Game? game,
+  void Function(CardInstance)? onTap,
+  void Function(CardInstance)? onInspect,
+}) =>
+    MaterialApp(
       home: Scaffold(
         body: TableCard(
           metrics: Metrics.of(DeviceClass.handheld),
@@ -20,6 +27,8 @@ Widget _host(CardInstance instance, {Game? game}) => MaterialApp(
           printing: null,
           width: 90,
           game: game,
+          onTap: onTap == null ? null : () => onTap(instance),
+          onLongPress: onInspect == null ? null : () => onInspect(instance),
         ),
       ),
     );
@@ -155,5 +164,45 @@ void main() {
     // and has to stand on its own with its count.
     expect(find.text('+2/+2'), findsNWidgets(2));
     expect(find.textContaining('charge'), findsWidgets);
+  });
+
+  testWidgets('a right click opens what a hold opens', (tester) async {
+    CardInstance? held;
+    CardInstance? clicked;
+    await tester.pumpWidget(_host(
+      const CardInstance(id: 'a', oracleId: 'o'),
+      onInspect: (c) => held = c,
+    ));
+    await tester.pump();
+
+    await tester.longPress(find.byType(TableCard));
+    await tester.pump();
+    expect(held?.id, 'a');
+
+    held = null;
+    await tester.tap(find.byType(TableCard), buttons: kSecondaryButton);
+    await tester.pump();
+    clicked = held;
+
+    // The same door, not a second one. A right click that opened a different
+    // menu would be two menus to keep in step.
+    expect(clicked?.id, 'a');
+  });
+
+  testWidgets('a left click still turns the card', (tester) async {
+    CardInstance? turned;
+    CardInstance? inspected;
+    await tester.pumpWidget(_host(
+      const CardInstance(id: 'a', oracleId: 'o'),
+      onTap: (c) => turned = c,
+      onInspect: (c) => inspected = c,
+    ));
+    await tester.pump();
+
+    await tester.tap(find.byType(TableCard));
+    await tester.pump();
+
+    expect(turned?.id, 'a');
+    expect(inspected, isNull, reason: 'a tap opened the menu as well');
   });
 }
