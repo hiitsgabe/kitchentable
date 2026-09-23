@@ -81,6 +81,29 @@ class _TokenSheetState extends State<TokenSheet> {
     });
   }
 
+  /// Whether the catalog calls this card a token.
+  ///
+  /// Scryfall writes a token's type line beginning `Token`, so `Token Creature
+  /// - Goblin` and `Token Artifact - Treasure` are both answered here without
+  /// a new column. A `layout` column would be a schema bump and a reimport of
+  /// every source for a question [CatalogCard.typeLine] already answers.
+  static bool _isToken(CatalogCard card) => card.typeLine.startsWith('Token');
+
+  /// The results with the tokens at the top, each group in the order the
+  /// catalog gave them.
+  ///
+  /// Sorted above the rest and not filtered from it: plenty of tokens are
+  /// copies of a real card, and somebody who asked for `Goblin` asked for
+  /// tokens and etc, not for tokens only.
+  ///
+  /// Two passes and not `sort`, which in Dart is not stable: two tokens would
+  /// come back in whichever order the sort happened to leave them, and the
+  /// catalog's own order is the one the deck builder's search already shows.
+  List<CatalogCard> get _tokensFirst => [
+        ..._results.where(_isToken),
+        ..._results.where((c) => !_isToken(c)),
+      ];
+
   @override
   Widget build(BuildContext context) {
     final m = widget.metrics;
@@ -106,6 +129,23 @@ class _TokenSheetState extends State<TokenSheet> {
               onChanged: _search,
             ),
             SizedBox(height: m.scaled(12)),
+            // Said out loud rather than left to be noticed. Scryfall's bulk
+            // data carries token cards, so a catalog with none of them under
+            // this name came from a source that does not, and a list of real
+            // cards with no token in it looks exactly like a list of tokens
+            // to anybody not reading the type lines.
+            if (_results.isNotEmpty && !_results.any(_isToken)) ...[
+              Text(
+                'No tokens by that name, only real cards. Tokens come in '
+                'with the cards, so importing a source that carries them is '
+                'the fix.',
+                style: TextStyle(
+                  fontSize: m.scaled(12),
+                  color: Palette.inkFaint,
+                ),
+              ),
+              SizedBox(height: m.scaled(8)),
+            ],
             if (_results.isEmpty && _searched.isNotEmpty)
               Text(
                 'Nothing by that name in the catalog. Tokens come in with '
@@ -122,8 +162,8 @@ class _TokenSheetState extends State<TokenSheet> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      for (final card in _results)
-                        _TokenRow(
+                      for (final card in _tokensFirst)
+                        TokenRow(
                           metrics: m,
                           key: Key('token-${card.name}'),
                           card: card,
@@ -141,8 +181,8 @@ class _TokenSheetState extends State<TokenSheet> {
 }
 
 /// One card the token could be made out of.
-class _TokenRow extends StatelessWidget {
-  const _TokenRow({
+class TokenRow extends StatelessWidget {
+  const TokenRow({
     super.key,
     required this.metrics,
     required this.card,
