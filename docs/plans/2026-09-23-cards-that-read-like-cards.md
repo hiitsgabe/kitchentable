@@ -610,9 +610,24 @@ already turns, and a piece with its own vanishing point fights it.
 - [ ] **Step 7: Put them on the card and in the viewer**
 
 `TableCard` replaces its column of pills with a row of pieces along the bottom
-edge of the card, overlapping slightly the way they do in a pile. The viewer's
-kind picker offers `counterPieces` rather than the five names it has now, each
-drawn as its own piece so the player picks the object rather than a word.
+edge of the card, overlapping slightly the way they do in a pile. Draw them in
+the card's existing `Clip.none` `Stack` as a `Positioned`, sized off `width`:
+then they are outside the card's layout and cost the board nothing, which the
+pile's label and the dice tray's caption both failed to do.
+
+The viewer's kind picker offers `counterPieces`, each drawn as its own piece
+so the player picks the object rather than a word. **Keep `loyalty`, `charge`
+and `damage` alongside them**: the box prints no piece for those, nothing in
+the viewer lets a kind be typed in, and dropping them would leave a Pokemon
+player no way to count damage at all.
+
+**The picker's rows are keyed on the wrapper, not on the piece inside**, so
+every existing case reaches a row without ever reading what it drew. Forcing
+every row to draw the same piece survives the whole suite. Add a case that
+reads the piece out of a row and asserts a denomination, a keyword and a kind
+the box has no piece for, and check it bites under two mutations: the same
+piece everywhere, and every kind wrapped in `unknownPiece`, which keeps all
+the names and would survive a name-only assertion.
 
 Append to `test/features/table_card_test.dart`:
 
@@ -685,10 +700,18 @@ both cost 9.7 percent. Say the two numbers.
   length.
 - Give a keyword piece a power of 1. Say which cases fail, and whether
   `what a pile of pieces does to a creature` is one of them.
-- Make the summed marker take the `+1/+1` black always. The colour is not
-  asserted by any case above: **say so** rather than claiming it is covered,
-  and say what a case for it would have to read. A `find.byType` on the view
-  can reach its `piece`, so it is reachable without a golden.
+- Make the summed marker take the `+1/+1` black always. **The colour is not
+  asserted by any case above and this survives all of them.** It is reachable
+  without a golden: `tester.widget<CounterPieceView>(find.byKey(...)).piece
+  .colour`. But the obvious assertion, comparing it to
+  `pieceNamed('+2/+2')!.colour`, moves both sides and survives a mutation that
+  gives every piece one colour.
+
+  What closes it is the three branches against each other: a net the box
+  prints, a net it does not, and a negative net, all different, plus one
+  literal so a mutation that gives every piece its own wrong colour cannot
+  pass on the comparisons alone. Removing recognition then fails it, and so
+  does removing the negative fallback, on different lines.
 - Draw the value once rather than twice. The first piece case must fail on
   `findsNWidgets(2)`.
 - Take the shadow off. The standing off case must fail. If it does not, the
