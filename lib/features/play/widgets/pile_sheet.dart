@@ -52,14 +52,35 @@ class PileSheet extends StatefulWidget {
   State<PileSheet> createState() => _PileSheetState();
 }
 
+/// How many rows a page holds.
+///
+/// Fifteen and not six, which is what a 390 by 844 phone fits without
+/// scrolling: a graveyard of thirty is two pages at fifteen and five at six,
+/// and turning five pages to find a card is its own kind of lost. A page still
+/// scrolls on a short window, which is why the rows keep their scroll view.
+const _pageSize = 15;
+
 class _PileSheetState extends State<PileSheet> {
   /// Where each card is going. A card missing from here is a card staying
   /// where it is, which is why nothing fills this in when the sheet opens.
+  ///
+  /// Keyed by card id and living here rather than on the page, which is what
+  /// makes a choice survive turning one: the page is a window on the pile and
+  /// the pile is what was asked about.
   final Map<String, Landing> _going = {};
+
+  /// Which page is showing, counted from nought.
+  int _page = 0;
 
   @override
   Widget build(BuildContext context) {
     final m = widget.metrics;
+    final pages = (widget.cards.length / _pageSize).ceil();
+    // A pile that shrank under a page somebody had turned to. Clamped rather
+    // than reset, so throwing one card away does not send you back to the
+    // front of a hundred card graveyard.
+    final page = pages == 0 ? 0 : _page.clamp(0, pages - 1);
+    final showing = widget.cards.skip(page * _pageSize).take(_pageSize);
 
     return SafeArea(
       child: Padding(
@@ -89,11 +110,12 @@ class _PileSheetState extends State<PileSheet> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      for (final card in widget.cards) _row(m, card),
+                      for (final card in showing) _row(m, card),
                     ],
                   ),
                 ),
               ),
+            if (pages > 1) _pager(m, page: page, pages: pages),
             SizedBox(height: m.scaled(4)),
             SheetChoice(
               metrics: m,
@@ -115,6 +137,49 @@ class _PileSheetState extends State<PileSheet> {
       ),
     );
   }
+
+  /// Which page this is, with the way to the ones either side of it.
+  ///
+  /// A button only where there is somewhere to go, rather than a pair with one
+  /// of them greyed: [SheetChoice] has no off state and inventing one to say
+  /// "the pile ends here" is a word the page number already says.
+  Widget _pager(Metrics m, {required int page, required int pages}) => Padding(
+        padding: EdgeInsets.only(top: m.scaled(4)),
+        child: Row(
+          children: [
+            if (page > 0)
+              Expanded(
+                child: SheetChoice(
+                  metrics: m,
+                  key: const Key('pile-back'),
+                  icon: Icons.chevron_left_rounded,
+                  label: 'Back',
+                  onTap: () => setState(() => _page = page - 1),
+                ),
+              ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: m.scaled(10)),
+              child: Text(
+                '${page + 1} of $pages',
+                style: TextStyle(
+                  fontSize: m.scaled(13),
+                  color: Palette.inkMuted,
+                ),
+              ),
+            ),
+            if (page < pages - 1)
+              Expanded(
+                child: SheetChoice(
+                  metrics: m,
+                  key: const Key('pile-next'),
+                  icon: Icons.chevron_right_rounded,
+                  label: 'Next',
+                  onTap: () => setState(() => _page = page + 1),
+                ),
+              ),
+          ],
+        ),
+      );
 
   Widget _row(Metrics m, CardInstance card) => CardRow(
         key: Key('pile-card-${card.id}'),
