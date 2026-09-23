@@ -95,4 +95,53 @@ void main() {
     expect(arranged, contains((cardId: 'c0', to: Landing.top)));
     expect(arranged, contains((cardId: 'c1', to: Landing.bottom)));
   });
+
+  testWidgets('a big pile comes a page at a time', (tester) async {
+    await tester.pumpWidget(_host(cards: _cards(30)));
+    await tester.pump();
+
+    // Thirty rows in one scroll is a list you get lost in, and a graveyard in
+    // a long game is a hundred.
+    expect(find.byKey(const Key('pile-card-c0')), findsOneWidget);
+    expect(find.byKey(const Key('pile-card-c29')), findsNothing);
+    expect(find.textContaining('1'), findsWidgets);
+  });
+
+  testWidgets('the next page has the next cards', (tester) async {
+    await tester.pumpWidget(_host(cards: _cards(30)));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('pile-next')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('pile-card-c0')), findsNothing);
+    expect(find.byKey(const Key('pile-card-c29')), findsWidgets);
+  });
+
+  testWidgets('a small pile has no pages to turn', (tester) async {
+    await tester.pumpWidget(_host(cards: _cards(4)));
+    await tester.pump();
+
+    expect(find.byKey(const Key('pile-next')), findsNothing);
+    expect(find.byKey(const Key('pile-back')), findsNothing);
+  });
+
+  testWidgets('a choice made on one page survives turning to another',
+      (tester) async {
+    List<Placement>? arranged;
+    await tester.pumpWidget(
+      _host(cards: _cards(30), onArrange: (p) => arranged = p),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('hand-c1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('pile-next')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('pile-done')));
+    await tester.pumpAndSettle();
+
+    // The page is a window on the pile, not a form that resets.
+    expect(arranged, [(cardId: 'c1', to: Landing.hand)]);
+  });
 }
