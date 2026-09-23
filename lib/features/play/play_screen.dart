@@ -208,7 +208,15 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _Across(graveyard: _pile(m, graveyard, width: card)),
+                  _Across(
+                    graveyard: _pile(m, graveyard, width: card),
+                    // Across from the deck, with the graveyard, because that
+                    // is where the canvas had to put it: three things do not
+                    // fit the right strip of a 380 unit station, measured at
+                    // 395 against 380. Two views that disagree about which
+                    // hand you reach with is worse than either arrangement.
+                    makeToken: _tokenButton(m, width: card),
+                  ),
                   SizedBox(width: gap),
                   Expanded(
                     child: CursorBoard(
@@ -252,7 +260,6 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                       )),
                       onWork: _workTheDeck,
                     ),
-                    makeToken: _tokenButton(m, width: card),
                   ),
                 ],
               );
@@ -750,13 +757,19 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
 ///
 /// It scrolls rather than overflowing, for the same reason [_Beside] does.
 class _Across extends StatelessWidget {
-  const _Across({required this.graveyard});
+  const _Across({required this.graveyard, required this.makeToken});
 
   final Widget graveyard;
+  final Widget makeToken;
 
   @override
-  Widget build(BuildContext context) =>
-      SingleChildScrollView(child: graveyard);
+  Widget build(BuildContext context) => SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [graveyard, const SizedBox(height: 12), makeToken],
+        ),
+      );
 }
 
 /// The corner, the deck and the token button, standing beside your own mat.
@@ -775,7 +788,6 @@ class _Beside extends StatelessWidget {
     required this.metrics,
     required this.command,
     required this.library,
-    required this.makeToken,
   });
 
   final Metrics metrics;
@@ -786,11 +798,6 @@ class _Beside extends StatelessWidget {
   final Widget? command;
 
   final Widget library;
-
-  /// Last, under the deck. A token is the one thing in this column that is not
-  /// already a pile of cards, and it is also the one nobody reaches for in the
-  /// first minute of a game.
-  final Widget makeToken;
 
   @override
   Widget build(BuildContext context) {
@@ -806,8 +813,6 @@ class _Beside extends StatelessWidget {
             SizedBox(height: m.scaled(12)),
           ],
           library,
-          SizedBox(height: m.scaled(12)),
-          makeToken,
         ],
       ),
     );

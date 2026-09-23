@@ -804,6 +804,32 @@ void main() {
     expect(find.byKey(const Key('mat-battlefield-s1')), findsOneWidget);
   });
 
+  testWidgets('the token control is on the same side in both views',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await _seatedPod(tester, ['you'],
+        window: const Size(1280, 800), withCommander: true);
+    await tester.pumpAndSettle();
+
+    final onCanvas =
+        tester.getRect(find.byKey(const Key('make-token'))).center.dx;
+    final canvasBoard = tester.getRect(find.byType(FreeCanvas)).center.dx;
+
+    await tester.tap(find.byKey(const Key('switch-renderer')));
+    await tester.pumpAndSettle();
+
+    final inBands =
+        tester.getRect(find.byKey(const Key('make-token'))).center.dx;
+    final bandsBoard =
+        tester.getRect(find.byKey(const Key('your-board'))).center.dx;
+
+    // The canvas ran out of room in the right strip and put the token across
+    // with the graveyard, so the two views disagreed about which hand you
+    // reach with. Same side in both, whichever side that is.
+    expect(onCanvas < canvasBoard, inBands < bandsBoard,
+        reason: 'the token control swaps sides between the two views');
+  });
+
   testWidgets('the graveyard is on the far side from the deck',
       (tester) async {
     await _seatedPod(tester, ['you'], withCommander: true);

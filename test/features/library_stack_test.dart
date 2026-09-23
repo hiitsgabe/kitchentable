@@ -6,6 +6,7 @@ import 'package:kitchentable/ui/atoms/card_art.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
 Widget _host({
+  String? label,
   int count = 60,
   double width = 70,
   Game? game,
@@ -18,6 +19,7 @@ Widget _host({
           child: LibraryStack(
             metrics: Metrics.of(DeviceClass.handheld),
             count: count,
+          label: label,
             width: width,
             game: game,
             onDraw: onDraw ?? () {},
@@ -28,6 +30,22 @@ Widget _host({
     );
 
 void main() {
+  testWidgets('the label never makes the pile wider than a card',
+      (tester) async {
+    await tester.pumpWidget(_host(count: 53, label: 'Graveyard'));
+    await tester.pump();
+
+    final pile = tester.getSize(find.byKey(const Key('library-stack')));
+    final whole = tester.getSize(find.byType(LibraryStack));
+
+    // A word longer than the pile it names used to set the column's width,
+    // and the column's width comes out of the board: on a 390 point phone
+    // "Graveyard" made the left column 92.3 points against the 19.2 the
+    // board's arithmetic budgets, and the card on the board went from 36.0 to
+    // 24.5, a third smaller, for a caption.
+    expect(whole.width, lessThanOrEqualTo(pile.width + 1));
+  });
+
   testWidgets('it says how many are left', (tester) async {
     await tester.pumpWidget(_host(count: 53));
 

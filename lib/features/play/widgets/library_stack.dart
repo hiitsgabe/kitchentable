@@ -148,9 +148,22 @@ class LibraryStack extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (word != null) ...[
-          Text(
-            word,
-            style: TextStyle(fontSize: m.scaled(10), color: Palette.inkFaint),
+          // Boxed to the pile's own width and allowed to shrink inside it. A
+          // caption longer than the thing it names used to set this column's
+          // width, and the column's width comes out of the board: on a 390
+          // point phone "Graveyard" made the column 92.3 points against the
+          // 19.2 the board's arithmetic budgets, and the card on the board
+          // went a third smaller for a word.
+          SizedBox(
+            width: width + lift,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                word,
+                style:
+                    TextStyle(fontSize: m.scaled(10), color: Palette.inkFaint),
+              ),
+            ),
           ),
           SizedBox(height: m.scaled(4)),
         ],
