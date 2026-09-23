@@ -1,13 +1,17 @@
+import 'dart:math' as math;
 import 'dart:ui' show clampDouble;
 
 import 'package:flutter/material.dart';
 
+import '../../../decks/model/game.dart';
 import '../../../sources/model/catalog_card.dart';
 import '../../../table/model/card_instance.dart';
 import '../../../table/view/seat_view.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import '../widgets/card_drag.dart';
+import '../widgets/command_slot.dart';
+import '../widgets/library_stack.dart';
 import '../widgets/table_card.dart';
 import 'mat_layout.dart';
 
@@ -16,7 +20,7 @@ import 'mat_layout.dart';
 /// Only battlefields are here. A hand belongs to one person and lives in its
 /// own sheet below the board, which is the Arena rule the spec pins by
 /// geometry: you must be able to look at your hand and the table at once.
-class FreeCanvas extends StatelessWidget {
+class FreeCanvas extends StatefulWidget {
   const FreeCanvas({
     super.key,
     required this.metrics,
@@ -26,6 +30,13 @@ class FreeCanvas extends StatelessWidget {
     required this.onTapCard,
     required this.onInspectCard,
     required this.onPlace,
+    required this.onDraw,
+    required this.onWorkDeck,
+    this.libraryCount = 0,
+    this.commandCards,
+    this.game,
+    this.onPlayCommand,
+    this.onSendHome,
     this.turnSeatId,
     this.cardScale = 1,
   });
@@ -41,6 +52,34 @@ class FreeCanvas extends StatelessWidget {
   /// mat. Somebody else's card never reports: it is theirs to move.
   final void Function(String cardId, double x, double y) onPlace;
 
+  /// How many cards are left in your own deck.
+  ///
+  /// A number and not a pile, because a library is hidden from everybody, its
+  /// owner included, and a `SeatView` correctly carries no cards for it. The
+  /// count is public at a real table and is all the pile needs.
+  final int libraryCount;
+
+  /// Whatever is standing in your command zone.
+  ///
+  /// Null in a format without commanders, which is not the same as an empty
+  /// corner: an empty corner is still drawn, because a corner that comes and
+  /// goes reads as a bug rather than as a rule.
+  final List<CardInstance>? commandCards;
+
+  /// Whose back your deck is drawn with. Null draws the plain box.
+  final Game? game;
+
+  final VoidCallback onDraw;
+
+  /// Shuffling and looking at the top, which is the deck's second button.
+  final VoidCallback onWorkDeck;
+
+  /// A tap on a card standing in the command corner, which puts it out.
+  final void Function(CardInstance)? onPlayCommand;
+
+  /// A card let go over the command corner, which sends it there.
+  final void Function(CardInstance)? onSendHome;
+
   final String? turnSeatId;
 
   /// The player's own multiplier on the card size. One is the surface exactly
@@ -48,42 +87,108 @@ class FreeCanvas extends StatelessWidget {
   final double cardScale;
 
   @override
-  Widget build(BuildContext context) {
-    final surface = surfaceFor(seats.length);
+  State<FreeCanvas> createState() => _FreeCanvasState();
+}
 
-    return InteractiveViewer(
-      constrained: false,
-      minScale: 0.2,
-      maxScale: 2.5,
-      boundaryMargin: const EdgeInsets.all(matGap),
-      child: SizedBox(
-        width: surface.width,
-        height: surface.height,
-        child: Stack(
-          children: [
-            // Walked in seat order and not in table order, so your own mat
-            // is the one at the bottom, next to your hand.
-            for (final (slot, seatAt) in seatOrder(
-              count: seats.length,
-              viewerAt: seats.indexWhere((s) => s.seatId == viewerSeatId),
-            ).indexed)
-              Positioned.fromRect(
-                rect: matFor(slot, seats.length),
-                child: _Mat(
-                  metrics: metrics,
-                  seat: seats[seatAt],
-                  printings: printings,
-                  isViewer: seats[seatAt].seatId == viewerSeatId,
-                  isTurn: seats[seatAt].seatId == turnSeatId,
-                  onTapCard: onTapCard,
-                  onInspectCard: onInspectCard,
-                  onPlace: onPlace,
-                  cardScale: cardScale,
-                ),
-              ),
-          ],
-        ),
-      ),
+class _FreeCanvasState extends State<FreeCanvas> {
+  final _view = TransformationController();
+
+  /// Whether the table has been fitted to the window once already. After that
+  /// the view is the player's: a fit that ran again would undo every pan.
+  bool _fitted = false;
+
+  @override
+  void dispose() {
+    _view.dispose();
+    super.dispose();
+  }
+
+  /// Fits the whole table in the window the first time it is laid out.
+  ///
+  /// `InteractiveViewer` with `constrained: false` starts at one to one with
+  /// the surface pinned to the top left, so a table of three opened with two
+  /// of its mats past the edge and nothing saying so. Only the first time:
+  /// after that the view is the player's.
+  ///
+  /// A gap of room is taken off first so that the table sits inside the window
+  /// rather than flush against two of its edges. Exactly to the window, the
+  /// far mat's edge lands on the viewport's own edge, which is both a table
+  /// with no room around it and a rectangle that does not contain its own
+  /// boundary.
+  void _fitOnce(Size viewport, Size surface) {
+    if (_fitted) return;
+    _fitted = true;
+    final scale = math.min(
+      (viewport.width - matGap) / surface.width,
+      (viewport.height - matGap) / surface.height,
+    );
+    if (scale <= 0 || !scale.isFinite) return;
+    // scaleByDouble and not scale: the one argument form scales all three
+    // axes too and is the one anybody would write, and it is deprecated.
+    _view.value = Matrix4.identity()..scaleByDouble(scale, scale, scale, 1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final surface = surfaceFor(widget.seats.length);
+    final seats = widget.seats;
+
+    return LayoutBuilder(
+      builder: (context, box) {
+        // From a post frame callback and not from here: a
+        // TransformationController tells its listeners the moment it is
+        // written to, and the InteractiveViewer listening to this one is in
+        // the middle of the layout that called this builder.
+        if (!_fitted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _fitOnce(box.biggest, surface);
+          });
+        }
+
+        return InteractiveViewer(
+          transformationController: _view,
+          constrained: false,
+          minScale: 0.2,
+          maxScale: 2.5,
+          boundaryMargin: const EdgeInsets.all(matGap),
+          child: SizedBox(
+            width: surface.width,
+            height: surface.height,
+            child: Stack(
+              children: [
+                // Walked in seat order and not in table order, so your own mat
+                // is the one at the bottom, next to your hand.
+                for (final (slot, seatAt) in seatOrder(
+                  count: seats.length,
+                  viewerAt:
+                      seats.indexWhere((s) => s.seatId == widget.viewerSeatId),
+                ).indexed)
+                  Positioned.fromRect(
+                    rect: matFor(slot, seats.length),
+                    child: _Mat(
+                      metrics: widget.metrics,
+                      seat: seats[seatAt],
+                      printings: widget.printings,
+                      isViewer: seats[seatAt].seatId == widget.viewerSeatId,
+                      isTurn: seats[seatAt].seatId == widget.turnSeatId,
+                      onTapCard: widget.onTapCard,
+                      onInspectCard: widget.onInspectCard,
+                      onPlace: widget.onPlace,
+                      cardScale: widget.cardScale,
+                      libraryCount: widget.libraryCount,
+                      commandCards: widget.commandCards,
+                      game: widget.game,
+                      onDraw: widget.onDraw,
+                      onWorkDeck: widget.onWorkDeck,
+                      onPlayCommand: widget.onPlayCommand,
+                      onSendHome: widget.onSendHome,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -99,6 +204,13 @@ class _Mat extends StatelessWidget {
     required this.onInspectCard,
     required this.onPlace,
     required this.cardScale,
+    required this.libraryCount,
+    required this.commandCards,
+    required this.game,
+    required this.onDraw,
+    required this.onWorkDeck,
+    required this.onPlayCommand,
+    required this.onSendHome,
   });
 
   final Metrics metrics;
@@ -110,6 +222,13 @@ class _Mat extends StatelessWidget {
   final void Function(CardInstance) onInspectCard;
   final void Function(String cardId, double x, double y) onPlace;
   final double cardScale;
+  final int libraryCount;
+  final List<CardInstance>? commandCards;
+  final Game? game;
+  final VoidCallback onDraw;
+  final VoidCallback onWorkDeck;
+  final void Function(CardInstance)? onPlayCommand;
+  final void Function(CardInstance)? onSendHome;
 
   /// The card as this mat lays it out. The whole size scales and not just the
   /// drawn width, so a bigger card is still centred on its own spot and still
@@ -140,6 +259,16 @@ class _Mat extends StatelessWidget {
         ),
         for (var i = 0; i < cards.length; i++)
           _place(cards[i], i),
+        // Last, so it is over the cards rather than under them. Nothing
+        // reserves this corner: a battlefield flows from the top left and a
+        // player drags a card wherever they like, which is the problem a real
+        // table has and answers the same way.
+        if (isViewer)
+          Positioned(
+            right: matPadding,
+            top: matPadding,
+            child: _furniture(),
+          ),
       ],
     );
 
@@ -157,6 +286,47 @@ class _Mat extends StatelessWidget {
       // letting go over nothing, and the card stays where it was, which is
       // what it did when a foreign card simply could not be picked up.
       child: isViewer ? CardDropTarget(onDrop: _drop, child: surface) : surface,
+    );
+  }
+
+  /// The command corner and your deck, standing on your own side of the table.
+  ///
+  /// Drawn at `cardOnMat.width` and not at the mat's own `_cardSize`: this is
+  /// a card at the surface's scale, which is what the whole canvas zooms. The
+  /// player's card size runs to twice life size, and a corner and a pile that
+  /// followed it would stand taller than the 380 units a mat has.
+  Widget _furniture() {
+    final m = metrics;
+    final width = cardOnMat.width;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (commandCards case final corner?) ...[
+          CommandSlot(
+            metrics: m,
+            cards: corner,
+            printings: printings,
+            width: width,
+            onTap: (c) => onPlayCommand?.call(c),
+            onInspect: onInspectCard,
+            onSendHome: (c) => onSendHome?.call(c),
+          ),
+          SizedBox(height: m.scaled(10)),
+        ],
+        KeyedSubtree(
+          key: Key('canvas-library-${seat.seatId}'),
+          child: LibraryStack(
+            metrics: m,
+            count: libraryCount,
+            width: width,
+            game: game,
+            onDraw: onDraw,
+            onWork: onWorkDeck,
+          ),
+        ),
+      ],
     );
   }
 

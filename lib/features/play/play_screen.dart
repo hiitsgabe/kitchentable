@@ -319,6 +319,31 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                               viewerSeatId: viewerId,
                               printings: _printings,
                               turnSeatId: table.turnSeatId,
+                              // Your own deck and your own corner, on the mat
+                              // they belong to. The bands drew both and the
+                              // canvas drew neither, so opening the wide view
+                              // was opening a table with no deck on it.
+                              libraryCount: library.size,
+                              commandCards: command?.cards,
+                              game: play.gameAt(seat.id),
+                              onDraw: () => play.run(DrawCards(
+                                fromZoneId: library.id,
+                                toZoneId: hand.id,
+                                count: 1,
+                              )),
+                              onWorkDeck: _workTheDeck,
+                              onPlayCommand: (c) => play.run(
+                                MoveCard(
+                                  cardId: c.id,
+                                  toZoneId: battlefield.id,
+                                ),
+                              ),
+                              onSendHome: command == null
+                                  ? null
+                                  : (c) => play.run(MoveCard(
+                                        cardId: c.id,
+                                        toZoneId: command.id,
+                                      )),
                               onTapCard: (c) => play.run(RotateCard(c.id)),
                               onInspectCard: _inspect,
                               // Only your own mat takes a drop, and yours is

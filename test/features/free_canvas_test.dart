@@ -38,8 +38,11 @@ Seat _seat(String id, {int board = 1, int hand = 2}) => Seat(
 Widget _host(
   List<Seat> seats, {
   String viewer = 's1',
+  int libraryCount = 0,
   void Function(CardInstance)? onTapCard,
   void Function(String cardId, double x, double y)? onPlace,
+  VoidCallback? onDraw,
+  VoidCallback? onWorkDeck,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -48,9 +51,12 @@ Widget _host(
           seats: [for (final s in seats) SeatView.of(s, viewer: viewer)],
           viewerSeatId: viewer,
           printings: const {},
+          libraryCount: libraryCount,
           onTapCard: onTapCard ?? (_) {},
           onInspectCard: (_) {},
           onPlace: onPlace ?? (_, _, _) {},
+          onDraw: onDraw ?? () {},
+          onWorkDeck: onWorkDeck ?? () {},
         ),
       ),
     );
@@ -205,9 +211,22 @@ void main() {
     // a mat unit are different lengths, and a drop that confused the two
     // would overshoot by the zoom factor. That is the mistake the old pan
     // based drag was written in local coordinates to avoid.
-    final middle = tester.getCenter(find.byType(FreeCanvas));
-    final left = await tester.startGesture(middle - const Offset(60, 0));
-    final right = await tester.startGesture(middle + const Offset(60, 0));
+    //
+    // A finger either side of the card and never on it, about its own centre,
+    // which keeps it where it is while the table opens around it. Two fingers
+    // at the middle of the screen was the same thing while the canvas opened
+    // at one to one and the card sat below them; fitted, the mat is drawn
+    // bigger and the card grew up into that spot. A finger that lands on a
+    // card is the card's, the viewer is then left holding one pointer, the
+    // span of a one finger pinch is zero and InteractiveViewer asserts on a
+    // scale of zero instead of zooming.
+    final box = tester.getRect(find.byType(TableCard).first);
+    final left = await tester.startGesture(
+      Offset(box.left - 40, box.center.dy),
+    );
+    final right = await tester.startGesture(
+      Offset(box.right + 40, box.center.dy),
+    );
     await tester.pump();
     await left.moveBy(const Offset(-60, 0));
     await right.moveBy(const Offset(60, 0));
@@ -278,6 +297,78 @@ void main() {
       expect(mine.top, greaterThanOrEqualTo(
         tester.getRect(find.byKey(Key('mat-$id'))).top,
       ), reason: 'mat $id should not be below yours');
+    }
+  });
+
+  testWidgets('your own deck is on the table', (tester) async {
+    await tester.pumpWidget(_host(
+      [_seat('s1'), _seat('s2')],
+      libraryCount: 53,
+    ));
+    await tester.pump();
+
+    expect(find.byKey(const Key('canvas-library-s1')), findsOneWidget);
+    expect(find.text('53'), findsOneWidget);
+  });
+
+  testWidgets('nobody else s deck is', (tester) async {
+    await tester.pumpWidget(_host(
+      [_seat('s1'), _seat('s2')],
+      libraryCount: 53,
+    ));
+    await tester.pump();
+
+    // How many cards somebody else has left is public at a real table, but
+    // their pile is theirs and drawing it here would mean drawing a control
+    // that does nothing. The bands already say the number.
+    expect(find.byKey(const Key('canvas-library-s2')), findsNothing);
+  });
+
+  testWidgets('a spectator sees nobody s deck', (tester) async {
+    await tester.pumpWidget(_host(
+      [_seat('s1'), _seat('s2')],
+      viewer: '',
+      libraryCount: 53,
+    ));
+    await tester.pump();
+
+    expect(find.byKey(const Key('canvas-library-s1')), findsNothing);
+    expect(find.byKey(const Key('canvas-library-s2')), findsNothing);
+  });
+
+  testWidgets('tapping it draws', (tester) async {
+    var drew = 0;
+    await tester.pumpWidget(_host(
+      [_seat('s1')],
+      libraryCount: 53,
+      onDraw: () => drew++,
+    ));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('library-draw')));
+    await tester.pump();
+
+    expect(drew, 1);
+  });
+
+  testWidgets('the whole table is on screen when it opens', (tester) async {
+    tester.view.physicalSize = const Size(1294, 986);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_host([_seat('s1'), _seat('s2'), _seat('s3')]));
+    await tester.pumpAndSettle();
+
+    final viewport = tester.getRect(find.byType(FreeCanvas));
+    for (final id in ['s1', 's2', 's3']) {
+      final mat = tester.getRect(find.byKey(Key('mat-$id')));
+      // An InteractiveViewer with constrained false starts at one to one with
+      // the surface pinned to the top left, so a three seat table opened with
+      // two of its mats off the screen and the player had to find them.
+      expect(viewport.contains(mat.topLeft), isTrue,
+          reason: 'mat $id starts off screen');
+      expect(viewport.contains(mat.bottomRight), isTrue,
+          reason: 'mat $id runs off screen');
     }
   });
 }
