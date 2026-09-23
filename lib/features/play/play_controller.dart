@@ -191,6 +191,7 @@ class PlayController extends Notifier<TableState?> {
   void leave() {
     _session = null;
     _games = const {};
+    _deckSizes = const {};
     _commanders = const {};
     _clearRefusal();
     ref.read(viewerSeatProvider.notifier).sit(null);
