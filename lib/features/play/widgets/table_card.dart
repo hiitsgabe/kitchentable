@@ -69,6 +69,9 @@ class TableCard extends StatelessWidget {
       GestureDetector(
         onTap: onTap,
         onLongPress: onLongPress,
+        // The same door a hold opens, on the button a mouse already has. Two
+        // gestures onto one callback, not two menus to keep in step.
+        onSecondaryTap: onLongPress,
         behavior: HitTestBehavior.opaque,
         child: AnimatedRotation(
           turns: instance.rotation / 360,
