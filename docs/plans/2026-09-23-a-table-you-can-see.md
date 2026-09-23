@@ -612,11 +612,17 @@ it once from a `LayoutBuilder`, after the first layout:
   void _fitOnce(Size viewport, Size surface) {
     if (_fitted) return;
     _fitted = true;
+    // A matGap off each axis first. Without it a three seat surface of 1320
+    // by 800 in a 1294 by 986 window scales to exactly 1294 / 1320 and the
+    // far mat's right edge lands on 1294.0, which `Rect.contains` excludes
+    // because it tests `dx < right`. It also stops the table being drawn
+    // flush against two window edges.
     final scale = math.min(
-      viewport.width / surface.width,
-      viewport.height / surface.height,
+      (viewport.width - matGap) / surface.width,
+      (viewport.height - matGap) / surface.height,
     );
-    _view.value = Matrix4.identity()..scale(scale);
+    // `Matrix4..scale(double)` is deprecated and takes analyze off clean.
+    _view.value = Matrix4.identity()..scaleByDouble(scale, scale, scale, 1);
   }
 ```
 
@@ -632,6 +638,29 @@ The existing canvas cases assert positions and drops. The fit changes the
 scale the surface is drawn at, so a `getRect` on a card now reports a scaled
 rect. **Report every case that moved with its numbers before changing
 anything.** The drop cases report normalized values and should not move.
+
+**One of them breaks anyway, and not on its assertion.** `a drop on a zoomed
+table is still in mat units` pinches at two hardcoded screen points. The fit
+scales a one seat surface *up* to 1.1875 in an 800 by 600 window, which moves
+the card to `Rect.fromLTRB(327.8, 171.2, 434.6, 320.5)`, so the left finger at
+(340, 300) now lands on the `Draggable`. The card takes that pointer,
+`InteractiveViewer` is left holding one, a one finger pinch has a span of
+zero, and it asserts `scale != 0.0` before the case's own assertion runs.
+Derive the two fingers from the card's own rect instead, either side of it and
+never on it, which pinches about the card's centre and keeps it still while
+the table opens around it.
+
+While you are in that case: its `expect(zoom, greaterThan(1.2))` is 0.0125
+from passing with no pinch at all, since the fit alone is 1.1875. Read the
+scale before the pinch and ask for a third more after, so it cannot go vacuous
+the next time a seat is added.
+
+**Four cases do not move, and the reason is a small lie worth knowing.**
+`every seat gets a mat`, `a battlefield is drawn for everybody`, `no hand is
+on the canvas` and `a card that says where it is goes there` never pump a
+second frame, and setting the controller only marks the viewer for rebuild, so
+those four measure an unfitted canvas: a state the app no longer ever shows.
+Leave them; re-measuring four sets of positions belongs in its own change.
 
 - [ ] **Step 5: Probe**
 
@@ -665,10 +694,18 @@ throw a card at and a sheet to read it. Both are shapes this app already has:
 
 **Files:**
 - Create: `lib/features/play/widgets/pile_sheet.dart`
+- Create: `lib/features/play/widgets/sheet_parts.dart` (what the two sheets share)
+- Modify: `lib/features/play/widgets/deck_sheet.dart` (it gives the shared parts up)
 - Modify: `lib/features/play/widgets/library_stack.dart`
+- Modify: `lib/features/play/look_at_top.dart` (`arrange` gains `fromLibrary`)
 - Modify: `lib/features/play/play_screen.dart`
 - Modify: `lib/features/play/renderers/free_canvas.dart`
-- Test: `test/features/pile_sheet_test.dart`, `test/features/play_screen_test.dart`
+- Test: `test/features/pile_sheet_test.dart`, `test/features/play_screen_test.dart`, `test/features/look_at_top_test.dart`
+
+The canvas gets no case in the steps below and needs one, at a wide window,
+or the canvas half of Step 6 ships untested. It needs
+`SharedPreferences.setMockInitialValues({})`, because a case above it taps the
+renderer button and the stored choice beats the width.
 
 - [ ] **Step 1: Write the failing test for looking inside**
 
@@ -791,8 +828,14 @@ ones. The differences, all of them because a graveyard is not a library:
 - **There is no shuffle.**
 - **There is no default destination.** In the deck sheet every card is going
   back on top unless you say otherwise; here a card nobody touched stays where
-  it is, so `onArrange` reports only what was moved. `arrange` handles that
-  already: it only emits a move for a placement it is given.
+  it is, so `onArrange` reports only what was moved.
+
+  **`arrange` does not handle this already, whatever an earlier draft of this
+  sentence said.** Its bottom index is `librarySize - gone - 1`, and the minus
+  one is there because `_move` lifts a card out of the library before putting
+  it back. A graveyard card was never in the library, so the pile is one
+  longer when it lands and bottoming it puts it second from the bottom. Give
+  `arrange` a `fromLibrary` and a case: no existing case covers it.
 - **The destinations are `hand`, `top` and `bottom`**, which is enough for
   regrowth, for a tutor that puts a card back, and for the two thirds of
   Magic's graveyard effects that do one of those.
@@ -880,8 +923,16 @@ Expected: PASS and `No issues found!`, WARNING and Warning both 0.
 Make the graveyard's drop target ignore the drop: the first screen case fails
 on the graveyard not containing the card. Then make `onArrange` report every
 card rather than only the moved ones: the fourth sheet case fails on
-`isEmpty`. Then draw the graveyard face down: say what fails, and if nothing
-does, say that and whether it earns a case.
+`isEmpty`. Then draw the graveyard face down. **Nothing fails**, because the only cases
+with a card in the graveyard run without a catalog, so `_printings` is empty
+and both ends draw a card back whatever `faceUp` says: the flag is
+unobservable from the suite. Face up is the whole difference between this pile
+and the deck beside it, so it earns a case, with a catalog.
+
+Then draw the other end of the pile. `MoveCard` with no `at` reaches
+`Zone.add`, which inserts at nought, so the newest card is `cards.first`,
+which is what `Zone.top` returns for an ordered zone. The trap resolves in
+`Zone.top`'s favour and a case is what stops somebody tidying it to `.last`.
 
 Say which assertion each time, with its line. Edit each back by hand and
 rerun.
