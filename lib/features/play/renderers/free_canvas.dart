@@ -146,6 +146,21 @@ class _FreeCanvasState extends State<FreeCanvas> {
     _view.value = Matrix4.identity()..scaleByDouble(scale, scale, scale, 1);
   }
 
+  /// One of the two strips a seat's station keeps beside its mat.
+  ///
+  /// Read off the station and not off the mat, so the furniture cannot land on
+  /// the battlefield however the grid is laid out.
+  Rect _strip(int slot, int count, {required bool onTheLeft}) {
+    final station = stationFor(slot, count);
+
+    return Rect.fromLTWH(
+      onTheLeft ? station.left : station.right - matAside,
+      station.top,
+      matAside,
+      station.height,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final surface = surfaceFor(widget.seats.length);
@@ -180,11 +195,10 @@ class _FreeCanvasState extends State<FreeCanvas> {
                   count: seats.length,
                   viewerAt:
                       seats.indexWhere((s) => s.seatId == widget.viewerSeatId),
-                ).indexed)
+                ).indexed) ...[
                   Positioned.fromRect(
                     rect: matFor(slot, seats.length),
                     child: _Mat(
-                      tokenButton: widget.tokenButton,
                       metrics: widget.metrics,
                       seat: seats[seatAt],
                       printings: widget.printings,
@@ -194,16 +208,40 @@ class _FreeCanvasState extends State<FreeCanvas> {
                       onInspectCard: widget.onInspectCard,
                       onPlace: widget.onPlace,
                       cardScale: widget.cardScale,
-                      libraryCount: widget.libraryCount,
-                      commandCards: widget.commandCards,
-                      graveyard: widget.graveyard,
-                      game: widget.game,
-                      onDraw: widget.onDraw,
-                      onWorkDeck: widget.onWorkDeck,
-                      onPlayCommand: widget.onPlayCommand,
-                      onSendHome: widget.onSendHome,
                     ),
                   ),
+                  // In the strips beside the mat and not in it. Stacked inside
+                  // the mat's own rect the corner and the piles sat over the
+                  // battlefield at every zoom, and the token button ran off
+                  // the bottom edge of the mat itself.
+                  if (seats[seatAt].seatId == widget.viewerSeatId) ...[
+                    Positioned.fromRect(
+                      rect: _strip(slot, seats.length, onTheLeft: true),
+                      child: _Across(
+                        metrics: widget.metrics,
+                        seatId: widget.viewerSeatId,
+                        graveyard: widget.graveyard,
+                        tokenButton: widget.tokenButton,
+                      ),
+                    ),
+                    Positioned.fromRect(
+                      rect: _strip(slot, seats.length, onTheLeft: false),
+                      child: _Aside(
+                        metrics: widget.metrics,
+                        seatId: widget.viewerSeatId,
+                        printings: widget.printings,
+                        libraryCount: widget.libraryCount,
+                        commandCards: widget.commandCards,
+                        game: widget.game,
+                        onInspectCard: widget.onInspectCard,
+                        onDraw: widget.onDraw,
+                        onWorkDeck: widget.onWorkDeck,
+                        onPlayCommand: widget.onPlayCommand,
+                        onSendHome: widget.onSendHome,
+                      ),
+                    ),
+                  ],
+                ],
               ],
             ),
           ),
@@ -215,7 +253,6 @@ class _FreeCanvasState extends State<FreeCanvas> {
 
 class _Mat extends StatelessWidget {
   const _Mat({
-    this.tokenButton,
     required this.metrics,
     required this.seat,
     required this.printings,
@@ -225,14 +262,6 @@ class _Mat extends StatelessWidget {
     required this.onInspectCard,
     required this.onPlace,
     required this.cardScale,
-    required this.libraryCount,
-    required this.commandCards,
-    required this.graveyard,
-    required this.game,
-    required this.onDraw,
-    required this.onWorkDeck,
-    required this.onPlayCommand,
-    required this.onSendHome,
   });
 
   final Metrics metrics;
@@ -244,18 +273,6 @@ class _Mat extends StatelessWidget {
   final void Function(CardInstance) onInspectCard;
   final void Function(String cardId, double x, double y) onPlace;
   final double cardScale;
-  final int libraryCount;
-  final List<CardInstance>? commandCards;
-  final Widget? graveyard;
-
-  /// Built by the screen and handed over, the way [graveyard] is, so the deck
-  /// and the token control cannot drift apart between the two renderers.
-  final Widget? tokenButton;
-  final Game? game;
-  final VoidCallback onDraw;
-  final VoidCallback onWorkDeck;
-  final void Function(CardInstance)? onPlayCommand;
-  final void Function(CardInstance)? onSendHome;
 
   /// The card as this mat lays it out. The whole size scales and not just the
   /// drawn width, so a bigger card is still centred on its own spot and still
@@ -286,16 +303,6 @@ class _Mat extends StatelessWidget {
         ),
         for (var i = 0; i < cards.length; i++)
           _place(cards[i], i),
-        // Last, so it is over the cards rather than under them. Nothing
-        // reserves this corner: a battlefield flows from the top left and a
-        // player drags a card wherever they like, which is the problem a real
-        // table has and answers the same way.
-        if (isViewer)
-          Positioned(
-            right: matPadding,
-            top: matPadding,
-            child: _furniture(),
-          ),
       ],
     );
 
@@ -313,67 +320,6 @@ class _Mat extends StatelessWidget {
       // letting go over nothing, and the card stays where it was, which is
       // what it did when a foreign card simply could not be picked up.
       child: isViewer ? CardDropTarget(onDrop: _drop, child: surface) : surface,
-    );
-  }
-
-  /// The command corner, your deck and your graveyard, standing on your own
-  /// side of the table.
-  ///
-  /// Drawn at `cardOnMat.width` and not at the mat's own `_cardSize`: this is
-  /// a card at the surface's scale, which is what the whole canvas zooms. The
-  /// player's card size runs to twice life size, and a corner and a pile that
-  /// followed it would stand taller than the 380 units a mat has.
-  Widget _furniture() {
-    final m = metrics;
-    final width = cardOnMat.width;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        if (commandCards case final corner?) ...[
-          CommandSlot(
-            metrics: m,
-            cards: corner,
-            printings: printings,
-            width: width,
-            onTap: (c) => onPlayCommand?.call(c),
-            onInspect: onInspectCard,
-            onSendHome: (c) => onSendHome?.call(c),
-          ),
-          SizedBox(height: m.scaled(10)),
-        ],
-        // Side by side and not one under the other: stacked, the corner and
-        // two piles stand taller than the 380 units a mat has.
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (graveyard case final pile?) ...[
-              KeyedSubtree(
-                key: Key('canvas-graveyard-${seat.seatId}'),
-                child: pile,
-              ),
-              SizedBox(width: m.scaled(10)),
-            ],
-            KeyedSubtree(
-              key: Key('canvas-library-${seat.seatId}'),
-              child: LibraryStack(
-                metrics: m,
-                count: libraryCount,
-                width: width,
-                game: game,
-                onDraw: onDraw,
-                onWork: onWorkDeck,
-              ),
-            ),
-          ],
-        ),
-        if (tokenButton case final button?) ...[
-          SizedBox(height: m.scaled(10)),
-          SizedBox(width: width, child: button),
-        ],
-      ],
     );
   }
 
@@ -422,6 +368,117 @@ class _Mat extends StatelessWidget {
       card.id,
       clampDouble(at.dx / matSize.width, 0, 1),
       clampDouble((at.dy - matPadding) / matSize.height, 0, 1),
+    );
+  }
+}
+
+/// The command corner and your deck, standing in the strip on your own side of
+/// the table.
+///
+/// Beside the mat and not on it. Stacked inside the mat's own rect the corner
+/// and the piles sat over the battlefield at every zoom, and whatever did not
+/// fit ran off the mat's bottom edge: the player's words were out of the view.
+///
+/// Drawn at `cardOnMat.width` and not at the mat's own card size: this is a
+/// card at the surface's scale, which is what the whole canvas zooms. The
+/// player's card size runs to twice life size, and a corner and a pile that
+/// followed it would stand taller than the 380 units a mat has.
+class _Aside extends StatelessWidget {
+  const _Aside({
+    required this.metrics,
+    required this.seatId,
+    required this.printings,
+    required this.libraryCount,
+    required this.commandCards,
+    required this.game,
+    required this.onInspectCard,
+    required this.onDraw,
+    required this.onWorkDeck,
+    required this.onPlayCommand,
+    required this.onSendHome,
+  });
+
+  final Metrics metrics;
+  final String seatId;
+  final Map<String, CatalogCard> printings;
+  final int libraryCount;
+  final List<CardInstance>? commandCards;
+  final Game? game;
+  final void Function(CardInstance) onInspectCard;
+  final VoidCallback onDraw;
+  final VoidCallback onWorkDeck;
+  final void Function(CardInstance)? onPlayCommand;
+  final void Function(CardInstance)? onSendHome;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+    final width = cardOnMat.width;
+
+    return Column(
+      children: [
+        if (commandCards case final corner?) ...[
+          CommandSlot(
+            metrics: m,
+            cards: corner,
+            printings: printings,
+            width: width,
+            onTap: (c) => onPlayCommand?.call(c),
+            onInspect: onInspectCard,
+            onSendHome: (c) => onSendHome?.call(c),
+          ),
+          SizedBox(height: m.scaled(10)),
+        ],
+        KeyedSubtree(
+          key: Key('canvas-library-$seatId'),
+          child: LibraryStack(
+            metrics: m,
+            count: libraryCount,
+            width: width,
+            game: game,
+            onDraw: onDraw,
+            onWork: onWorkDeck,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The graveyard and the token button, in the strip across the mat from the
+/// deck.
+///
+/// Which is where a graveyard sits at a table once the library is by your
+/// right hand. The token button comes with it because the three of them do not
+/// fit on the other side: the corner, the deck and the button stand 395 units
+/// tall between them and a station is the mat's own 380, so one of them had to
+/// cross the mat, and the button is the one item that is not a pile of cards.
+class _Across extends StatelessWidget {
+  const _Across({
+    required this.metrics,
+    required this.seatId,
+    required this.graveyard,
+    required this.tokenButton,
+  });
+
+  final Metrics metrics;
+  final String seatId;
+  final Widget? graveyard;
+  final Widget? tokenButton;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+
+    return Column(
+      children: [
+        if (graveyard case final pile?)
+          KeyedSubtree(key: Key('canvas-graveyard-$seatId'), child: pile),
+        if (tokenButton case final button?) ...[
+          SizedBox(height: m.scaled(10)),
+          SizedBox(width: cardOnMat.width, child: button),
+        ],
+      ],
     );
   }
 }

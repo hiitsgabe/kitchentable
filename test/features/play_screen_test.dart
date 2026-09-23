@@ -786,6 +786,59 @@ void main() {
       {'damage': 1},
     );
   });
+
+  testWidgets('the board draws one mat, not a graveyard under it',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'graveyard-s1'));
+    await tester.pumpAndSettle();
+
+    // The graveyard is a pile beside the mat, which is what you drop a card
+    // on and open. A second mat under the battlefield for the same zone is
+    // the leftover, and it is what took half the board's height and pushed
+    // the deck, the corner and the token button off the bottom.
+    expect(find.byKey(const Key('mat-graveyard-s1')), findsNothing);
+    expect(find.byKey(const Key('mat-battlefield-s1')), findsOneWidget);
+  });
+
+  testWidgets('the graveyard is on the far side from the deck',
+      (tester) async {
+    await _seatedPod(tester, ['you'], withCommander: true);
+    await tester.pumpAndSettle();
+
+    final board = tester.getRect(find.byKey(const Key('your-board')));
+    final bin = tester.getRect(find.byKey(const Key('graveyard-stack')));
+    final deck = tester.getRect(find.byKey(const Key('library-stack')));
+
+    // A graveyard sits across the table from the library, not stacked under
+    // it: stacked, the column is two cards tall and the corner has nowhere
+    // left to go.
+    expect(bin.right, lessThanOrEqualTo(board.left));
+    expect(deck.left, greaterThanOrEqualTo(board.right));
+  });
+
+  testWidgets('nothing in the aside runs off the bottom', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await _seatedPod(tester, ['you'],
+        window: const Size(1280, 800), withCommander: true);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('switch-renderer')));
+    await tester.pumpAndSettle();
+
+    final screen = tester.getRect(find.byType(PlayScreen));
+    for (final key in ['library-stack', 'graveyard-stack', 'make-token']) {
+      final it = tester.getRect(find.byKey(Key(key)));
+      expect(it.bottom, lessThanOrEqualTo(screen.bottom),
+          reason: '$key runs off the bottom');
+      expect(it.right, lessThanOrEqualTo(screen.right),
+          reason: '$key runs off the right');
+    }
+  });
+
 }
 
 class _GrumpyReferee implements Referee {
