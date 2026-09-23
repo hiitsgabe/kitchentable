@@ -66,11 +66,18 @@ What the photograph shows:
   it reads as a bent corner sitting on the card.
 - **The value printed twice, mirrored**, top half and bottom half, because a
   counter on a table has to be readable from the other side of it.
-- **Denominations, not repetition.** The box holds `+1/+1`, `+2/+2`, `+4/+4`,
-  `-1/-1`, `+1/+0`, `+2/+0` and `+0/+1`. Four power and four toughness is a
-  `+4/+4`, not four `+1/+1`s in a pile.
+- **Denominations to add with, and one marker to read.** The box holds
+  `+1/+1`, `+2/+2`, `+4/+4`, `-1/-1`, `+1/+0`, `+2/+0` and `+0/+1`, and those
+  are what the player reaches for. But the card draws **one** numeric marker
+  carrying the net, so `+4/+4` and four `+0/+1` read as a single `+4/+8`
+  rather than as five objects to add up by eye. The player asked for exactly
+  that: it can look like the marker in the picture, and it can be a sum.
 - **A colour per denomination.** `+1/+1` black, `+2/+2` green, `+4/+4` blue,
-  `-1/-1` white, `+1/+0` red, `+2/+0` cyan, `+0/+1` maroon.
+  `-1/-1` white, `+1/+0` red, `+2/+0` cyan, `+0/+1` maroon. The summed marker
+  takes the colour of the piece it happens to equal, so a net of `+4/+4` is
+  blue and a net of `+2/+2` is green, and falls back to the `+1/+1` black for
+  a sum nobody printed and the `-1/-1` white when the net is negative.
+  Recognition where recognition exists, and no invented colours.
 - **Keyword counters too**, which the app has never had: FLYING, HASTE,
   TRAMPLE, VIGILANCE, MENACE, DEATHTOUCH, LIFELINK, HEXPROOF, FIRST STRIKE,
   DOUBLE STRIKE, INDESTRUCTIBLE, REACH. Each with its own colour.
@@ -84,8 +91,9 @@ and `CardInstance.counters` is a `Map<String, int>`, so `{'+4/+4': 1,
 would be a second way to say the same thing and the two would disagree within
 a week. What is missing is entirely in the drawing and the picking.
 
-So a kind is one of the real pieces, a card draws the pieces it is carrying,
-and the player picks a denomination rather than tapping `+1/+1` four times.
+So a kind is one of the real pieces, the player picks a denomination rather
+than tapping `+1/+1` four times, and the card draws **one numeric marker for
+the net**, one marker per keyword, and one for any kind nobody printed.
 
 ---
 
@@ -597,6 +605,39 @@ Append to `test/features/table_card_test.dart`:
 
     expect(find.byType(CounterPieceView), findsNWidgets(2));
   });
+
+  testWidgets('a pile of numbers reads as one marker', (tester) async {
+    await tester.pumpWidget(_host(
+      const CardInstance(
+        id: 'a',
+        oracleId: 'o',
+        counters: {'+4/+4': 1, '+0/+1': 4, 'flying': 1},
+      ),
+    ));
+    await tester.pump();
+
+    // Five objects to add up by eye is what the raw map looked like. One
+    // marker saying the net, plus the keyword, which is not a number and has
+    // nothing to add to.
+    expect(find.byType(CounterPieceView), findsNWidgets(2));
+    expect(find.text('+4/+8'), findsNWidgets(2));
+  });
+
+  testWidgets('a kind nobody printed keeps its own name', (tester) async {
+    await tester.pumpWidget(_host(
+      const CardInstance(
+        id: 'a',
+        oracleId: 'o',
+        counters: {'+1/+1': 2, 'charge': 3},
+      ),
+    ));
+    await tester.pump();
+
+    // `charge` does nothing to power or toughness, so it cannot join the sum
+    // and has to stand on its own with its count.
+    expect(find.text('+2/+2'), findsNWidgets(2));
+    expect(find.textContaining('charge'), findsWidgets);
+  });
 ```
 
 **The existing case `two kinds of counter are told apart` asserts
@@ -618,8 +659,12 @@ both cost 9.7 percent. Say the two numbers.
 
 - Make every piece the same colour. The colour case must fail on the set's
   length.
-- Give a keyword piece a power of 1. Two cases must fail: say which, and
-  whether `what a pile of pieces does to a creature` is one of them.
+- Give a keyword piece a power of 1. Say which cases fail, and whether
+  `what a pile of pieces does to a creature` is one of them.
+- Make the summed marker take the `+1/+1` black always. The colour is not
+  asserted by any case above: **say so** rather than claiming it is covered,
+  and say what a case for it would have to read. A `find.byType` on the view
+  can reach its `piece`, so it is reachable without a golden.
 - Draw the value once rather than twice. The first piece case must fail on
   `findsNWidgets(2)`.
 - Take the shadow off. The standing off case must fail. If it does not, the
