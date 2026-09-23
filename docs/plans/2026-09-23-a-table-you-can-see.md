@@ -83,6 +83,12 @@ Append to `test/features/cursor_board_test.dart`:
     // tall, which is more than the window. Half the battlefield was below the
     // fold and a card parked there looked cut off rather than scrolled away.
     expect(mat.height, lessThanOrEqualTo(board.height));
+    // Not only that it fits. A `Center` passes `constraints.loosen()` to its
+    // child, so the SizedBox is clamped to the box it sits in and the line
+    // above is structurally true in the fill branch whatever the arithmetic
+    // does. Height is what runs out on this window, so the mat has to hand
+    // the width back: 1261 across, not 1900.
+    expect(mat.width, lessThan(board.width));
   });
 
   testWidgets('a narrow window still uses the width it has', (tester) async {
@@ -162,12 +168,30 @@ In `lib/features/play/widgets/cursor_board.dart`, the `LayoutBuilder` inside
 
 `constraints.maxHeight` is infinite inside the `SingleChildScrollView` that
 wraps `_pile`, and `math.min` of anything and infinity is the anything, so
-this changes nothing until that scroll view is dealt with. **Deal with it:** a
-board that fits does not need to scroll, and the scroll view is what makes the
-height unbounded. Read `build` and take the `SingleChildScrollView` out when
-there is one pile; with two piles stacked it is still wanted. Say what you did
-and why, and if the answer is that two piles cannot both fit, say that too
-rather than papering over it.
+this changes nothing until that scroll view is dealt with.
+
+**Taking the scroll view out is not enough**, and the pile count is not the
+axis this turns on. A `Column` hands its children an unbounded main axis too,
+so two `Expanded`s are needed, one around each pile at the board level and one
+inside `_pile` around the mat. And two piles do not each need the window: each
+takes a share, each mat is scaled to its own share, and both are whole. A
+smaller mat is the same shape, and the shape is what a drop position means.
+
+**The scroll view cannot go entirely**, and this is the part worth knowing.
+Forcing the pile's inner `Column` to a share height overflows on a phone in a
+pod: the board is handed about **28 points of height out of 844**, and the
+label, its gap and the pile's bottom gap come to 32, so there is nothing left
+for a mat at all. The scroll view was hiding that: the mat drew 212 points
+tall inside a 28 point window, which is this plan's bug in its worst form. The
+rest of the budget went on the bands, the hand sheet and the two bars, so the
+squeeze is the screen's vertical budget and not the mat's arithmetic.
+
+So the board fills when it has the room and scrolls when it does not, on an
+exact test rather than a taste threshold: `share <= chrome`, where `chrome` is
+the label box plus the two gaps. In the scroll branch `maxHeight` is infinite
+and `math.min` picks the width term by itself, so it is one expression rather
+than two branches of it. Give the label a fixed height box so `chrome` is a
+number the widget knows before laying anything out.
 
 Add `import 'dart:math' as math;`.
 
@@ -184,11 +208,22 @@ construction, so they should not move; if one does, that is a finding.
 
 - [ ] **Step 5: Probe**
 
-Change `math.min` to `math.max`. The first case must fail on the mat's height
-exceeding the board's. Then drop the `Center`: the third case must still pass,
-since the shape does not change, and nothing else should fail, which tells you
-the centring is unpinned. Add a case for it if you think it earns one, and say
-so. Edit each back by hand, never with `git checkout`, and rerun.
+Change `math.min` to `math.max`. It must fail on the width line of the first
+case and on the shape case, both by value.
+
+**Not on the first case's height line**, which cannot fail: `Center` clamps
+the child to the box, so that line is structurally true in the fill branch. It
+still earns its place, because it is what caught the height going unbounded at
+Step 2, but it is not what kills this mutation.
+
+Then drop the `Center`. **It is load bearing, not decoration.** `Expanded`
+gives the `LayoutBuilder` a tight height which it passes straight to the
+`SizedBox`, so without `Center` the mat is forced to fill and the shape goes.
+The shape case fails at 390 by 1200 with a wrong value; at 1900 by 800 the
+forced height happens to be the height `min` picked anyway, so it is right
+there by coincidence. That is why the shape case visits two windows, and it
+does not need a third case of its own. Edit each back by hand, never with
+`git checkout`, and rerun.
 
 - [ ] **Step 6: Commit**
 
