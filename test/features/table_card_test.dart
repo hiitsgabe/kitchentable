@@ -85,6 +85,45 @@ void main() {
     expect(find.byType(CounterPieceView), findsNWidgets(2));
   });
 
+  testWidgets('the marker takes the colour of the piece it equals',
+      (tester) async {
+    Color colourOf(String key) => tester
+        .widget<CounterPieceView>(find.byKey(Key(key)))
+        .piece
+        .colour;
+
+    // Three branches, asserted against each other and not against the
+    // production function that produced them. Comparing a marker's colour to
+    // `pieceNamed('+2/+2')!.colour` would move both sides at once: a mutation
+    // giving every piece one colour keeps that green. These fail under that
+    // mutation and under "always black" alike.
+    await tester.pumpWidget(_host(const CardInstance(
+      id: 'a', oracleId: 'o', counters: {'+1/+1': 2})));
+    await tester.pump();
+    final printed = colourOf('counter-+2/+2');
+
+    await tester.pumpWidget(_host(const CardInstance(
+      id: 'a', oracleId: 'o', counters: {'+4/+4': 1, '+0/+1': 4})));
+    await tester.pump();
+    final unprinted = colourOf('counter-+4/+8');
+
+    await tester.pumpWidget(_host(const CardInstance(
+      id: 'a', oracleId: 'o', counters: {'-1/-1': 2})));
+    await tester.pump();
+    final negative = colourOf('counter--2/-2');
+
+    // A net the box prints is recognisable by its colour, which is the whole
+    // reason the box is coloured. A net nobody prints falls back, and a
+    // negative net falls back somewhere else again.
+    expect(printed, isNot(unprinted));
+    expect(negative, isNot(unprinted));
+    expect(negative, isNot(printed));
+
+    // And one literal, so a mutation that gives every piece its own colour
+    // but the wrong one cannot pass on the three comparisons alone.
+    expect(unprinted, const Color(0xFF121116));
+  });
+
   testWidgets('a pile of numbers reads as one marker', (tester) async {
     await tester.pumpWidget(_host(
       const CardInstance(
