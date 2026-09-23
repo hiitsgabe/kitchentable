@@ -1611,10 +1611,17 @@ The player asked for real tumbling polyhedra on the deck, d20, d12 and d6, and
 chose that over a die that turns once and settles. So these are actual solids
 with actual faces, projected and culled, not a picture of a die.
 
-No package. `package:vector_math/vector_math_64.dart` already ships with
+No 3D engine. `package:vector_math/vector_math_64.dart` already ships with
 Flutter and carries `Vector3` and `Quaternion`, which is all this needs, and a
-3D package would be a dependency, a web asset story and a licence for
-something that is two hundred lines of arithmetic.
+3D package would be a web asset story and a licence for something that is two
+hundred lines of arithmetic.
+
+**Declare it in `pubspec.yaml` anyway.** Flutter re-exports only `Matrix4`, so
+the direct import is unavoidable, and `depend_on_referenced_packages` then
+costs an info in every file that uses it. Suppressing that lint is the wrong
+answer: it is telling the truth, and the day Flutter stops depending on
+vector_math the build breaks with no warning. One line in pubspec, not four
+`// ignore:` comments.
 
 **The geometry is derived, not typed.** Twenty triangles written out by hand
 is twenty chances to transpose an index, and nothing would catch it but the
@@ -1659,8 +1666,8 @@ Pure arithmetic, no widgets, no Flutter beyond `vector_math`.
 Create `test/features/polyhedron_test.dart`:
 
 ```dart
-import 'dart:math' as math;
-
+// No `dart:math` here: none of these eleven cases says `math.`, and an
+// unused import is a warning.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/features/play/dice/polyhedron.dart';
 import 'package:vector_math/vector_math_64.dart';
@@ -1858,11 +1865,21 @@ Four, and say which assertion each fails on.
   fails**: they should not, and if one does the sort is doing more than
   ordering.
 - Take the far face's half turn out, returning the identity for both
-  degenerate axes. The last of the three settle cases must fail, and it must
-  be the only one.
-- Compare the edge with `<=` instead of within a tolerance, or widen the
-  tolerance to 0.5. Say what the face counts become: a d20 with more than
-  twenty faces is the failure this derivation exists to make impossible.
+  degenerate axes. **Two cases fail, not one**: the named one says why, and
+  the sweep over every face of all three dice hits the d6's far face as well.
+  Only the d6 has faces on the degenerate axes, so the sweep's extra failure
+  is a single face.
+- Widen the edge tolerance to **1.24**, and not to 0.5. The pair distances
+  are 2.0, 3.236 and 3.804 with nothing in between, so any tolerance below
+  1.236 picks exactly the thirty edges and `<=` does too: 0.5 is a forced
+  value that lands inside the innocent band and survives. At 1.24 the count
+  goes to 160 and five cases fall, which is the failure this derivation
+  exists to make impossible.
+
+- Turn the normal inwards. The outward case must fail. **The settle sweep
+  will not**, because it rotates the same normal `settle` used, so a sign
+  error moves both sides of it: that one case is the only thing holding the
+  convention.
 
 Edit each back by hand, never with `git checkout`, and rerun.
 
@@ -1892,8 +1909,11 @@ import 'package:kitchentable/features/play/dice/die_view.dart';
 import 'package:kitchentable/features/play/dice/polyhedron.dart';
 import 'package:vector_math/vector_math_64.dart';
 
+// `Polyhedron? die` and not `Polyhedron die = Polyhedron.d20`: a parameter
+// default has to be a constant expression and the solids are derived at
+// startup, so they are `static final`.
 Widget _host({
-  Polyhedron die = Polyhedron.d20,
+  Polyhedron? die,
   int showing = 0,
   Quaternion? turn,
 }) =>
@@ -2006,9 +2026,15 @@ Expected: PASS, 4 tests.
 
 - Cull on negative z instead of positive. The visibility case fails on
   `contains(0)`, and the nearest case fails too: say which assertion each.
-- Paint near to far. Nothing in these cases will notice, because none of them
-  reads pixels. **Say so** rather than claiming the ordering is covered, and
-  say what a case for it would have to look at.
+- Paint near to far. Nothing notices, and **a case that read pixels would not
+  either**: with backface culling on a convex solid under an orthographic
+  projection the visible faces tile the silhouette with disjoint interiors, so
+  no visible face ever covers another. Only the seams are shared and the
+  stroke is the same colour on both sides. What would pin the order is the
+  order itself, a recording canvas collecting the `drawPath` calls and
+  asserting the face sequence rises in rotated centroid z. Until a translucent
+  face or a wider outline arrives, the sort is insurance rather than
+  behaviour: say that rather than claiming coverage.
 - Drop the foreshortening on the number's size. Say what fails. If nothing
   does, say that too.
 
