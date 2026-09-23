@@ -18,6 +18,11 @@ typedef Placement = ({String cardId, Landing to});
 /// here, because the caller is a controller with a session and an undo stack
 /// and this is arithmetic.
 ///
+/// [fromLibrary] is what tells the bottom where the bottom is. These cards
+/// came off the top of the library by default, which is scry and surveil; the
+/// graveyard sheet hands the same arithmetic cards that were never in the
+/// library at all.
+///
 /// The top pile is emitted last to first, so that the order the player put
 /// them in is the order they come off. Pushing them in reading order would
 /// reverse the pile, which is the bug this comment exists to stop somebody
@@ -28,6 +33,7 @@ List<TableAction> arrange({
   required int librarySize,
   String? graveyardId,
   String? handId,
+  bool fromLibrary = true,
 }) {
   final moves = <TableAction>[];
 
@@ -40,13 +46,15 @@ List<TableAction> arrange({
   for (final placement in placements) {
     switch (placement.to) {
       case Landing.bottom:
-        // Minus one on top of that because `_move` takes the card out of the
-        // library before putting it back, so the list it inserts into is
-        // shorter again than the one that was counted.
+        // Minus one more when these cards came off the library itself, because
+        // `_move` takes the card out before putting it back and the list it
+        // inserts into is shorter again than the one that was counted. A card
+        // arriving from a graveyard was never in the library, so the pile is
+        // one longer when it lands and the bottom is one further down.
         moves.add(MoveCard(
           cardId: placement.cardId,
           toZoneId: libraryId,
-          at: librarySize - gone - 1,
+          at: librarySize - gone - (fromLibrary ? 1 : 0),
         ));
       case Landing.graveyard:
         if (graveyardId != null) {

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../table/actions/table_action.dart';
 import '../../table/model/card_instance.dart';
+import '../../table/model/zone.dart';
 import '../../table/shuffle.dart';
 import '../../table/view/seat_view.dart';
 import '../../ui/atoms/hint_bar.dart';
@@ -27,6 +28,7 @@ import 'widgets/cursor_board.dart';
 import 'widgets/deck_sheet.dart';
 import 'widgets/hand_sheet.dart';
 import 'widgets/library_stack.dart';
+import 'widgets/pile_sheet.dart';
 import 'widgets/radar_strip.dart';
 
 class PlayScreen extends ConsumerStatefulWidget {
@@ -234,6 +236,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                       )),
                       onWork: _workTheDeck,
                     ),
+                    graveyard: _pile(m, graveyard, width: card),
                   ),
                 ],
               );
@@ -325,6 +328,14 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                               // was opening a table with no deck on it.
                               libraryCount: library.size,
                               commandCards: command?.cards,
+                              // The same pile the bands draw, at the surface's
+                              // own card size: a mat is in surface units and
+                              // the canvas is the thing that zooms.
+                              graveyard: _pile(
+                                m,
+                                graveyard,
+                                width: cardOnMat.width,
+                              ),
                               game: play.gameAt(seat.id),
                               onDraw: () => play.run(DrawCards(
                                 fromZoneId: library.id,
@@ -409,6 +420,80 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
               : null,
           position: (x: x, y: y),
         ));
+  }
+
+  /// Your graveyard, as a pile on the table.
+  ///
+  /// Built here and not twice, because both renderers draw the same pile and
+  /// the only thing they disagree about is where it stands.
+  ///
+  /// The top card is the last one thrown in and not the first: `MoveCard`
+  /// hands the card to `Zone.add` with no index and `Zone.add` inserts at
+  /// nought, so the newest is `cards.first`, which is what `Zone.top` already
+  /// means for a pile whose order is part of the game.
+  Widget _pile(Metrics m, Zone graveyard, {required double width}) {
+    final onTop = graveyard.top;
+
+    return LibraryStack(
+      metrics: m,
+      pileName: 'graveyard',
+      label: graveyard.label,
+      count: graveyard.size,
+      width: width,
+      faceUp: true,
+      face: onTop == null ? null : _printings[onTop.oracleId],
+      onDraw: _lookInThePile,
+      onDrop: (c) => ref.read(playProvider.notifier).run(
+            MoveCard(cardId: c.id, toZoneId: graveyard.id),
+          ),
+    );
+  }
+
+  /// Looking through the graveyard, and taking something back out of it.
+  ///
+  /// No first step asking whether you are sure, unlike the deck: the pile is
+  /// public and has been all game, so opening it reveals nothing.
+  Future<void> _lookInThePile() async {
+    final table = ref.read(playProvider);
+    final seatId = ref.read(viewerSeatProvider);
+    if (table == null || seatId == null) return;
+
+    final pile = table.zone('graveyard-$seatId');
+    final library = table.zone('library-$seatId');
+    if (pile == null || library == null) return;
+
+    final media = MediaQuery.of(context);
+    final m = Metrics.of(classifyDevice(
+      size: media.size,
+      hasTouch: media.navigationMode == NavigationMode.traditional,
+    ));
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Palette.surface,
+      isScrollControlled: true,
+      builder: (sheet) => PileSheet(
+        metrics: m,
+        label: pile.label,
+        cards: pile.cards,
+        printings: _printings,
+        onArrange: (placements) {
+          Navigator.of(sheet).pop();
+          final play = ref.read(playProvider.notifier);
+          for (final move in arrange(
+            libraryId: library.id,
+            placements: placements,
+            librarySize: library.size,
+            // These cards are in the graveyard and not in the library, so a
+            // card sent underneath lands in a pile one longer than this.
+            fromLibrary: false,
+            handId: table.zone('hand-$seatId')?.id,
+          )) {
+            play.run(move);
+          }
+        },
+      ),
+    );
   }
 
   /// Moves the viewer, and says out loud when it will not move.
@@ -529,6 +614,7 @@ class _Beside extends StatelessWidget {
     required this.metrics,
     required this.command,
     required this.library,
+    required this.graveyard,
   });
 
   final Metrics metrics;
@@ -539,6 +625,11 @@ class _Beside extends StatelessWidget {
   final Widget? command;
 
   final Widget library;
+
+  /// Under the deck, in a column and not beside it. The row's width is what
+  /// the board's scale is read from, and a second pile across from the first
+  /// would take a whole card's width off the board on a phone.
+  final Widget graveyard;
 
   @override
   Widget build(BuildContext context) {
@@ -554,6 +645,8 @@ class _Beside extends StatelessWidget {
             SizedBox(height: m.scaled(12)),
           ],
           library,
+          SizedBox(height: m.scaled(12)),
+          graveyard,
         ],
       ),
     );

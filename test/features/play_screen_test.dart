@@ -582,6 +582,124 @@ void main() {
     expect(commander, lessThan(onBoard * 1.4),
         reason: 'the commander is a card, not a poster');
   });
+
+  testWidgets('a card dropped on the graveyard goes there', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    final from = tester.getCenter(find.descendant(
+      of: find.byKey(const Key('your-board')),
+      matching: find.byType(TableCard),
+    ));
+    final bin = tester.getCenter(find.byKey(const Key('graveyard-stack')));
+    await tester.dragFrom(from, bin - from);
+    await tester.pumpAndSettle();
+
+    final table = container.read(playProvider)!;
+    expect(table.zone('graveyard-s1')!.cards.map((c) => c.id),
+        contains(card.id));
+    expect(table.zone('battlefield-s1')!.cards, isEmpty);
+  });
+
+  testWidgets('the graveyard shows the card on top of it', (tester) async {
+    final container = await _seatedPod(tester, ['you'], withCatalog: true);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'graveyard-s1'));
+    await tester.pumpAndSettle();
+
+    // A graveyard is face up, which is the whole difference between it and the
+    // deck beside it: you can see what went in without opening it. With no
+    // catalog there is no picture of anything and the pile falls back to a
+    // card back, so this is the one case here that needs the database, and
+    // without it drawing the pile face down left the suite green.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('graveyard-stack')),
+        matching: find.byType(CardArt),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the top of the graveyard is the last card thrown in',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you'],
+        withCommander: true, withCatalog: true);
+    final play = container.read(playProvider.notifier);
+    final table = container.read(playProvider)!;
+    final mountain = table.zone('hand-s1')!.cards.first;
+    final general = table.zone('command-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: mountain.id, toZoneId: 'graveyard-s1'));
+    await tester.pumpAndSettle();
+    play.run(MoveCard(cardId: general.id, toZoneId: 'graveyard-s1'));
+    await tester.pumpAndSettle();
+
+    // Which end of the pile is its top. `Zone.add` inserts at nought, so the
+    // newest card is `cards.first` and the last one thrown in is the one
+    // showing. Read off the other end this draws the Mountain, which is the
+    // card underneath it, and both ends look equally plausible in the source.
+    final art = tester.widget<CardArt>(find.descendant(
+      of: find.byKey(const Key('graveyard-stack')),
+      matching: find.byType(CardArt),
+    ));
+    expect(art.card.name, 'General');
+  });
+
+  testWidgets('the graveyard is on the mat in the wide view too',
+      (tester) async {
+    // The case above this one taps the renderer button, which writes the
+    // choice to the preferences, and the choice wins over the width. Without
+    // this the wide window opened the bands and the pile found below was the
+    // one in the column beside the board.
+    SharedPreferences.setMockInitialValues({});
+    final container = await _seatedPod(tester, ['you'],
+        window: const Size(1280, 800));
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'graveyard-s1'));
+    await tester.pumpAndSettle();
+
+    // Said out loud, because the whole case rests on it: a window this wide
+    // opens the canvas, so a pile found here is the one on the mat and not
+    // the one in the bands.
+    expect(find.byType(FreeCanvas), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(FreeCanvas),
+        matching: find.byKey(const Key('graveyard-stack')),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the graveyard can be opened and a card taken back',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'graveyard-s1'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('graveyard-stack')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('hand-${card.id}')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('pile-done')));
+    await tester.pumpAndSettle();
+
+    final table = container.read(playProvider)!;
+    expect(table.zone('hand-s1')!.cards.map((c) => c.id), contains(card.id));
+    expect(table.zone('graveyard-s1')!.cards, isEmpty);
+  });
 }
 
 class _GrumpyReferee implements Referee {
