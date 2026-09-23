@@ -195,9 +195,21 @@ Expected: PASS and `No issues found!`.
 - [ ] **Step 5: Probe**
 
 Take the two line cap off. The third case must fail on `many` being greater
-than `two`. Then centre the `Wrap` to the left: the case from the last plan
-about a few cards sitting in the middle must fail. Say which assertion each.
-Edit each back by hand, never with `git checkout`, and rerun.
+than `two`: on a phone a sixty card hand takes the whole 844 points.
+
+Then centre to the left. **Not by setting `WrapAlignment.start`**, which
+survives: a `Wrap` shrink wraps to its widest run, so its own alignment never
+has free space to spend and it is the outer `Center` that centres. Change
+that to `Alignment.centerLeft` instead.
+
+That leaves `WrapAlignment.center` itself unpinned, and the drop index depends
+on how far a short line is indented. Add a case with seven cards at 390, which
+wraps five then two, and drop on the **first** card of the short line: a drop
+on its last card is masked by the clamp, which is the reorder discount pattern
+again.
+
+Say which assertion each time. Edit each back by hand, never with
+`git checkout`, and rerun.
 
 - [ ] **Step 6: Commit**
 
@@ -252,11 +264,23 @@ Expected: the first FAILS on `card-back-art` not being found.
 
 - [ ] **Step 3: Tell the card which game it is**
 
-`TableCard` gains `Game? game` and passes it to `CardBack`. Its callers have
-it or can reach it: `play_screen.dart` reads `play.gameAt(seat.id)` already
-for the pile, `free_canvas.dart` and `cursor_board.dart` take it as a
-parameter, and `hand_sheet.dart` and `seat_band.dart` need it threading the
-same way.
+`TableCard` gains `Game? game` and passes it to `CardBack`. **Only
+`free_canvas.dart` takes one today**; `cursor_board.dart` does not, whatever
+an earlier draft of this sentence said, and neither do `hand_sheet.dart`,
+`seat_band.dart` or `command_slot.dart`. All five need it threading.
+
+`FreeCanvas` and `StackedSeats` need a `gameFor(seatId)` and not a single
+`game`: both draw every seat's cards, so one game for the table is silently
+wrong in a mixed game pod and disagrees with the other renderer.
+
+**Then probe every hand-off, not just the leaf.** Threading through six
+widgets makes eleven sites, the leaf's own cases pin none of them, and Dart
+does not warn about a field that is accepted and never passed on. A commander
+corner that swallowed it shipped once this way with analyze clean and the
+suite green. Write a case per widget where that widget is the unit, and make
+the renderer cases **discriminate**: hand seat s2 a game and seat s3 none,
+then assert a back inside one band and not the other, so taking a single game
+for the table fails too.
 
 **Grep every construction of `TableCard` before you start** and list them in
 your report. A default of null is right: a widget that draws a card in a test
