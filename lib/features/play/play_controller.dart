@@ -84,6 +84,22 @@ class PlayController extends Notifier<TableState?> {
 
   int? deckSizeAt(String seatId) => _deckSizes[seatId];
 
+  /// Which cards each seat started in its command zone.
+  ///
+  /// Here for the third time for the third reason of the same shape: a
+  /// [CardInstance] does not know it is a commander. The deck marks the slot,
+  /// `sitDown` puts those cards in the command zone before it shuffles, and
+  /// from the moment one is cast it is an ordinary instance on a battlefield.
+  /// The deck is in reach exactly once, so what it said is kept here.
+  ///
+  /// Not on the table, because the table moves cards between zones and could
+  /// not tell a Commander deck from a Pokemon one, and not on the referee,
+  /// which reviews an action and refuses it. Sending a card somewhere else is
+  /// a different verb, and the chair is still empty.
+  Map<String, Set<String>> _commanders = const {};
+
+  bool isCommander(String cardId) =>
+      _commanders.values.any((ids) => ids.contains(cardId));
 
   @override
   TableState? build() => null;
@@ -116,6 +132,15 @@ class PlayController extends Notifier<TableState?> {
       for (var i = 0; i < table.seats.length; i++)
         table.seats[i].id:
             players[i].deck.main.fold(0, (n, s) => n + s.quantity),
+    };
+    // Read off the zone rather than off the decklist, so a card that reached
+    // the command zone by any other road is counted the same way. Empty in a
+    // format without commanders: magicZonesFor makes no such zone.
+    _commanders = {
+      for (final seat in table.seats)
+        seat.id: (table.zone('command-${seat.id}')?.cards ?? [])
+            .map((c) => c.id)
+            .toSet(),
     };
     _session = TableSession(table);
     _clearRefusal();
@@ -166,6 +191,7 @@ class PlayController extends Notifier<TableState?> {
   void leave() {
     _session = null;
     _games = const {};
+    _commanders = const {};
     _clearRefusal();
     ref.read(viewerSeatProvider.notifier).sit(null);
     state = null;

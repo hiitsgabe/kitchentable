@@ -473,6 +473,12 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
   /// hands the card to `Zone.add` with no index and `Zone.add` inserts at
   /// nought, so the newest is `cards.first`, which is what `Zone.top` already
   /// means for a pile whose order is part of the game.
+  ///
+  /// A commander thrown in here goes to its own zone instead, which is where
+  /// Magic keeps one and where you would have to fish it back out of by hand
+  /// otherwise. Magic lets its owner choose between the two; a kitchen table
+  /// wants the common case, and the choice is a rule question for the day
+  /// somebody sits in the referee's chair.
   Widget _pile(Metrics m, Zone graveyard, {required double width}) {
     final onTop = graveyard.top;
 
@@ -485,9 +491,19 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
       faceUp: true,
       face: onTop == null ? null : _printings[onTop.oracleId],
       onDraw: _lookInThePile,
-      onDrop: (c) => ref.read(playProvider.notifier).run(
-            MoveCard(cardId: c.id, toZoneId: graveyard.id),
-          ),
+      onDrop: (c) {
+        final play = ref.read(playProvider.notifier);
+        play.run(MoveCard(
+          cardId: c.id,
+          toZoneId: play.isCommander(c.id)
+              // The zone's own seat, not one handed down from the build
+              // method. Both renderers call this and a seat threaded through
+              // each of them is a hand-off site apiece that nothing pins: the
+              // canvas took a wrong seat and the whole suite stayed green.
+              ? 'command-${graveyard.seatId}'
+              : graveyard.id,
+        ));
+      },
     );
   }
 
