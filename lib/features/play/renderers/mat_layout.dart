@@ -32,20 +32,49 @@ const matGap = 40.0;
 /// Space kept clear inside a mat, and between cards laid out by flow.
 const matPadding = 16.0;
 
-/// Where a seat's mat sits on the shared surface.
+/// How wide the strip beside a mat is.
+///
+/// A card, plus the room a pile's own count row and label need around it. The
+/// corner, the deck, the graveyard and the token button all stand in one of
+/// these rather than on the mat, because drawn on the mat they sit over the
+/// battlefield at every zoom.
+///
+/// Final and not const: `Size.width` is a getter, so `cardOnMat.width` is not
+/// a constant expression, and writing 90 again here is exactly the drift the
+/// one copy of a card's size above is there to stop.
+final matAside = cardOnMat.width + matPadding * 2;
+
+/// A seat's whole share of the surface: the mat, and a strip on each side.
 ///
 /// A grid and not a ring. A ring was the first idea and it is wrong for a
 /// rectangle: seats land at angles where a card is either tiny or off the
 /// edge, and a phone rotated into landscape makes it worse. Two across, then
 /// down, and three seats leave the fourth place empty rather than squeezing.
-Rect matFor(int index, int count) {
+Rect stationFor(int index, int count) {
   final columns = count <= 1 ? 1 : 2;
   final column = index % columns;
   final row = index ~/ columns;
+  final width = matSize.width + matAside * 2;
 
   return Rect.fromLTWH(
-    column * (matSize.width + matGap),
+    column * (width + matGap),
     row * (matSize.height + matGap),
+    width,
+    matSize.height,
+  );
+}
+
+/// Where a seat's mat sits on the shared surface.
+///
+/// The mat inside the station, so a drop position is still normalized against
+/// the same box it always was: the mat is `matSize` exactly and the strips are
+/// beside it rather than taken out of it.
+Rect matFor(int index, int count) {
+  final station = stationFor(index, count);
+
+  return Rect.fromLTWH(
+    station.left + matAside,
+    station.top,
     matSize.width,
     matSize.height,
   );
@@ -75,7 +104,7 @@ Size surfaceFor(int count) {
   final rows = (seats / columns).ceil();
 
   return Size(
-    columns * matSize.width + (columns - 1) * matGap,
+    columns * (matSize.width + matAside * 2) + (columns - 1) * matGap,
     rows * matSize.height + (rows - 1) * matGap,
   );
 }

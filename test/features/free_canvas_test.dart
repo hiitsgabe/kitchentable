@@ -380,4 +380,18 @@ void main() {
           reason: 'mat $id runs off screen');
     }
   });
+
+
+  testWidgets('the furniture stands beside the mat, not on it',
+      (tester) async {
+    await tester.pumpWidget(_host([_seat('s1')], libraryCount: 53));
+    await tester.pumpAndSettle();
+
+    final mat = tester.getRect(find.byKey(const Key('mat-s1')));
+    final deck = tester.getRect(find.byKey(const Key('canvas-library-s1')));
+
+    // Drawn on the mat it sat over the battlefield at every zoom, and the
+    // token button ran off the bottom edge of the mat itself.
+    expect(deck.left, greaterThanOrEqualTo(mat.right - 1));
+  });
 }

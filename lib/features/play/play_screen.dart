@@ -127,9 +127,18 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
       chosen: ref.watch(rendererChoiceProvider),
     );
 
+    // The battlefield alone. The graveyard is a pile in the strip beside the
+    // board, which is the one you drop a card onto and open, and a second mat
+    // under the battlefield for the same zone was the leftover: two mats share
+    // the board's height, so the column beside them had half the room it
+    // needed and the corner, the deck and the token button ran off the bottom.
+    //
+    // It costs the D-pad the graveyard. BoardCursor walks the piles the board
+    // is given, so a card in there was reachable with a shoulder button and
+    // now is not. The answer is the pile's own sheet, which a D-pad cannot
+    // open either, and that is a job of its own.
     final zones = [
       (id: battlefield.id, label: battlefield.label, cards: battlefield.cards),
-      (id: graveyard.id, label: graveyard.label, cards: graveyard.cards),
     ];
 
     final yours = Column(
@@ -184,7 +193,11 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
               // because the board only gets the width the cards beside it
               // leave: a card of w takes w + aside + gap out of the row, and
               // the mat is scaled by what remains. Solved once, here.
-              final room = box.maxWidth - aside - gap;
+              //
+              // Two lots of that now, not one: the graveyard stands in its own
+              // column across the board from the deck, so there is a card and
+              // its furniture out of the row on each side.
+              final room = box.maxWidth - aside * 2 - gap * 2;
               final byWidth = cardOnMat.width *
                   cardScale *
                   (room < 0 ? 0.0 : room) /
@@ -195,6 +208,8 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  _Across(graveyard: _pile(m, graveyard, width: card)),
+                  SizedBox(width: gap),
                   Expanded(
                     child: CursorBoard(
                       key: const Key('your-board'),
@@ -237,7 +252,6 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                       )),
                       onWork: _workTheDeck,
                     ),
-                    graveyard: _pile(m, graveyard, width: card),
                     makeToken: _tokenButton(m, width: card),
                   ),
                 ],
@@ -726,7 +740,26 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
   }
 }
 
-/// The corner and the pile, standing beside your own mat.
+/// The graveyard, standing on the far side of the board from the deck.
+///
+/// Its own column and not under the deck. Stacked with the deck the column is
+/// two cards tall before the corner and the token button are in it at all, and
+/// on a phone that is more height than the row has: the corner, the deck and
+/// the token button ran off the bottom of the screen. Across the board is also
+/// where a graveyard sits at a table when the library is by your right hand.
+///
+/// It scrolls rather than overflowing, for the same reason [_Beside] does.
+class _Across extends StatelessWidget {
+  const _Across({required this.graveyard});
+
+  final Widget graveyard;
+
+  @override
+  Widget build(BuildContext context) =>
+      SingleChildScrollView(child: graveyard);
+}
+
+/// The corner, the deck and the token button, standing beside your own mat.
 ///
 /// Beside it and not over and under it, because the board's height is what
 /// the whole table's scale is read from and anything stacked with the board
@@ -742,7 +775,6 @@ class _Beside extends StatelessWidget {
     required this.metrics,
     required this.command,
     required this.library,
-    required this.graveyard,
     required this.makeToken,
   });
 
@@ -755,12 +787,7 @@ class _Beside extends StatelessWidget {
 
   final Widget library;
 
-  /// Under the deck, in a column and not beside it. The row's width is what
-  /// the board's scale is read from, and a second pile across from the first
-  /// would take a whole card's width off the board on a phone.
-  final Widget graveyard;
-
-  /// Last, under the pile. A token is the one thing in this column that is not
+  /// Last, under the deck. A token is the one thing in this column that is not
   /// already a pile of cards, and it is also the one nobody reaches for in the
   /// first minute of a game.
   final Widget makeToken;
@@ -779,8 +806,6 @@ class _Beside extends StatelessWidget {
             SizedBox(height: m.scaled(12)),
           ],
           library,
-          SizedBox(height: m.scaled(12)),
-          graveyard,
           SizedBox(height: m.scaled(12)),
           makeToken,
         ],

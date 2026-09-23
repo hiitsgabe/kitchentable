@@ -32,8 +32,12 @@ void main() {
   });
 
   test('one seat gets the whole surface', () {
-    expect(matFor(0, 1), Rect.fromLTWH(0, 0, matSize.width, matSize.height));
-    expect(surfaceFor(1), matSize);
+    // The strips beside the mat are the seat's too, so one seat's surface is a
+    // mat plus a strip on each side rather than a mat exactly. It was
+    // `matSize` on the nose until the furniture came off the mat.
+    expect(matFor(0, 1),
+        Rect.fromLTWH(matAside, 0, matSize.width, matSize.height));
+    expect(surfaceFor(1), Size(matSize.width + matAside * 2, matSize.height));
   });
 
   test('the surface is big enough for every mat', () {
@@ -113,5 +117,56 @@ void main() {
 
   test('a table of one is a table of one', () {
     expect(seatOrder(count: 1, viewerAt: 0), [0]);
+  });
+
+  test('a seat takes more room than its mat', () {
+    // The corner, the deck, the graveyard and the token button stand beside
+    // the mat and not on it, so a seat's share of the surface is wider than
+    // the mat by a strip on each side.
+    final station = stationFor(0, 1);
+    final mat = matFor(0, 1);
+
+    expect(station.width, greaterThan(mat.width));
+    expect(station.height, mat.height);
+  });
+
+  test('the mat sits between the two strips', () {
+    final station = stationFor(0, 1);
+    final mat = matFor(0, 1);
+
+    expect(mat.left, greaterThan(station.left));
+    expect(mat.right, lessThan(station.right));
+    // Even on both sides, so a table of four does not lean.
+    expect(mat.left - station.left, closeTo(station.right - mat.right, 0.01));
+  });
+
+  test('the strips are a card wide, with room to breathe', () {
+    final station = stationFor(0, 1);
+    final mat = matFor(0, 1);
+
+    expect(mat.left - station.left, greaterThan(cardOnMat.width));
+  });
+
+  test('the surface holds every station', () {
+    for (final count in [1, 2, 3, 4]) {
+      final surface = surfaceFor(count);
+      for (var i = 0; i < count; i++) {
+        final station = stationFor(i, count);
+        expect(station.right, lessThanOrEqualTo(surface.width),
+            reason: 'station $i of $count runs off the right');
+        expect(station.bottom, lessThanOrEqualTo(surface.height),
+            reason: 'station $i of $count runs off the bottom');
+      }
+    }
+  });
+
+  test('two stations never overlap', () {
+    final stations = [for (var i = 0; i < 4; i++) stationFor(i, 4)];
+    for (var i = 0; i < stations.length; i++) {
+      for (var j = i + 1; j < stations.length; j++) {
+        expect(stations[i].overlaps(stations[j]), isFalse,
+            reason: 'station $i overlaps station $j');
+      }
+    }
   });
 }
