@@ -119,15 +119,18 @@ class _FreeCanvasState extends State<FreeCanvas> {
   /// the surface pinned to the top left, so a table of three opened with two
   /// of its mats past the edge and nothing saying so. Only the first time:
   /// after that the view is the player's.
-  ///
-  /// A gap of room is taken off first so that the table sits inside the window
-  /// rather than flush against two of its edges. Exactly to the window, the
-  /// far mat's edge lands on the viewport's own edge, which is both a table
-  /// with no room around it and a rectangle that does not contain its own
-  /// boundary.
   void _fitOnce(Size viewport, Size surface) {
     if (_fitted) return;
     _fitted = true;
+
+    // A gap of room off each axis, and not the window exactly. Two reasons,
+    // and whoever thinks of tidying the gap away has to take them together.
+    // Fitted exactly, the far mat's edge lands on the viewport's own edge,
+    // `Rect.contains` is `dx < right`, and `the whole table is on screen when
+    // it opens` fails on the last of its six assertions with `mat s3 runs off
+    // screen`. The other reason is the layout: a table drawn flush against two
+    // edges of the window has no room around it, and room around the table is
+    // what this view is for.
     final scale = math.min(
       (viewport.width - matGap) / surface.width,
       (viewport.height - matGap) / surface.height,
