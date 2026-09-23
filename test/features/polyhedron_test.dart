@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/features/play/dice/polyhedron.dart';
-// ignore: depend_on_referenced_packages
 import 'package:vector_math/vector_math_64.dart';
 
 void main() {

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/features/play/dice/die_view.dart';
 import 'package:kitchentable/features/play/dice/polyhedron.dart';
-// ignore: depend_on_referenced_packages
 import 'package:vector_math/vector_math_64.dart';
 
 Widget _host({Polyhedron? die, int showing = 0, Quaternion? turn}) {
