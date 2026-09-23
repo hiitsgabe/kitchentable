@@ -239,8 +239,36 @@ git commit -m "Fit the whole battlefield in the window"
 
 **Files:**
 - Modify: `lib/features/play/play_screen.dart`
+- Modify: `lib/features/play/renderers/mat_layout.dart`
 - Modify: `lib/features/play/widgets/cursor_board.dart`
+- Modify: `lib/features/play/widgets/library_stack.dart`
 - Test: `test/features/play_screen_test.dart`
+
+### Where they go, and why not in the column
+
+The obvious answer is to keep the deck and the corner above and below the mat
+and size them from the mat's scale. **It does not have an answer in one pass.**
+A bigger deck leaves the board less height, which makes the mat smaller, which
+makes the deck smaller: a fixed point. `Column` lays its non flex children out
+before the `Expanded`, so no `LayoutBuilder` closes it in one frame, and a
+callback oscillates to the answer over about ten frames.
+
+Put them **beside** the mat instead, in the horizontal slack Task 1 created:
+on a 1900 by 900 window the mat is 1261 wide in an 1868 wide board. Then they
+take only width, and the width branch solves in closed form, because a card of
+width `w` costs `w` plus its own furniture out of the row. Measured after:
+
+```
+Size(1900.0, 900.0)  card=151.105  deck=151.105  cmd=151.105
+Size(390.0, 844.0)   card=38.85    deck=40.54    cmd=40.54
+```
+
+Exact on a wide window; about 4% apart on a phone, in the deck's favour,
+because the deck's count row is wider than the pile when the card is small, so
+the column is 65.5 wide where the arithmetic assumed 59.7. Forcing the column
+narrower crushes the count row (`RenderFlex overflowed by 5.8 pixels`), so the
+column keeps its natural width and the estimate costs the board about a
+percent. That is not the six times out this task exists to fix.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -249,6 +277,7 @@ Append to `test/features/play_screen_test.dart`:
 ```dart
   testWidgets('the deck and the commander are the size of the cards',
       (tester) async {
+    SharedPreferences.setMockInitialValues({});
     final container = await _seatedPod(tester, ['you'],
         window: const Size(1900, 900), withCommander: true);
     final play = container.read(playProvider.notifier);
@@ -257,30 +286,59 @@ Append to `test/features/play_screen_test.dart`:
     play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
     await tester.pumpAndSettle();
 
-    final onBoard = tester.getSize(find.byType(TableCard).first).width;
-    final deck = tester.getSize(find.byKey(const Key('library-stack'))).width;
+    // 1900 points opens the free canvas, which draws no deck and no corner at
+    // all, so this has to be the bands. One button.
+    await tester.tap(find.byKey(const Key('switch-renderer')));
+    await tester.pumpAndSettle();
 
-    // The deck was a fixed 46 points while a card on a wide window was 270,
-    // so the pile you draw from was nearly six times smaller than the cards
-    // around it. A deck at a table is the same size as the cards in it.
+    // Named by owner. `find.byType(TableCard).first` is the commander, since
+    // CommandSlot draws one and comes first in the column, so the plan's
+    // first draft compared the deck against the corner.
+    final onBoard = tester
+        .getSize(find.descendant(
+          of: find.byKey(const Key('your-board')),
+          matching: find.byType(TableCard),
+        ))
+        .width;
+    final deck = tester
+        .getSize(find.descendant(
+          of: find.byKey(const Key('library-stack')),
+          matching: find.byType(CardBack),
+        ).first)
+        .width;
+    final corner = tester
+        .getSize(find.descendant(
+          of: find.byType(CommandSlot),
+          matching: find.byType(TableCard),
+        ))
+        .width;
+
+    // Both sides. `greaterThan` alone passes a deck that is twice too big,
+    // which is the failure this arithmetic can actually make: sizing from the
+    // whole seat column instead of the row put it at 186 against a 99 card.
     expect(deck, greaterThan(onBoard * 0.6),
         reason: 'the deck is a pile of these cards, not a thumbnail');
+    expect(deck, lessThan(onBoard * 1.4),
+        reason: 'the deck is a pile of these cards, not a monument');
+    expect(corner, greaterThan(onBoard * 0.6),
+        reason: 'the commander is a card, not a stamp');
   });
 ```
+
+**Measure the pile's top `CardBack`, not the `library-stack` box.** The box is
+the card plus its leaves, 65.2 against a card of 46, which already clears
+`onBoard * 0.6` once Task 1 has shrunk the board. The card is the number this
+task is about.
 
 - [ ] **Step 2: Run it and watch it fail**
 
 Run: `flutter test test/features/play_screen_test.dart`
-Expected: FAIL, with the deck at roughly 46 and the card far bigger.
+Expected: FAIL on the deck at 46 against a card of about 99.
 
-- [ ] **Step 3: Publish the table's scale**
+- [ ] **Step 3: One card size, published**
 
-The screen cannot know the mat's scale: it is computed inside `_pile`'s
-`LayoutBuilder`. Give `CursorBoard` an `onScale` callback that reports it, or
-lift the arithmetic into a small function both can call. **Prefer the
-function**: a callback fired during layout has to be deferred to avoid setting
-state mid build, and a pure function of the constraints and `matSize` is
-testable on its own.
+Move `_cardOnMat` out of the two files that each have a copy into
+`mat_layout.dart` as `cardOnMat`, and add:
 
 ```dart
 /// How much bigger or smaller than a mat unit, for a box this size.
@@ -292,13 +350,18 @@ double matScaleFor(Size box) => math.min(
     );
 ```
 
-in `mat_layout.dart`, used by `cursor_board.dart` and by `play_screen.dart`.
-The screen wraps `yours` in a `LayoutBuilder` and sizes the deck and the
-commander as `_cardOnMat.width * matScaleFor(...) * cardScale`.
+Then give `CursorBoard` a static saying what scale it will use in a given box,
+and `LibraryStack` one saying how far past a card its pile reaches, so the
+screen can lay the row out without reaching inside either widget:
 
-`_cardOnMat` is private to two files. Move it to `mat_layout.dart` as
-`cardOnMat` and have everything read the one copy: it is already duplicated,
-and the size of a card is exactly the kind of number that drifts.
+```dart
+  static double scaleFor(Size box) => ...;
+  static double spreadFor(double cardWidth) => ...;
+```
+
+The screen wraps the row in a `LayoutBuilder`, subtracts the deck's and the
+corner's furniture from the width, and gives the rest to the board. The row
+scrolls rather than overflowing, for the same phone squeeze Task 1 found.
 
 - [ ] **Step 4: Run it and watch it pass**
 
@@ -307,8 +370,18 @@ Expected: PASS and `No issues found!`.
 
 - [ ] **Step 5: Probe**
 
-Make `matScaleFor` return 1. The new case must fail on the deck's width. Say
-which assertion. Edit it back by hand and rerun.
+**`matScaleFor` returning 1 does not fail this case**, and that is not a
+weakness: the board and the deck read the same function, so forcing it moves
+both together and the ratio is untouched. It is caught, by Task 1's shape
+case. Three that do aim here:
+
+- the deck back at its fixed point size: fails on the first assertion;
+- the corner back at `m.scaled(52)`: fails on the third;
+- `math.min` to `math.max` in the card sum: fails on the second, which is why
+  both bounds are asserted.
+
+Say which assertion each time, with its line. Edit each back by hand and
+rerun.
 
 - [ ] **Step 6: Commit**
 
