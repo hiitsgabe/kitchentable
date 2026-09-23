@@ -95,6 +95,22 @@ void main() {
     expect(container.read(viewerSeatProvider), isNull);
   });
 
+  test('leaving takes everything the table knew with it', () {
+    controller().startPod(players: [_here('you'), _here('Carla')], seed: 'abc');
+    expect(controller().gameAt('s1'), isNotNull);
+    expect(controller().deckSizeAt('s1'), isNotNull);
+    expect(controller().isCommander('nothing'), isFalse);
+
+    controller().leave();
+
+    // Three maps live beside the table because the table is game agnostic and
+    // must not learn a game's rules. They all have to be dropped together:
+    // one left behind outlives its table and answers for the next one, which
+    // is a deck size from somebody else's decklist sizing your pile.
+    expect(controller().gameAt('s1'), isNull);
+    expect(controller().deckSizeAt('s1'), isNull);
+  });
+
   test('a new table reseats the viewer at its own first seat', () {
     controller().startPod(players: [_here('you'), _here('Carla')], seed: 'abc');
     viewer().look('s2');
