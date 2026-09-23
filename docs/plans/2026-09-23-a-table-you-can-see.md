@@ -1347,9 +1347,266 @@ git commit -m "Count the thing you meant to count"
 
 ---
 
-## Task 8 onward
+## Task 8: The graveyard leaves the board, and the furniture leaves the mat
 
-The dice, written after the tokens and the markers land: three dimensional,
-on the deck, d20, d12 and d6. `RollDice` has existed since plan 2 with no
-caller, and the reducer already takes the results from the caller so a replay
-gives the same roll.
+The player sent two screenshots of the same three faults.
+
+**The graveyard is drawn twice.** `play_screen.dart` hands `CursorBoard` a
+`zones` list of the battlefield and the graveyard, so the board draws a mat
+each, stacked. The graveyard is then also a pile in the column beside the mat,
+which is the one the player can drop a card onto and open. The mat under the
+battlefield is the leftover, and it is the one that has to go.
+
+**That mat is what cuts everything else off.** Two mats share the board's
+height, so the column beside them has half the room it should, and the command
+corner, the deck and the token button run off the bottom of the screen. The
+clipping is not the column's fault.
+
+**On the canvas the furniture is drawn on the mat.** `_Mat._furniture` stacks
+the corner, the piles and the token button inside the mat's own rect, so at
+any zoom they sit on top of the battlefield and the token button runs off the
+bottom edge. The player's words: out of the view, not inside the player view.
+
+So the furniture moves **outside** the mat in both renderers, and the
+graveyard moves to the left of it, which is where a graveyard sits at a table
+when the library is on the right.
+
+**Files:**
+- Modify: `lib/features/play/renderers/mat_layout.dart`
+- Modify: `lib/features/play/renderers/free_canvas.dart`
+- Modify: `lib/features/play/play_screen.dart`
+- Test: `test/features/mat_layout_test.dart`, `test/features/play_screen_test.dart`, `test/features/free_canvas_test.dart`, `test/features/cursor_board_test.dart`
+
+- [ ] **Step 1: Write the failing test for the board**
+
+Append to `test/features/play_screen_test.dart`:
+
+```dart
+  testWidgets('the board draws one mat, not a graveyard under it',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'graveyard-s1'));
+    await tester.pumpAndSettle();
+
+    // The graveyard is a pile beside the mat, which is what you drop a card
+    // on and open. A second mat under the battlefield for the same zone is
+    // the leftover, and it is what took half the board's height and pushed
+    // the deck, the corner and the token button off the bottom.
+    expect(find.byKey(const Key('mat-graveyard-s1')), findsNothing);
+    expect(find.byKey(const Key('mat-battlefield-s1')), findsOneWidget);
+  });
+
+  testWidgets('the graveyard is on the far side from the deck',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you'], withCommander: true);
+    await tester.pumpAndSettle();
+
+    final board = tester.getRect(find.byKey(const Key('your-board')));
+    final bin = tester.getRect(find.byKey(const Key('graveyard-stack')));
+    final deck = tester.getRect(find.byKey(const Key('library-stack')));
+
+    // A graveyard sits across the table from the library, not stacked under
+    // it: stacked, the column is two cards tall and the corner has nowhere
+    // left to go.
+    expect(bin.right, lessThanOrEqualTo(board.left));
+    expect(deck.left, greaterThanOrEqualTo(board.right));
+  });
+
+  testWidgets('nothing in the aside runs off the bottom', (tester) async {
+    final container = await _seatedPod(tester, ['you'],
+        window: const Size(1280, 800), withCommander: true);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('switch-renderer')));
+    await tester.pumpAndSettle();
+
+    final screen = tester.getRect(find.byType(PlayScreen));
+    for (final key in ['library-stack', 'graveyard-stack', 'make-token']) {
+      final it = tester.getRect(find.byKey(Key(key)));
+      expect(it.bottom, lessThanOrEqualTo(screen.bottom),
+          reason: '$key runs off the bottom');
+      expect(it.right, lessThanOrEqualTo(screen.right),
+          reason: '$key runs off the right');
+    }
+  });
+```
+
+The third case needs `SharedPreferences.setMockInitialValues({})` for the same
+reason the others that tap the renderer button do.
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Run: `flutter test test/features/play_screen_test.dart`
+Expected: the first FAILS on `mat-graveyard-s1` being found, the second on the
+graveyard being to the right of the board.
+
+- [ ] **Step 3: Take the graveyard off the board, and split the column**
+
+In `play_screen.dart`, `zones` becomes the battlefield alone.
+
+**This narrows what the D-pad can reach**, and that is a real loss rather than
+a tidy up: `BoardCursor` walks the piles the board is given, so a card in the
+graveyard was reachable with a shoulder button and now is not. Nothing asserts
+it. Say so in your report; the answer is the pile's own sheet, which a D-pad
+cannot open either, and that is the follow up.
+
+`_Beside` splits in two. The graveyard goes to a column on the left of the
+board and the corner, the deck and the token button stay on the right. The
+width arithmetic in the `LayoutBuilder` above takes **two** asides out of the
+row now, not one:
+
+```dart
+              final room = box.maxWidth - aside * 2 - gap * 2;
+```
+
+Read the comment there before editing it: it explains that a card of `w` costs
+`w` plus its furniture out of the row, and it is now two lots of that.
+
+- [ ] **Step 4: Run them and watch them pass**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`.
+
+**Several cases will move.** `cursor_board_test.dart` builds its own zones and
+is unaffected, but anything in `play_screen_test.dart` that measures the board
+or a card on it sees a narrower board. **Report every case that moved with its
+numbers before changing anything.**
+
+- [ ] **Step 5: Write the failing test for the canvas**
+
+Append to `test/features/mat_layout_test.dart`:
+
+```dart
+  test('a seat takes more room than its mat', () {
+    // The corner, the deck, the graveyard and the token button stand beside
+    // the mat and not on it, so a seat's share of the surface is wider than
+    // the mat by a strip on each side.
+    final station = stationFor(0, 1);
+    final mat = matFor(0, 1);
+
+    expect(station.width, greaterThan(mat.width));
+    expect(station.height, mat.height);
+  });
+
+  test('the mat sits between the two strips', () {
+    final station = stationFor(0, 1);
+    final mat = matFor(0, 1);
+
+    expect(mat.left, greaterThan(station.left));
+    expect(mat.right, lessThan(station.right));
+    // Even on both sides, so a table of four does not lean.
+    expect(mat.left - station.left, closeTo(station.right - mat.right, 0.01));
+  });
+
+  test('the strips are a card wide, with room to breathe', () {
+    final station = stationFor(0, 1);
+    final mat = matFor(0, 1);
+
+    expect(mat.left - station.left, greaterThan(cardOnMat.width));
+  });
+
+  test('the surface holds every station', () {
+    for (final count in [1, 2, 3, 4]) {
+      final surface = surfaceFor(count);
+      for (var i = 0; i < count; i++) {
+        final station = stationFor(i, count);
+        expect(station.right, lessThanOrEqualTo(surface.width),
+            reason: 'station $i of $count runs off the right');
+        expect(station.bottom, lessThanOrEqualTo(surface.height),
+            reason: 'station $i of $count runs off the bottom');
+      }
+    }
+  });
+
+  test('two stations never overlap', () {
+    final stations = [for (var i = 0; i < 4; i++) stationFor(i, 4)];
+    for (var i = 0; i < stations.length; i++) {
+      for (var j = i + 1; j < stations.length; j++) {
+        expect(stations[i].overlaps(stations[j]), isFalse,
+            reason: 'station $i overlaps station $j');
+      }
+    }
+  });
+```
+
+Append to `test/features/free_canvas_test.dart`:
+
+```dart
+  testWidgets('the furniture stands beside the mat, not on it',
+      (tester) async {
+    await tester.pumpWidget(_host([_seat('s1')], libraryCount: 53));
+    await tester.pumpAndSettle();
+
+    final mat = tester.getRect(find.byKey(const Key('mat-s1')));
+    final deck = tester.getRect(find.byKey(const Key('canvas-library-s1')));
+
+    // Drawn on the mat it sat over the battlefield at every zoom, and the
+    // token button ran off the bottom edge of the mat itself.
+    expect(deck.left, greaterThanOrEqualTo(mat.right - 1));
+  });
+```
+
+- [ ] **Step 6: Give each seat a station**
+
+In `mat_layout.dart`, add the strip and the station, and make `matFor` and
+`surfaceFor` read them:
+
+```dart
+/// How wide the strip beside a mat is.
+///
+/// A card, plus the room a pile's own count row and label need around it. The
+/// corner, the deck, the graveyard and the token button all stand in one of
+/// these rather than on the mat, because drawn on the mat they sit over the
+/// battlefield at every zoom.
+const matAside = cardOnMat.width + matPadding * 2;
+
+/// A seat's whole share of the surface: the mat, and a strip on each side.
+Rect stationFor(int index, int count) { ... }
+```
+
+`matFor` returns the mat inside the station, so a drop position is still
+normalized against the same box it always was. **`matFor`'s numbers change**,
+and `mat_layout_test.dart` asserts several of them, so expect the existing
+cases to move and report them.
+
+In `free_canvas.dart`, `_furniture` moves out of the mat's `Stack` and into
+`Positioned.fromRect` rects in the station's strips: the graveyard on the
+left, the corner and the deck and the token on the right.
+
+- [ ] **Step 7: Run everything**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`, WARNING and Warning both 0.
+
+- [ ] **Step 8: Probe**
+
+- Put the graveyard back in `zones`: the first screen case must fail on
+  `mat-graveyard-s1` being found.
+- Take one `aside` back out of the width arithmetic: say what fails. If
+  nothing does, the two asides are unpinned and the third screen case should
+  be the one catching it, so say whether it earns a tighter assertion.
+- Draw the furniture back inside the mat's rect: the canvas case must fail on
+  `deck.left`.
+- Make `matAside` zero: say which of the station cases fail and on which
+  assertion.
+
+Say which assertion each time, with its line. Edit each back by hand, never
+with `git checkout`, and rerun.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add lib/features/play test/features
+git commit -m "Stand the furniture beside the mat, and stop drawing the graveyard twice"
+```
+
+---
+
+## Task 9 onward
+
+The dice, last: three dimensional, on the deck, d20, d12 and d6. `RollDice`
+has existed since plan 2 with no caller, and the reducer already takes the
+results from the caller so a replay gives the same roll.
