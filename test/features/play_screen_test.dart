@@ -12,6 +12,7 @@ import 'package:kitchentable/features/play/play_screen.dart';
 import 'package:kitchentable/features/play/renderers/free_canvas.dart';
 import 'package:kitchentable/features/play/renderers/stacked_seats.dart';
 import 'package:kitchentable/features/play/widgets/command_slot.dart';
+import 'package:kitchentable/features/play/widgets/cursor_board.dart';
 import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
 import 'package:kitchentable/features/play/widgets/radar_strip.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
@@ -21,6 +22,7 @@ import 'package:kitchentable/table/actions/table_action.dart';
 import 'package:kitchentable/table/model/table_state.dart';
 import 'package:kitchentable/table/referee/referee.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
+import 'package:kitchentable/ui/atoms/card_art.dart';
 
 CatalogCard _card(String name) => CatalogCard(
       oracleId: name,
@@ -505,6 +507,80 @@ void main() {
         hasLength(1));
     expect(container.read(playProvider)!.zone('battlefield-s1')!.cards,
         isEmpty);
+  });
+
+  testWidgets('the deck and the commander are the size of the cards',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final container = await _seatedPod(tester, ['you'],
+        window: const Size(1900, 900), withCommander: true);
+
+    // A window this wide opens the canvas by itself, and the canvas draws
+    // neither a deck nor a commander, so there would be nothing to measure.
+    // The screenshot this came from was the bands on a wide window, which is
+    // one button away and is where the deck sat at 46 points beside a 270
+    // point card.
+    await tester.tap(find.byKey(const Key('switch-renderer')));
+    await tester.pumpAndSettle();
+
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    // Named by the thing that draws it. The commander is a TableCard too and
+    // it is drawn first, so `first` on its own would measure the corner and
+    // then compare the deck against it rather than against the board.
+    final onBoard = tester
+        .getSize(find
+            .descendant(
+              of: find.byType(CursorBoard),
+              matching: find.byType(TableCard),
+            )
+            .first)
+        .width;
+    // The back of the top card, not the box the pile is drawn in: the box is
+    // the card plus a leaf of offset per card in the deck, which is about 19
+    // points of thickness on a full library and is not a card's width at all.
+    // Measured against the box, a deck at 46 points already cleared the bar
+    // below and the case proved nothing.
+    final deck = tester
+        .getSize(find
+            .descendant(
+              of: find.byKey(const Key('library-stack')),
+              matching: find.byType(CardBack),
+            )
+            .first)
+        .width;
+    final commander = tester
+        .getSize(find.descendant(
+          of: find.byType(CommandSlot),
+          matching: find.byType(TableCard),
+        ))
+        .width;
+
+    // The deck was a fixed 46 points while a card on a wide window was 270,
+    // so the pile you draw from was nearly six times smaller than the cards
+    // around it. A deck at a table is the same size as the cards in it.
+    expect(deck, greaterThan(onBoard * 0.6),
+        reason: 'the deck is a pile of these cards, not a thumbnail');
+
+    // And not the other way either. Read off the seat's whole column rather
+    // than off the box the board is given, the deck comes out at 186 points
+    // beside a 99 point card, measured: that clears the line above and is
+    // just as wrong. Too big is the failure this arithmetic can actually
+    // make, so the case has to be able to say it.
+    expect(deck, lessThan(onBoard * 1.4),
+        reason: 'the deck is a pile of these cards, not a monument');
+
+    // And the corner is one of these cards too, at 52 points against 270.
+    // Asserted here and not left to the deck, because they are two separate
+    // sizes in the screen and one can be fixed while the other is missed.
+    expect(commander, greaterThan(onBoard * 0.6),
+        reason: 'the commander is a card, not a stamp');
+    expect(commander, lessThan(onBoard * 1.4),
+        reason: 'the commander is a card, not a poster');
   });
 }
 
