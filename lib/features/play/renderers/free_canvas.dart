@@ -35,6 +35,7 @@ class FreeCanvas extends StatefulWidget {
     this.libraryCount = 0,
     this.commandCards,
     this.graveyard,
+    this.tokenButton,
     this.game,
     this.onPlayCommand,
     this.onSendHome,
@@ -75,6 +76,10 @@ class FreeCanvas extends StatefulWidget {
   /// pile is its top is the sort of thing that would be got right in one place
   /// and wrong in the other.
   final Widget? graveyard;
+
+  /// Built by the screen and handed over, the way [graveyard] is, so the deck
+  /// and the token control cannot drift apart between the two renderers.
+  final Widget? tokenButton;
 
   /// Whose back your deck is drawn with. Null draws the plain box.
   final Game? game;
@@ -179,6 +184,7 @@ class _FreeCanvasState extends State<FreeCanvas> {
                   Positioned.fromRect(
                     rect: matFor(slot, seats.length),
                     child: _Mat(
+                      tokenButton: widget.tokenButton,
                       metrics: widget.metrics,
                       seat: seats[seatAt],
                       printings: widget.printings,
@@ -209,6 +215,7 @@ class _FreeCanvasState extends State<FreeCanvas> {
 
 class _Mat extends StatelessWidget {
   const _Mat({
+    this.tokenButton,
     required this.metrics,
     required this.seat,
     required this.printings,
@@ -240,6 +247,10 @@ class _Mat extends StatelessWidget {
   final int libraryCount;
   final List<CardInstance>? commandCards;
   final Widget? graveyard;
+
+  /// Built by the screen and handed over, the way [graveyard] is, so the deck
+  /// and the token control cannot drift apart between the two renderers.
+  final Widget? tokenButton;
   final Game? game;
   final VoidCallback onDraw;
   final VoidCallback onWorkDeck;
@@ -358,6 +369,10 @@ class _Mat extends StatelessWidget {
             ),
           ],
         ),
+        if (tokenButton case final button?) ...[
+          SizedBox(height: m.scaled(10)),
+          SizedBox(width: width, child: button),
+        ],
       ],
     );
   }
