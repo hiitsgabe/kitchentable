@@ -220,6 +220,15 @@ void main() {
     // card is the card's, the viewer is then left holding one pointer, the
     // span of a one finger pinch is zero and InteractiveViewer asserts on a
     // scale of zero instead of zooming.
+    // Measured before the pinch and not compared against a constant. The
+    // opening fit already scales a one seat surface up to 1.1875 in an 800 by
+    // 600 window, so `greaterThan(1.2)` was 0.0125 away from passing with no
+    // pinch at all: a guard one constant from having two reasons to pass, and
+    // raising the constant only moves the cliff. This cannot go vacuous when
+    // the fit changes, and it will change the moment a seat is added.
+    final opened =
+        tester.getRect(find.byKey(const Key('mat-s1'))).width / matSize.width;
+
     final box = tester.getRect(find.byType(TableCard).first);
     final left = await tester.startGesture(
       Offset(box.left - 40, box.center.dy),
@@ -240,8 +249,8 @@ void main() {
     // border insets by a unit on each side.
     final zoom =
         tester.getRect(find.byKey(const Key('mat-s1'))).width / matSize.width;
-    expect(zoom, greaterThan(1.2),
-        reason: 'the pinch did not zoom, so this case proves nothing');
+    expect(zoom, greaterThan(opened * 1.3),
+        reason: 'the pinch has to be what zoomed it, not the opening fit');
 
     // The surface inside the mat, not the mat: the cards are laid out in it,
     // so it is the box a dropped position is measured against.
