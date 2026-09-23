@@ -338,6 +338,11 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                                 graveyard,
                                 width: cardOnMat.width,
                               ),
+                              // Built here and not inside the canvas, for the
+                              // same reason the pile is: one control, so the
+                              // two renderers cannot drift apart.
+                              tokenButton:
+                                  _tokenButton(m, width: cardOnMat.width),
                               game: play.gameAt(seat.id),
                               onDraw: () => play.run(DrawCards(
                                 fromZoneId: library.id,

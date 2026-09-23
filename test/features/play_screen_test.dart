@@ -726,6 +726,19 @@ void main() {
         reason: 'a copy is its own card, not the same card twice');
   });
 
+  testWidgets('the wide view can make a token too', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await _seatedPod(tester, ['you'],
+        window: const Size(1280, 800), withCatalog: true);
+
+    // The default renderer above 720 points is the canvas, and the token
+    // control lived only in the column the bands draw beside the mat. Copy
+    // worked there and finding one did not, which is the half of tokens that
+    // needs a catalog.
+    expect(find.byType(FreeCanvas), findsOneWidget);
+    expect(find.byKey(const Key('make-token')), findsOneWidget);
+  });
+
   testWidgets('a token can be found in the catalog and put down',
       (tester) async {
     final container = await _seatedPod(tester, ['you'], withCatalog: true);
