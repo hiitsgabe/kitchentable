@@ -946,14 +946,393 @@ git commit -m "Throw a card in the graveyard, and go back in after it"
 
 ---
 
-## Tasks 6 onward
+## Task 6: Tokens
 
-The last three of the four the player asked about, written after the graveyard
-lands because two of them hang off the same pile and the third sits on the
-deck:
+`CreateToken` has existed since plan 2 and nothing has ever constructed it.
+The reducer is three lines and correct: it mints a `CardInstance` with an id
+the caller chose, so replaying a game gives the same game.
 
-- **Tokens.** `CreateToken` has existed since plan 2 with no caller.
-- **Markers.** `ChangeCounter` takes any name and the big view hardcodes
-  `+1/+1`.
-- **Dice**, three dimensional, on the deck, d20, d12 and d6. `RollDice` has
-  existed since plan 2 with no caller either.
+What is missing is where a token's **face** comes from. A `CardInstance`
+carries an `oracleId` and nothing else, so a token whose oracle id is not in
+the catalog draws as a blank back with no name on it, which is worse than no
+token at all.
+
+So a token is made **out of a card**, two ways, and neither invents anything:
+
+- **Copy what you are looking at.** The big view gets an action. Most tokens
+  in Magic are a copy of something already on the table, and this needs no
+  search at all.
+- **Find one.** A search over the catalog, the same `searchByName` the deck
+  builder uses. Scryfall's bulk data carries real token cards, so `Goblin` and
+  `Treasure` are findable if the player imported them; if not, the search says
+  nothing found rather than minting a faceless card.
+
+**Files:**
+- Create: `lib/features/play/widgets/token_sheet.dart`
+- Modify: `lib/ui/organisms/card_viewer.dart`
+- Modify: `lib/features/play/play_screen.dart`
+- Test: `test/features/token_sheet_test.dart`, `test/ui/card_viewer_actions_test.dart`, `test/features/play_screen_test.dart`
+
+- [ ] **Step 1: Write the failing test for copying**
+
+Append to `test/ui/card_viewer_actions_test.dart`:
+
+```dart
+  testWidgets('a card on the table can be copied', (tester) async {
+    CardAction? acted;
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(id: 'a', oracleId: 'o'),
+      onAct: (a) => acted = a,
+    ));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('act-copy')));
+    await tester.pump();
+
+    expect(acted, CardAction.copy);
+  });
+
+  testWidgets('a printing with no card behind it cannot be copied',
+      (tester) async {
+    await tester.pumpWidget(_host());
+    await tester.pump();
+
+    // The deck builder opens this on a printing that is on no table. There is
+    // nothing to copy onto a battlefield that does not exist.
+    expect(find.byKey(const Key('act-copy')), findsNothing);
+  });
+```
+
+Append to `test/features/play_screen_test.dart`:
+
+```dart
+  testWidgets('copying a card puts a second one on the battlefield',
+      (tester) async {
+    final container =
+        await _seatedPod(tester, ['you'], withCatalog: true);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.descendant(
+      of: find.byKey(const Key('your-board')),
+      matching: find.byType(TableCard),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('act-copy')));
+    await tester.pumpAndSettle();
+
+    final board = container.read(playProvider)!.zone('battlefield-s1')!;
+    expect(board.cards, hasLength(2));
+    expect(board.cards.map((c) => c.oracleId).toSet(), {card.oracleId});
+    expect(board.cards.map((c) => c.id).toSet(), hasLength(2),
+        reason: 'a copy is its own card, not the same card twice');
+  });
+```
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Run: `flutter test test/ui/card_viewer_actions_test.dart test/features/play_screen_test.dart`
+Expected: FAIL to compile on `CardAction.copy`, then the screen case on the
+board having one card.
+
+- [ ] **Step 3: Copy**
+
+`CardAction` gains `copy`. `CardViewer` shows `act-copy` when `instance` is
+not null, beside the others. The screen runs:
+
+```dart
+      case CardAction.copy:
+        final found = ref.read(playProvider)?.locate(instance.id);
+        if (found == null) return;
+        play.run(CreateToken(
+          zoneId: found.zone.id,
+          oracleId: instance.oracleId,
+          // Minted here and not in the reducer, which is what keeps `apply` a
+          // function: plan 3 replays these and has to get the same table.
+          cardId: 'token-${DateTime.now().microsecondsSinceEpoch}',
+        ));
+```
+
+**That id is not good enough and the next task should know it.** Two copies
+made inside the same microsecond collide, and on the web
+`microsecondsSinceEpoch` is a double with millisecond resolution, so two
+copies in the same millisecond collide for certain. Use `freshSeed()`, which
+already mixes a random into the clock and is already the app's answer to this
+exact question.
+
+- [ ] **Step 4: Run them and watch them pass**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`.
+
+- [ ] **Step 5: Write the failing test for finding one**
+
+Create `test/features/token_sheet_test.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/widgets/token_sheet.dart';
+import 'package:kitchentable/sources/model/catalog_card.dart';
+import 'package:kitchentable/ui/tokens/metrics.dart';
+
+CatalogCard _card(String name) =>
+    CatalogCard(oracleId: name, name: name, typeLine: 'Token', cmc: 0);
+
+Widget _host({
+  Future<List<CatalogCard>> Function(String)? search,
+  void Function(CatalogCard)? onPick,
+}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: TokenSheet(
+          metrics: Metrics.of(DeviceClass.handheld),
+          search: search ?? (term) async => [_card('Goblin'), _card('Goblin Chieftain')],
+          onPick: onPick ?? (_) {},
+        ),
+      ),
+    );
+
+void main() {
+  testWidgets('it opens empty, with nothing searched for yet', (tester) async {
+    await tester.pumpWidget(_host());
+    await tester.pump();
+
+    expect(find.byKey(const Key('token-Goblin')), findsNothing);
+  });
+
+  testWidgets('typing finds cards', (tester) async {
+    await tester.pumpWidget(_host());
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), 'gob');
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('token-Goblin')), findsOneWidget);
+    expect(find.byKey(const Key('token-Goblin Chieftain')), findsOneWidget);
+  });
+
+  testWidgets('picking one reports it', (tester) async {
+    CatalogCard? picked;
+    await tester.pumpWidget(_host(onPick: (c) => picked = c));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), 'gob');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('token-Goblin')));
+    await tester.pumpAndSettle();
+
+    expect(picked?.name, 'Goblin');
+  });
+
+  testWidgets('a catalog with nothing in it says so rather than nothing',
+      (tester) async {
+    await tester.pumpWidget(_host(search: (term) async => []));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), 'gob');
+    await tester.pumpAndSettle();
+
+    // A token whose face is not in the catalog would draw as a blank back
+    // with no name, which is worse than no token. Saying so is the honest
+    // answer, and the fix is on the sources screen.
+    expect(find.textContaining('Nothing'), findsOneWidget);
+  });
+}
+```
+
+- [ ] **Step 6: Write the sheet, and a way in**
+
+`TokenSheet` is a text field and a list, following the deck builder's search
+screen for its idiom rather than inventing one: read
+`lib/features/decks/add_cards_screen.dart` first.
+
+The way in is a control beside the deck and the graveyard, keyed
+`make-token`, that opens it. The screen runs `CreateToken` onto the viewer's
+battlefield with the picked card's oracle id.
+
+- [ ] **Step 7: Run everything**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`, WARNING and Warning both 0.
+
+- [ ] **Step 8: Probe**
+
+Make `CreateToken` reuse the copied card's own id rather than a fresh one. The
+screen case must fail, and **say which of its three assertions**: `hasLength(2)`
+would still pass if the reducer added the card twice under one id, so the one
+that matters is the third.
+
+Then make the search return its results before anything is typed: the first
+sheet case must fail. Say which assertion each time. Edit each back by hand,
+never with `git checkout`, and rerun.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add lib/features/play lib/ui/organisms/card_viewer.dart test/features test/ui
+git commit -m "Make a token, by copying a card or by finding one"
+```
+
+---
+
+## Task 7: Markers
+
+`ChangeCounter` takes any name. The big view hardcodes `+1/+1`, so a
+planeswalker's loyalty, a Pokemon's damage and an artifact's charge all have
+to be counted as if they were the same thing.
+
+`TableCard` already draws whatever counters a card has, as one pill of the
+values joined. That pill is about to be wrong for two kinds at once, since
+`{'+1/+1': 2, 'damage': 3}` reads as `+2 +3`.
+
+**Files:**
+- Modify: `lib/ui/organisms/card_viewer.dart`
+- Modify: `lib/features/play/widgets/table_card.dart`
+- Modify: `lib/features/play/play_screen.dart`
+- Test: `test/ui/card_viewer_actions_test.dart`, `test/features/table_card_test.dart`
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `test/features/table_card_test.dart` if it does not exist, and add:
+
+```dart
+  testWidgets('two kinds of counter are told apart', (tester) async {
+    await tester.pumpWidget(_host(
+      const CardInstance(
+        id: 'a',
+        oracleId: 'o',
+        counters: {'+1/+1': 2, 'damage': 3},
+      ),
+    ));
+    await tester.pump();
+
+    // Joined into one pill these read as `+2 +3`, which is a number nobody
+    // can act on. A Pokemon takes damage and grows at the same time, and so
+    // does a creature with a Wither fight behind it.
+    expect(find.textContaining('+2'), findsOneWidget);
+    expect(find.textContaining('3'), findsWidgets);
+    expect(find.byKey(const Key('counter-+1/+1')), findsOneWidget);
+    expect(find.byKey(const Key('counter-damage')), findsOneWidget);
+  });
+```
+
+Append to `test/ui/card_viewer_actions_test.dart`:
+
+```dart
+  testWidgets('the kind of counter is the player s choice', (tester) async {
+    final acted = <CardAction>[];
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(id: 'a', oracleId: 'o'),
+      onAct: acted.add,
+    ));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('kind-loyalty')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('act-counter-up')));
+    await tester.pump();
+
+    expect(acted, [CardAction.counterUp]);
+  });
+
+  testWidgets('a card already carrying a kind offers that kind',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(
+        id: 'a',
+        oracleId: 'o',
+        counters: {'charge': 4},
+      ),
+    ));
+    await tester.pump();
+
+    // Not in the fixed list, because it came off a card somebody played.
+    expect(find.byKey(const Key('kind-charge')), findsOneWidget);
+    expect(find.text('4'), findsOneWidget);
+  });
+
+  testWidgets('the counter shown is the kind that is chosen', (tester) async {
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(
+        id: 'a',
+        oracleId: 'o',
+        counters: {'+1/+1': 2, 'damage': 7},
+      ),
+    ));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('kind-damage')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('counter-count')), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('counter-count'))).data,
+      '7',
+    );
+  });
+```
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Expected: the viewer cases FAIL on the missing `kind-` keys, the card case on
+the counters being one pill.
+
+- [ ] **Step 3: Let the player choose**
+
+The viewer keeps a chosen kind, defaulting to `+1/+1`. The kinds offered are a
+fixed list plus whatever is already on the card, so a card that arrived
+carrying `charge` offers `charge` without anybody having to have thought of
+it:
+
+```dart
+/// The counters a table puts on cards often enough to be worth a button.
+///
+/// Not a closed list: whatever is already on the card is offered too, so a
+/// card that arrives carrying a kind nobody listed can still be counted. The
+/// table has never cared what these are called, which is why they are strings
+/// and not an enum, and it is also why Pokemon needs nothing added here.
+const counterKinds = ['+1/+1', '-1/-1', 'loyalty', 'charge', 'damage'];
+```
+
+`CardAction.counterUp` and `counterDown` do not change; the screen reads the
+chosen kind off the viewer. That means `show` returns more than an action:
+return a record, or give `CardViewer` an `onCount(String kind, int by)` beside
+`onAct` and keep the enum for the rest. **Prefer the second**: the other six
+actions carry no argument and widening all of them for one is how an enum
+turns into a variant type nobody meant to write.
+
+`TableCard` draws one pill per kind, each keyed `counter-<kind>`, stacked. A
+card with four kinds on it will look busy, which is what a card with four
+kinds of counter on it looks like on a table.
+
+- [ ] **Step 4: Run everything**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`.
+
+- [ ] **Step 5: Probe**
+
+Make the chosen kind always `+1/+1`. The third viewer case must fail on the
+count being 2 where 7 was expected, which is a wrong value rather than a
+finder. Then draw all the counters in one pill again: the card case must fail,
+and say which of its four assertions. Edit each back by hand and rerun.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/features/play lib/ui/organisms/card_viewer.dart test/features test/ui
+git commit -m "Count the thing you meant to count"
+```
+
+---
+
+## Task 8 onward
+
+The dice, written after the tokens and the markers land: three dimensional,
+on the deck, d20, d12 and d6. `RollDice` has existed since plan 2 with no
+caller, and the reducer already takes the results from the caller so a replay
+gives the same roll.
