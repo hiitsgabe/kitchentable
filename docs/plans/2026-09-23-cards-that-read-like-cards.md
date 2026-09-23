@@ -731,17 +731,416 @@ git commit -m "Put the counters from the box on the cards"
 
 ---
 
-## Tasks 5 onward
+## Task 5: Right click opens a card's options
 
-The rest of what the player sent, written after the counters land:
+The same thing a press and hold opens, on a second gesture. A mouse has a
+second button and a table full of cards is exactly where you want it.
 
-- **Right click opens a card's options**, the same menu a press and hold
-  opens, on a second gesture rather than behind a second menu.
-- **The commander goes to its own zone** rather than to the graveyard.
-- **The graveyard pages** rather than listing a hundred cards in one scroll.
-- **The token search finds tokens**, filtered on the type line the catalog
-  already stores.
-- **The list draws a readable card.** `artFor` already picks by drawn width
-  times pixel ratio, so this has to be measured before it is fixed: either a
-  list asks for less than it draws, or the file it picks is not the one
-  reaching the screen.
+**Files:**
+- Modify: `lib/features/play/widgets/table_card.dart`
+- Test: `test/features/table_card_test.dart`
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `test/features/table_card_test.dart`:
+
+```dart
+  testWidgets('a right click opens what a hold opens', (tester) async {
+    CardInstance? held;
+    CardInstance? clicked;
+    await tester.pumpWidget(_host(
+      const CardInstance(id: 'a', oracleId: 'o'),
+      onInspect: (c) => held = c,
+    ));
+    await tester.pump();
+
+    await tester.longPress(find.byType(TableCard));
+    await tester.pump();
+    expect(held?.id, 'a');
+
+    held = null;
+    await tester.tap(find.byType(TableCard), buttons: kSecondaryButton);
+    await tester.pump();
+    clicked = held;
+
+    // The same door, not a second one. A right click that opened a different
+    // menu would be two menus to keep in step.
+    expect(clicked?.id, 'a');
+  });
+
+  testWidgets('a left click still turns the card', (tester) async {
+    CardInstance? turned;
+    CardInstance? inspected;
+    await tester.pumpWidget(_host(
+      const CardInstance(id: 'a', oracleId: 'o'),
+      onTap: (c) => turned = c,
+      onInspect: (c) => inspected = c,
+    ));
+    await tester.pump();
+
+    await tester.tap(find.byType(TableCard));
+    await tester.pump();
+
+    expect(turned?.id, 'a');
+    expect(inspected, isNull, reason: 'a tap opened the menu as well');
+  });
+```
+
+`_host` needs `onTap` and `onInspect` passing through. `kSecondaryButton` is
+in `package:flutter/gestures.dart`.
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Run: `flutter test test/features/table_card_test.dart`
+Expected: the first FAILS on `clicked?.id` being null.
+
+- [ ] **Step 3: Add the button**
+
+`onSecondaryTap` on the same `GestureDetector`, calling the same callback
+`onLongPress` does.
+
+**Check it does not break the drag.** `DraggableCard` wraps this, and a
+secondary button press with a pan recogniser above it can be claimed by the
+wrong one. Run `cursor_board_test.dart` and `free_canvas_test.dart` and say
+what they report.
+
+- [ ] **Step 4: Run everything, probe, commit**
+
+```bash
+flutter test && flutter analyze
+```
+
+Probe by removing `onSecondaryTap`: the first case must fail on `clicked?.id`
+and the second must pass, which is what says the two buttons are told apart.
+
+```bash
+git add lib/features/play/widgets/table_card.dart test/features/table_card_test.dart
+git commit -m "Open a card's options with the other mouse button"
+```
+
+---
+
+## Task 6: A commander goes to its own zone
+
+**Files:**
+- Modify: `lib/features/play/play_controller.dart`
+- Modify: `lib/features/play/play_screen.dart`
+- Test: `test/features/play_screen_test.dart`
+
+### Where "this card is a commander" comes from
+
+`CardInstance` does not know. The deck marks a slot, `sitDown` puts those
+cards in the command zone before it shuffles, and after that a commander on
+the battlefield is an ordinary card instance.
+
+`PlayController` already keeps two maps beside the table for exactly this
+shape of question, `_games` and `_deckSizes`, both filled in `startPod` and
+cleared in `leave`. A third, seat to the set of card ids that started in the
+command zone, is the same pattern and does not put a game's rule on the table.
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `test/features/play_screen_test.dart`:
+
+```dart
+  testWidgets('a commander thrown in the graveyard goes to its zone',
+      (tester) async {
+    final container =
+        await _seatedPod(tester, ['you'], withCommander: true);
+    final play = container.read(playProvider.notifier);
+    final commander =
+        container.read(playProvider)!.zone('command-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: commander.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    final from = tester.getCenter(find.descendant(
+      of: find.byKey(const Key('your-board')),
+      matching: find.byType(TableCard),
+    ));
+    final bin = tester.getCenter(find.byKey(const Key('graveyard-stack')));
+    await tester.dragFrom(from, bin - from);
+    await tester.pumpAndSettle();
+
+    final table = container.read(playProvider)!;
+    expect(table.zone('command-s1')!.cards.map((c) => c.id),
+        contains(commander.id));
+    expect(table.zone('graveyard-s1')!.cards, isEmpty);
+  });
+
+  testWidgets('an ordinary card thrown in the graveyard stays there',
+      (tester) async {
+    final container =
+        await _seatedPod(tester, ['you'], withCommander: true);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    final from = tester.getCenter(find.descendant(
+      of: find.byKey(const Key('your-board')),
+      matching: find.byType(TableCard),
+    ));
+    final bin = tester.getCenter(find.byKey(const Key('graveyard-stack')));
+    await tester.dragFrom(from, bin - from);
+    await tester.pumpAndSettle();
+
+    // The redirect is for commanders, not for everything. Without this the
+    // first case would pass against a graveyard that swallows nothing.
+    expect(container.read(playProvider)!.zone('graveyard-s1')!.cards,
+        hasLength(1));
+  });
+```
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Expected: the first FAILS on the command zone not containing it, the second
+passes already.
+
+- [ ] **Step 3: Remember whose commander it is**
+
+`PlayController` gains `_commanders`, a seat to a `Set<String>` of card ids,
+filled in `startPod` from the cards `sitDownTogether` put in each command
+zone, cleared in `leave`, read as `bool isCommander(String cardId)`.
+
+The screen's graveyard drop checks it and sends the card to
+`command-<seat>` instead.
+
+**Do not put this on the referee.** The referee reviews an action and refuses
+it; this one has to change the destination, which is a different verb. When
+there is a real referee it can own the replacement, and that is written in the
+spec as a rule question, not a table one.
+
+- [ ] **Step 4: Run everything, probe, commit**
+
+Probe by making `isCommander` always false: the first case fails. Then always
+true: the second fails. Say which assertion each.
+
+```bash
+git add lib/features/play test/features/play_screen_test.dart
+git commit -m "Send a commander home instead of to the graveyard"
+```
+
+---
+
+## Task 7: The graveyard pages
+
+**Files:**
+- Modify: `lib/features/play/widgets/pile_sheet.dart`
+- Test: `test/features/pile_sheet_test.dart`
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `test/features/pile_sheet_test.dart`:
+
+```dart
+  testWidgets('a big pile comes a page at a time', (tester) async {
+    await tester.pumpWidget(_host(cards: _cards(30)));
+    await tester.pump();
+
+    // Thirty rows in one scroll is a list you get lost in, and a graveyard in
+    // a long game is a hundred.
+    expect(find.byKey(const Key('pile-card-c0')), findsOneWidget);
+    expect(find.byKey(const Key('pile-card-c29')), findsNothing);
+    expect(find.textContaining('1'), findsWidgets);
+  });
+
+  testWidgets('the next page has the next cards', (tester) async {
+    await tester.pumpWidget(_host(cards: _cards(30)));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('pile-next')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('pile-card-c0')), findsNothing);
+    expect(find.byKey(const Key('pile-card-c29')), findsWidgets);
+  });
+
+  testWidgets('a small pile has no pages to turn', (tester) async {
+    await tester.pumpWidget(_host(cards: _cards(4)));
+    await tester.pump();
+
+    expect(find.byKey(const Key('pile-next')), findsNothing);
+    expect(find.byKey(const Key('pile-back')), findsNothing);
+  });
+
+  testWidgets('a choice made on one page survives turning to another',
+      (tester) async {
+    List<Placement>? arranged;
+    await tester.pumpWidget(
+      _host(cards: _cards(30), onArrange: (p) => arranged = p),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('hand-c1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('pile-next')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('pile-done')));
+    await tester.pumpAndSettle();
+
+    // The page is a window on the pile, not a form that resets.
+    expect(arranged, [(cardId: 'c1', to: Landing.hand)]);
+  });
+```
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Expected: the first FAILS with `pile-card-c29` found, because everything is
+drawn at once today.
+
+- [ ] **Step 3: Page it**
+
+A page size that fills a phone without scrolling, and a row of controls
+saying which page this is. The chosen destinations already live in a map keyed
+by card id, so they survive a page turn for free: **the fourth case is there
+to prove that, not to make it true.** If it fails, the state went into the
+page rather than the sheet.
+
+- [ ] **Step 4: Run everything, probe, commit**
+
+Probe by drawing every card regardless of the page: the first case fails.
+Then by clearing the choices on a page turn: the fourth fails. Say which
+assertion each.
+
+```bash
+git add lib/features/play/widgets/pile_sheet.dart test/features/pile_sheet_test.dart
+git commit -m "Turn the graveyard a page at a time"
+```
+
+---
+
+## Task 8: The token search finds tokens
+
+**Files:**
+- Modify: `lib/features/play/widgets/token_sheet.dart`
+- Test: `test/features/token_sheet_test.dart`
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `test/features/token_sheet_test.dart`:
+
+```dart
+  testWidgets('it offers tokens first', (tester) async {
+    await tester.pumpWidget(_host(search: (term) async => [
+          _card('Goblin Chieftain', type: 'Creature - Goblin'),
+          _card('Goblin', type: 'Token Creature - Goblin'),
+        ]));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), 'gob');
+    await tester.pumpAndSettle();
+
+    final rows = tester.widgetList(find.byType(TokenRow)).toList();
+    expect(rows, hasLength(2));
+
+    // A token is what this sheet is for. A real card of the same name is
+    // still there, because plenty of tokens are copies of one, but it is not
+    // what you are offered first.
+    expect(
+      tester.getRect(find.byKey(const Key('token-Goblin'))).top,
+      lessThan(
+        tester.getRect(find.byKey(const Key('token-Goblin Chieftain'))).top,
+      ),
+    );
+  });
+
+  testWidgets('a catalog with no tokens in it says why', (tester) async {
+    await tester.pumpWidget(_host(search: (term) async => [
+          _card('Goblin Chieftain', type: 'Creature - Goblin'),
+        ]));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), 'gob');
+    await tester.pumpAndSettle();
+
+    // Scryfall's bulk data carries token cards, so a catalog with none of
+    // them was imported from a source that does not, and saying so beats a
+    // list that silently has no tokens in it.
+    expect(find.textContaining('No tokens'), findsOneWidget);
+  });
+```
+
+`_card` in that file needs a `type` argument, defaulting to what it uses now.
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Expected: the first FAILS on the order, the second on the message.
+
+- [ ] **Step 3: Sort by what a token is**
+
+`CatalogCard.typeLine` is already stored. Scryfall writes a token's type line
+beginning `Token`, so `Token Creature - Goblin` and `Token Artifact -
+Treasure` are both findable without a new column.
+
+Sort tokens above the rest rather than filtering the rest away: plenty of
+tokens are copies of a real card and the player asked for tokens, treasures
+"and etc", not for tokens only. Say in the sheet when none of the results is
+a token.
+
+**Do not add a `layout` column for this.** It would mean a schema bump and a
+reimport for a question `typeLine` already answers.
+
+- [ ] **Step 4: Run everything, probe, commit**
+
+Probe by sorting the other way: the first case fails on the order. Then by
+never showing the message: the second fails.
+
+```bash
+git add lib/features/play/widgets/token_sheet.dart test/features/token_sheet_test.dart
+git commit -m "Offer tokens first in the token search"
+```
+
+---
+
+## Task 9: The list draws a readable card
+
+**This one is measured before it is fixed.** `artFor` already picks by drawn
+width times pixel ratio, and it has a case for exactly the boundary a list
+sits on. So either a list asks for less than it draws, or the file it picks is
+not the one reaching the screen, and those are different bugs.
+
+**Files:**
+- Test first, then whichever of `lib/ui/atoms/card_art.dart`,
+  `lib/features/decks/*.dart` the measurement points at.
+
+- [ ] **Step 1: Measure**
+
+The three list sites are `add_cards_screen.dart:154`,
+`deck_screen.dart:198` and `add_lands_screen.dart:200`, all asking for
+`m.scaled(46)` or `m.scaled(48)`.
+
+Write a throwaway case that pumps one of those screens and prints, for one
+row: the width passed to `CardArt`, the rect the `CardImage` actually gets,
+and which URL `artFor` returned. Delete it afterwards.
+
+**Report those three numbers before changing anything.** The likely answers
+and what each means:
+
+- The drawn rect is bigger than the width passed. Then the box is stretching
+  and the fix is at the call site, not in `artFor`.
+- The rect matches and `small` was picked. Then 46 points at this device
+  ratio genuinely lands under the 146 pixel threshold, and the threshold is
+  honest but the picture is still soft on a high ratio screen: the fix is to
+  ask for the next size up when the two are close, and that needs a number
+  from the measurement rather than a guess.
+- The URL is `imageNormal` already. Then the file is right and the softness is
+  something else entirely, and stop.
+
+- [ ] **Step 2 onward**
+
+Written once Step 1 has reported. Do not guess at the fix.
+
+---
+
+## What this plan deliberately leaves out
+
+- **The D-pad reaching a graveyard.** Taking that mat off the board is what
+  stopped it being drawn twice, and a pad cannot open a sheet either. It needs
+  its own answer.
+- **Counters anybody else can see.** They are on the card instance, so plan 3
+  replicates them, but nothing draws an opponent's.
+- **A commander's choice.** Magic lets its owner choose the command zone or
+  the graveyard. This redirects, because a kitchen table wants the common
+  case and the referee's chair is still empty.
