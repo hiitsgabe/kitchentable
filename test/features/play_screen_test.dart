@@ -974,6 +974,62 @@ void main() {
       reason: 'the canvas was handed no game',
     );
   });
+
+  testWidgets('a commander thrown in the graveyard goes to its zone',
+      (tester) async {
+    // The case above this one taps `switch-renderer` and never puts the
+    // mock store back, so the canvas is still the persisted choice when this
+    // one opens. On the canvas your corner draws the commander beside the
+    // board and `your-board` holds two cards, which is a finder this case
+    // cannot resolve. Six cases in this file already open with this line.
+    SharedPreferences.setMockInitialValues({});
+    final container =
+        await _seatedPod(tester, ['you'], withCommander: true);
+    final play = container.read(playProvider.notifier);
+    final commander =
+        container.read(playProvider)!.zone('command-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: commander.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    final from = tester.getCenter(find.descendant(
+      of: find.byKey(const Key('your-board')),
+      matching: find.byType(TableCard),
+    ));
+    final bin = tester.getCenter(find.byKey(const Key('graveyard-stack')));
+    await tester.dragFrom(from, bin - from);
+    await tester.pumpAndSettle();
+
+    final table = container.read(playProvider)!;
+    expect(table.zone('command-s1')!.cards.map((c) => c.id),
+        contains(commander.id));
+    expect(table.zone('graveyard-s1')!.cards, isEmpty);
+  });
+
+  testWidgets('an ordinary card thrown in the graveyard stays there',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final container =
+        await _seatedPod(tester, ['you'], withCommander: true);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    final from = tester.getCenter(find.descendant(
+      of: find.byKey(const Key('your-board')),
+      matching: find.byType(TableCard),
+    ));
+    final bin = tester.getCenter(find.byKey(const Key('graveyard-stack')));
+    await tester.dragFrom(from, bin - from);
+    await tester.pumpAndSettle();
+
+    // The redirect is for commanders, not for everything. Without this the
+    // first case would pass against a graveyard that swallows nothing.
+    expect(container.read(playProvider)!.zone('graveyard-s1')!.cards,
+        hasLength(1));
+  });
 }
 
 class _GrumpyReferee implements Referee {
