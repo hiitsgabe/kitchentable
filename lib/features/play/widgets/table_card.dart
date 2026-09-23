@@ -5,7 +5,8 @@ import '../../../sources/model/catalog_card.dart';
 import '../../../table/model/card_instance.dart';
 import '../../../ui/atoms/card_art.dart';
 import '../../../ui/tokens/metrics.dart';
-import '../../../ui/tokens/palette.dart';
+import '../counters.dart';
+import 'counter_piece.dart';
 import 'hover_card.dart';
 
 /// One card where it is sitting, turned however it is turned.
@@ -76,24 +77,72 @@ class TableCard extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               face,
-              if (instance.counters.isNotEmpty)
+              if (instance.counters.isNotEmpty) _counters(width),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The pieces the card is wearing, in a row along its bottom edge.
+  ///
+  /// One marker for the net of everything numeric, one per keyword, and one
+  /// for any kind nobody printed. The pills this replaces were one per kind
+  /// and read `+2 +3` down the corner, which is three numbers with no units:
+  /// the numbers now say what they do to power and toughness and the words
+  /// say the word.
+  ///
+  /// Sized off the card and not off the metrics, and positioned rather than
+  /// laid out, so a card wearing counters is exactly as big as a card wearing
+  /// none. Two earlier things added to a card each cost the board nine and a
+  /// half percent by having a size of their own.
+  Widget _counters(double width) {
+    final pieces = <CounterPiece>[];
+    final counts = <int>[];
+
+    final net = netPiece(instance.counters);
+    if (net != null) {
+      pieces.add(net);
+      counts.add(1);
+    }
+    for (final entry in instance.counters.entries) {
+      // The numbers have already gone into the marker. A keyword and a kind
+      // nobody printed have nothing to add to, so they stand on their own.
+      if (entry.value == 0 || isNumberKind(entry.key)) continue;
+      pieces.add(pieceNamed(entry.key) ?? unknownPiece(entry.key));
+      counts.add(entry.value);
+    }
+    if (pieces.isEmpty) return const SizedBox.shrink();
+
+    final pieceWidth = width * 0.27;
+    final pieceHeight = CounterPieceView.heightFor(pieceWidth);
+    // Overlapping, the way a handful of them dropped on a card does.
+    final step = pieceWidth * 0.82;
+
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: -pieceHeight * 0.2,
+      // Scaled down rather than overflowing. A card wearing five kinds has a
+      // row of pieces wider than the card, and pieces getting smaller is what
+      // a crowded card looks like anyway.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.bottomCenter,
+        child: SizedBox(
+          width: pieceWidth + step * (pieces.length - 1),
+          height: pieceHeight,
+          child: Stack(
+            children: [
+              for (var i = 0; i < pieces.length; i++)
                 Positioned(
-                  right: -width * 0.06,
-                  bottom: -width * 0.06,
-                  // One pill per kind, stacking up out of the corner. Joined
-                  // into one, `{'+1/+1': 2, 'damage': 3}` read as `+2 +3`,
-                  // which is a number nobody can act on: a Pokemon takes
-                  // damage and grows at the same time, and so does a creature
-                  // in a fight with Wither behind it. A card with four kinds
-                  // on it looks busy here, which is what a card with four
-                  // kinds of counter on it looks like on a table.
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      for (final counter in instance.counters.entries)
-                        _pill(m, counter.key, counter.value),
-                    ],
+                  left: step * i,
+                  child: CounterPieceView(
+                    key: Key('counter-${pieces[i].name}'),
+                    piece: pieces[i],
+                    count: counts[i],
+                    width: pieceWidth,
                   ),
                 ),
             ],
@@ -102,28 +151,6 @@ class TableCard extends StatelessWidget {
       ),
     );
   }
-
-  /// How many of one kind, in the corner of the card.
-  Widget _pill(Metrics m, String kind, int count) => Container(
-        key: Key('counter-$kind'),
-        margin: EdgeInsets.only(top: m.scaled(2)),
-        padding: EdgeInsets.symmetric(
-          horizontal: m.scaled(6),
-          vertical: m.scaled(2),
-        ),
-        decoration: BoxDecoration(
-          color: Palette.accent,
-          borderRadius: BorderRadius.circular(m.scaled(99)),
-        ),
-        child: Text(
-          count > 0 ? '+$count' : '$count',
-          style: TextStyle(
-            fontSize: m.scaled(10),
-            fontWeight: FontWeight.w700,
-            color: Colors.black,
-          ),
-        ),
-      );
 
   /// The card, under a preview or not.
   Widget _maybeHover(Metrics m, CatalogCard? card, Widget child) =>
