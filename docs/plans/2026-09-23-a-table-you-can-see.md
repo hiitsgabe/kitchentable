@@ -1150,9 +1150,21 @@ void main() {
 screen for its idiom rather than inventing one: read
 `lib/features/decks/add_cards_screen.dart` first.
 
-The way in is a control beside the deck and the graveyard, keyed
-`make-token`, that opens it. The screen runs `CreateToken` onto the viewer's
-battlefield with the picked card's oracle id.
+The way in is a control keyed `make-token` that opens it, and the screen runs
+`CreateToken` onto the viewer's battlefield with the picked card's oracle id.
+
+**Put it in both renderers.** The column beside the mat belongs to the bands,
+and the canvas is the default above 720 points, so a control that lives only
+there is missing from the view most people open. Build it once in the screen
+and hand it to `FreeCanvas` as a widget, the way the graveyard pile already
+arrives, and add a case at a wide window: without one the canvas half ships
+untested, which is what happened.
+
+The sheet is **not debounced**, unlike `add_cards_screen.dart`. It cannot be:
+`pumpAndSettle` returns as soon as no frame is scheduled, so a 300 ms `Timer`
+never fires and three of its four cases would fail against a debounced sheet.
+A token name is typed once and picked rather than browsed, so this is the
+right place not to have one, but the constraint came from the cases.
 
 - [ ] **Step 7: Run everything**
 
@@ -1166,8 +1178,11 @@ screen case must fail, and **say which of its three assertions**: `hasLength(2)`
 would still pass if the reducer added the card twice under one id, so the one
 that matters is the third.
 
-Then make the search return its results before anything is typed: the first
-sheet case must fail. Say which assertion each time. Edit each back by hand,
+Then make the search eager. **Not by lowering the two letter floor**, which
+sits on code the "opens empty" case never reaches, because `onChanged` never
+fires when nobody types: that mutation survives and looks like a correct
+sheet. Call `widget.search('')` from `initState` instead, and the first sheet
+case fails on the assertion it is named for. Say which assertion each time. Edit each back by hand,
 never with `git checkout`, and rerun.
 
 - [ ] **Step 9: Commit**
@@ -1239,19 +1254,21 @@ Append to `test/ui/card_viewer_actions_test.dart`:
     expect(acted, [CardAction.counterUp]);
   });
 
-  testWidgets('a card already carrying a kind offers that kind',
-      (tester) async {
+  testWidgets('a kind nobody put on the list is offered too', (tester) async {
     await tester.pumpWidget(_host(
       instance: const CardInstance(
         id: 'a',
         oracleId: 'o',
-        counters: {'charge': 4},
+        counters: {'energy': 4},
       ),
     ));
     await tester.pump();
 
-    // Not in the fixed list, because it came off a card somebody played.
-    expect(find.byKey(const Key('kind-charge')), findsOneWidget);
+    // `energy` and not `charge`. An earlier draft used `charge`, which is in
+    // `counterKinds` below, so the case passed against a viewer that never
+    // read the card at all and proved only that the kind was not offered
+    // twice. It has to be a kind no list carries.
+    expect(find.byKey(const Key('kind-energy')), findsOneWidget);
     expect(find.text('4'), findsOneWidget);
   });
 
