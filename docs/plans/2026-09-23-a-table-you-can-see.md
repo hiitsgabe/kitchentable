@@ -2049,8 +2049,324 @@ git commit -m "Draw a solid, near faces over far ones"
 
 ---
 
-## Task 11 onward
+## Task 11: The roll
 
-The roll itself, written after the solids can be drawn: three dice on the
-deck, a tumble that settles on the number, and `RollDice` finally getting a
-caller.
+Three dice standing on the deck. Tap one and it tumbles and settles on its
+number. `RollDice` finally gets a caller: it has existed since plan 2 and its
+reducer already takes the results from whoever rolled, so replaying a game
+gives the same roll.
+
+**Files:**
+- Create: `lib/features/play/dice/tumble.dart`
+- Create: `lib/features/play/dice/dice_tray.dart`
+- Modify: `lib/features/play/play_screen.dart`
+- Test: `test/features/tumble_test.dart`, `test/features/dice_tray_test.dart`, `test/features/play_screen_test.dart`
+
+### The composition order has to be measured, not assumed
+
+`Quaternion.axisAngle` already turned out to run against the right hand rule.
+Do not assume which side of a product applies first either. Measure it in the
+first case you write, and if the plan's order below is backwards, say so with
+the numbers and use the other one.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `test/features/tumble_test.dart`:
+
+```dart
+import 'dart:math' as math;
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/dice/polyhedron.dart';
+import 'package:kitchentable/features/play/dice/tumble.dart';
+import 'package:vector_math/vector_math_64.dart';
+
+void main() {
+  test('which side of a product applies first', () {
+    // Measured rather than assumed, because axisAngle already turned out to
+    // run against the right hand rule. A quarter turn about z followed by a
+    // quarter turn about x, applied to the x axis.
+    final aboutZ = Quaternion.axisAngle(Vector3(0, 0, 1), math.pi / 2);
+    final aboutX = Quaternion.axisAngle(Vector3(1, 0, 0), math.pi / 2);
+    final v = Vector3(1, 0, 0);
+
+    // One of these is z first and the other is x first. Whichever it is,
+    // `tumble` has to compose so that at the end the settle wins outright.
+    expect((aboutX * aboutZ).rotated(v).length, closeTo(1, 1e-9));
+    expect((aboutZ * aboutX).rotated(v).length, closeTo(1, 1e-9));
+  });
+
+  test('a tumble ends exactly where the die settles', () {
+    for (final die in [Polyhedron.d6, Polyhedron.d12, Polyhedron.d20]) {
+      for (var face = 0; face < die.faces.length; face++) {
+        final landed =
+            tumble(die: die, face: face, spin: 3, at: 1).rotated(
+          die.normalOf(die.faces[face]),
+        );
+
+        // Not close to the camera. On it. A die that settles a degree out
+        // reads as a die resting on an edge.
+        expect(landed.z, closeTo(1, 1e-9),
+            reason: 'face $face of a ${die.sides} sided die did not land');
+      }
+    }
+  });
+
+  test('a tumble actually moves', () {
+    final die = Polyhedron.d20;
+    final settled = tumble(die: die, face: 0, spin: 3, at: 1);
+    final middle = tumble(die: die, face: 0, spin: 3, at: 0.5);
+
+    // A "tumble" that is the settle all the way through is a die that
+    // teleports to its answer, which is what a still picture looks like.
+    expect((middle.rotated(Vector3(0, 0, 1)) -
+                settled.rotated(Vector3(0, 0, 1)))
+            .length,
+        greaterThan(0.1));
+  });
+
+  test('more spin is more turning', () {
+    final die = Polyhedron.d20;
+    var far = 0.0;
+    var near = 0.0;
+    for (var i = 1; i < 20; i++) {
+      final t = i / 20;
+      far += (tumble(die: die, face: 0, spin: 6, at: t).rotated(Vector3(1, 0, 0)) -
+              tumble(die: die, face: 0, spin: 6, at: t - 0.05)
+                  .rotated(Vector3(1, 0, 0)))
+          .length;
+      near += (tumble(die: die, face: 0, spin: 1, at: t).rotated(Vector3(1, 0, 0)) -
+              tumble(die: die, face: 0, spin: 1, at: t - 0.05)
+                  .rotated(Vector3(1, 0, 0)))
+          .length;
+    }
+    expect(far, greaterThan(near));
+  });
+
+  test('the same roll tumbles the same way twice', () {
+    final die = Polyhedron.d12;
+    final once = tumble(die: die, face: 4, spin: 3, at: 0.37);
+    final twice = tumble(die: die, face: 4, spin: 3, at: 0.37);
+
+    // No randomness inside. What is random is the number, which is rolled by
+    // the caller, because `apply` has to be a function or replaying a game
+    // gives a different game.
+    expect((once.rotated(Vector3(1, 2, 3)) - twice.rotated(Vector3(1, 2, 3)))
+        .length, lessThan(1e-12));
+  });
+
+  test('a roll is a number on the die', () {
+    final rolled = <int>{};
+    for (var i = 0; i < 400; i++) {
+      final n = rollOne(Polyhedron.d20, math.Random(i));
+      expect(n, greaterThanOrEqualTo(1));
+      expect(n, lessThanOrEqualTo(20));
+      rolled.add(n);
+    }
+    // Four hundred rolls of a d20 that never show a twenty is a d19.
+    expect(rolled, hasLength(20));
+  });
+}
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/features/tumble_test.dart`
+Expected: FAIL, `Error when reading 'lib/features/play/dice/tumble.dart'`.
+
+- [ ] **Step 3: Write the tumble**
+
+```dart
+/// Where the die is pointing, part way through a roll.
+///
+/// Composed so the settle wins outright at the end: the spin decays to
+/// nothing as `at` reaches one, so the last frame is the settle exactly and
+/// not the settle plus a rounding error. A die that stops a degree off reads
+/// as one resting on an edge.
+///
+/// Nothing random in here. The number is rolled by the caller, because
+/// `apply` has to be a function or replaying a game gives a different game,
+/// which is the same reason `CreateToken` takes its id from outside.
+Quaternion tumble({
+  required Polyhedron die,
+  required int face,
+  required double spin,
+  required double at,
+}) { ... }
+```
+
+The eased fraction wants to decelerate: a die thrown across a table slows into
+its answer rather than stopping dead. `Curves.easeOutCubic` transforms a
+`double` without a widget, so it can be used here.
+
+`rollOne(die, random)` returns `1 + random.nextInt(die.sides)`.
+
+- [ ] **Step 4: Run it and watch it pass**
+
+Run: `flutter test test/features/tumble_test.dart`
+Expected: PASS, 6 tests.
+
+- [ ] **Step 5: Probe**
+
+- Make the spin not decay, so it is still turning at `at: 1`. The landing case
+  must fail on `landed.z`, and say for which die and face.
+- Return the settle for every `at`. The moving case must fail.
+- Make `rollOne` return `random.nextInt(die.sides)`, off by one. Say which
+  assertion fails: it should be the lower bound, and if it is the
+  `hasLength(20)` instead, that tells you the bound was never tested.
+
+Edit each back by hand, never with `git checkout`, and rerun.
+
+- [ ] **Step 6: Write the failing test for the tray**
+
+Create `test/features/dice_tray_test.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/dice/dice_tray.dart';
+import 'package:kitchentable/ui/tokens/metrics.dart';
+
+Widget _host({
+  List<int> showing = const [20, 12, 6],
+  void Function(List<int>)? onRoll,
+}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: DiceTray(
+          metrics: Metrics.of(DeviceClass.handheld),
+          showing: showing,
+          width: 120,
+          onRoll: onRoll ?? (_) {},
+        ),
+      ),
+    );
+
+void main() {
+  testWidgets('there are three of them', (tester) async {
+    await tester.pumpWidget(_host());
+    await tester.pump();
+
+    expect(find.byKey(const Key('die-20')), findsOneWidget);
+    expect(find.byKey(const Key('die-12')), findsOneWidget);
+    expect(find.byKey(const Key('die-6')), findsOneWidget);
+  });
+
+  testWidgets('each shows what it last landed on', (tester) async {
+    await tester.pumpWidget(_host(showing: const [17, 3, 5]));
+    await tester.pumpAndSettle();
+
+    expect(find.text('17'), findsWidgets);
+    expect(find.text('3'), findsWidgets);
+    expect(find.text('5'), findsWidgets);
+  });
+
+  testWidgets('tapping one rolls that one and leaves the others',
+      (tester) async {
+    List<int>? rolled;
+    await tester.pumpWidget(
+      _host(showing: const [17, 3, 5], onRoll: (r) => rolled = r),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('die-12')));
+    await tester.pumpAndSettle();
+
+    expect(rolled, hasLength(3));
+    expect(rolled![0], 17, reason: 'the d20 was not touched');
+    expect(rolled![2], 5, reason: 'the d6 was not touched');
+    expect(rolled![1], inInclusiveRange(1, 12));
+  });
+
+  testWidgets('a die that has not been rolled yet still draws', (tester) async {
+    await tester.pumpWidget(_host(showing: const []));
+    await tester.pump();
+
+    // A table opens with no dice thrown. Three blanks would be three holes.
+    expect(find.byKey(const Key('die-20')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+}
+```
+
+- [ ] **Step 7: Write the tray and put it on the deck**
+
+`DiceTray` is a row of three `DieView`s, each animating through `tumble` when
+its number changes. An `AnimationController` per die, or one controller and
+three start times: the second is simpler and a roll is one die at a time.
+
+On the screen it goes in the column beside the mat, above the deck, and into
+`FreeCanvas`'s furniture the same way the token control did: **built once in
+the screen and handed to both renderers**, because that is the third time this
+has come up and the two views drifting apart is the failure each time.
+
+`onRoll` runs `RollDice(results)`. The screen reads the current three off
+`table.dice`, replaces the one that was tapped, and sends all three, so the
+table's `dice` list is the whole tray and a replay gives the same table.
+
+- [ ] **Step 8: Bite the wiring**
+
+Append to `test/features/play_screen_test.dart`:
+
+```dart
+  testWidgets('rolling a die puts the number on the table', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+
+    expect(container.read(playProvider)!.dice, isEmpty);
+
+    await tester.tap(find.byKey(const Key('die-20')));
+    await tester.pumpAndSettle();
+
+    final dice = container.read(playProvider)!.dice;
+    expect(dice, hasLength(3));
+    expect(dice.first, inInclusiveRange(1, 20));
+  });
+```
+
+- [ ] **Step 9: Run everything**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`, WARNING and Warning both 0.
+
+The column beside the mat now carries a corner, a deck, a graveyard, a token
+control and three dice. **On a phone that column is already the thing that
+overflows**, and the aside's width is what the board's own scale is read from.
+Run the case named `nothing in the aside runs off the bottom` and say what it
+reports, and measure the card on the board at 390 by 844 before and after.
+If the board loses more than a point or two, say so rather than shipping it:
+the dice may need to be smaller than a card, or to sit along the top of the
+tray rather than down the column.
+
+- [ ] **Step 10: Probe**
+
+- Make `onRoll` send only the rolled die. The tray case must fail on
+  `hasLength(3)`.
+- Make the screen not run `RollDice`. The wiring case must fail on `dice`
+  being empty, which is a wrong value rather than a finder.
+- Make the tapped die's number come from the die beside it. Say which
+  assertion fails, and whether `inInclusiveRange(1, 12)` catches it: a d6's
+  result is inside a d12's range, so it may not.
+
+Edit each back by hand and rerun.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add lib/features/play test/features
+git commit -m "Throw three dice on the deck and let them land"
+```
+
+---
+
+## What this plan deliberately leaves out
+
+- **Dice anybody else can see.** `RollDice` writes to the table, so plan 3
+  replicates it for free, but nothing draws somebody else's roll yet.
+- **A die you can throw.** Tapping rolls it. Flinging it across the table is a
+  gesture, a physics step and a resting place, and none of those is the
+  number.
+- **Perspective on the solids.** They are small and nearly orthographic at
+  this size, and a vanishing point needs a depth tuned against the radius.
+- **The paint order under anything translucent.** It is unobservable while the
+  faces are opaque and culled, and the instrument for it is a recording canvas
+  rather than a pixel.
