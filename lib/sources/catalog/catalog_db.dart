@@ -72,28 +72,56 @@ class CatalogDb extends _$CatalogDb {
         onUpgrade: (m, from, to) async {
           // A catalog is 36000 rows that took minutes to fetch and index, so a
           // schema bump adds tables and never drops one.
+          //
+          // Every step here is idempotent, and that is not belt and braces.
+          // A browser reported `duplicate column name: image_large` on a
+          // database that had already been through this: the column was
+          // written and the version was not, so the next open replayed the
+          // whole upgrade onto a schema that already had it. Whatever lost
+          // the version, a migration that cannot be run twice turns that into
+          // a database nobody can open, and on the web the storage is the
+          // least reliable part of the stack. Skipping what is already there
+          // is the repair as well as the guard: the next open gets through
+          // and records the version.
           if (from < 2) {
+            // No guard needed: drift 2.35.0 writes CREATE TABLE IF NOT EXISTS
+            // (migration.dart:319). SQLite has no ADD COLUMN IF NOT EXISTS,
+            // which is why the columns below do need one.
             await m.createTable(decks);
             await m.createTable(deckCards);
           }
           if (from < 3) {
             // Every deck that existed before this column was a Magic deck,
             // which is what the default says, so nothing needs rewriting.
-            await m.addColumn(decks, decks.game);
+            await _addColumnOnce(m, decks, decks.game);
           }
           if (from < 4) {
             // Null on every existing row. Those cards turn over onto the
             // generic back, which is what they did before this column existed.
             // A reimport fills it in.
-            await m.addColumn(cards, cards.imageBack);
+            await _addColumnOnce(m, cards, cards.imageBack);
           }
           if (from < 5) {
             // Null on every existing row, which falls back to the normal file
             // the way those cards already drew. A reimport fills it in.
-            await m.addColumn(cards, cards.imageLarge);
+            await _addColumnOnce(m, cards, cards.imageLarge);
           }
         },
       );
+
+  /// Adds a column unless the table already has it.
+  Future<void> _addColumnOnce(
+    Migrator m,
+    TableInfo<Table, dynamic> table,
+    GeneratedColumn<Object> column,
+  ) async {
+    final rows = await customSelect(
+      'PRAGMA table_info(${table.actualTableName})',
+    ).get();
+    final already =
+        rows.any((row) => row.read<String>('name') == column.name);
+    if (!already) await m.addColumn(table, column);
+  }
 
   Future<int> cardCount() async {
     final count = countAll();
