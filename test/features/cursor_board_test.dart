@@ -1,15 +1,33 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/features/play/renderers/mat_layout.dart';
 import 'package:kitchentable/features/play/widgets/cursor_board.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
+import 'package:kitchentable/sources/model/catalog_card.dart';
 import 'package:kitchentable/table/model/card_instance.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
+
+/// A card the catalog has heard of, for the one case that is about hovering.
+///
+/// A preview is only ever drawn for a card there is a printing for, so a
+/// board built with none of them would show no preview whatever the code
+/// did, and the case below would pass without touching the behaviour it is
+/// named after. Handed in rather than made the default, so every other case
+/// here keeps drawing the backs it was written against.
+const _printing = CatalogCard(
+  oracleId: 'card0',
+  name: 'Sol Ring',
+  typeLine: 'Artifact',
+  cmc: 1,
+  imageSmall: 'small.jpg',
+);
 
 Widget _host({
   int board = 3,
   int graveyard = 0,
+  Map<String, CatalogCard> printings = const {},
   void Function(CardInstance)? onActivate,
   void Function(CardInstance)? onInspect,
   Map<String, ({double x, double y})> placed = const {},
@@ -41,7 +59,7 @@ Widget _host({
               ],
             ),
           ],
-          printings: const {},
+          printings: printings,
           onActivate: onActivate ?? (_) {},
           onInspect: onInspect ?? (_) {},
           onPlace: onPlace ?? (_, _, _, _) {},
@@ -308,5 +326,24 @@ void main() {
           closeTo(matSize.width / matSize.height, 0.01),
           reason: 'the mat is the wrong shape at $window');
     }
+  });
+
+  testWidgets('a card on the battlefield does not grow under the pointer',
+      (tester) async {
+    await tester.pumpWidget(_host(printings: const {'card0': _printing}));
+    await tester.pump();
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    await tester.pump();
+
+    await mouse.moveTo(tester.getCenter(find.byType(TableCard).first));
+    await tester.pumpAndSettle();
+
+    // A card on the board is already drawn big, so a preview of it is both
+    // unreadable and in the way while you are dragging. Press and hold still
+    // opens the real thing.
+    expect(find.byKey(const Key('hover-preview')), findsNothing);
   });
 }

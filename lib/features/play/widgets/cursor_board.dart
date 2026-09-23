@@ -329,6 +329,11 @@ class _CursorBoardState extends State<CursorBoard> {
             width: _cardSize.width * scale,
             onTap: () => widget.onActivate(card),
             onLongPress: () => widget.onInspect(card),
+            // A card on this board is drawn at the mat's scale, which on a
+            // wide window is a couple of hundred points across. A preview of
+            // one that big is unreadable and in the way of a drag. The long
+            // press above still opens the real thing.
+            hoverPreview: false,
           ),
         ),
       ),
