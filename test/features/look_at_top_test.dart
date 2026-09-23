@@ -46,6 +46,16 @@ TableState _table() => TableState(
       ],
     );
 
+/// The same table with one card already in the graveyard, which is where the
+/// pile sheet's cards come from.
+TableState _withOneDead() {
+  final table = _table();
+  final pile = table.zone('graveyard-s1')!;
+  return table.withZone(
+    pile.add(const CardInstance(id: 'g', oracleId: 'G')),
+  );
+}
+
 List<String> _library(TableState t) =>
     t.zone('library-s1')!.cards.map((c) => c.id).toList();
 
@@ -135,6 +145,26 @@ void main() {
 
     expect(_library(next), ['d', 'b', 'c']);
     expect(next.zone('hand-s1')!.cards.map((c) => c.id), ['a']);
+  });
+
+  test('a card put underneath from outside the library lands last', () {
+    // Regrowth's opposite: a card going from the graveyard to the bottom of
+    // the deck. It was never in the library, so the pile it is inserted into
+    // is one longer than the size handed over and not one shorter, and the
+    // scry arithmetic would leave it second from the bottom, where nothing on
+    // screen would ever show it.
+    final next = _run(
+      _withOneDead(),
+      arrange(
+        libraryId: 'library-s1',
+        placements: const [(cardId: 'g', to: Landing.bottom)],
+        librarySize: 4,
+        fromLibrary: false,
+      ),
+    );
+
+    expect(_library(next), ['a', 'b', 'c', 'd', 'g']);
+    expect(next.zone('graveyard-s1')!.cards, isEmpty);
   });
 
   test('nothing chosen changes nothing', () {

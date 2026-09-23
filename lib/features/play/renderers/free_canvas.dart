@@ -34,6 +34,7 @@ class FreeCanvas extends StatefulWidget {
     required this.onWorkDeck,
     this.libraryCount = 0,
     this.commandCards,
+    this.graveyard,
     this.game,
     this.onPlayCommand,
     this.onSendHome,
@@ -65,6 +66,15 @@ class FreeCanvas extends StatefulWidget {
   /// corner: an empty corner is still drawn, because a corner that comes and
   /// goes reads as a bug rather than as a rule.
   final List<CardInstance>? commandCards;
+
+  /// Your graveyard, as a pile, built by the screen rather than from parts
+  /// handed over here.
+  ///
+  /// A widget and not its cards, so that the bands and the mat draw one pile
+  /// and not two that have to be kept looking alike: which end of an ordered
+  /// pile is its top is the sort of thing that would be got right in one place
+  /// and wrong in the other.
+  final Widget? graveyard;
 
   /// Whose back your deck is drawn with. Null draws the plain box.
   final Game? game;
@@ -177,6 +187,7 @@ class _FreeCanvasState extends State<FreeCanvas> {
                       cardScale: widget.cardScale,
                       libraryCount: widget.libraryCount,
                       commandCards: widget.commandCards,
+                      graveyard: widget.graveyard,
                       game: widget.game,
                       onDraw: widget.onDraw,
                       onWorkDeck: widget.onWorkDeck,
@@ -206,6 +217,7 @@ class _Mat extends StatelessWidget {
     required this.cardScale,
     required this.libraryCount,
     required this.commandCards,
+    required this.graveyard,
     required this.game,
     required this.onDraw,
     required this.onWorkDeck,
@@ -224,6 +236,7 @@ class _Mat extends StatelessWidget {
   final double cardScale;
   final int libraryCount;
   final List<CardInstance>? commandCards;
+  final Widget? graveyard;
   final Game? game;
   final VoidCallback onDraw;
   final VoidCallback onWorkDeck;
@@ -289,7 +302,8 @@ class _Mat extends StatelessWidget {
     );
   }
 
-  /// The command corner and your deck, standing on your own side of the table.
+  /// The command corner, your deck and your graveyard, standing on your own
+  /// side of the table.
   ///
   /// Drawn at `cardOnMat.width` and not at the mat's own `_cardSize`: this is
   /// a card at the surface's scale, which is what the whole canvas zooms. The
@@ -315,16 +329,31 @@ class _Mat extends StatelessWidget {
           ),
           SizedBox(height: m.scaled(10)),
         ],
-        KeyedSubtree(
-          key: Key('canvas-library-${seat.seatId}'),
-          child: LibraryStack(
-            metrics: m,
-            count: libraryCount,
-            width: width,
-            game: game,
-            onDraw: onDraw,
-            onWork: onWorkDeck,
-          ),
+        // Side by side and not one under the other: stacked, the corner and
+        // two piles stand taller than the 380 units a mat has.
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (graveyard case final pile?) ...[
+              KeyedSubtree(
+                key: Key('canvas-graveyard-${seat.seatId}'),
+                child: pile,
+              ),
+              SizedBox(width: m.scaled(10)),
+            ],
+            KeyedSubtree(
+              key: Key('canvas-library-${seat.seatId}'),
+              child: LibraryStack(
+                metrics: m,
+                count: libraryCount,
+                width: width,
+                game: game,
+                onDraw: onDraw,
+                onWork: onWorkDeck,
+              ),
+            ),
+          ],
         ),
       ],
     );

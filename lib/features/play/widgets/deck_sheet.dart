@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../sources/model/catalog_card.dart';
 import '../../../table/model/card_instance.dart';
-import '../../../ui/atoms/card_art.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import '../look_at_top.dart';
+import 'sheet_parts.dart';
 
 /// How many cards the two look buttons take off the top.
 ///
@@ -101,7 +101,11 @@ class _DeckSheetState extends State<DeckSheet> {
   }
 
   List<Widget> _choices(Metrics m) => [
-        _Heading(metrics: m, text: 'Your deck', note: '${widget.count} cards'),
+        SheetHeading(
+          metrics: m,
+          text: 'Your deck',
+          note: '${widget.count} cards',
+        ),
         SizedBox(height: m.scaled(14)),
         if (widget.count == 0)
           Text(
@@ -109,7 +113,7 @@ class _DeckSheetState extends State<DeckSheet> {
             style: TextStyle(fontSize: m.scaled(13), color: Palette.inkFaint),
           )
         else ...[
-          _Choice(
+          SheetChoice(
             metrics: m,
             key: const Key('deck-shuffle'),
             icon: Icons.shuffle_rounded,
@@ -120,7 +124,7 @@ class _DeckSheetState extends State<DeckSheet> {
           Row(
             children: [
               Expanded(
-                child: _Choice(
+                child: SheetChoice(
                   metrics: m,
                   key: const Key('deck-look'),
                   icon: Icons.visibility_rounded,
@@ -130,7 +134,7 @@ class _DeckSheetState extends State<DeckSheet> {
               ),
               SizedBox(width: m.scaled(10)),
               Expanded(
-                child: _Choice(
+                child: SheetChoice(
                   metrics: m,
                   key: const Key('look-5'),
                   icon: Icons.visibility_rounded,
@@ -144,7 +148,7 @@ class _DeckSheetState extends State<DeckSheet> {
       ];
 
   List<Widget> _confirm(Metrics m) => [
-        _Heading(metrics: m, text: 'Shuffle the deck?'),
+        SheetHeading(metrics: m, text: 'Shuffle the deck?'),
         SizedBox(height: m.scaled(8)),
         Text(
           'Whatever you have set up on top goes with it. This is the one '
@@ -159,7 +163,7 @@ class _DeckSheetState extends State<DeckSheet> {
         Row(
           children: [
             Expanded(
-              child: _Choice(
+              child: SheetChoice(
                 metrics: m,
                 key: const Key('cancel-shuffle'),
                 icon: Icons.close_rounded,
@@ -169,7 +173,7 @@ class _DeckSheetState extends State<DeckSheet> {
             ),
             SizedBox(width: m.scaled(10)),
             Expanded(
-              child: _Choice(
+              child: SheetChoice(
                 metrics: m,
                 key: const Key('confirm-shuffle'),
                 icon: Icons.shuffle_rounded,
@@ -183,7 +187,7 @@ class _DeckSheetState extends State<DeckSheet> {
       ];
 
   List<Widget> _looking(Metrics m) => [
-        _Heading(
+        SheetHeading(
           metrics: m,
           text: _looked.length == 1
               ? 'The top card'
@@ -203,7 +207,7 @@ class _DeckSheetState extends State<DeckSheet> {
           ),
         ),
         SizedBox(height: m.scaled(4)),
-        _Choice(
+        SheetChoice(
           metrics: m,
           key: const Key('deck-done'),
           icon: Icons.check_rounded,
@@ -219,227 +223,16 @@ class _DeckSheetState extends State<DeckSheet> {
         ),
       ];
 
-  Widget _row(Metrics m, CardInstance card) {
-    final printing = widget.printings[card.oracleId];
-    final going = _going[card.id] ?? Landing.top;
-
-    return Container(
-      key: Key('peeked-${card.id}'),
-      margin: EdgeInsets.only(bottom: m.scaled(8)),
-      padding: EdgeInsets.all(m.scaled(8)),
-      decoration: BoxDecoration(
-        color: Palette.tile,
-        borderRadius: BorderRadius.circular(m.scaled(10)),
-        border: Border.all(color: Palette.tileEdge),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (printing == null)
-            CardBack(width: m.scaled(38))
-          else
-            CardArt(metrics: m, card: printing, width: m.scaled(38)),
-          SizedBox(width: m.scaled(10)),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  printing?.name ?? 'A card',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: m.scaled(13),
-                    fontWeight: FontWeight.w600,
-                    color: Palette.ink,
-                  ),
-                ),
-                SizedBox(height: m.scaled(8)),
-                // Four equal shares of whatever width is left rather than
-                // four buttons as wide as their words, because `Bottom` and
-                // `Top` together are half a pixel over on a 390 point phone
-                // and that is a rendering error, not a squeeze.
-                Row(
-                  children: [
-                    for (final to in Landing.values) ...[
-                      Expanded(
-                        child: _Where(
-                          metrics: m,
-                          key: Key('${to.name}-${card.id}'),
-                          label: _labels[to]!,
-                          chosen: to == going,
-                          onTap: () => setState(() => _going[card.id] = to),
-                        ),
-                      ),
-                      if (to != Landing.values.last)
-                        SizedBox(width: m.scaled(6)),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _row(Metrics m, CardInstance card) => CardRow(
+        key: Key('peeked-${card.id}'),
+        metrics: m,
+        cardId: card.id,
+        printing: widget.printings[card.oracleId],
+        destinations: Landing.values,
+        // A card nobody touched is going back on top, so the row opens with
+        // the top already lit rather than with nothing lit.
+        chosen: _going[card.id] ?? Landing.top,
+        onChoose: (to) => setState(() => _going[card.id] = to),
+      );
 }
 
-/// The word on each destination button. `Landing.graveyard` is the game's
-/// word for the pile and `Grave` is what fits, which is the only reason this
-/// is a table and not `to.name`.
-const _labels = {
-  Landing.top: 'Top',
-  Landing.bottom: 'Bottom',
-  Landing.graveyard: 'Grave',
-  Landing.hand: 'Hand',
-};
-
-class _Heading extends StatelessWidget {
-  const _Heading({required this.metrics, required this.text, this.note});
-
-  final Metrics metrics;
-  final String text;
-  final String? note;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = metrics;
-    final aside = note;
-
-    return Row(
-      children: [
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: m.scaled(16),
-            fontWeight: FontWeight.w700,
-            color: Palette.ink,
-          ),
-        ),
-        if (aside != null) ...[
-          SizedBox(width: m.scaled(10)),
-          Expanded(
-            child: Text(
-              aside,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  TextStyle(fontSize: m.scaled(12), color: Palette.inkFaint),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-/// One thing you can do, drawn wide enough to hit without looking.
-class _Choice extends StatelessWidget {
-  const _Choice({
-    super.key,
-    required this.metrics,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.loud = false,
-  });
-
-  final Metrics metrics;
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  /// The one the sheet is expecting, filled in pink.
-  final bool loud;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = metrics;
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: m.scaled(12)),
-        decoration: BoxDecoration(
-          color: loud ? Palette.accent : Palette.tile,
-          borderRadius: BorderRadius.circular(m.scaled(10)),
-          border: Border.all(
-            color: loud ? Palette.accent : Palette.tileEdge,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: m.scaled(17),
-              color: loud ? Colors.black : Palette.inkMuted,
-            ),
-            SizedBox(width: m.scaled(8)),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: m.scaled(13),
-                fontWeight: FontWeight.w600,
-                color: loud ? Colors.black : Palette.ink,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Where one card is going. Four of these to a row, one of them always lit.
-class _Where extends StatelessWidget {
-  const _Where({
-    super.key,
-    required this.metrics,
-    required this.label,
-    required this.chosen,
-    required this.onTap,
-  });
-
-  final Metrics metrics;
-  final String label;
-  final bool chosen;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = metrics;
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: m.scaled(8),
-          vertical: m.scaled(6),
-        ),
-        decoration: BoxDecoration(
-          color: chosen ? Palette.tileFocused : Palette.surface,
-          borderRadius: BorderRadius.circular(m.scaled(8)),
-          border: Border.all(
-            color: chosen ? Palette.accent : Palette.surfaceEdge,
-          ),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: m.scaled(11),
-            fontWeight: chosen ? FontWeight.w700 : FontWeight.w500,
-            color: chosen ? Palette.ink : Palette.inkMuted,
-          ),
-        ),
-      ),
-    );
-  }
-}
