@@ -804,6 +804,43 @@ void main() {
     expect(find.byKey(const Key('mat-battlefield-s1')), findsOneWidget);
   });
 
+  testWidgets('the board is budgeted for both columns, not one',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    final onBoard = tester
+        .getSize(find.descendant(
+          of: find.byKey(const Key('your-board')),
+          matching: find.byType(TableCard),
+        ))
+        .width;
+    final deck = tester
+        .getSize(find.descendant(
+          of: find.byKey(const Key('library-stack')),
+          matching: find.byType(CardBack),
+        ).first)
+        .width;
+
+    // The board's width arithmetic takes two columns out of the row, one for
+    // the graveyard and one for the deck. Taking one out leaves the whole
+    // suite green otherwise: it only moves the card by a couple of points,
+    // and the case that measures card sizes runs at 1900 by 900 where the
+    // card is height bound and the width arithmetic never binds at all.
+    //
+    // This is the only observable, and it is not a wide one. Measured on this
+    // window: 1.145 with both columns budgeted, 1.232 with one. The bound
+    // sits between them with about four percent either side, so if this ever
+    // fails on a change that was not about the row's width, check those two
+    // numbers before loosening it.
+    expect(deck / onBoard, lessThan(1.19),
+        reason: 'the row is budgeting for one column and there are two');
+  });
+
   testWidgets('the token control is on the same side in both views',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
