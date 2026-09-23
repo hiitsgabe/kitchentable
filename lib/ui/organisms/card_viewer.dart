@@ -25,6 +25,11 @@ enum CardAction {
   counterUp,
   counterDown,
   commandZone,
+
+  /// A second one of this card, onto the pile this one is on. Most tokens in
+  /// Magic are a copy of something already on the table, and a copy needs no
+  /// search: the face is the face of the card being looked at.
+  copy,
 }
 
 /// One card, lifted off the screen and turnable in the hand.
@@ -283,6 +288,8 @@ class _CardViewerState extends State<CardViewer>
               _act(m, const Key('act-command'), Icons.home_rounded, null,
                   CardAction.commandZone),
             ],
+            _act(m, const Key('act-copy'), Icons.content_copy_rounded, 'Copy',
+                CardAction.copy),
             _act(m, const Key('act-counter-down'), Icons.remove_rounded, null,
                 CardAction.counterDown),
             Padding(

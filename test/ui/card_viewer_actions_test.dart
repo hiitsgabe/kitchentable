@@ -149,4 +149,28 @@ void main() {
     // card into a zone that does not exist is a silent no op.
     expect(find.byKey(const Key('act-command')), findsNothing);
   });
+
+  testWidgets('a card on the table can be copied', (tester) async {
+    CardAction? acted;
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(id: 'a', oracleId: 'o'),
+      onAct: (a) => acted = a,
+    ));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('act-copy')));
+    await tester.pump();
+
+    expect(acted, CardAction.copy);
+  });
+
+  testWidgets('a printing with no card behind it cannot be copied',
+      (tester) async {
+    await tester.pumpWidget(_host());
+    await tester.pump();
+
+    // The deck builder opens this on a printing that is on no table. There is
+    // nothing to copy onto a battlefield that does not exist.
+    expect(find.byKey(const Key('act-copy')), findsNothing);
+  });
 }
