@@ -11,11 +11,6 @@ import '../widgets/card_drag.dart';
 import '../widgets/table_card.dart';
 import 'mat_layout.dart';
 
-/// How big a card is in surface units. The canvas zooms, so this is fixed and
-/// [Metrics] is deliberately not consulted for it: a card must be the same
-/// size relative to the mat on a phone and on a television.
-const _cardOnMat = Size(90, 90 * 88 / 63);
-
 /// The wide view. Every mat on one surface you pan and pinch.
 ///
 /// Only battlefields are here. A hand belongs to one person and lives in its
@@ -119,7 +114,7 @@ class _Mat extends StatelessWidget {
   /// The card as this mat lays it out. The whole size scales and not just the
   /// drawn width, so a bigger card is still centred on its own spot and still
   /// leaves a gap in the flow.
-  Size get _cardSize => _cardOnMat * cardScale;
+  Size get _cardSize => cardOnMat * cardScale;
 
   @override
   Widget build(BuildContext context) {

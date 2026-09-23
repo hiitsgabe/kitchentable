@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,6 +19,7 @@ import 'card_size.dart';
 import 'look_at_top.dart';
 import 'play_controller.dart';
 import 'renderers/free_canvas.dart';
+import 'renderers/mat_layout.dart';
 import 'renderers/renderer_choice.dart';
 import 'renderers/stacked_seats.dart';
 import 'widgets/command_slot.dart';
@@ -121,64 +124,120 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
       chosen: ref.watch(rendererChoiceProvider),
     );
 
+    final zones = [
+      (id: battlefield.id, label: battlefield.label, cards: battlefield.cards),
+      (id: graveyard.id, label: graveyard.label, cards: graveyard.cards),
+    ];
+
     final yours = Column(
       key: const Key('your-seat'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (command != null)
-          Align(
-            alignment: Alignment.centerRight,
-            child: CommandSlot(
-              metrics: m,
-              cards: command.cards,
-              printings: _printings,
-              width: m.scaled(52),
-              onTap: (c) => play.run(
-                MoveCard(cardId: c.id, toZoneId: battlefield.id),
-              ),
-              onInspect: _inspect,
-              onSendHome: (c) => play.run(
-                MoveCard(cardId: c.id, toZoneId: command.id),
-              ),
-            ),
-          ),
         Expanded(
-          child: CursorBoard(
-            key: const Key('your-board'),
-            metrics: m,
-            cardScale: cardScale,
-            zones: [
-              (
-                id: battlefield.id,
-                label: battlefield.label,
-                cards: battlefield.cards
-              ),
-              (
-                id: graveyard.id,
-                label: graveyard.label,
-                cards: graveyard.cards
-              ),
-            ],
-            printings: _printings,
-            onActivate: (c) => play.run(RotateCard(c.id)),
-            onInspect: _inspect,
-            onPlace: _place,
-          ),
-        ),
-        SizedBox(height: m.scaled(10)),
-        Align(
-          alignment: Alignment.centerRight,
-          child: LibraryStack(
-            metrics: m,
-            count: library.size,
-            width: m.scaled(46) * cardScale,
-            game: play.gameAt(seat.id),
-            onDraw: () => play.run(DrawCards(
-              fromZoneId: library.id,
-              toZoneId: hand.id,
-              count: 1,
-            )),
-            onWork: _workTheDeck,
+          child: LayoutBuilder(
+            builder: (context, box) {
+              // The deck and the commander are cards off this table, so
+              // they are drawn at the table's scale rather than at a point
+              // size of their own. The deck was a fixed 46 while a card
+              // beside it was 270, which is the pile you draw from being
+              // nearly six times smaller than the cards in it.
+              //
+              // They stand beside the mat and not over and under it. Stacked
+              // in a column with the board, a bigger deck leaves the board
+              // less height, which makes the mat smaller, which makes the
+              // deck smaller again: sized straight off this box they came
+              // out at 186 points beside a 99 point card, measured on a 1900
+              // by 900 window. Beside it, the only thing they take is width,
+              // and that has an answer rather than a chase.
+              //
+              // How much past the card the pile and the corner reach: the
+              // leaves the pile is drawn with, and the corner's own padding.
+              // Furniture, which does not scale with the card.
+              //
+              // An estimate and not a measurement, because the deck's count
+              // row can be the wider thing when the card is small and that
+              // width belongs to a widget that has not been laid out yet.
+              // Being a few points out costs the board a few points of
+              // width, which makes its cards a percent or so smaller than
+              // the deck. It cannot put the deck back at six times out.
+              final aside = math.max(
+                LibraryStack.spreadFor(library.size),
+                m.scaled(6),
+              );
+              final gap = m.scaled(10);
+
+              // What is left over when height is what runs out. Infinite
+              // when the board is too short to fit a mat at all and scrolls
+              // instead, and then the width below is the only answer.
+              final byHeight = cardOnMat.width *
+                  cardScale *
+                  CursorBoard.scaleFor(
+                    box: Size(double.infinity, box.maxHeight),
+                    zones: zones,
+                    metrics: m,
+                  );
+
+              // And when width is. The card is on both sides of this one,
+              // because the board only gets the width the cards beside it
+              // leave: a card of w takes w + aside + gap out of the row, and
+              // the mat is scaled by what remains. Solved once, here.
+              final room = box.maxWidth - aside - gap;
+              final byWidth = cardOnMat.width *
+                  cardScale *
+                  (room < 0 ? 0.0 : room) /
+                  (matSize.width + cardOnMat.width * cardScale);
+
+              final card = math.min(byHeight, byWidth);
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: CursorBoard(
+                      key: const Key('your-board'),
+                      metrics: m,
+                      cardScale: cardScale,
+                      zones: zones,
+                      printings: _printings,
+                      onActivate: (c) => play.run(RotateCard(c.id)),
+                      onInspect: _inspect,
+                      onPlace: _place,
+                    ),
+                  ),
+                  SizedBox(width: gap),
+                  _Beside(
+                    metrics: m,
+                    command: command == null
+                        ? null
+                        : CommandSlot(
+                            metrics: m,
+                            cards: command.cards,
+                            printings: _printings,
+                            width: card,
+                            onTap: (c) => play.run(
+                              MoveCard(cardId: c.id, toZoneId: battlefield.id),
+                            ),
+                            onInspect: _inspect,
+                            onSendHome: (c) => play.run(
+                              MoveCard(cardId: c.id, toZoneId: command.id),
+                            ),
+                          ),
+                    library: LibraryStack(
+                      metrics: m,
+                      count: library.size,
+                      width: card,
+                      game: play.gameAt(seat.id),
+                      onDraw: () => play.run(DrawCards(
+                        fromZoneId: library.id,
+                        toZoneId: hand.id,
+                        count: 1,
+                      )),
+                      onWork: _workTheDeck,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
         HandSheet(
@@ -426,6 +485,53 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
           play.run(MoveCard(cardId: instance.id, toZoneId: command.id));
         }
     }
+  }
+}
+
+/// The corner and the pile, standing beside your own mat.
+///
+/// Beside it and not over and under it, because the board's height is what
+/// the whole table's scale is read from and anything stacked with the board
+/// takes that height away from it. Once the mat fits the window rather than
+/// filling it there is room at the sides anyway, which is where a deck and a
+/// commander sit at a real table.
+///
+/// It scrolls rather than overflowing. A phone in a pod leaves this column
+/// less height than two cards need, and that squeeze belongs to the screen's
+/// budget rather than to the pile.
+class _Beside extends StatelessWidget {
+  const _Beside({
+    required this.metrics,
+    required this.command,
+    required this.library,
+  });
+
+  final Metrics metrics;
+
+  /// Null in a format without commanders, which is not the same as an empty
+  /// corner: an empty corner is still drawn, because a corner that comes and
+  /// goes reads as a bug rather than as a rule.
+  final Widget? command;
+
+  final Widget library;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (command != null) ...[
+            command!,
+            SizedBox(height: m.scaled(12)),
+          ],
+          library,
+        ],
+      ),
+    );
   }
 }
 

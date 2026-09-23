@@ -36,6 +36,13 @@ class LibraryStack extends StatelessWidget {
   final int count;
   final double width;
 
+  /// How far past a card the pile is drawn, for a deck this size.
+  ///
+  /// Said out loud because the pile is wider than the card in it and whoever
+  /// gives it room has to know by how much.
+  static double spreadFor(int count) =>
+      (count > _mostLeaves ? _mostLeaves : count) * _leafStep;
+
   /// Whose back the pile is drawn with. Null draws the plain box, which is
   /// what a pile the app cannot name a back for has always looked like.
   final Game? game;
@@ -50,7 +57,7 @@ class LibraryStack extends StatelessWidget {
     final m = metrics;
     final height = width * 88 / 63;
     final leaves = count > _mostLeaves ? _mostLeaves : count;
-    final lift = leaves * _leafStep;
+    final lift = spreadFor(count);
 
     final pile = SizedBox(
       key: const Key('library-stack'),

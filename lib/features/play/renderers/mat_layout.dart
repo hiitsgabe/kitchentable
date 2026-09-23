@@ -5,6 +5,27 @@ import 'dart:ui';
 /// pixels and do not scale with the device.
 const matSize = Size(640, 380);
 
+/// How big a card is in surface units, for both renderers.
+///
+/// The canvas zooms, so this is fixed and `Metrics` is deliberately not
+/// consulted for it: a card must be the same size relative to the mat on a
+/// phone and on a television.
+///
+/// One copy and not one per renderer. It was two, and the size of a card is
+/// exactly the kind of number that drifts apart when it is written twice.
+const cardOnMat = Size(90, 90 * 88 / 63);
+
+/// How much bigger or smaller than a mat unit, for a box this size.
+///
+/// Whichever of width and height runs out first, so the whole mat fits. An
+/// unbounded height is not a number that can run out, and the smaller of
+/// anything and infinity is the anything, so a box that scrolls is scaled by
+/// its width alone, which is what scrolling is for.
+double matScaleFor(Size box) => math.min(
+      box.width / matSize.width,
+      box.height / matSize.height,
+    );
+
 /// Between mats, so two battlefields never read as one.
 const matGap = 40.0;
 

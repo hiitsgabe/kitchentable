@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui' show clampDouble;
 
 import 'package:flutter/material.dart';
@@ -15,9 +14,6 @@ import 'table_card.dart';
 
 /// A pile as this widget draws it.
 typedef BoardZone = ({String id, String label, List<CardInstance> cards});
-
-/// The same card size the canvas uses, so both renderers place alike.
-const _cardOnMat = Size(90, 90 * 88 / 63);
 
 /// Your own piles, walkable with a D-pad.
 ///
@@ -58,6 +54,51 @@ class CursorBoard extends StatefulWidget {
   /// the layout drew it.
   final double cardScale;
 
+  /// Which piles this board actually draws.
+  ///
+  /// The battlefield keeps its mat while there is nothing on it, because an
+  /// empty mat is exactly where a card out of your hand has to land. A target
+  /// that appears only once a card is already there could never take the
+  /// first one.
+  static List<BoardZone> _drawn(List<BoardZone> zones) => [
+        for (final (i, zone) in zones.indexed)
+          if (i == 0 || zone.cards.isNotEmpty) zone,
+      ];
+
+  /// What the label above a mat, the gap under it and the gap under the pile
+  /// cost, for one pile.
+  ///
+  /// The label sits in a box of a known height rather than at whatever height
+  /// the font comes out at, because the mat gets what is left after this and
+  /// "what is left" has to be a number that can be worked out before anything
+  /// is laid out.
+  static double _chromeFor(Metrics m) =>
+      m.scaled(14) + m.scaled(6) + m.scaled(12);
+
+  /// The scale this board will draw its mats at, in a box this size.
+  ///
+  /// Said out loud so that whatever stands beside the board can be drawn to
+  /// the same scale. The deck and the commander are cards off this table and
+  /// have to be the size of the cards on it, and the alternative was for the
+  /// screen to guess, which put the deck at 186 points beside a 99 point card
+  /// on a 1900 by 900 window.
+  static double scaleFor({
+    required Size box,
+    required List<BoardZone> zones,
+    required Metrics metrics,
+  }) {
+    final piles = _drawn(zones).length;
+    final share = piles == 0 ? 0.0 : box.height / piles;
+    final chrome = _chromeFor(metrics);
+
+    // Under its own label a pile has nothing left to draw the mat in and the
+    // board scrolls instead, and then the height cannot run out. Infinity
+    // says that to matScaleFor rather than a second branch saying it again.
+    return matScaleFor(
+      Size(box.width, share > chrome ? share - chrome : double.infinity),
+    );
+  }
+
   @override
   State<CursorBoard> createState() => _CursorBoardState();
 }
@@ -68,7 +109,7 @@ class _CursorBoardState extends State<CursorBoard> {
   /// The card as this board lays it out. The whole size scales and not just
   /// the drawn width, so a bigger card is still centred on its own spot and
   /// still leaves a gap in the flow.
-  Size get _cardSize => _cardOnMat * widget.cardScale;
+  Size get _cardSize => cardOnMat * widget.cardScale;
 
   List<CursorZone> get _sizes =>
       [for (final z in widget.zones) (id: z.id, size: z.cards.length)];
@@ -130,28 +171,10 @@ class _CursorBoardState extends State<CursorBoard> {
     return KeyEventResult.handled;
   }
 
-  /// The label above a mat, the gap under it, and the gap under the pile.
-  ///
-  /// The label sits in a box of a known height rather than at whatever height
-  /// the font comes out at, because the mat gets what is left after this and
-  /// "what is left" has to be a number this widget can work out before it
-  /// lays anything out.
-  double get _chrome {
-    final m = widget.metrics;
-    return m.scaled(14) + m.scaled(6) + m.scaled(12);
-  }
-
   @override
   Widget build(BuildContext context) {
     final cursor = _cursor;
-    final piles = [
-      for (final (i, zone) in widget.zones.indexed)
-        // The battlefield keeps its mat while there is nothing on it,
-        // because an empty mat is exactly where a card out of your hand has
-        // to land. A target that appears only once a card is already there
-        // could never take the first one.
-        if (i == 0 || zone.cards.isNotEmpty) zone,
-    ];
+    final piles = CursorBoard._drawn(widget.zones);
 
     return Focus(
       autofocus: true,
@@ -171,7 +194,7 @@ class _CursorBoardState extends State<CursorBoard> {
           // board 28 points out of 844 and the rest went on the bands, the
           // hand and the bars. Then it scrolls, which is what it did before,
           // and each pile keeps the height the width alone gives it.
-          if (share <= _chrome) {
+          if (share <= CursorBoard._chromeFor(widget.metrics)) {
             return SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -209,10 +232,7 @@ class _CursorBoardState extends State<CursorBoard> {
         // than scrolled away. Whichever of the two runs out first decides.
         // Scrolling, the height is infinite and the width is the only one
         // that can run out, which is the old arithmetic saying itself.
-        final scale = math.min(
-          constraints.maxWidth / matSize.width,
-          constraints.maxHeight / matSize.height,
-        );
+        final scale = matScaleFor(constraints.biggest);
         final size = matSize * scale;
 
         // The slack is real and it is not the mat's: a wide window has room
