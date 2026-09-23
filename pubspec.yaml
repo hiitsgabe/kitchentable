@@ -43,6 +43,13 @@ dependencies:
   shared_preferences: ^2.5.5
   cached_network_image: ^3.4.1
   crypto: ^3.0.7
+  # Declared rather than leaned on. It arrives with Flutter, and Flutter
+  # re-exports only Matrix4 from it, so the dice need the direct import for
+  # Vector3 and Quaternion. Relying on somebody else's transitive dependency
+  # is what `depend_on_referenced_packages` exists to warn about: the day
+  # Flutter drops it the build breaks with no warning at all. One line here is
+  # cheaper than four suppressions of a lint that is telling the truth.
+  vector_math: ^2.4.0
 
 dev_dependencies:
   flutter_test:

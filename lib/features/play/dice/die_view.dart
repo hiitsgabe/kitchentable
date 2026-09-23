@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 // vector_math ships inside the Flutter SDK, so it is here without a
 // pubspec entry, and the lint that wants one has to be told so.
-// ignore: depend_on_referenced_packages
 import 'package:vector_math/vector_math_64.dart';
 
 import '../../../ui/tokens/palette.dart';
