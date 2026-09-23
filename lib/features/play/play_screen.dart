@@ -174,7 +174,10 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
               // width, which makes its cards a percent or so smaller than
               // the deck. It cannot put the deck back at six times out.
               final aside = math.max(
-                LibraryStack.spreadFor(library.size),
+                LibraryStack.spreadFor(
+                  library.size,
+                  play.deckSizeAt(seat.id),
+                ),
                 m.scaled(6),
               );
               final gap = m.scaled(10);
@@ -255,6 +258,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                     library: LibraryStack(
                       metrics: m,
                       count: library.size,
+                      of: play.deckSizeAt(seat.id),
                       width: card,
                       game: play.gameAt(seat.id),
                       onDraw: () => play.run(DrawCards(
@@ -356,6 +360,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                               // canvas drew neither, so opening the wide view
                               // was opening a table with no deck on it.
                               libraryCount: library.size,
+                              libraryOf: play.deckSizeAt(seat.id),
                               commandCards: command?.cards,
                               // The same pile the bands draw, at the surface's
                               // own card size: a mat is in surface units and

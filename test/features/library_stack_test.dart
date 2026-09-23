@@ -8,6 +8,7 @@ import 'package:kitchentable/ui/tokens/metrics.dart';
 Widget _host({
   String? label,
   int count = 60,
+  int? of,
   double width = 70,
   Game? game,
   VoidCallback? onDraw,
@@ -19,6 +20,7 @@ Widget _host({
           child: LibraryStack(
             metrics: Metrics.of(DeviceClass.handheld),
             count: count,
+            of: of,
           label: label,
             width: width,
             game: game,
@@ -120,5 +122,51 @@ void main() {
     // is that each one has the game's picture on it.
     expect(find.byType(CardBack), findsNWidgets(9));
     expect(find.byKey(const Key('card-back-art')), findsNWidgets(9));
+  });
+
+  testWidgets('drawing from a full deck makes it visibly thinner',
+      (tester) async {
+    await tester.pumpWidget(_host(count: 92, of: 100));
+    await tester.pump();
+    final full = tester.getSize(find.byKey(const Key('library-stack'))).height;
+
+    await tester.pumpWidget(_host(count: 46, of: 100));
+    await tester.pump();
+    final half = tester.getSize(find.byKey(const Key('library-stack'))).height;
+
+    await tester.pumpWidget(_host(count: 4, of: 100));
+    await tester.pump();
+    final nearly =
+        tester.getSize(find.byKey(const Key('library-stack'))).height;
+
+    // The thickness used to saturate at twelve cards, so a Commander deck sat
+    // at its full height from 100 all the way down to 12 and then dropped.
+    // Drawing eighty cards changed nothing on the table.
+    expect(half, lessThan(full));
+    expect(nearly, lessThan(half));
+  });
+
+  testWidgets('a deck of sixty and a deck of a hundred both start full',
+      (tester) async {
+    await tester.pumpWidget(_host(count: 60, of: 60));
+    await tester.pump();
+    final sixty = tester.getSize(find.byKey(const Key('library-stack'))).height;
+
+    await tester.pumpWidget(_host(count: 100, of: 100));
+    await tester.pump();
+    final hundred =
+        tester.getSize(find.byKey(const Key('library-stack'))).height;
+
+    // Thickness is how much is left of what there was, not an absolute count.
+    // A Pauper deck at sixty is a full deck and should look like one.
+    expect(sixty, hundred);
+  });
+
+  testWidgets('an empty deck is flat', (tester) async {
+    await tester.pumpWidget(_host(count: 0, of: 60));
+    await tester.pump();
+
+    final flat = tester.getSize(find.byKey(const Key('library-stack')));
+    expect(flat.height, closeTo(flat.width * 88 / 63, 1));
   });
 }

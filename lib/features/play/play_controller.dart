@@ -73,6 +73,17 @@ class PlayController extends Notifier<TableState?> {
 
   Game? gameAt(String seatId) => _games[seatId];
 
+  /// How many cards each seat's library started with.
+  ///
+  /// Here for the same reason the game is: the table cannot tell how much of a
+  /// deck has been drawn, only how much is left, and the decklist is in reach
+  /// exactly once. The pile is drawn as the fraction of itself that remains,
+  /// so without this a deck of sixty and a deck of a hundred would both look
+  /// like whatever twelve cards look like.
+  Map<String, int> _deckSizes = const {};
+
+  int? deckSizeAt(String seatId) => _deckSizes[seatId];
+
 
   @override
   TableState? build() => null;
@@ -95,6 +106,16 @@ class PlayController extends Notifier<TableState?> {
     _games = {
       for (var i = 0; i < table.seats.length; i++)
         table.seats[i].id: players[i].deck.game,
+    };
+    // The main deck and not `mainCount`, which folds the commander in for the
+    // hundred card rule: `sitDown` sends a commander to the command zone, so
+    // the library never held it and a deck counted with it in would never
+    // look quite full. Taken before the opening hand is dealt, which is the
+    // point: a table that has just been opened is already seven cards down.
+    _deckSizes = {
+      for (var i = 0; i < table.seats.length; i++)
+        table.seats[i].id:
+            players[i].deck.main.fold(0, (n, s) => n + s.quantity),
     };
     _session = TableSession(table);
     _clearRefusal();

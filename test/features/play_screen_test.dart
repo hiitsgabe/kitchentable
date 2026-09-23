@@ -833,10 +833,12 @@ void main() {
     // card is height bound and the width arithmetic never binds at all.
     //
     // This is the only observable, and it is not a wide one. Measured on this
-    // window: 1.145 with both columns budgeted, 1.232 with one. The bound
-    // sits between them with about four percent either side, so if this ever
-    // fails on a change that was not about the row's width, check those two
-    // numbers before loosening it.
+    // window: 1.160 with both columns budgeted, 1.239 with one. The bound
+    // sits between them, with two and a half percent of room below it and four
+    // above, so if this ever fails on a change that was not about the row's
+    // width, check those two numbers before loosening it. It was 1.145 against
+    // 1.232 until the pile learned to thin as it is drawn, which narrows the
+    // column the row budgets for and so moves both.
     //
     // It is also the case that catches a control in either column whose own
     // width does not shrink with the card. The dice tray's caption was a ten
