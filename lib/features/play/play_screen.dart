@@ -665,8 +665,18 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     final viewerId = ref.read(viewerSeatProvider) ?? '';
     final command = table?.zone('command-$viewerId');
 
-    final action = await CardViewer.show(context, printing,
-        instance: instance, hasCommandZone: command != null);
+    final action = await CardViewer.show(
+      context,
+      printing,
+      instance: instance,
+      hasCommandZone: command != null,
+      // Counting happens while the viewer is still up, so the kind chosen in
+      // there comes back out here. Everything else the viewer offers is a verb
+      // with no argument and comes back as the action it popped with.
+      onCount: (kind, by) => ref.read(playProvider.notifier).run(
+            ChangeCounter(cardId: instance.id, kind: kind, by: by),
+          ),
+    );
     if (action == null || !mounted) return;
 
     final play = ref.read(playProvider.notifier);
@@ -678,9 +688,11 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
       case CardAction.flip:
         play.run(FlipCard(instance.id));
       case CardAction.counterUp:
-        play.run(ChangeCounter(cardId: instance.id, kind: '+1/+1', by: 1));
       case CardAction.counterDown:
-        play.run(ChangeCounter(cardId: instance.id, kind: '+1/+1', by: -1));
+        // Already run, by onCount above. The kind was `+1/+1` here until the
+        // viewer learned to ask, which made a planeswalker's loyalty and a
+        // Pokemon's damage the same number.
+        break;
       case CardAction.commandZone:
         // Offered only when the zone is there, so the null case is a viewer
         // that has outlived the table rather than a format without a corner.

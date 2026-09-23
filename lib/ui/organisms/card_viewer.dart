@@ -32,6 +32,14 @@ enum CardAction {
   copy,
 }
 
+/// The counters a table puts on cards often enough to be worth a button.
+///
+/// Not a closed list: whatever is already on the card is offered too, so a
+/// card that arrives carrying a kind nobody listed can still be counted. The
+/// table has never cared what these are called, which is why they are strings
+/// and not an enum, and it is also why Pokemon needs nothing added here.
+const counterKinds = ['+1/+1', '-1/-1', 'loyalty', 'charge', 'damage'];
+
 /// One card, lifted off the screen and turnable in the hand.
 ///
 /// The first version swapped two flat pictures at a quarter turn and looked
@@ -50,6 +58,7 @@ class CardViewer extends StatefulWidget {
     required this.card,
     this.instance,
     this.onAct,
+    this.onCount,
     this.hasCommandZone = false,
   });
 
@@ -63,6 +72,15 @@ class CardViewer extends StatefulWidget {
 
   final void Function(CardAction)? onAct;
 
+  /// Counting, which is the one action that carries an argument: which kind.
+  ///
+  /// Beside [onAct] rather than inside it. The other six verbs carry nothing,
+  /// and widening all of them so one can hold a string is how an enum turns
+  /// into a variant type nobody meant to write. The verb still comes out of
+  /// [onAct], so a caller that only wants to know what was pressed is
+  /// unchanged; this is the argument that goes with it.
+  final void Function(String kind, int by)? onCount;
+
   /// Whether this table has a command zone at all. Standard and Pauper have
   /// no such corner, and an action that moves a card into a zone that is not
   /// there is a button that does nothing.
@@ -73,6 +91,7 @@ class CardViewer extends StatefulWidget {
     CatalogCard card, {
     CardInstance? instance,
     bool hasCommandZone = false,
+    void Function(String kind, int by)? onCount,
   }) =>
       Navigator.of(context).push(
         // Not PageRouteBuilder<CardAction?>. push<T> already hands back a
@@ -84,6 +103,7 @@ class CardViewer extends StatefulWidget {
             card: card,
             instance: instance,
             hasCommandZone: hasCommandZone,
+            onCount: onCount,
             onAct: (action) => Navigator.of(context).pop(action),
           ),
           transitionsBuilder: (_, animation, _, child) =>
@@ -114,6 +134,14 @@ class _CardViewerState extends State<CardViewer>
   /// Pinched, or scrolled with a wheel. One is the card at its natural size.
   double _zoom = 1;
   double _zoomAtGestureStart = 1;
+
+  /// What the plus and the minus mean, and which number sits between them.
+  ///
+  /// `+1/+1` to start with, because it is what a Magic table reaches for
+  /// twenty times a game and every other kind once. It was hardcoded before
+  /// this, which made a planeswalker's loyalty, a Pokemon's damage and an
+  /// artifact's charge all the same thing.
+  String _counting = counterKinds.first;
 
   @override
   void initState() {
@@ -253,74 +281,168 @@ class _CardViewerState extends State<CardViewer>
     final instance = widget.instance;
     if (instance == null) return const SizedBox.shrink();
 
+    final kinds = [
+      ...counterKinds,
+      // Whatever arrived on the card and is on no list. Appended rather than
+      // sorted in, so the five that are always there never move about.
+      for (final kind in instance.counters.keys)
+        if (!counterKinds.contains(kind)) kind,
+    ];
+
     return Align(
       alignment: Alignment.bottomCenter,
       child: Padding(
         padding: EdgeInsets.all(m.safeInset),
-        // Wrapped, not a Row. Four controls with words on them are 358 points
-        // wide and a phone is 390 before the safe inset, so a Row overflowed
-        // by 141 points before the command zone button existed and by 190
-        // after. Nothing saw it because this is only ever built at 800 wide
-        // in a test. Two lines on a phone and one on anything wider, with
-        // every control still readable, which is why this is a Wrap rather
-        // than a FittedBox or a scroll with half the buttons off the edge.
-        child: Wrap(
-          alignment: WrapAlignment.center,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: m.scaled(10),
-          runSpacing: m.scaled(10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (instance.rotation == 180)
-              _act(m, const Key('act-straighten'), Icons.straighten_rounded,
-                  'Straighten', CardAction.straighten)
-            else
-              _act(m, const Key('act-upside-down'),
-                  Icons.flip_camera_android_rounded, 'Upside down',
-                  CardAction.upsideDown),
-            _act(
-              m,
-              const Key('act-flip'),
-              Icons.layers_rounded,
-              instance.faceDown ? 'Face up' : 'Face down',
-              CardAction.flip,
+            // Its own Wrap above the verbs, and not children of theirs. Five
+            // kinds and seven controls in one Wrap flow into each other, so
+            // `damage` ends a line that starts with `Face down` and the player
+            // has to read the whole bar to find either. One Wrap each keeps
+            // what a tap chooses apart from what a tap does, and neither can
+            // overflow.
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: m.scaled(6),
+              runSpacing: m.scaled(6),
+              children: [
+                for (final kind in kinds)
+                  _kind(m, kind, instance.counters[kind] ?? 0),
+              ],
             ),
-            if (widget.hasCommandZone) ...[
-              _act(m, const Key('act-command'), Icons.home_rounded, null,
-                  CardAction.commandZone),
-            ],
-            _act(m, const Key('act-copy'), Icons.content_copy_rounded, 'Copy',
-                CardAction.copy),
-            _act(m, const Key('act-counter-down'), Icons.remove_rounded, null,
-                CardAction.counterDown),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: m.scaled(10)),
-              child: Text(
-                '${instance.counters.values.fold(0, (a, b) => a + b)}',
-                style: TextStyle(
-                  fontSize: m.scaled(18),
-                  fontWeight: FontWeight.w700,
-                  color: Palette.ink,
+            SizedBox(height: m.scaled(10)),
+            // Wrapped, not a Row. Four controls with words on them are 358
+            // points wide and a phone is 390 before the safe inset, so a Row
+            // overflowed by 141 points before the command zone button existed
+            // and by 190 after. Nothing saw it because this is only ever built
+            // at 800 wide in a test. Three lines on a phone and one on
+            // anything wider, with every control still readable, which is why
+            // this is a Wrap rather than a FittedBox or a scroll with half the
+            // buttons off the edge.
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: m.scaled(10),
+              runSpacing: m.scaled(10),
+              children: [
+                if (instance.rotation == 180)
+                  _act(m, const Key('act-straighten'),
+                      Icons.straighten_rounded, 'Straighten',
+                      CardAction.straighten)
+                else
+                  _act(m, const Key('act-upside-down'),
+                      Icons.flip_camera_android_rounded, 'Upside down',
+                      CardAction.upsideDown),
+                _act(
+                  m,
+                  const Key('act-flip'),
+                  Icons.layers_rounded,
+                  instance.faceDown ? 'Face up' : 'Face down',
+                  CardAction.flip,
                 ),
-              ),
+                if (widget.hasCommandZone) ...[
+                  _act(m, const Key('act-command'), Icons.home_rounded, null,
+                      CardAction.commandZone),
+                ],
+                _act(m, const Key('act-copy'), Icons.content_copy_rounded,
+                    'Copy', CardAction.copy),
+                _act(m, const Key('act-counter-down'), Icons.remove_rounded,
+                    null, CardAction.counterDown, by: -1),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: m.scaled(10)),
+                  child: Text(
+                    // The chosen kind and not every kind added up, which read
+                    // `+1/+1: 2, damage: 3` back as five of something.
+                    '${instance.counters[_counting] ?? 0}',
+                    key: const Key('counter-count'),
+                    style: TextStyle(
+                      fontSize: m.scaled(18),
+                      fontWeight: FontWeight.w700,
+                      color: Palette.ink,
+                    ),
+                  ),
+                ),
+                _act(m, const Key('act-counter-up'), Icons.add_rounded, null,
+                    CardAction.counterUp, by: 1),
+              ],
             ),
-            _act(m, const Key('act-counter-up'), Icons.add_rounded, null,
-                CardAction.counterUp),
           ],
         ),
       ),
     );
   }
 
+  /// One kind of counter, and whether it is the one being counted.
+  ///
+  /// The count rides on the chips that are not chosen, because the chosen
+  /// one's number is already the big one between the plus and the minus and
+  /// printing it twice is how somebody ends up counting the wrong one. What
+  /// the unchosen ones carry is the answer to what else is on this card.
+  Widget _kind(Metrics m, String kind, int count) {
+    final chosen = kind == _counting;
+
+    return GestureDetector(
+      key: Key('kind-$kind'),
+      onTap: () => setState(() => _counting = kind),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: m.scaled(9),
+          vertical: m.scaled(6),
+        ),
+        decoration: BoxDecoration(
+          color: chosen ? Palette.tileFocused : Palette.tile,
+          borderRadius: BorderRadius.circular(m.scaled(99)),
+          border: Border.all(
+            color: chosen ? Palette.accent : Palette.tileEdge,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              kind,
+              style: TextStyle(
+                fontSize: m.scaled(11),
+                fontWeight: chosen ? FontWeight.w700 : FontWeight.w500,
+                color: chosen ? Palette.ink : Palette.inkMuted,
+              ),
+            ),
+            if (!chosen && count != 0) ...[
+              SizedBox(width: m.scaled(5)),
+              Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: m.scaled(11),
+                  fontWeight: FontWeight.w700,
+                  color: Palette.accent,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// One control. [by] is set only on the two that count, and it is what
+  /// carries the chosen kind out: the verb still goes through `onAct`, which
+  /// is what closes the viewer.
   Widget _act(
     Metrics m,
     Key key,
     IconData icon,
     String? label,
-    CardAction action,
-  ) =>
+    CardAction action, {
+    int? by,
+  }) =>
       GestureDetector(
         key: key,
-        onTap: () => widget.onAct?.call(action),
+        onTap: () {
+          if (by != null) widget.onCount?.call(_counting, by);
+          widget.onAct?.call(action);
+        },
         behavior: HitTestBehavior.opaque,
         child: Container(
           padding: EdgeInsets.symmetric(

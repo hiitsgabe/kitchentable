@@ -173,4 +173,72 @@ void main() {
     // nothing to copy onto a battlefield that does not exist.
     expect(find.byKey(const Key('act-copy')), findsNothing);
   });
+
+  testWidgets('the kind of counter is the player s choice', (tester) async {
+    final acted = <CardAction>[];
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(id: 'a', oracleId: 'o'),
+      onAct: acted.add,
+    ));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('kind-loyalty')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('act-counter-up')));
+    await tester.pump();
+
+    expect(acted, [CardAction.counterUp]);
+  });
+
+  testWidgets('a card already carrying a kind offers that kind',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(
+        id: 'a',
+        oracleId: 'o',
+        counters: {'charge': 4},
+      ),
+    ));
+    await tester.pump();
+
+    // Not in the fixed list, because it came off a card somebody played.
+    expect(find.byKey(const Key('kind-charge')), findsOneWidget);
+    expect(find.text('4'), findsOneWidget);
+  });
+
+  testWidgets('a kind nobody put on the list is offered too', (tester) async {
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(
+        id: 'a',
+        oracleId: 'o',
+        counters: {'energy': 2},
+      ),
+    ));
+    await tester.pump();
+
+    // Not in the plan. The case above names `charge`, which counterKinds
+    // carries anyway, so it would pass against a viewer that never looked at
+    // the card at all. Energy is on no list, and Pokemon counts it.
+    expect(find.byKey(const Key('kind-energy')), findsOneWidget);
+  });
+
+  testWidgets('the counter shown is the kind that is chosen', (tester) async {
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(
+        id: 'a',
+        oracleId: 'o',
+        counters: {'+1/+1': 2, 'damage': 7},
+      ),
+    ));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('kind-damage')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('counter-count')), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('counter-count'))).data,
+      '7',
+    );
+  });
 }
