@@ -484,15 +484,425 @@ git commit -m "Stop previewing cards that are already big"
 
 ---
 
-## Tasks 4 onward
+## Task 4: Your deck is on the table you are looking at
 
-Written after these three, because all of them draw against a scale that does
-not exist yet. They cover the four questions the player asked:
+The player opened the free canvas and asked where the deck went. It was never
+there: `FreeCanvas` draws mats and the cards on them and nothing else, so the
+deck, the commander and the graveyard exist only in the bands. Task 2 sized
+them for the bands and left the canvas untouched.
 
-- **The graveyard**, a pile beside the deck you can drop a card onto and open,
-  reusing the shape of the deck sheet.
-- **Tokens.** `CreateToken` has existed since plan 2 and nothing constructs it.
-- **Markers.** `ChangeCounter` takes any name and the viewer hardcodes
+They go **on** the mat, in mat units, so they pan and zoom with everything
+else. That is what they are: objects on your side of the table, not chrome
+around it.
+
+**Files:**
+- Modify: `lib/features/play/renderers/free_canvas.dart`
+- Modify: `lib/features/play/play_screen.dart`
+- Test: `test/features/free_canvas_test.dart`
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `test/features/free_canvas_test.dart`:
+
+```dart
+  testWidgets('your own deck is on the table', (tester) async {
+    await tester.pumpWidget(_host(
+      [_seat('s1'), _seat('s2')],
+      libraryCount: 53,
+    ));
+    await tester.pump();
+
+    expect(find.byKey(const Key('canvas-library-s1')), findsOneWidget);
+    expect(find.text('53'), findsOneWidget);
+  });
+
+  testWidgets('nobody else s deck is', (tester) async {
+    await tester.pumpWidget(_host(
+      [_seat('s1'), _seat('s2')],
+      libraryCount: 53,
+    ));
+    await tester.pump();
+
+    // How many cards somebody else has left is public at a real table, but
+    // their pile is theirs and drawing it here would mean drawing a control
+    // that does nothing. The bands already say the number.
+    expect(find.byKey(const Key('canvas-library-s2')), findsNothing);
+  });
+
+  testWidgets('a spectator sees nobody s deck', (tester) async {
+    await tester.pumpWidget(_host(
+      [_seat('s1'), _seat('s2')],
+      viewer: '',
+      libraryCount: 53,
+    ));
+    await tester.pump();
+
+    expect(find.byKey(const Key('canvas-library-s1')), findsNothing);
+    expect(find.byKey(const Key('canvas-library-s2')), findsNothing);
+  });
+
+  testWidgets('tapping it draws', (tester) async {
+    var drew = 0;
+    await tester.pumpWidget(_host(
+      [_seat('s1')],
+      libraryCount: 53,
+      onDraw: () => drew++,
+    ));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('library-draw')));
+    await tester.pump();
+
+    expect(drew, 1);
+  });
+
+  testWidgets('the whole table is on screen when it opens', (tester) async {
+    tester.view.physicalSize = const Size(1294, 986);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_host([_seat('s1'), _seat('s2'), _seat('s3')]));
+    await tester.pumpAndSettle();
+
+    final viewport = tester.getRect(find.byType(FreeCanvas));
+    for (final id in ['s1', 's2', 's3']) {
+      final mat = tester.getRect(find.byKey(Key('mat-$id')));
+      // An InteractiveViewer with constrained false starts at one to one with
+      // the surface pinned to the top left, so a three seat table opened with
+      // two of its mats off the screen and the player had to find them.
+      expect(viewport.contains(mat.topLeft), isTrue, reason: 'mat $id starts off screen');
+      expect(viewport.contains(mat.bottomRight), isTrue, reason: 'mat $id runs off screen');
+    }
+  });
+```
+
+`_host` gains `int libraryCount = 0`, `VoidCallback? onDraw` and
+`VoidCallback? onWorkDeck`, all passed through.
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Run: `flutter test test/features/free_canvas_test.dart`
+Expected: FAIL to compile on the new `_host` arguments, then on the missing
+keys. The fit case fails on a mat running off the screen.
+
+- [ ] **Step 3: Draw them, and open fitted**
+
+`FreeCanvas` gains `libraryCount`, `commandCards`, `onDraw` and `onWorkDeck`,
+and `_Mat` draws a `LibraryStack` and a `CommandSlot` when `isViewer`, in mat
+coordinates: the corner at the mat's top right, the pile below it, both at
+`cardOnMat.width` so they are the size of the cards beside them. Key the pile
+`canvas-library-${seat.seatId}` around whatever `LibraryStack` already keys
+inside itself, so both this task's cases and the existing `library-draw` tap
+keep working.
+
+The cards on a battlefield flow from the top left and a player drags them
+where they like, so nothing reserves that corner. A real table has the same
+problem and the same answer.
+
+For the fit, give the `InteractiveViewer` a `TransformationController` and set
+it once from a `LayoutBuilder`, after the first layout:
+
+```dart
+  /// Fits the whole table in the window the first time it is laid out.
+  ///
+  /// `InteractiveViewer` with `constrained: false` starts at one to one with
+  /// the surface pinned to the top left, so a table of three opened with two
+  /// of its mats past the edge and nothing saying so. Only the first time:
+  /// after that the view is the player's.
+  void _fitOnce(Size viewport, Size surface) {
+    if (_fitted) return;
+    _fitted = true;
+    final scale = math.min(
+      viewport.width / surface.width,
+      viewport.height / surface.height,
+    );
+    _view.value = Matrix4.identity()..scale(scale);
+  }
+```
+
+Call it from a post frame callback, not during build: setting a
+`TransformationController` inside `build` notifies its listeners mid layout.
+
+- [ ] **Step 4: Run them and watch them pass**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`, WARNING and Warning both 0.
+
+The existing canvas cases assert positions and drops. The fit changes the
+scale the surface is drawn at, so a `getRect` on a card now reports a scaled
+rect. **Report every case that moved with its numbers before changing
+anything.** The drop cases report normalized values and should not move.
+
+- [ ] **Step 5: Probe**
+
+Make `isViewer` always false where the pile is drawn. The first case must fail
+on the key, which is a finder and so liveness only: follow it by drawing the
+pile for every seat, which must fail the second case on a wrong finder count.
+
+Then make `_fitOnce` return immediately. The fit case must fail on a mat
+running off the screen, and say which of the six assertions.
+
+Say which assertion each time, with its line. Edit each back by hand, never
+with `git checkout`, and rerun.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/features/play test/features/free_canvas_test.dart
+git commit -m "Put your deck on the table in the wide view too"
+```
+
+---
+
+## Task 5: The graveyard
+
+Two halves, and they are the two the player asked for: how a card gets there,
+and how you look inside.
+
+The zone already exists and is already public. What is missing is a pile to
+throw a card at and a sheet to read it. Both are shapes this app already has:
+`LibraryStack` and `DeckSheet`.
+
+**Files:**
+- Create: `lib/features/play/widgets/pile_sheet.dart`
+- Modify: `lib/features/play/widgets/library_stack.dart`
+- Modify: `lib/features/play/play_screen.dart`
+- Modify: `lib/features/play/renderers/free_canvas.dart`
+- Test: `test/features/pile_sheet_test.dart`, `test/features/play_screen_test.dart`
+
+- [ ] **Step 1: Write the failing test for looking inside**
+
+Create `test/features/pile_sheet_test.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/look_at_top.dart';
+import 'package:kitchentable/features/play/widgets/pile_sheet.dart';
+import 'package:kitchentable/table/model/card_instance.dart';
+import 'package:kitchentable/ui/tokens/metrics.dart';
+
+List<CardInstance> _cards(int n) => [
+      for (var i = 0; i < n; i++)
+        CardInstance(id: 'c$i', oracleId: 'card$i'),
+    ];
+
+Widget _host({
+  List<CardInstance> cards = const [],
+  void Function(List<Placement>)? onArrange,
+}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: PileSheet(
+          metrics: Metrics.of(DeviceClass.handheld),
+          label: 'Graveyard',
+          cards: cards,
+          printings: const {},
+          onArrange: onArrange ?? (_) {},
+        ),
+      ),
+    );
+
+void main() {
+  testWidgets('everything in the pile is there to read', (tester) async {
+    await tester.pumpWidget(_host(cards: _cards(4)));
+    await tester.pump();
+
+    // A graveyard is public and always has been: unlike the deck, opening
+    // this reveals nothing that was hidden, so there is no first step asking
+    // whether you are sure.
+    for (var i = 0; i < 4; i++) {
+      expect(find.byKey(Key('pile-card-c$i')), findsOneWidget);
+    }
+  });
+
+  testWidgets('an empty pile says so', (tester) async {
+    await tester.pumpWidget(_host());
+    await tester.pump();
+
+    expect(find.textContaining('Nothing'), findsOneWidget);
+  });
+
+  testWidgets('a card can be taken back out', (tester) async {
+    List<Placement>? arranged;
+    await tester.pumpWidget(
+      _host(cards: _cards(3), onArrange: (p) => arranged = p),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('hand-c1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('pile-done')));
+    await tester.pumpAndSettle();
+
+    // Only what was moved. A graveyard is not ordered in any way anybody
+    // cares about, so a card nobody touched has nowhere to be put back to.
+    expect(arranged, [(cardId: 'c1', to: Landing.hand)]);
+  });
+
+  testWidgets('nothing chosen reports nothing', (tester) async {
+    List<Placement>? arranged;
+    await tester.pumpWidget(
+      _host(cards: _cards(3), onArrange: (p) => arranged = p),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('pile-done')));
+    await tester.pumpAndSettle();
+
+    expect(arranged, isEmpty);
+  });
+
+  testWidgets('a card can go to the top of the deck or to the bottom',
+      (tester) async {
+    List<Placement>? arranged;
+    await tester.pumpWidget(
+      _host(cards: _cards(2), onArrange: (p) => arranged = p),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('top-c0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('bottom-c1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('pile-done')));
+    await tester.pumpAndSettle();
+
+    expect(arranged, hasLength(2));
+    expect(arranged, contains((cardId: 'c0', to: Landing.top)));
+    expect(arranged, contains((cardId: 'c1', to: Landing.bottom)));
+  });
+}
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/features/pile_sheet_test.dart`
+Expected: FAIL, `Error when reading
+'lib/features/play/widgets/pile_sheet.dart'`.
+
+- [ ] **Step 3: Write the sheet**
+
+`PileSheet` is `DeckSheet`'s looking stage with no stages in front of it, so
+read `deck_sheet.dart` first and follow its idioms rather than inventing new
+ones. The differences, all of them because a graveyard is not a library:
+
+- **It opens on the cards.** There is nothing hidden to reveal.
+- **There is no shuffle.**
+- **There is no default destination.** In the deck sheet every card is going
+  back on top unless you say otherwise; here a card nobody touched stays where
+  it is, so `onArrange` reports only what was moved. `arrange` handles that
+  already: it only emits a move for a placement it is given.
+- **The destinations are `hand`, `top` and `bottom`**, which is enough for
+  regrowth, for a tutor that puts a card back, and for the two thirds of
+  Magic's graveyard effects that do one of those.
+
+Take whatever the two sheets genuinely share into one place rather than
+copying the row: two sheets that drift apart is how the deck sheet's four
+destination chips and this one's three stop looking alike.
+
+- [ ] **Step 4: Run it and watch it pass**
+
+Run: `flutter test test/features/pile_sheet_test.dart`
+Expected: PASS, 5 tests.
+
+- [ ] **Step 5: Write the failing test for the pile on the table**
+
+Append to `test/features/play_screen_test.dart`:
+
+```dart
+  testWidgets('a card dropped on the graveyard goes there', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    final from = tester.getCenter(find.descendant(
+      of: find.byKey(const Key('your-board')),
+      matching: find.byType(TableCard),
+    ));
+    final bin = tester.getCenter(find.byKey(const Key('graveyard-stack')));
+    await tester.dragFrom(from, bin - from);
+    await tester.pumpAndSettle();
+
+    final table = container.read(playProvider)!;
+    expect(table.zone('graveyard-s1')!.cards.map((c) => c.id),
+        contains(card.id));
+    expect(table.zone('battlefield-s1')!.cards, isEmpty);
+  });
+
+  testWidgets('the graveyard can be opened and a card taken back',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'graveyard-s1'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('graveyard-stack')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('hand-${card.id}')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('pile-done')));
+    await tester.pumpAndSettle();
+
+    final table = container.read(playProvider)!;
+    expect(table.zone('hand-s1')!.cards.map((c) => c.id), contains(card.id));
+    expect(table.zone('graveyard-s1')!.cards, isEmpty);
+  });
+```
+
+- [ ] **Step 6: Put the pile on the table**
+
+`LibraryStack` already draws a pile that shrinks, takes a tap and takes a drop
+target around it. Give it what it needs to be either pile: a `label`, a
+`faceUp` that draws the top card's art instead of a back, and a key from its
+caller. Do not fork it.
+
+A graveyard is face up and ordered, so the top card is the last one in. An
+empty graveyard still draws its outline, the way the command corner does: a
+corner that appears and disappears reads as a bug, and it is also the thing
+you are trying to drop a card on.
+
+Wire it in both renderers, beside the deck in the bands and on the mat in the
+canvas.
+
+- [ ] **Step 7: Run everything**
+
+Run: `flutter test && flutter analyze`
+Expected: PASS and `No issues found!`, WARNING and Warning both 0.
+
+- [ ] **Step 8: Probe**
+
+Make the graveyard's drop target ignore the drop: the first screen case fails
+on the graveyard not containing the card. Then make `onArrange` report every
+card rather than only the moved ones: the fourth sheet case fails on
+`isEmpty`. Then draw the graveyard face down: say what fails, and if nothing
+does, say that and whether it earns a case.
+
+Say which assertion each time, with its line. Edit each back by hand and
+rerun.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add lib/features/play test/features
+git commit -m "Throw a card in the graveyard, and go back in after it"
+```
+
+---
+
+## Tasks 6 onward
+
+The last three of the four the player asked about, written after the graveyard
+lands because two of them hang off the same pile and the third sits on the
+deck:
+
+- **Tokens.** `CreateToken` has existed since plan 2 with no caller.
+- **Markers.** `ChangeCounter` takes any name and the big view hardcodes
   `+1/+1`.
-- **Dice**, three dimensional, on top of the deck, d20, d12 and d6.
-  `RollDice` has existed since plan 2 and nothing constructs it either.
+- **Dice**, three dimensional, on the deck, d20, d12 and d6. `RollDice` has
+  existed since plan 2 with no caller either.
