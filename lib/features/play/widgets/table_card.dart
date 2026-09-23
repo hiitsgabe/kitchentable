@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../decks/model/game.dart';
 import '../../../sources/model/catalog_card.dart';
 import '../../../table/model/card_instance.dart';
 import '../../../ui/atoms/card_art.dart';
@@ -18,10 +19,19 @@ class TableCard extends StatelessWidget {
     this.onTap,
     this.onLongPress,
     this.hoverPreview = true,
+    this.game,
   });
 
   final Metrics metrics;
   final CardInstance instance;
+
+  /// Whose back this card is turned onto when it is face down, and whose back
+  /// stands in for a printing the catalog has never heard of.
+  ///
+  /// Null draws the plain outlined box, which is right for a token and for a
+  /// card out of a source somebody cleared, and is what a harness that draws
+  /// a card with no table behind it should still get.
+  final Game? game;
 
   /// Null when the catalog has never heard of it, which happens to a token and
   /// to a card from a source that was cleared.
@@ -45,7 +55,7 @@ class TableCard extends StatelessWidget {
     final card = printing;
 
     final face = instance.faceDown || card == null
-        ? CardBack(width: width)
+        ? CardBack(width: width, game: game)
         : CardArt(metrics: m, card: card, width: width);
 
     // Wrapped here and not by each caller, so a card in a hand, in a seat's

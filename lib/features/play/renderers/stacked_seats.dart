@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../decks/model/game.dart';
 import '../../../sources/model/catalog_card.dart';
 import '../../../table/view/seat_view.dart';
 import '../../../ui/tokens/metrics.dart';
@@ -21,6 +22,7 @@ class StackedSeats extends StatelessWidget {
     required this.yours,
     this.turnSeatId,
     this.focusedSeatId,
+    this.gameFor,
   });
 
   final Metrics metrics;
@@ -43,6 +45,11 @@ class StackedSeats extends StatelessWidget {
   final String? turnSeatId;
   final String? focusedSeatId;
 
+  /// Which game a seat is playing. Asked per seat rather than taken once,
+  /// because the back on a face down card is the back of that seat's deck and
+  /// two seats at one table need not be playing the same game.
+  final Game? Function(String seatId)? gameFor;
+
   @override
   Widget build(BuildContext context) {
     final m = metrics;
@@ -64,6 +71,7 @@ class StackedSeats extends StatelessWidget {
                     printings: printings,
                     isTurn: seat.seatId == turnSeatId,
                     focused: seat.seatId == focusedSeatId,
+                    game: gameFor?.call(seat.seatId),
                     onTap: () => onFocusSeat(seat.seatId),
                   ),
               ],

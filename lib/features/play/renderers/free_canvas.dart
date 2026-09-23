@@ -37,7 +37,7 @@ class FreeCanvas extends StatefulWidget {
     this.graveyard,
     this.tokenButton,
     this.diceTray,
-    this.game,
+    this.gameFor,
     this.onPlayCommand,
     this.onSendHome,
     this.turnSeatId,
@@ -86,8 +86,11 @@ class FreeCanvas extends StatefulWidget {
   /// third control the two views could each build their own of.
   final Widget? diceTray;
 
-  /// Whose back your deck is drawn with. Null draws the plain box.
-  final Game? game;
+  /// Which game a seat is playing: the back on a face down card belongs to
+  /// whoever turned it over, and this canvas draws everybody's battlefield
+  /// rather than only yours. Null all round draws the plain box, which is what
+  /// a pile the app cannot name a back for has always looked like.
+  final Game? Function(String seatId)? gameFor;
 
   final VoidCallback onDraw;
 
@@ -213,6 +216,7 @@ class _FreeCanvasState extends State<FreeCanvas> {
                       onInspectCard: widget.onInspectCard,
                       onPlace: widget.onPlace,
                       cardScale: widget.cardScale,
+                      game: widget.gameFor?.call(seats[seatAt].seatId),
                     ),
                   ),
                   // In the strips beside the mat and not in it. Stacked inside
@@ -238,7 +242,7 @@ class _FreeCanvasState extends State<FreeCanvas> {
                         printings: widget.printings,
                         libraryCount: widget.libraryCount,
                         commandCards: widget.commandCards,
-                        game: widget.game,
+                        game: widget.gameFor?.call(widget.viewerSeatId),
                         onInspectCard: widget.onInspectCard,
                         onDraw: widget.onDraw,
                         onWorkDeck: widget.onWorkDeck,
@@ -268,10 +272,14 @@ class _Mat extends StatelessWidget {
     required this.onInspectCard,
     required this.onPlace,
     required this.cardScale,
+    required this.game,
   });
 
   final Metrics metrics;
   final SeatView seat;
+
+  /// Whose back a card face down on this mat is turned onto.
+  final Game? game;
   final Map<String, CatalogCard> printings;
   final bool isViewer;
   final bool isTurn;
@@ -341,6 +349,7 @@ class _Mat extends StatelessWidget {
       instance: card,
       printing: printings[card.oracleId],
       width: _cardSize.width,
+      game: game,
       onTap: () => onTapCard(card),
       onLongPress: () => onInspectCard(card),
       // The same as the D-pad board: the canvas draws a card at the mat's
@@ -432,6 +441,7 @@ class _Aside extends StatelessWidget {
             onTap: (c) => onPlayCommand?.call(c),
             onInspect: onInspectCard,
             onSendHome: (c) => onSendHome?.call(c),
+            game: game,
           ),
           SizedBox(height: m.scaled(10)),
         ],
