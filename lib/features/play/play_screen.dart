@@ -17,6 +17,7 @@ import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../menu/menu_controller.dart';
 import 'card_size.dart';
+import 'dice/dice_tray.dart';
 import 'look_at_top.dart';
 import 'play_controller.dart';
 import 'renderers/free_canvas.dart';
@@ -210,6 +211,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                 children: [
                   _Across(
                     graveyard: _pile(m, graveyard, width: card),
+                    dice: _diceTray(width: card),
                     // Across from the deck, with the graveyard, because that
                     // is where the canvas had to put it: three things do not
                     // fit the right strip of a 380 unit station, measured at
@@ -364,6 +366,8 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                               // two renderers cannot drift apart.
                               tokenButton:
                                   _tokenButton(m, width: cardOnMat.width),
+                              // The same three dice, for the same reason.
+                              diceTray: _diceTray(width: cardOnMat.width),
                               game: play.gameAt(seat.id),
                               onDraw: () => play.run(DrawCards(
                                 fromZoneId: library.id,
@@ -519,6 +523,22 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
             ),
           ),
         ),
+      );
+
+  /// The three dice, standing with the graveyard across the board from the
+  /// deck.
+  ///
+  /// Built here and handed to both renderers, the way the pile and the token
+  /// control are: this is the third control the two views could each build
+  /// their own of, and drifting apart is what happened the first two times.
+  ///
+  /// No wider than a card between the three of them, because that strip's
+  /// width is what the board's scale is read from.
+  Widget _diceTray({required double width}) => DiceTray(
+        showing: ref.watch(playProvider)?.dice ?? const [],
+        width: width,
+        onRoll: (results) =>
+            ref.read(playProvider.notifier).run(RollDice(results)),
       );
 
   /// Making a token out of a card somebody looked up.
@@ -757,9 +777,24 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
 ///
 /// It scrolls rather than overflowing, for the same reason [_Beside] does.
 class _Across extends StatelessWidget {
-  const _Across({required this.graveyard, required this.makeToken});
+  const _Across({
+    required this.graveyard,
+    required this.dice,
+    required this.makeToken,
+  });
 
   final Widget graveyard;
+
+  /// On this side of the board and not up beside the deck, which is where the
+  /// plan put them and where they do not fit: the wide view's right strip is
+  /// the mat's own 380 units and the corner and the deck stand 333 of it, so
+  /// the tray and its gap want 48.3 of the 46.3 that are left and the column
+  /// overflowed by two points. Rather than shave the dice down to whatever the
+  /// leftover happens to be this week, they come across with the other things
+  /// that are not piles of cards, which is the argument the token button
+  /// already made when it crossed for the same reason.
+  final Widget dice;
+
   final Widget makeToken;
 
   @override
@@ -767,7 +802,13 @@ class _Across extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [graveyard, const SizedBox(height: 12), makeToken],
+          children: [
+            graveyard,
+            const SizedBox(height: 12),
+            dice,
+            const SizedBox(height: 12),
+            makeToken,
+          ],
         ),
       );
 }
