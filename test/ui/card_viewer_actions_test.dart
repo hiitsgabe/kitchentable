@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/widgets/counter_piece.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 import 'package:kitchentable/table/model/card_instance.dart';
 import 'package:kitchentable/ui/organisms/card_viewer.dart';
@@ -269,5 +270,32 @@ void main() {
       tester.widget<Text>(find.byKey(const Key('counter-count'))).data,
       '7',
     );
+  });
+
+  testWidgets('the picker draws each kind as its own piece', (tester) async {
+    await tester.pumpWidget(
+      _host(instance: const CardInstance(id: 'a', oracleId: 'o')),
+    );
+    await tester.pump();
+
+    // Not in the plan. Every other case here reaches the picker through
+    // `Key('kind-...')`, which is on the wrapper and not on the piece inside
+    // it, so the whole row could be drawn as twenty two identical `+1/+1`
+    // pieces with nothing to say so: that mutation was measured against the
+    // whole suite and survived all 538 of it.
+    //
+    // A denomination, a keyword and one the box holds no piece for, because
+    // those are the three ways a row gets built.
+    CounterPieceView pieceFor(String kind) => tester.widget<CounterPieceView>(
+          find.descendant(
+            of: find.byKey(Key('kind-$kind')),
+            matching: find.byType(CounterPieceView),
+          ),
+        );
+
+    expect(pieceFor('+2/+2').piece.name, '+2/+2');
+    expect(pieceFor('flying').piece.isKeyword, isTrue);
+    expect(pieceFor('damage').piece.name, 'damage');
+    expect(pieceFor('damage').piece.isKeyword, isFalse);
   });
 }

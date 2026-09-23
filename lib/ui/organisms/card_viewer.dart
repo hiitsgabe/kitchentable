@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import '../../decks/model/game.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../table/model/card_instance.dart';
+import '../../features/play/counters.dart';
+import '../../features/play/widgets/counter_piece.dart';
 import '../tokens/metrics.dart';
 import '../atoms/card_art.dart';
 import '../atoms/card_image.dart';
@@ -32,13 +34,19 @@ enum CardAction {
   copy,
 }
 
-/// The counters a table puts on cards often enough to be worth a button.
+/// The kinds a table counts that the box holds no piece for.
 ///
-/// Not a closed list: whatever is already on the card is offered too, so a
-/// card that arrives carrying a kind nobody listed can still be counted. The
-/// table has never cared what these are called, which is why they are strings
-/// and not an enum, and it is also why Pokemon needs nothing added here.
-const counterKinds = ['+1/+1', '-1/-1', 'loyalty', 'charge', 'damage'];
+/// The seven denominations and the twelve keywords come from [counterPieces]
+/// now, and these three are what is left: a planeswalker's loyalty, an
+/// artifact's charge and a Pokemon's damage are counted at every kitchen table
+/// and were never moulded in plastic. Dropping them would leave a Pokemon
+/// player no way to count damage at all, since nothing here lets a kind be
+/// typed in.
+///
+/// Still not a closed list: whatever is already on the card is offered too.
+/// The table has never cared what these are called, which is why they are
+/// strings and not an enum.
+const counterKinds = ['loyalty', 'charge', 'damage'];
 
 /// One card, lifted off the screen and turnable in the hand.
 ///
@@ -141,7 +149,7 @@ class _CardViewerState extends State<CardViewer>
   /// twenty times a game and every other kind once. It was hardcoded before
   /// this, which made a planeswalker's loyalty, a Pokemon's damage and an
   /// artifact's charge all the same thing.
-  String _counting = counterKinds.first;
+  String _counting = counterPieces.first.name;
 
   @override
   void initState() {
@@ -289,11 +297,14 @@ class _CardViewerState extends State<CardViewer>
     if (instance == null) return const SizedBox.shrink();
 
     final kinds = [
+      // The box first, in the order the player reaches into it, then the three
+      // it holds no piece for.
+      for (final piece in counterPieces) piece.name,
       ...counterKinds,
       // Whatever arrived on the card and is on no list. Appended rather than
-      // sorted in, so the five that are always there never move about.
+      // sorted in, so the ones that are always there never move about.
       for (final kind in instance.counters.keys)
-        if (!counterKinds.contains(kind)) kind,
+        if (pieceNamed(kind) == null && !counterKinds.contains(kind)) kind,
     ];
 
     return Align(
@@ -380,9 +391,14 @@ class _CardViewerState extends State<CardViewer>
     );
   }
 
-  /// One kind of counter, and whether it is the one being counted.
+  /// One kind of counter, drawn as the piece it is, and whether it is the one
+  /// being counted.
   ///
-  /// The count rides on the chips that are not chosen, because the chosen
+  /// The piece and not the word: the player reaches into the box for a green
+  /// `+2/+2` rather than reading five names, and a row of words is what made
+  /// `+1/+1` get tapped four times.
+  ///
+  /// The count rides on the pieces that are not chosen, because the chosen
   /// one's number is already the big one between the plus and the minus and
   /// printing it twice is how somebody ends up counting the wrong one. What
   /// the unchosen ones carry is the answer to what else is on this card.
@@ -394,40 +410,21 @@ class _CardViewerState extends State<CardViewer>
       onTap: () => setState(() => _counting = kind),
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: m.scaled(9),
-          vertical: m.scaled(6),
-        ),
+        padding: EdgeInsets.all(m.scaled(3)),
         decoration: BoxDecoration(
-          color: chosen ? Palette.tileFocused : Palette.tile,
-          borderRadius: BorderRadius.circular(m.scaled(99)),
+          // A ring around the chosen one and nothing at all around the rest.
+          // A tile behind every piece would be a second object under the
+          // object, and twenty two of them is a wall of chrome.
+          color: chosen ? Palette.tileFocused : Colors.transparent,
+          borderRadius: BorderRadius.circular(m.scaled(9)),
           border: Border.all(
-            color: chosen ? Palette.accent : Palette.tileEdge,
+            color: chosen ? Palette.accent : Colors.transparent,
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              kind,
-              style: TextStyle(
-                fontSize: m.scaled(11),
-                fontWeight: chosen ? FontWeight.w700 : FontWeight.w500,
-                color: chosen ? Palette.ink : Palette.inkMuted,
-              ),
-            ),
-            if (!chosen && count != 0) ...[
-              SizedBox(width: m.scaled(5)),
-              Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: m.scaled(11),
-                  fontWeight: FontWeight.w700,
-                  color: Palette.accent,
-                ),
-              ),
-            ],
-          ],
+        child: CounterPieceView(
+          piece: pieceNamed(kind) ?? unknownPiece(kind),
+          width: m.scaled(28),
+          count: chosen ? 1 : count,
         ),
       ),
     );
