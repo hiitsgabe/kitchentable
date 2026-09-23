@@ -837,6 +837,12 @@ void main() {
     // sits between them with about four percent either side, so if this ever
     // fails on a change that was not about the row's width, check those two
     // numbers before loosening it.
+    //
+    // It is also the case that catches a control in either column whose own
+    // width does not shrink with the card. The dice tray's caption was a ten
+    // point font beside an eight point die, which made the column 41 wide
+    // where a card is 32 and took this to 1.269. Sizes in those columns come
+    // off the card and not off the metrics for that reason.
     expect(deck / onBoard, lessThan(1.19),
         reason: 'the row is budgeting for one column and there are two');
   });
@@ -902,6 +908,18 @@ void main() {
     }
   });
 
+  testWidgets('rolling a die puts the number on the table', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+
+    expect(container.read(playProvider)!.dice, isEmpty);
+
+    await tester.tap(find.byKey(const Key('die-20')));
+    await tester.pumpAndSettle();
+
+    final dice = container.read(playProvider)!.dice;
+    expect(dice, hasLength(3));
+    expect(dice.first, inInclusiveRange(1, 20));
+  });
 }
 
 class _GrumpyReferee implements Referee {

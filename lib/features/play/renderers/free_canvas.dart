@@ -36,6 +36,7 @@ class FreeCanvas extends StatefulWidget {
     this.commandCards,
     this.graveyard,
     this.tokenButton,
+    this.diceTray,
     this.game,
     this.onPlayCommand,
     this.onSendHome,
@@ -80,6 +81,10 @@ class FreeCanvas extends StatefulWidget {
   /// Built by the screen and handed over, the way [graveyard] is, so the deck
   /// and the token control cannot drift apart between the two renderers.
   final Widget? tokenButton;
+
+  /// The three dice, built by the screen for the same reason: this is the
+  /// third control the two views could each build their own of.
+  final Widget? diceTray;
 
   /// Whose back your deck is drawn with. Null draws the plain box.
   final Game? game;
@@ -221,6 +226,7 @@ class _FreeCanvasState extends State<FreeCanvas> {
                         metrics: widget.metrics,
                         seatId: widget.viewerSeatId,
                         graveyard: widget.graveyard,
+                        diceTray: widget.diceTray,
                         tokenButton: widget.tokenButton,
                       ),
                     ),
@@ -453,17 +459,24 @@ class _Aside extends StatelessWidget {
 /// fit on the other side: the corner, the deck and the button stand 395 units
 /// tall between them and a station is the mat's own 380, so one of them had to
 /// cross the mat, and the button is the one item that is not a pile of cards.
+///
+/// The dice cross for the second half of that reason and the first half again.
+/// Beside the deck they overflowed the strip by two points: the corner and the
+/// deck already stand 333 of the 380, and the tray and its gap want 48.3 of
+/// the 46.3 left over. They are not a pile of cards either.
 class _Across extends StatelessWidget {
   const _Across({
     required this.metrics,
     required this.seatId,
     required this.graveyard,
+    required this.diceTray,
     required this.tokenButton,
   });
 
   final Metrics metrics;
   final String seatId;
   final Widget? graveyard;
+  final Widget? diceTray;
   final Widget? tokenButton;
 
   @override
@@ -474,6 +487,10 @@ class _Across extends StatelessWidget {
       children: [
         if (graveyard case final pile?)
           KeyedSubtree(key: Key('canvas-graveyard-$seatId'), child: pile),
+        if (diceTray case final tray?) ...[
+          SizedBox(height: m.scaled(10)),
+          SizedBox(width: cardOnMat.width, child: tray),
+        ],
         if (tokenButton case final button?) ...[
           SizedBox(height: m.scaled(10)),
           SizedBox(width: cardOnMat.width, child: button),
