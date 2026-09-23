@@ -1605,8 +1605,426 @@ git commit -m "Stand the furniture beside the mat, and stop drawing the graveyar
 
 ---
 
-## Task 9 onward
+## The dice, and what was measured before planning them
 
-The dice, last: three dimensional, on the deck, d20, d12 and d6. `RollDice`
-has existed since plan 2 with no caller, and the reducer already takes the
-results from the caller so a replay gives the same roll.
+The player asked for real tumbling polyhedra on the deck, d20, d12 and d6, and
+chose that over a die that turns once and settles. So these are actual solids
+with actual faces, projected and culled, not a picture of a die.
+
+No package. `package:vector_math/vector_math_64.dart` already ships with
+Flutter and carries `Vector3` and `Quaternion`, which is all this needs, and a
+3D package would be a dependency, a web asset story and a licence for
+something that is two hundred lines of arithmetic.
+
+**The geometry is derived, not typed.** Twenty triangles written out by hand
+is twenty chances to transpose an index, and nothing would catch it but the
+eye. All four facts below were checked numerically on 2026 09 23 before this
+was written:
+
+| | |
+|---|---|
+| icosahedron vertices, cyclic permutations of `(0, ±1, ±φ)` | **12**, edge exactly **2.0** |
+| triangles, being every triple mutually one edge apart | **20** |
+| dodecahedron vertices, the centroids of those triangles | **20** |
+| pentagons, being the five centroids around each icosahedron vertex | **12**, every one **5** sided |
+| those pentagons' planarity | deviation **0.0** |
+| those pentagons, wound consistently and convex | **yes** |
+
+**And the rotation convention, which is the one that would have cost a day.**
+`Quaternion.axisAngle` turns the **opposite way to the right hand rule**.
+Measured: `Quaternion.axisAngle(Vector3(0,0,1), pi/2).rotated(Vector3(1,0,0))`
+is `(0, -1, 0)`, not `(0, 1, 0)`. So bringing a face's normal to the camera
+takes a **negative** angle:
+
+```
+    axisAngle(n.cross(z).normalized(), -acos(n.dot(z))).rotated(n) == (0, 0, 1)
+```
+
+exactly, to machine zero. With the positive angle it lands on
+`(0.667, 0.667, -0.333)`, which is a die showing the wrong face and looking
+almost right, which is worse.
+
+---
+
+## Task 9: The solids
+
+Pure arithmetic, no widgets, no Flutter beyond `vector_math`.
+
+**Files:**
+- Create: `lib/features/play/dice/polyhedron.dart`
+- Test: `test/features/polyhedron_test.dart`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `test/features/polyhedron_test.dart`:
+
+```dart
+import 'dart:math' as math;
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/dice/polyhedron.dart';
+import 'package:vector_math/vector_math_64.dart';
+
+void main() {
+  test('a d6 is a cube', () {
+    final die = Polyhedron.d6;
+    expect(die.faces, hasLength(6));
+    expect(die.faces.every((f) => f.length == 4), isTrue);
+    expect(die.vertices, hasLength(8));
+  });
+
+  test('a d20 has twenty triangles on twelve corners', () {
+    final die = Polyhedron.d20;
+    expect(die.vertices, hasLength(12));
+    expect(die.faces, hasLength(20));
+    expect(die.faces.every((f) => f.length == 3), isTrue);
+  });
+
+  test('a d12 has twelve pentagons on twenty corners', () {
+    final die = Polyhedron.d12;
+    expect(die.vertices, hasLength(20));
+    expect(die.faces, hasLength(12));
+    expect(die.faces.every((f) => f.length == 5), isTrue);
+  });
+
+  test('every face is flat', () {
+    for (final die in [Polyhedron.d6, Polyhedron.d12, Polyhedron.d20]) {
+      for (final face in die.faces) {
+        final points = [for (final i in face) die.vertices[i]];
+        final centre = points.reduce((a, b) => a + b) / points.length.toDouble();
+        final normal = die.normalOf(face);
+        for (final p in points) {
+          expect((p - centre).dot(normal).abs(), lessThan(1e-9),
+              reason: 'a face of a ${die.sides} sided die is not flat');
+        }
+      }
+    }
+  });
+
+  test('every face looks outwards', () {
+    for (final die in [Polyhedron.d6, Polyhedron.d12, Polyhedron.d20]) {
+      for (final face in die.faces) {
+        final points = [for (final i in face) die.vertices[i]];
+        final centre = points.reduce((a, b) => a + b) / points.length.toDouble();
+        // A normal pointing inwards makes the culling draw the far side of
+        // the die and hide the near one, which looks like a hole.
+        expect(die.normalOf(face).dot(centre), greaterThan(0));
+      }
+    }
+  });
+
+  test('every face is wound the same way round', () {
+    for (final die in [Polyhedron.d12, Polyhedron.d20]) {
+      for (final face in die.faces) {
+        final points = [for (final i in face) die.vertices[i]];
+        final normal = die.normalOf(face);
+        for (var i = 0; i < points.length; i++) {
+          final a = points[i];
+          final b = points[(i + 1) % points.length];
+          final c = points[(i + 2) % points.length];
+          expect((b - a).cross(c - b).dot(normal), greaterThan(0),
+              reason: 'a face of a ${die.sides} sided die turns back on itself');
+        }
+      }
+    }
+  });
+
+  test('every corner is the same distance out', () {
+    for (final die in [Polyhedron.d6, Polyhedron.d12, Polyhedron.d20]) {
+      final radius = die.vertices.first.length;
+      for (final v in die.vertices) {
+        expect(v.length, closeTo(radius, 1e-9));
+      }
+    }
+  });
+
+  test('a rolled face is turned to face you, exactly', () {
+    for (final die in [Polyhedron.d6, Polyhedron.d12, Polyhedron.d20]) {
+      for (var i = 0; i < die.faces.length; i++) {
+        final landed = die.settle(i).rotated(die.normalOf(die.faces[i]));
+        expect(landed.x.abs(), lessThan(1e-9));
+        expect(landed.y.abs(), lessThan(1e-9));
+        expect(landed.z, closeTo(1, 1e-9),
+            reason: 'face $i of a ${die.sides} sided die landed away from you');
+      }
+    }
+  });
+
+  test('the face already facing you needs no turning', () {
+    final die = Polyhedron.d6;
+    final facing = die.faces.indexWhere(
+      (f) => (die.normalOf(f) - Vector3(0, 0, 1)).length < 1e-9,
+    );
+    expect(facing, isNot(-1), reason: 'a cube has a face pointing at you');
+
+    // The axis is the cross product of two parallel vectors, which is zero
+    // and cannot be normalized. The identity is the answer, not a crash.
+    final landed = die.settle(facing).rotated(die.normalOf(die.faces[facing]));
+    expect(landed.z, closeTo(1, 1e-9));
+  });
+
+  test('the face pointing away turns all the way round', () {
+    final die = Polyhedron.d6;
+    final away = die.faces.indexWhere(
+      (f) => (die.normalOf(f) - Vector3(0, 0, -1)).length < 1e-9,
+    );
+    expect(away, isNot(-1));
+
+    // The other degenerate axis: opposite vectors also cross to zero, and
+    // this one needs half a turn about any perpendicular rather than none.
+    final landed = die.settle(away).rotated(die.normalOf(die.faces[away]));
+    expect(landed.z, closeTo(1, 1e-9),
+        reason: 'the far face never came round');
+  });
+
+  test('a die has as many faces as it has sides', () {
+    expect(Polyhedron.d6.sides, 6);
+    expect(Polyhedron.d12.sides, 12);
+    expect(Polyhedron.d20.sides, 20);
+    for (final die in [Polyhedron.d6, Polyhedron.d12, Polyhedron.d20]) {
+      expect(die.faces.length, die.sides);
+    }
+  });
+}
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/features/polyhedron_test.dart`
+Expected: FAIL, `Error when reading
+'lib/features/play/dice/polyhedron.dart'`.
+
+- [ ] **Step 3: Derive the solids**
+
+Create `lib/features/play/dice/polyhedron.dart`.
+
+The d20's vertices are the cyclic permutations of `(0, ±1, ±φ)` with
+`φ = (1 + sqrt(5)) / 2`. Its faces are every triple of vertices that are
+mutually one edge apart, where the edge is the smallest distance between any
+two of them, which measures exactly 2.0.
+
+The d12 is the d20's dual: its vertices are the centroids of the d20's faces,
+and each of its pentagons is the five centroids around one d20 vertex, sorted
+by angle about that vertex's direction so the winding comes out consistent.
+
+The d6 is the eight `(±1, ±1, ±1)` corners and six faces of four.
+
+**Derive them and do not type index lists.** Twenty triangles written by hand
+is twenty chances to transpose an index, and the only thing that would catch
+it is somebody's eye on a rolling die.
+
+`settle(face)` returns the `Quaternion` that brings that face's normal to the
+camera:
+
+```dart
+  /// The turn that brings [face] round to face you.
+  ///
+  /// The angle is negative. `Quaternion.axisAngle` turns the opposite way to
+  /// the right hand rule: measured, `axisAngle(z, pi/2).rotated(x)` is
+  /// `(0, -1, 0)`. With a positive angle a face lands at
+  /// `(0.667, 0.667, -0.333)`, which is the wrong face, showing almost
+  /// straight, which is worse than obviously wrong.
+  Quaternion settle(int face) {
+    final n = normalOf(faces[face]);
+    final axis = n.cross(Vector3(0, 0, 1));
+    // Two degenerate cases, and they are not the same. A face already facing
+    // you crosses to zero and needs no turn; a face pointing away also
+    // crosses to zero and needs half a turn about any perpendicular.
+    if (axis.length2 < 1e-18) {
+      return n.z > 0
+          ? Quaternion.identity()
+          : Quaternion.axisAngle(Vector3(1, 0, 0), math.pi);
+    }
+    return Quaternion.axisAngle(
+      axis.normalized(),
+      -math.acos(n.dot(Vector3(0, 0, 1)).clamp(-1.0, 1.0)),
+    );
+  }
+```
+
+- [ ] **Step 4: Run it and watch it pass**
+
+Run: `flutter test test/features/polyhedron_test.dart`
+Expected: PASS, 11 tests.
+
+- [ ] **Step 5: Probe**
+
+Four, and say which assertion each fails on.
+
+- Drop the minus from the settle's angle. Every face of every die lands
+  wrong: the settle case fails on `landed.z`.
+- Reverse the pentagon sort, so the winding goes the other way. The winding
+  case must fail, and **say whether the flatness or the outward case also
+  fails**: they should not, and if one does the sort is doing more than
+  ordering.
+- Take the far face's half turn out, returning the identity for both
+  degenerate axes. The last of the three settle cases must fail, and it must
+  be the only one.
+- Compare the edge with `<=` instead of within a tolerance, or widen the
+  tolerance to 0.5. Say what the face counts become: a d20 with more than
+  twenty faces is the failure this derivation exists to make impossible.
+
+Edit each back by hand, never with `git checkout`, and rerun.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/features/play/dice test/features/polyhedron_test.dart
+git commit -m "Build the three solids out of their own geometry"
+```
+
+---
+
+## Task 10: A die you can see
+
+**Files:**
+- Create: `lib/features/play/dice/die_view.dart`
+- Test: `test/features/die_view_test.dart`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `test/features/die_view_test.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/dice/die_view.dart';
+import 'package:kitchentable/features/play/dice/polyhedron.dart';
+import 'package:vector_math/vector_math_64.dart';
+
+Widget _host({
+  Polyhedron die = Polyhedron.d20,
+  int showing = 0,
+  Quaternion? turn,
+}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: DieView(
+            die: die,
+            showing: showing,
+            turn: turn ?? die.settle(showing),
+            size: 80,
+          ),
+        ),
+      ),
+    );
+
+void main() {
+  testWidgets('it draws something for each of the three', (tester) async {
+    for (final die in [Polyhedron.d6, Polyhedron.d12, Polyhedron.d20]) {
+      await tester.pumpWidget(_host(die: die));
+      await tester.pump();
+      expect(find.byType(DieView), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  test('only the faces turned towards you are drawn', () {
+    for (final die in [Polyhedron.d6, Polyhedron.d12, Polyhedron.d20]) {
+      final turn = die.settle(0);
+      final seen = visibleFaces(die, turn);
+
+      // Never all of them and never none: a solid shows about half its faces,
+      // and a die that drew all of them would paint its own far side over its
+      // near one.
+      expect(seen, isNotEmpty);
+      expect(seen.length, lessThan(die.faces.length));
+      expect(seen, contains(0), reason: 'the face that was rolled is hidden');
+    }
+  });
+
+  test('the rolled face is the one nearest the middle', () {
+    for (final die in [Polyhedron.d6, Polyhedron.d12, Polyhedron.d20]) {
+      final turn = die.settle(3 % die.faces.length);
+      final rolled = 3 % die.faces.length;
+      final centre = Offset.zero;
+
+      var nearest = -1;
+      var best = double.infinity;
+      for (final f in visibleFaces(die, turn)) {
+        final at = project(die, f, turn, 80);
+        final d = (at - centre).distance;
+        if (d < best) {
+          best = d;
+          nearest = f;
+        }
+      }
+      expect(nearest, rolled,
+          reason: 'a ${die.sides} sided die showing $rolled points elsewhere');
+    }
+  });
+
+  test('a face turned edge on is not drawn', () {
+    final die = Polyhedron.d6;
+    // A quarter turn puts two faces exactly edge on. Drawn, they are a line
+    // of pixels that flickers; culled, they are nothing, which is what a real
+    // die does.
+    final turn = Quaternion.axisAngle(Vector3(0, 1, 0), math.pi / 2);
+    final seen = visibleFaces(die, turn);
+    expect(seen.length, lessThanOrEqualTo(4));
+  });
+}
+```
+
+Add `import 'dart:math' as math;` to that file.
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `flutter test test/features/die_view_test.dart`
+Expected: FAIL, `Error when reading
+'lib/features/play/dice/die_view.dart'`.
+
+- [ ] **Step 3: Draw it**
+
+`DieView` is a `CustomPaint`. `visibleFaces` and `project` are top level so
+the arithmetic is testable without pumping a widget, which is the whole reason
+the cases above are mostly plain `test` and not `testWidgets`.
+
+- A face is visible when its rotated normal has a positive z. That is the
+  culling, and it is one line.
+- Faces are painted far to near, sorted by the rotated centroid's z, so the
+  near ones land on top. Painter's algorithm: it is exact for a convex solid,
+  which all three of these are.
+- The number goes at the projected centroid, scaled by how square on the face
+  is, which is the dot of its normal with the camera. A face at a glancing
+  angle gets a small number, which is what foreshortening looks like without
+  having to skew the text into the face's plane.
+- Shade each face by that same dot, so the solid reads as solid. The palette
+  has `accent` for the rolled face and `tile` and `tileEdge` for the rest.
+
+Perspective is not worth it here: a die is small and nearly orthographic at
+this size, and a projection with a vanishing point needs a depth that has to
+be tuned against the die's radius. Say so in a comment.
+
+- [ ] **Step 4: Run it and watch it pass**
+
+Run: `flutter test test/features/die_view_test.dart`
+Expected: PASS, 4 tests.
+
+- [ ] **Step 5: Probe**
+
+- Cull on negative z instead of positive. The visibility case fails on
+  `contains(0)`, and the nearest case fails too: say which assertion each.
+- Paint near to far. Nothing in these cases will notice, because none of them
+  reads pixels. **Say so** rather than claiming the ordering is covered, and
+  say what a case for it would have to look at.
+- Drop the foreshortening on the number's size. Say what fails. If nothing
+  does, say that too.
+
+Edit each back by hand and rerun.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/features/play/dice test/features/die_view_test.dart
+git commit -m "Draw a solid, near faces over far ones"
+```
+
+---
+
+## Task 11 onward
+
+The roll itself, written after the solids can be drawn: three dice on the
+deck, a tumble that settles on the number, and `RollDice` finally getting a
+caller.
