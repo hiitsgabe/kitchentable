@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show clampDouble;
 
 import 'package:flutter/material.dart';
@@ -129,67 +130,133 @@ class _CursorBoardState extends State<CursorBoard> {
     return KeyEventResult.handled;
   }
 
+  /// The label above a mat, the gap under it, and the gap under the pile.
+  ///
+  /// The label sits in a box of a known height rather than at whatever height
+  /// the font comes out at, because the mat gets what is left after this and
+  /// "what is left" has to be a number this widget can work out before it
+  /// lays anything out.
+  double get _chrome {
+    final m = widget.metrics;
+    return m.scaled(14) + m.scaled(6) + m.scaled(12);
+  }
+
   @override
   Widget build(BuildContext context) {
     final cursor = _cursor;
+    final piles = [
+      for (final (i, zone) in widget.zones.indexed)
+        // The battlefield keeps its mat while there is nothing on it,
+        // because an empty mat is exactly where a card out of your hand has
+        // to land. A target that appears only once a card is already there
+        // could never take the first one.
+        if (i == 0 || zone.cards.isNotEmpty) zone,
+    ];
 
     return Focus(
       autofocus: true,
       onKeyEvent: _onKey,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final (i, zone) in widget.zones.indexed)
-              // The battlefield keeps its mat while there is nothing on it,
-              // because an empty mat is exactly where a card out of your hand
-              // has to land. A target that appears only once a card is
-              // already there could never take the first one.
-              if (i == 0 || zone.cards.isNotEmpty) _pile(zone, cursor),
-          ],
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Two piles do not each get the whole window and do not need to.
+          // Each gets a share of it and each mat is scaled to its own share,
+          // so both are whole and neither is cut off. A mat drawn smaller is
+          // still the same shape, and the shape is what a drop means.
+          final share = constraints.hasBoundedHeight
+              ? constraints.maxHeight / piles.length
+              : 0.0;
+
+          // Under its own label a pile has no mat left to draw, and that
+          // squeeze is not this widget's to fix: a phone in a pod hands the
+          // board 28 points out of 844 and the rest went on the bands, the
+          // hand and the bars. Then it scrolls, which is what it did before,
+          // and each pile keeps the height the width alone gives it.
+          if (share <= _chrome) {
+            return SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final zone in piles) _pile(zone, cursor, fits: false),
+                ],
+              ),
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final zone in piles)
+                Expanded(child: _pile(zone, cursor, fits: true)),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _pile(BoardZone zone, BoardCursor? cursor) {
+  Widget _pile(BoardZone zone, BoardCursor? cursor, {required bool fits}) {
     final m = widget.metrics;
+
+    final mat = LayoutBuilder(
+      builder: (context, constraints) {
+        // The mat keeps its shape whatever the window does, so a drag on a
+        // phone and the same drag on a television land on the same
+        // normalized spot. Only the scale moves.
+        //
+        // Scaled by width alone it was 1138 points tall on a 1917 point
+        // window against a viewport of about 550: half your own battlefield
+        // was below the fold, and a card parked there looked cut off rather
+        // than scrolled away. Whichever of the two runs out first decides.
+        // Scrolling, the height is infinite and the width is the only one
+        // that can run out, which is the old arithmetic saying itself.
+        final scale = math.min(
+          constraints.maxWidth / matSize.width,
+          constraints.maxHeight / matSize.height,
+        );
+        final size = matSize * scale;
+
+        // The slack is real and it is not the mat's: a wide window has room
+        // at the sides, a tall one above and below. Centred, that reads as a
+        // table with room around it. It is also load bearing rather than
+        // decoration: fitting hands this box a height it must not take, and
+        // Center is what lets the mat be smaller than the box it is in.
+        return Center(
+          child: SizedBox(
+            width: size.width,
+            height: size.height,
+            child: CardDropTarget(
+              onDrop: (card, at) => _drop(zone, card, at, scale),
+              child: Stack(
+                // The box a drop is measured against, and the one the test
+                // measures it against too.
+                key: Key('mat-${zone.id}'),
+                children: [
+                  if (zone.cards.isEmpty) _nothingHere(),
+                  for (var i = 0; i < zone.cards.length; i++)
+                    _card(zone, i, cursor, scale),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
 
     return Padding(
       padding: EdgeInsets.only(bottom: m.scaled(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            zone.label,
-            style: TextStyle(fontSize: m.scaled(11), color: Palette.inkFaint),
+          SizedBox(
+            height: m.scaled(14),
+            child: Text(
+              zone.label,
+              style:
+                  TextStyle(fontSize: m.scaled(11), color: Palette.inkFaint),
+            ),
           ),
           SizedBox(height: m.scaled(6)),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              // The mat keeps its shape whatever the window does, so a drag
-              // on a phone and the same drag on a television land on the same
-              // normalized spot.
-              final scale = constraints.maxWidth / matSize.width;
-              return SizedBox(
-                width: constraints.maxWidth,
-                height: matSize.height * scale,
-                child: CardDropTarget(
-                  onDrop: (card, at) => _drop(zone, card, at, scale),
-                  child: Stack(
-                    // The box a drop is measured against, and the one the
-                    // test measures it against too.
-                    key: Key('mat-${zone.id}'),
-                    children: [
-                      if (zone.cards.isEmpty) _nothingHere(),
-                      for (var i = 0; i < zone.cards.length; i++)
-                        _card(zone, i, cursor, scale),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+          if (fits) Expanded(child: mat) else mat,
         ],
       ),
     );
