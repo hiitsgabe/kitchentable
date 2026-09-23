@@ -218,7 +218,8 @@ void main() {
 
     expect(firstBelow.left - leftOfAll, greaterThan(1),
         reason: 'the short line was flushed to the left');
-    expect(firstBelow.left - leftOfAll, closeTo(top.right - lastBelow.right, 1));
+    expect(firstBelow.left - leftOfAll,
+        closeTo(top.right - lastBelow.right, 1));
   });
 
   testWidgets('a card dropped on the short line lands on that line',
@@ -239,8 +240,8 @@ void main() {
     // line instead of from where this short one starts reads this drop as the
     // sixth place rather than the fifth, and both are in range, so the clamp
     // at either end does not save it.
-    final gesture =
-        await tester.startGesture(tester.getCenter(find.byType(TableCard).first));
+    final first = tester.getCenter(find.byType(TableCard).first);
+    final gesture = await tester.startGesture(first);
     await tester.pump(const Duration(milliseconds: 40));
     await gesture.moveTo(tester.getCenter(find.byType(TableCard).at(5)));
     await tester.pump();

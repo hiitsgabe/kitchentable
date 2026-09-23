@@ -33,6 +33,7 @@ class FreeCanvas extends StatefulWidget {
     required this.onDraw,
     required this.onWorkDeck,
     this.libraryCount = 0,
+    this.libraryOf,
     this.commandCards,
     this.graveyard,
     this.tokenButton,
@@ -61,6 +62,10 @@ class FreeCanvas extends StatefulWidget {
   /// owner included, and a `SeatView` correctly carries no cards for it. The
   /// count is public at a real table and is all the pile needs.
   final int libraryCount;
+
+  /// How many cards the deck started at, so the pile thins as it is drawn
+  /// rather than standing at its full height until it is nearly gone.
+  final int? libraryOf;
 
   /// Whatever is standing in your command zone.
   ///
@@ -241,6 +246,7 @@ class _FreeCanvasState extends State<FreeCanvas> {
                         seatId: widget.viewerSeatId,
                         printings: widget.printings,
                         libraryCount: widget.libraryCount,
+                        libraryOf: widget.libraryOf,
                         commandCards: widget.commandCards,
                         game: widget.gameFor?.call(widget.viewerSeatId),
                         onInspectCard: widget.onInspectCard,
@@ -404,6 +410,7 @@ class _Aside extends StatelessWidget {
     required this.seatId,
     required this.printings,
     required this.libraryCount,
+    required this.libraryOf,
     required this.commandCards,
     required this.game,
     required this.onInspectCard,
@@ -417,6 +424,7 @@ class _Aside extends StatelessWidget {
   final String seatId;
   final Map<String, CatalogCard> printings;
   final int libraryCount;
+  final int? libraryOf;
   final List<CardInstance>? commandCards;
   final Game? game;
   final void Function(CardInstance) onInspectCard;
@@ -450,6 +458,7 @@ class _Aside extends StatelessWidget {
           child: LibraryStack(
             metrics: m,
             count: libraryCount,
+            of: libraryOf,
             width: width,
             game: game,
             onDraw: onDraw,

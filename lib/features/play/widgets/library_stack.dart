@@ -19,6 +19,26 @@ const _mostLeaves = 12;
 /// How far each leaf below the top one is offset, in points before scaling.
 const _leafStep = 1.6;
 
+/// How many leaves a pile this size is drawn with.
+///
+/// Given a starting size the thickness is the fraction of it that is left,
+/// scaled to [_mostLeaves], so a full deck of any size looks full and drawing
+/// thins it the whole way down. It used to be the count itself, saturating,
+/// which meant a Commander deck stood at its full height from a hundred all
+/// the way down to twelve: drawing eighty cards moved nothing on the table.
+///
+/// Without a starting size it is still the count, saturating, which is a
+/// graveyard: that one fills up rather than emptying, so there is nothing it is
+/// a fraction of and the count it always used is the right answer.
+int _leavesFor(int count, int? of) {
+  if (count <= 0) return 0;
+  if (of == null || of <= 0) {
+    return count > _mostLeaves ? _mostLeaves : count;
+  }
+  final left = (count / of * _mostLeaves).round();
+  return left > _mostLeaves ? _mostLeaves : left;
+}
+
 /// A pile of cards on the table, as a pile that grows and shrinks.
 ///
 /// Your deck is one, face down, that you tap to draw from and whose second
@@ -41,18 +61,30 @@ class LibraryStack extends StatelessWidget {
     this.face,
     this.onDrop,
     this.game,
+    this.of,
   });
 
   final Metrics metrics;
   final int count;
   final double width;
 
+  /// How many cards the deck started at, so the pile can be drawn as the
+  /// fraction of itself that is left.
+  ///
+  /// Null for a pile with no starting size, which is the graveyard: a graveyard
+  /// fills up rather than emptying, and there is nothing it is a fraction of.
+  final int? of;
+
   /// How far past a card the pile is drawn, for a deck this size.
   ///
   /// Said out loud because the pile is wider than the card in it and whoever
-  /// gives it room has to know by how much.
-  static double spreadFor(int count) =>
-      (count > _mostLeaves ? _mostLeaves : count) * _leafStep;
+  /// gives it room has to know by how much. Still a function of nothing but
+  /// what it is handed, because the board's width arithmetic calls it for a
+  /// pile that has not been laid out yet, and it has to be given the same
+  /// starting size the pile itself is or the two disagree by a few points and
+  /// the board budgets for a column that is not the one it gets.
+  static double spreadFor(int count, [int? of]) =>
+      _leavesFor(count, of) * _leafStep;
 
   /// Whose back the pile is drawn with. Null draws the plain box, which is
   /// what a pile the app cannot name a back for has always looked like.
@@ -93,8 +125,8 @@ class LibraryStack extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = metrics;
     final height = width * 88 / 63;
-    final leaves = count > _mostLeaves ? _mostLeaves : count;
-    final lift = spreadFor(count);
+    final leaves = _leavesFor(count, of);
+    final lift = spreadFor(count, of);
     final work = onWork;
     final word = label;
 
