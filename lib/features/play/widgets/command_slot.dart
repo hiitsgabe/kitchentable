@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../decks/model/game.dart';
 import '../../../sources/model/catalog_card.dart';
 import '../../../table/model/card_instance.dart';
 import '../../../ui/tokens/metrics.dart';
@@ -24,6 +25,7 @@ class CommandSlot extends StatelessWidget {
     required this.onTap,
     required this.onInspect,
     required this.onSendHome,
+    this.game,
   });
 
   final Metrics metrics;
@@ -40,6 +42,9 @@ class CommandSlot extends StatelessWidget {
   /// either, so the corner takes any card rather than checking one against
   /// the deck. The player is the one who knows.
   final void Function(CardInstance) onSendHome;
+
+  /// Whose back a commander sitting face down is turned onto.
+  final Game? game;
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +86,7 @@ class CommandSlot extends StatelessWidget {
                       instance: card,
                       printing: printings[card.oracleId],
                       width: width,
+                      game: game,
                       onTap: () => onTap(card),
                       onLongPress: () => onInspect(card),
                     ),

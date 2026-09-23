@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/features/play/widgets/card_drag.dart';
 import 'package:kitchentable/features/play/widgets/command_slot.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
@@ -11,6 +12,7 @@ Widget _host({
     CardInstance(id: 'c0', oracleId: 'General'),
   ],
   void Function(CardInstance)? onTap,
+  Game? game,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -22,6 +24,7 @@ Widget _host({
           onTap: onTap ?? (_) {},
           onInspect: (_) {},
           onSendHome: (_) {},
+          game: game,
         ),
       ),
     );
@@ -97,5 +100,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(sent?.id, 'x');
+  });
+
+  testWidgets('a commander is drawn on the game s own back', (tester) async {
+    await tester.pumpWidget(_host(game: Game.magic));
+    await tester.pump();
+
+    // The corner had this argument and threw it away for a while: it took the
+    // game and never handed it to the card, so a commander face down in the
+    // corner drew the plain box and the whole suite stayed green.
+    expect(find.byKey(const Key('card-back-art')), findsOneWidget);
   });
 }

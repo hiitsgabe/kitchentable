@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../decks/model/game.dart';
 import '../../../sources/model/catalog_card.dart';
 import '../../../table/model/card_instance.dart';
 import '../../../ui/tokens/metrics.dart';
@@ -40,6 +41,7 @@ class HandSheet extends StatelessWidget {
     required this.onPlay,
     required this.onInspect,
     required this.onReorder,
+    this.game,
   });
 
   final Metrics metrics;
@@ -50,6 +52,10 @@ class HandSheet extends StatelessWidget {
 
   /// Where a card was dragged to, as a place in the hand.
   final void Function(String cardId, int to) onReorder;
+
+  /// Whose cards these are, so a card held face down is held face down onto
+  /// the right back.
+  final Game? game;
 
   @override
   Widget build(BuildContext context) {
@@ -137,6 +143,7 @@ class HandSheet extends StatelessWidget {
         instance: card,
         printing: printings[card.oracleId],
         width: width,
+        game: game,
         onTap: () => onPlay(card),
         onLongPress: () => onInspect(card),
       ),

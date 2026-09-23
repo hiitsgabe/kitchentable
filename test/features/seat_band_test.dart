@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/features/play/widgets/seat_band.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
 import 'package:kitchentable/table/model/card_instance.dart';
@@ -30,13 +31,15 @@ Seat _seat(String id, {int life = 40, int hand = 3, int board = 0}) => Seat(
       ],
     );
 
-Widget _host(SeatView seat, {void Function()? onTap}) => MaterialApp(
+Widget _host(SeatView seat, {void Function()? onTap, Game? game}) =>
+    MaterialApp(
       home: Scaffold(
         body: SeatBand(
           metrics: Metrics.of(DeviceClass.handheld),
           seat: seat,
           printings: const {},
           onTap: onTap ?? () {},
+          game: game,
         ),
       ),
     );
@@ -118,5 +121,16 @@ void main() {
     await tester.pump();
 
     expect(tapped, isTrue);
+  });
+
+  testWidgets('a card in a band is drawn on that seat s own back',
+      (tester) async {
+    await tester.pumpWidget(_host(_leaking(board: 1), game: Game.magic));
+    await tester.pump();
+
+    // The game is the one this seat is playing and not the viewer's, which is
+    // why the band takes it rather than reading it off the table. Dropping the
+    // argument it passes down leaves every other case in this file green.
+    expect(find.byKey(const Key('card-back-art')), findsOneWidget);
   });
 }

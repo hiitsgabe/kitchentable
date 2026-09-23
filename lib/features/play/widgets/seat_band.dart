@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../decks/model/game.dart';
 import '../../../sources/model/catalog_card.dart';
 import '../../../table/view/seat_view.dart';
 import '../../../ui/tokens/metrics.dart';
@@ -21,6 +22,7 @@ class SeatBand extends StatelessWidget {
     required this.onTap,
     this.isTurn = false,
     this.focused = false,
+    this.game,
   });
 
   final Metrics metrics;
@@ -33,6 +35,10 @@ class SeatBand extends StatelessWidget {
   final VoidCallback onTap;
   final bool isTurn;
   final bool focused;
+
+  /// The game this seat is playing, which is not necessarily the viewer's: the
+  /// back on a face down card belongs to whoever turned it over.
+  final Game? game;
 
   @override
   Widget build(BuildContext context) {
@@ -115,6 +121,7 @@ class SeatBand extends StatelessWidget {
                                 instance: card,
                                 printing: printings[card.oracleId],
                                 width: m.scaled(40),
+                                game: game,
                               ),
                             ),
                         ],

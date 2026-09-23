@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
 import 'package:kitchentable/table/model/card_instance.dart';
+import 'package:kitchentable/ui/atoms/card_art.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
 /// One card on a table, with no printing behind it.
@@ -9,13 +11,14 @@ import 'package:kitchentable/ui/tokens/metrics.dart';
 /// Null on purpose rather than for want of a fixture: a token has no printing
 /// and neither has a card from a source somebody cleared, so the back is what
 /// this widget draws most often, and nothing here is about the art.
-Widget _host(CardInstance instance) => MaterialApp(
+Widget _host(CardInstance instance, {Game? game}) => MaterialApp(
       home: Scaffold(
         body: TableCard(
           metrics: Metrics.of(DeviceClass.handheld),
           instance: instance,
           printing: null,
           width: 90,
+          game: game,
         ),
       ),
     );
@@ -38,5 +41,28 @@ void main() {
     expect(find.textContaining('3'), findsWidgets);
     expect(find.byKey(const Key('counter-+1/+1')), findsOneWidget);
     expect(find.byKey(const Key('counter-damage')), findsOneWidget);
+  });
+
+  testWidgets('a face down card shows the game s own back', (tester) async {
+    await tester.pumpWidget(_host(
+      const CardInstance(id: 'a', oracleId: 'o', faceDown: true),
+      game: Game.magic,
+    ));
+    await tester.pump();
+
+    // The real back, not the outlined box a CardBack draws when it does not
+    // know which game it is. That box is for a token and for a card the
+    // catalog has never heard of.
+    expect(find.byKey(const Key('card-back-art')), findsOneWidget);
+  });
+
+  testWidgets('a card of no game still draws something', (tester) async {
+    await tester.pumpWidget(_host(
+      const CardInstance(id: 'a', oracleId: 'o', faceDown: true),
+    ));
+    await tester.pump();
+
+    expect(find.byType(CardBack), findsOneWidget);
+    expect(find.byKey(const Key('card-back-art')), findsNothing);
   });
 }

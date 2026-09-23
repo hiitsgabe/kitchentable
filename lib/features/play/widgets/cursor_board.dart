@@ -3,6 +3,7 @@ import 'dart:ui' show clampDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../decks/model/game.dart';
 import '../../../sources/model/catalog_card.dart';
 import '../../../table/model/card_instance.dart';
 import '../../../ui/tokens/metrics.dart';
@@ -31,6 +32,7 @@ class CursorBoard extends StatefulWidget {
     required this.onInspect,
     required this.onPlace,
     this.cardScale = 1,
+    this.game,
   });
 
   final Metrics metrics;
@@ -53,6 +55,9 @@ class CursorBoard extends StatefulWidget {
   /// The player's own multiplier on the card size. One is the mat exactly as
   /// the layout drew it.
   final double cardScale;
+
+  /// Whose table this is, for the back a face down card is turned onto.
+  final Game? game;
 
   /// Which piles this board actually draws.
   ///
@@ -327,6 +332,7 @@ class _CursorBoardState extends State<CursorBoard> {
             instance: card,
             printing: widget.printings[card.oracleId],
             width: _cardSize.width * scale,
+            game: widget.game,
             onTap: () => widget.onActivate(card),
             onLongPress: () => widget.onInspect(card),
             // A card on this board is drawn at the mat's scale, which on a

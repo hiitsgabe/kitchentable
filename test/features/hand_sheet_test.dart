@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
@@ -27,6 +28,7 @@ Widget _host({
   int cards = 3,
   Map<String, CatalogCard> printings = const {},
   void Function(String cardId, int to)? onReorder,
+  Game? game,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -37,6 +39,7 @@ Widget _host({
           onPlay: (_) {},
           onInspect: (_) {},
           onReorder: onReorder ?? (_, _) {},
+          game: game,
         ),
       ),
     );
@@ -246,5 +249,16 @@ void main() {
 
     expect(moved?.id, 'h0');
     expect(moved?.to, 5);
+  });
+
+  testWidgets('a card in hand is drawn on the game s own back',
+      (tester) async {
+    await tester.pumpWidget(_host(cards: 1, game: Game.magic));
+    await tester.pump();
+
+    // Nothing in this hand has a printing, so the back is what is drawn, and
+    // whose back it is only reaches the card if the sheet passes the game on.
+    // Dropping that one argument leaves every other case here green.
+    expect(find.byKey(const Key('card-back-art')), findsOneWidget);
   });
 }

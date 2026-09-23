@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/features/play/renderers/mat_layout.dart';
 import 'package:kitchentable/features/play/widgets/cursor_board.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
@@ -32,6 +33,7 @@ Widget _host({
   void Function(CardInstance)? onInspect,
   Map<String, ({double x, double y})> placed = const {},
   void Function(String zoneId, String id, double x, double y)? onPlace,
+  Game? game,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -63,6 +65,7 @@ Widget _host({
           onActivate: onActivate ?? (_) {},
           onInspect: onInspect ?? (_) {},
           onPlace: onPlace ?? (_, _, _, _) {},
+          game: game,
         ),
       ),
     );
@@ -345,5 +348,16 @@ void main() {
     // unreadable and in the way while you are dragging. Press and hold still
     // opens the real thing.
     expect(find.byKey(const Key('hover-preview')), findsNothing);
+  });
+
+  testWidgets('a card on the board is drawn on the game s own back',
+      (tester) async {
+    await tester.pumpWidget(_host(board: 1, game: Game.magic));
+    await tester.pump();
+
+    // No printing behind it, so the back is what it draws, and whose back
+    // only reaches it if the board passes the game down. Dropping that one
+    // argument leaves every other case in this file green.
+    expect(find.byKey(const Key('card-back-art')), findsOneWidget);
   });
 }

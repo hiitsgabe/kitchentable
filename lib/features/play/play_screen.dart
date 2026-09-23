@@ -230,6 +230,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                       onActivate: (c) => play.run(RotateCard(c.id)),
                       onInspect: _inspect,
                       onPlace: _place,
+                      game: play.gameAt(seat.id),
                     ),
                   ),
                   SizedBox(width: gap),
@@ -249,6 +250,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                             onSendHome: (c) => play.run(
                               MoveCard(cardId: c.id, toZoneId: command.id),
                             ),
+                            game: play.gameAt(seat.id),
                           ),
                     library: LibraryStack(
                       metrics: m,
@@ -279,6 +281,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
           onReorder: (id, to) => play.run(
             MoveCard(cardId: id, toZoneId: hand.id, at: to),
           ),
+          game: play.gameAt(seat.id),
         ),
       ],
     );
@@ -332,6 +335,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                       printings: _printings,
                       turnSeatId: table.turnSeatId,
                       onFocusSeat: _look,
+                      gameFor: play.gameAt,
                       yours: yours,
                     ),
                   TableRenderer.freeCanvas => Column(
@@ -368,7 +372,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                                   _tokenButton(m, width: cardOnMat.width),
                               // The same three dice, for the same reason.
                               diceTray: _diceTray(width: cardOnMat.width),
-                              game: play.gameAt(seat.id),
+                              gameFor: play.gameAt,
                               onDraw: () => play.run(DrawCards(
                                 fromZoneId: library.id,
                                 toZoneId: hand.id,
@@ -411,6 +415,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                           onReorder: (id, to) => play.run(
                             MoveCard(cardId: id, toZoneId: hand.id, at: to),
                           ),
+                          game: play.gameAt(seat.id),
                         ),
                       ],
                     ),

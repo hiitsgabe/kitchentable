@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/features/play/renderers/free_canvas.dart';
+import 'package:kitchentable/features/play/widgets/command_slot.dart';
 import 'package:kitchentable/features/play/renderers/mat_layout.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
 import 'package:kitchentable/table/model/card_instance.dart';
@@ -43,6 +45,8 @@ Widget _host(
   void Function(String cardId, double x, double y)? onPlace,
   VoidCallback? onDraw,
   VoidCallback? onWorkDeck,
+  Game? Function(String seatId)? gameFor,
+  List<CardInstance>? commandCards,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -57,6 +61,8 @@ Widget _host(
           onPlace: onPlace ?? (_, _, _) {},
           onDraw: onDraw ?? () {},
           onWorkDeck: onWorkDeck ?? () {},
+          gameFor: gameFor,
+          commandCards: commandCards,
         ),
       ),
     );
@@ -393,5 +399,53 @@ void main() {
     // Drawn on the mat it sat over the battlefield at every zoom, and the
     // token button ran off the bottom edge of the mat itself.
     expect(deck.left, greaterThanOrEqualTo(mat.right - 1));
+  });
+
+  testWidgets('every mat is handed its own seat s game', (tester) async {
+    await tester.pumpWidget(_host(
+      [_seat('s1', board: 1), _seat('s2', board: 1)],
+      gameFor: (seatId) => seatId == 's2' ? Game.magic : null,
+    ));
+    await tester.pump();
+
+    // The canvas draws everybody's battlefield and not only yours, so the back
+    // is asked for per seat. Taking one game for the table would put a Magic
+    // back on the viewer's mat as well, and reading the viewer's own would put
+    // one on neither.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('mat-s2')),
+        matching: find.byKey(const Key('card-back-art')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('mat-s1')),
+        matching: find.byKey(const Key('card-back-art')),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('the corner beside your mat is handed your game',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      [_seat('s1')],
+      commandCards: const [CardInstance(id: 'cmd', oracleId: 'General')],
+      gameFor: (_) => Game.magic,
+    ));
+    await tester.pump();
+
+    // The strip beside your own mat, which reaches the card through one more
+    // hand than the mat does. Dropping it there is the defect this found in
+    // the corner the bands draw.
+    expect(
+      find.descendant(
+        of: find.byType(CommandSlot),
+        matching: find.byKey(const Key('card-back-art')),
+      ),
+      findsOneWidget,
+    );
   });
 }

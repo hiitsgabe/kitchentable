@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/features/play/renderers/stacked_seats.dart';
 import 'package:kitchentable/features/play/widgets/seat_band.dart';
 import 'package:kitchentable/table/model/card_instance.dart';
@@ -8,7 +9,7 @@ import 'package:kitchentable/table/model/zone.dart';
 import 'package:kitchentable/table/view/seat_view.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
-Seat _seat(String id) => Seat(
+Seat _seat(String id, {int board = 0}) => Seat(
       id: id,
       name: 'seat $id',
       life: 40,
@@ -27,6 +28,10 @@ Seat _seat(String id) => Seat(
           label: 'battlefield',
           visibility: ZoneVisibility.public,
           ordered: false,
+          cards: [
+            for (var i = 0; i < board; i++)
+              CardInstance(id: '$id-b$i', oracleId: 'c$i'),
+          ],
         ),
       ],
     );
@@ -35,17 +40,21 @@ Widget _host(
   List<String> seatIds, {
   String viewer = 's1',
   void Function(String)? onFocusSeat,
+  Game? Function(String seatId)? gameFor,
+  int board = 0,
 }) =>
     MaterialApp(
       home: Scaffold(
         body: StackedSeats(
           metrics: Metrics.of(DeviceClass.handheld),
           seats: [
-            for (final id in seatIds) SeatView.of(_seat(id), viewer: viewer),
+            for (final id in seatIds)
+              SeatView.of(_seat(id, board: board), viewer: viewer),
           ],
           viewerSeatId: viewer,
           printings: const {},
           onFocusSeat: onFocusSeat ?? (_) {},
+          gameFor: gameFor,
           yours: const ColoredBox(
             key: Key('your-seat'),
             color: Color(0xFF000000),
@@ -115,5 +124,34 @@ void main() {
     await tester.pumpWidget(_host(['s1', 's2'], viewer: ''));
 
     expect(find.byType(SeatBand), findsNWidgets(2));
+  });
+
+  testWidgets('each band is handed its own seat s game', (tester) async {
+    _roomForBands(tester);
+    await tester.pumpWidget(_host(
+      ['s1', 's2', 's3'],
+      board: 1,
+      gameFor: (seatId) => seatId == 's2' ? Game.magic : null,
+    ));
+    await tester.pump();
+
+    // Asked per seat and not taken once for the table. Two bands are drawn and
+    // only s2 is playing Magic, so taking one game for the lot would draw two
+    // backs or none depending on whose it was, and reading the viewer's would
+    // draw none.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('band-s2')),
+        matching: find.byKey(const Key('card-back-art')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('band-s3')),
+        matching: find.byKey(const Key('card-back-art')),
+      ),
+      findsNothing,
+    );
   });
 }

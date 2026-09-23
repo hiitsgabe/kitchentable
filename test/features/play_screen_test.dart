@@ -920,6 +920,58 @@ void main() {
     expect(dice, hasLength(3));
     expect(dice.first, inInclusiveRange(1, 20));
   });
+
+  testWidgets('the screen tells every card whose back it is', (tester) async {
+    final container = await _seatedPod(tester, ['you', 'Carla']);
+    final play = container.read(playProvider.notifier);
+    final table = container.read(playProvider)!;
+    play.run(MoveCard(
+      cardId: table.zone('hand-s1')!.cards.first.id,
+      toZoneId: 'battlefield-s1',
+    ));
+    play.run(MoveCard(
+      cardId: table.zone('hand-s2')!.cards.first.id,
+      toZoneId: 'battlefield-s2',
+    ));
+    await tester.pumpAndSettle();
+
+    // Three hand offs, and each of them is one argument the screen can simply
+    // not write. The widgets each have a case proving they pass the game down
+    // once they are given it; nothing but this proves they are given it, and
+    // with no printings behind these cards the back is what they all draw.
+    for (final where in ['your-board', 'band-s2']) {
+      expect(
+        find.descendant(
+          of: find.byKey(Key(where)),
+          matching: find.byKey(const Key('card-back-art')),
+        ),
+        findsWidgets,
+        reason: '$where was handed no game',
+      );
+    }
+    expect(
+      find.descendant(
+        of: find.byType(HandSheet),
+        matching: find.byKey(const Key('card-back-art')),
+      ),
+      findsWidgets,
+      reason: 'the hand was handed no game',
+    );
+
+    // And the same on the wide view, which reaches a card through a renderer
+    // of its own.
+    await tester.tap(find.byKey(const Key('switch-renderer')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('mat-s2')),
+        matching: find.byKey(const Key('card-back-art')),
+      ),
+      findsWidgets,
+      reason: 'the canvas was handed no game',
+    );
+  });
 }
 
 class _GrumpyReferee implements Referee {
