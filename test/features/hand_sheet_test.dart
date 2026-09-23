@@ -1,7 +1,9 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
+import 'package:kitchentable/sources/model/catalog_card.dart';
 import 'package:kitchentable/table/model/card_instance.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
@@ -10,8 +12,20 @@ List<CardInstance> _hand(int n) => [
         CardInstance(id: 'h$i', oracleId: 'card$i'),
     ];
 
+/// A printing for the first card in hand, because a preview is only ever
+/// drawn for a card the catalog has heard of. Without one the hover case
+/// below would find nothing whatever the code did.
+const _printing = CatalogCard(
+  oracleId: 'card0',
+  name: 'Sol Ring',
+  typeLine: 'Artifact',
+  cmc: 1,
+  imageSmall: 'small.jpg',
+);
+
 Widget _host({
   int cards = 3,
+  Map<String, CatalogCard> printings = const {},
   void Function(String cardId, int to)? onReorder,
 }) =>
     MaterialApp(
@@ -19,7 +33,7 @@ Widget _host({
         body: HandSheet(
           metrics: Metrics.of(DeviceClass.handheld),
           cards: _hand(cards),
-          printings: const {},
+          printings: printings,
           onPlay: (_) {},
           onInspect: (_) {},
           onReorder: onReorder ?? (_, _) {},
@@ -104,5 +118,21 @@ void main() {
     await tester.pump();
 
     expect(played?.id, 'h0');
+  });
+
+  testWidgets('a card in hand does grow under the pointer', (tester) async {
+    await tester.pumpWidget(_host(printings: const {'card0': _printing}));
+    await tester.pump();
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    await tester.pump();
+
+    await mouse.moveTo(tester.getCenter(find.byType(TableCard).first));
+    await tester.pumpAndSettle();
+
+    // The hand draws at 64 points, where you cannot read a word.
+    expect(find.byKey(const Key('hover-preview')), findsOneWidget);
   });
 }

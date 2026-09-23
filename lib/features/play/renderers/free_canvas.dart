@@ -174,6 +174,9 @@ class _Mat extends StatelessWidget {
       width: _cardSize.width,
       onTap: () => onTapCard(card),
       onLongPress: () => onInspectCard(card),
+      // The same as the D-pad board: the canvas draws a card at the mat's
+      // scale, and a preview of one that is already big helps nobody.
+      hoverPreview: false,
     );
 
     return Positioned(

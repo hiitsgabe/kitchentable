@@ -17,6 +17,7 @@ class TableCard extends StatelessWidget {
     required this.width,
     this.onTap,
     this.onLongPress,
+    this.hoverPreview = true,
   });
 
   final Metrics metrics;
@@ -30,6 +31,14 @@ class TableCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
+  /// Whether a pointer resting on this card brings up a bigger one.
+  ///
+  /// True by default, and that is the real decision rather than a shrug: a
+  /// new caller is far more likely to be drawing cards small, which is where
+  /// the preview earns its place, and a caller drawing them big has to say so
+  /// and say why. The two that do are the board and the canvas.
+  final bool hoverPreview;
+
   @override
   Widget build(BuildContext context) {
     final m = metrics;
@@ -39,14 +48,14 @@ class TableCard extends StatelessWidget {
         ? CardBack(width: width)
         : CardArt(metrics: m, card: card, width: width);
 
-    // Wrapped here and not by each caller, so a card on a board, in a hand
-    // and in the command slot all grow under a pointer from one place.
-    return HoverCard(
-      metrics: m,
-      instance: instance,
-      printing: card,
-      width: width,
-      child: GestureDetector(
+    // Wrapped here and not by each caller, so a card in a hand, in a seat's
+    // band and in a deck sheet all grow under a pointer from one place, and
+    // the two that draw cards big turn it off rather than each of the rest
+    // turning it on.
+    return _maybeHover(
+      m,
+      card,
+      GestureDetector(
         onTap: onTap,
         onLongPress: onLongPress,
         behavior: HitTestBehavior.opaque,
@@ -88,4 +97,16 @@ class TableCard extends StatelessWidget {
       ),
     );
   }
+
+  /// The card, under a preview or not.
+  Widget _maybeHover(Metrics m, CatalogCard? card, Widget child) =>
+      hoverPreview
+          ? HoverCard(
+              metrics: m,
+              instance: instance,
+              printing: card,
+              width: width,
+              child: child,
+            )
+          : child;
 }
