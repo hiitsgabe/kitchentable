@@ -201,11 +201,17 @@ class _CardViewerState extends State<CardViewer>
         // The bar is a sibling of the card, never a child of it. Everything
         // under _Card lives inside a Matrix4 that is being turned in three
         // dimensions, and a control mounted in there turns with it.
-        child: Stack(
+        // A column and not a Stack any more. The bar was aligned to the
+        // bottom of the Stack while the card was centred in the whole of it,
+        // so once the kinds row arrived the bar grew upwards into the
+        // caption: measured at a 32 point overlap on a 390 by 844 phone, the
+        // kinds sitting from 615 to 681 over a hint from 635.6 to 667.6.
+        // Laying them out in order means the card gets what the bar does not
+        // want, and the two cannot meet however many kinds are offered.
+        child: Column(
           children: [
-            // Centred on both axes, with the caption riding along underneath
-            // rather than pushing the card off centre.
-            Center(
+            Expanded(
+              child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -269,6 +275,7 @@ class _CardViewerState extends State<CardViewer>
                   ),
                 ],
               ),
+            ),
             ),
             _actions(m),
           ],

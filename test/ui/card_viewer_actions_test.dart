@@ -28,6 +28,35 @@ Widget _host({
     );
 
 void main() {
+  testWidgets('the action bar never lands on the caption', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(
+        id: 'a',
+        oracleId: 'o',
+        counters: {'charge': 1, 'energy': 2},
+      ),
+      hasCommandZone: true,
+    ));
+    await tester.pumpAndSettle();
+
+    final hint = tester.getRect(find.textContaining('drag to turn it over'));
+    // The kinds row and not a verb: the kinds sit above the verbs, so they
+    // are the top of the bar and the part that reaches the words first.
+    final bar = tester.getRect(find.byKey(const Key('kind-+1/+1')));
+
+    // The bar used to be aligned to the bottom of a Stack the card was
+    // centred in, so every control added to it grew upwards into the caption:
+    // measured at a 32 point overlap once the kinds row arrived. Two counters
+    // the fixed list does not carry are here to push the kinds onto an extra
+    // line, which is the state that first collided.
+    expect(bar.top, greaterThanOrEqualTo(hint.bottom),
+        reason: 'the controls are sitting on the words');
+  });
+
   testWidgets('the action bar fits a phone', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
