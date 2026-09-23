@@ -30,6 +30,7 @@ import 'widgets/hand_sheet.dart';
 import 'widgets/library_stack.dart';
 import 'widgets/pile_sheet.dart';
 import 'widgets/radar_strip.dart';
+import 'widgets/token_sheet.dart';
 
 class PlayScreen extends ConsumerStatefulWidget {
   const PlayScreen({super.key});
@@ -237,6 +238,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                       onWork: _workTheDeck,
                     ),
                     graveyard: _pile(m, graveyard, width: card),
+                    makeToken: _tokenButton(m, width: card),
                   ),
                 ],
               );
@@ -449,6 +451,97 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     );
   }
 
+  /// The way to a token that is not a copy of something already on the table.
+  ///
+  /// Beside the deck and the pile, because that is where the furniture of a
+  /// table lives, and no wider than a card: this column's width comes out of
+  /// the board's, so a control that reached past the deck would shrink every
+  /// card on the mat to pay for itself.
+  Widget _tokenButton(Metrics m, {required double width}) => SizedBox(
+        width: width,
+        child: GestureDetector(
+          key: const Key('make-token'),
+          onTap: _makeToken,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            padding: EdgeInsets.symmetric(vertical: m.scaled(8)),
+            decoration: BoxDecoration(
+              color: Palette.tile,
+              borderRadius: BorderRadius.circular(m.scaled(8)),
+              border: Border.all(color: Palette.tileEdge),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.add_circle_outline_rounded,
+                  size: m.scaled(16),
+                  color: Palette.inkMuted,
+                ),
+                SizedBox(height: m.scaled(3)),
+                Text(
+                  'Token',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: m.scaled(10),
+                    fontWeight: FontWeight.w600,
+                    color: Palette.inkMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  /// Making a token out of a card somebody looked up.
+  ///
+  /// Onto your own battlefield, because that is the only mat this screen lets
+  /// you put anything on.
+  Future<void> _makeToken() async {
+    final table = ref.read(playProvider);
+    final seatId = ref.read(viewerSeatProvider);
+    if (table == null || seatId == null) return;
+
+    final battlefield = table.zone('battlefield-$seatId');
+    if (battlefield == null) return;
+
+    final media = MediaQuery.of(context);
+    final m = Metrics.of(classifyDevice(
+      size: media.size,
+      hasTouch: media.navigationMode == NavigationMode.traditional,
+    ));
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Palette.surface,
+      isScrollControlled: true,
+      builder: (sheet) => TokenSheet(
+        metrics: m,
+        // No catalog is no cards, and the sheet says so out loud rather than
+        // offering to mint a token with no face on it.
+        search: (term) async {
+          final db = ref.read(catalogDbProvider);
+          if (db == null) return const [];
+          return db.searchByName(term);
+        },
+        onPick: (card) {
+          Navigator.of(sheet).pop();
+          ref.read(playProvider.notifier).run(CreateToken(
+                zoneId: battlefield.id,
+                oracleId: card.oracleId,
+                cardId: 'token-${freshSeed()}',
+              ));
+        },
+      ),
+    );
+
+    // The token's face is a card this screen has never drawn, so nothing in
+    // the printings map answers for it and it would come out a blank back.
+    if (mounted) await _loadPrintings();
+  }
+
   /// Looking through the graveyard, and taking something back out of it.
   ///
   /// No first step asking whether you are sure, unlike the deck: the pile is
@@ -594,6 +687,24 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
         if (command != null) {
           play.run(MoveCard(cardId: instance.id, toZoneId: command.id));
         }
+      case CardAction.copy:
+        // Onto whichever pile the card is on, read again here rather than
+        // trusted from before the viewer opened: the big view is a route and
+        // the card can have moved while it was up.
+        final found = ref.read(playProvider)?.locate(instance.id);
+        if (found == null) return;
+        play.run(CreateToken(
+          zoneId: found.zone.id,
+          oracleId: instance.oracleId,
+          // Minted here and not in the reducer, which is what keeps `apply` a
+          // function: plan 3 replays these and has to get the same table.
+          //
+          // freshSeed and not microsecondsSinceEpoch, which is a double with
+          // millisecond resolution on the web: two copies made in the same
+          // millisecond would be one card with one id, and the second would
+          // land on a Zone that already holds it.
+          cardId: 'token-${freshSeed()}',
+        ));
     }
   }
 }
@@ -615,6 +726,7 @@ class _Beside extends StatelessWidget {
     required this.command,
     required this.library,
     required this.graveyard,
+    required this.makeToken,
   });
 
   final Metrics metrics;
@@ -630,6 +742,11 @@ class _Beside extends StatelessWidget {
   /// the board's scale is read from, and a second pile across from the first
   /// would take a whole card's width off the board on a phone.
   final Widget graveyard;
+
+  /// Last, under the pile. A token is the one thing in this column that is not
+  /// already a pile of cards, and it is also the one nobody reaches for in the
+  /// first minute of a game.
+  final Widget makeToken;
 
   @override
   Widget build(BuildContext context) {
@@ -647,6 +764,8 @@ class _Beside extends StatelessWidget {
           library,
           SizedBox(height: m.scaled(12)),
           graveyard,
+          SizedBox(height: m.scaled(12)),
+          makeToken,
         ],
       ),
     );

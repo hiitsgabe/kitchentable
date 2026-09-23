@@ -700,6 +700,50 @@ void main() {
     expect(table.zone('hand-s1')!.cards.map((c) => c.id), contains(card.id));
     expect(table.zone('graveyard-s1')!.cards, isEmpty);
   });
+
+  testWidgets('copying a card puts a second one on the battlefield',
+      (tester) async {
+    final container =
+        await _seatedPod(tester, ['you'], withCatalog: true);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.descendant(
+      of: find.byKey(const Key('your-board')),
+      matching: find.byType(TableCard),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('act-copy')));
+    await tester.pumpAndSettle();
+
+    final board = container.read(playProvider)!.zone('battlefield-s1')!;
+    expect(board.cards, hasLength(2));
+    expect(board.cards.map((c) => c.oracleId).toSet(), {card.oracleId});
+    expect(board.cards.map((c) => c.id).toSet(), hasLength(2),
+        reason: 'a copy is its own card, not the same card twice');
+  });
+
+  testWidgets('a token can be found in the catalog and put down',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you'], withCatalog: true);
+
+    await tester.tap(find.byKey(const Key('make-token')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'moun');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('token-Mountain')));
+    await tester.pumpAndSettle();
+
+    // Not in the plan, which describes this control and tests nothing that
+    // reaches it. Without this the sheet is proved by its own unit test and
+    // the button that opens it by nothing at all.
+    final board = container.read(playProvider)!.zone('battlefield-s1')!;
+    expect(board.cards, hasLength(1));
+    expect(board.cards.single.oracleId, 'Mountain');
+  });
 }
 
 class _GrumpyReferee implements Referee {
