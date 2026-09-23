@@ -2090,10 +2090,29 @@ void main() {
     final aboutX = Quaternion.axisAngle(Vector3(1, 0, 0), math.pi / 2);
     final v = Vector3(1, 0, 0);
 
-    // One of these is z first and the other is x first. Whichever it is,
-    // `tumble` has to compose so that at the end the settle wins outright.
-    expect((aboutX * aboutZ).rotated(v).length, closeTo(1, 1e-9));
-    expect((aboutZ * aboutX).rotated(v).length, closeTo(1, 1e-9));
+    // Components, not lengths. A unit quaternion cannot change a vector's
+    // length whichever way round the product is written, so asserting the
+    // length passes on either convention and on a tumble that composes
+    // backwards. The first draft of this case did exactly that.
+    //
+    // Measured: the LEFT factor applies first. `(aboutZ * aboutX)` is the
+    // same vector as `aboutX.rotated(aboutZ.rotated(v))`.
+    expect((aboutZ * aboutX).rotated(v).z, closeTo(1, 1e-9));
+    expect((aboutX * aboutZ).rotated(v).y, closeTo(-1, 1e-9));
+
+    // And the invariant that pins `tumble`'s own order. With the settle on
+    // the left the spin is a world axis applied after it, so the one body
+    // direction a roll never moves maps to that axis at every point of the
+    // throw. Composed the other way the spin acts in the die's own frame and
+    // this walks off by about 1.58.
+    final die = Polyhedron.d20;
+    final axis = tumbleAxisOf(die, 0);
+    final still = die.settle(0).inverted().rotated(axis);
+    for (final at in [0.2, 0.6, 0.9]) {
+      expect((tumble(die: die, face: 0, spin: 3, at: at).rotated(still) - axis)
+          .length, lessThan(1e-9),
+          reason: 'face 0 at $at turns about somewhere else');
+    }
   });
 
   test('a tumble ends exactly where the die settles', () {
@@ -2208,8 +2227,12 @@ Expected: PASS, 6 tests.
 
 - [ ] **Step 5: Probe**
 
-- Make the spin not decay, so it is still turning at `at: 1`. The landing case
-  must fail on `landed.z`, and say for which die and face.
+- Make the spin not decay, so it is still turning at `at: 1`. **Do not do
+  this by deleting the `(1 - eased)` factor**: at `spin: 3` that leaves six pi,
+  three whole turns, which is the identity, and the landing case passes. It
+  kills the moving case and the more spin case instead. To make the landing
+  case fail, leave a residue that is not a whole turn, `(1 - eased * 0.75)`,
+  and it falls on `landed.z` at face 0 of the d6.
 - Return the settle for every `at`. The moving case must fail.
 - Make `rollOne` return `random.nextInt(die.sides)`, off by one. Say which
   assertion fails: it should be the lower bound, and if it is the
@@ -2295,10 +2318,25 @@ void main() {
 its number changes. An `AnimationController` per die, or one controller and
 three start times: the second is simpler and a roll is one die at a time.
 
-On the screen it goes in the column beside the mat, above the deck, and into
-`FreeCanvas`'s furniture the same way the token control did: **built once in
-the screen and handed to both renderers**, because that is the third time this
-has come up and the two views drifting apart is the failure each time.
+On the screen it goes **across the board from the deck**, with the graveyard
+and the token control, and into `FreeCanvas`'s furniture the same way they
+are: **built once in the screen and handed to both renderers**, because that
+is the third time this has come up and the two views drifting apart is the
+failure each time.
+
+Not above the deck. In the wide view that column is a fixed 380 unit strip
+and the corner and the deck already stand 333 of it, leaving 46.3 against the
+48.3 a tray and its gap want: `A RenderFlex overflowed by 2.0 pixels`.
+Shaving the dice to fit 46.3 would be fitting them to whatever the corner and
+the deck happen to leave this week. The things that are not piles of cards
+cross the mat, which is the argument the token control already makes.
+
+**Derive every size in the tray from the tray's own width**, not from
+`Metrics`. A first draft gave each die a `m.scaled(10)` caption under it; at
+390 by 844 the die slot is about 8 points and the caption is 11, so each die's
+intrinsic width was its caption's, the column came out 41 wide where a card is
+32, and the board paid 9.7 percent of its card. With every size off the width
+the shipped board measures bit identical to before the dice existed.
 
 `onRoll` runs `RollDice(results)`. The screen reads the current three off
 `table.dice`, replaces the one that was tapped, and sends all three, so the
@@ -2343,9 +2381,16 @@ tray rather than down the column.
   `hasLength(3)`.
 - Make the screen not run `RollDice`. The wiring case must fail on `dice`
   being empty, which is a wrong value rather than a finder.
-- Make the tapped die's number come from the die beside it. Say which
-  assertion fails, and whether `inInclusiveRange(1, 12)` catches it: a d6's
-  result is inside a d12's range, so it may not.
+- Make the tapped die's number come from the die beside it. **It survives the
+  whole file**: every number a d6 shows is a number a d12 shows, and the
+  wiring case is blind too since a d12 result sits inside a d20's range.
+  Reading the *other* neighbour, a d20, is caught by the range only two times
+  in five.
+
+  What catches both is tapping enough times to exercise the range. Add a case
+  that taps forty times and asserts the best roll clears six and does not
+  exceed twelve: forty taps of a d12 never clearing a six is 2^-40, and forty
+  of a d20 never clearing a twelve is about 1.3e-9.
 
 Edit each back by hand and rerun.
 
