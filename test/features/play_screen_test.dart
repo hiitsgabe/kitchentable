@@ -744,6 +744,35 @@ void main() {
     expect(board.cards, hasLength(1));
     expect(board.cards.single.oracleId, 'Mountain');
   });
+
+  testWidgets('the kind chosen in the big view is the kind counted',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you'], withCatalog: true);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.descendant(
+      of: find.byKey(const Key('your-board')),
+      matching: find.byType(TableCard),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('kind-damage')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('act-counter-up')));
+    await tester.pumpAndSettle();
+
+    // Not in the plan, which probes the kind inside the viewer and leaves the
+    // screen's end of it unwatched. The viewer can choose a kind perfectly and
+    // the screen can still drop it on the floor and count `+1/+1`, which is
+    // what it did before onCount and what no case here would have noticed.
+    expect(
+      container.read(playProvider)!.locate(card.id)!.card.counters,
+      {'damage': 1},
+    );
+  });
 }
 
 class _GrumpyReferee implements Referee {
