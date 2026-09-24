@@ -203,6 +203,69 @@ git commit -m "Give a phone's battlefield the screen"
 
 ---
 
+### What running Task 1 found
+
+**The threshold came out at one tenth of the row**, which is 584 points of row
+and a 616 point window at handheld metrics: `widest * 2 + gap * 2` is 58.4,
+with `widest` read as `max(LibraryStack.spreadFor(1, 1), m.scaled(6))` rather
+than as the live `aside`. Read live, the threshold walks from a 616 point
+window down to a 240 point one as the deck thins, which would move the
+furniture from a row to two columns around the fourth turn of a game. One
+tenth and not one eighth because 577.5 points of row is also where the card
+this arithmetic budgets for stops coming out under 64. Confirmed by
+measurement: a 600 point window takes the row, a 616 point one takes the
+columns.
+
+**The hand's 64 became a ceiling, not a following size.** `HandSheet` draws at
+`min(board's card, m.scaled(64))`. Following the board upward changes the
+hand's line height, which changes the hand's height, which changes the board's
+height budget, which inflates the furniture at exactly the wide windows where
+height binds, and `nothing in the aside runs off the bottom` at 1280 by 800 is
+the case that would then go. With the ceiling the wide branch is unchanged:
+the hand's card is 64 on every window that still has columns.
+
+**The hand's card is worked out outside the board's `LayoutBuilder`**, from the
+media width, because `HandSheet` is a sibling of the board's `Expanded` and
+cannot be handed a number computed inside it. Width only, which is all the
+board's card depends on in the row branch. The cost is a window short enough
+for the board to be height bound: at 390 by 500 the hand draws 50.34 against a
+board card of 23.49. That window was 64 against 32.19 before, so both are
+wrong and neither is a phone.
+
+**The ratio guard's bound had to change, and the old one would have stopped
+working.** `the board is budgeted for both columns, not one` fell into the row
+branch at 390 and passed at 1.0000 with no subject left, so it moved to a 700
+by 844 window. Re-measured there by mutating `aside * 2 - gap * 2` to `* 1`:
+1.1209 correct against 1.1883 mutated. **1.19 does not catch that**, so the
+bound is now 1.155.
+
+**`the graveyard is on the far side from the deck` was rewritten, not scoped.**
+Scoped to a wide window it would have duplicated the new `a wide window keeps
+the furniture beside the board`. It now asserts at the phone window that the
+furniture went below the board and that the graveyard and the deck are still
+at opposite ends of the row.
+
+**`_Underneath` spreads across the row rather than left aligning.** Left
+aligned, the deck ended 43.27 points from the screen edge against `the deck
+sits to the right, not in the middle`'s bound of 78; spread, it is 16.0.
+
+**A fourth case was needed.** Probe 4, budgeting 70 percent of the row in the
+new branch, survived: the board is `Expanded` and computes its own scale, so a
+wrong budget only shrinks the furniture and the suite stays green with the deck
+at 0.700 of the card beside it. `the row under the board is drawn at the
+board's own card` is the row branch's half of the case Step 4 pointed at.
+
+**One thing is knowingly unpinned.** The narrow branch takes a card's height
+out of the height budget, and probe 5 survives: at a phone's width it is the
+width that binds and the term changes nothing there. It shows up only on a
+window too short for the mat it is wide enough for, 1.53 against 2.45 at 390 by
+500. Both numbers are in the comment.
+
+**Measured at 390 by 844, before and after:** the board went from 228.92 wide
+and 58.70 percent of the screen to 358.0 and 91.79 percent; the card on the
+board from 32.19 to 50.34; the card in hand from 64.0 to 50.34, a ratio of
+1.0000 where it was 0.503. The row fits without scrolling, 16 to 374.
+
 ## Task 2: A counter with a side to it
 
 **Files:**
@@ -321,6 +384,41 @@ git commit -m "Give a counter one face and a side"
 ```
 
 ---
+
+### What running Task 2 found
+
+**Step 4 names one case in `table_card_test.dart` that counts the text twice.
+There are two.** The second is `a kind nobody printed keeps its own name`,
+asserting `+2/+2` twice. `git blame` puts both in c8765f6, so it is a
+pre-existing pair and not something Task 1 introduced. Both became
+`findsOneWidget`.
+
+**The face's colour had to come out of the gradient.** It was
+`[lerp(colour, white, 0.42), colour, lerp(colour, black, 0.26)]`; it is now
+`color: colour` under a white-42 / transparent / black-26 sheen, which is the
+same pixel. The fourth case reads `(decoration as BoxDecoration).color!` off
+the first `DecoratedBox` under `counter-face`, and a gradient-only decoration
+has a null colour there, so the case would have died on the null check instead
+of comparing two lightnesses.
+
+**Two assertions were added to the side case.** `_shape` ignoring the size it
+is handed was probed at 1.4 times the box and the whole suite stayed green: the
+piece's own `SizedBox` keeps the box and the `Stack` clips the overflow. The
+case now also asserts the face is narrower than the piece and that the side's
+bottom edge is the piece's bottom edge to a hundredth of a point. The slack is
+not for its own sake: a lift plus a box less a lift lands 3e-14 past the edge
+it is the same edge as, and `lessThanOrEqualTo` failed on 323.6 against
+323.59999999999997.
+
+**One probe in Step 5 was too weak as written.** Taking the shadow off by
+turning `Positioned.fill` into `Positioned` left the whole suite green, because
+the `DecoratedBox` carrying the `boxShadow` was still in the tree and the case
+only looks for one that has one. Deleting the shadow block fails it.
+
+**The side cost the board nothing.** The card on the board is
+50.34374999999999 by 70.32142857142856 at 390 by 844 both before and after,
+wearing a `+1/+1` and a `flying`, because face and side are each a lift smaller
+than the piece's own box and sit at opposite corners of it.
 
 ## What this plan deliberately leaves out
 
