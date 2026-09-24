@@ -1271,9 +1271,115 @@ void main() {
     expect(tester.getRect(find.byType(HandSheet)).height, shut);
   });
 
+  testWidgets('a card on a phone is big enough to read', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    final onBoard = tester
+        .getSize(find.descendant(
+          of: find.byKey(const Key('your-board')),
+          matching: find.byType(TableCard),
+        ))
+        .width;
+
+    // It was 50.3, which is a card you cannot read a name on. The printed
+    // card on the mat is 90 and this is the floor under it.
+    expect(onBoard, greaterThanOrEqualTo(72));
+  });
+
+  testWidgets('a mat too big for the phone scrolls rather than shrinking',
+      (tester) async {
+    await _seatedPod(tester, ['you']);
+    await tester.pumpAndSettle();
+
+    final board = tester.getRect(find.byKey(const Key('your-board')));
+    final mat = tester.getRect(find.byKey(const Key('mat-battlefield-s1')));
+
+    expect(mat.width, greaterThan(board.width),
+        reason: 'the mat still fits, so nothing here is being tested');
+    expect(find.byType(Scrollable), findsWidgets);
+  });
+
+  testWidgets('a drop means the same place whatever the window is',
+      (tester) async {
+    // The point of the whole task. Everything else in it is pixels; this is
+    // the invariant plan 4 replicates across the network, and the scroll the
+    // floor brings with it is exactly the thing that could break it: the
+    // offset is divided by the scale before it is divided by the mat, so a
+    // scroll offset must not reach it.
+    final places = <({double x, double y})>[];
+
+    for (final window in [const Size(390, 844), const Size(700, 844)]) {
+      final container = await _seatedPod(tester, ['you'], window: window);
+      final play = container.read(playProvider.notifier);
+      final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+      play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+      await tester.pumpAndSettle();
+
+      final mat = tester.getRect(find.byKey(const Key('mat-battlefield-s1')));
+      final from = tester.getCenter(find.descendant(
+        of: find.byKey(const Key('your-board')),
+        matching: find.byType(TableCard),
+      ));
+      // Four tenths across and six tenths down the mat, which is inside the
+      // part of it a 390 point phone has on screen: the mat is 512 wide there
+      // and 358 of it is showing, and a drop the viewport has scrolled away
+      // cannot be aimed at in the first place.
+      final at = Offset(
+        mat.left + mat.width * 0.4,
+        mat.top + mat.height * 0.6,
+      );
+
+      await tester.dragFrom(from, at - from);
+      await tester.pumpAndSettle();
+
+      places.add(container.read(playProvider)!.locate(card.id)!.card.position!);
+    }
+
+    expect(places.first.x, closeTo(0.4, 0.01));
+    expect(places.first.y, closeTo(0.6, 0.01));
+    expect(places.last.x, closeTo(places.first.x, 0.01));
+    expect(places.last.y, closeTo(places.first.y, 0.01));
+  });
+
+  testWidgets('a short window scrolls the board down as well as across',
+      (tester) async {
+    // 390 by 500, where the board gets 173 points of height and a mat at the
+    // floor is 304. Nothing else in the suite is short enough to need the
+    // second axis: at 390 by 844 the mat is 304 in a 485 point box and only
+    // the width runs out, so dropping the vertical scroll left every other
+    // case in this file green.
+    await _seatedPod(tester, ['you'], window: const Size(390, 500));
+    await tester.pumpAndSettle();
+
+    final board = tester.getRect(find.byKey(const Key('your-board')));
+    final mat = tester.getRect(find.byKey(const Key('mat-battlefield-s1')));
+
+    // The shape is what makes a drop mean the same place on two devices, so a
+    // box too short for the mat has to move it rather than squash it. Squashed
+    // into this one the mat comes out 512 by 141 and the ratio 3.63, measured
+    // with the second axis taken out.
+    expect(mat.width / mat.height, closeTo(640 / 380, 0.01));
+    expect(mat.bottom, greaterThan(board.bottom),
+        reason: 'the mat was made to fit the box instead of scrolling in it');
+  });
+
   testWidgets('the row under the board is drawn at the board\'s own card',
       (tester) async {
-    final container = await _seatedPod(tester, ['you']);
+    // 600 and not the 390 this was written at. A phone's board is under the
+    // floor `matScaleFor` keeps, where the mat stops shrinking and the row
+    // cannot follow it, so at 390 these two are different numbers on purpose
+    // and the row is sized by the room the row has. 600 is still a window with
+    // the furniture in a row, and the last one where the fit is the bigger
+    // number: 79.9 against the floor's 72.
+    final container = await _seatedPod(
+      tester,
+      ['you'],
+      window: const Size(600, 844),
+    );
     final play = container.read(playProvider.notifier);
     final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
 

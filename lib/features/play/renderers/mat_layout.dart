@@ -15,15 +15,39 @@ const matSize = Size(640, 380);
 /// exactly the kind of number that drifts apart when it is written twice.
 const cardOnMat = Size(90, 90 * 88 / 63);
 
+/// The smallest a card on a mat may be drawn, as a share of the printed one.
+///
+/// A fit is not a floor, and the fit on a phone is a 50.3 point card. What that
+/// costs is not the rules text, which is gone at any size a phone's mat can
+/// give and is what the long press is for: it is the picture. A Magic card's
+/// art box is about 86 percent of its width and 42 percent of its height, so a
+/// card of 50.3 carries a picture 43 by 30 points and a card of 72 carries one
+/// 62 by 42, which is twice as much of the only thing on a card you recognise
+/// from across a table.
+///
+/// 72 and not more, and that bound is the suite's rather than the eye's. At 76
+/// the floor would also win on a 700 point window, where the fit comes to 75.6,
+/// and `the board is budgeted for both columns, not one` measures the row's own
+/// width arithmetic at exactly that window: a floor reaching up there takes
+/// that case's subject away without failing it. So the readable end of the band
+/// those two leave, which is four fifths of the card the mat prints.
+///
+/// Final and not const, for the reason [matAside] is.
+final matScaleFloor = 72 / cardOnMat.width;
+
 /// How much bigger or smaller than a mat unit, for a box this size.
 ///
-/// Whichever of width and height runs out first, so the whole mat fits. An
-/// unbounded height is not a number that can run out, and the smaller of
-/// anything and infinity is the anything, so a box that scrolls is scaled by
-/// its width alone, which is what scrolling is for.
-double matScaleFor(Size box) => math.min(
-      box.width / matSize.width,
-      box.height / matSize.height,
+/// Whichever of width and height runs out first, so the whole mat fits, and
+/// never below [matScaleFloor], where the mat stops fitting and the board
+/// scrolls instead. An unbounded height is not a number that can run out, and
+/// the smaller of anything and infinity is the anything, so a box that scrolls
+/// is scaled by its width alone, which is what scrolling is for.
+double matScaleFor(Size box) => math.max(
+      matScaleFloor,
+      math.min(
+        box.width / matSize.width,
+        box.height / matSize.height,
+      ),
     );
 
 /// Between mats, so two battlefields never read as one.

@@ -303,7 +303,14 @@ void main() {
   });
 
   testWidgets('a narrow window still uses the width it has', (tester) async {
-    tester.view.physicalSize = const Size(390, 1200);
+    // 560 and not the 390 this was written at. Below 512 points of width the
+    // fit falls under the floor under a card, and there the mat deliberately
+    // stops taking the width it is given: it keeps its size and the board
+    // scrolls sideways instead, which is what `a mat too big for the phone
+    // scrolls rather than shrinking` is about. This case is the other half of
+    // that, the window where the fit is still the bigger number, and 560 is
+    // narrow and tall by the same margin 390 by 1200 was.
+    tester.view.physicalSize = const Size(560, 1600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 

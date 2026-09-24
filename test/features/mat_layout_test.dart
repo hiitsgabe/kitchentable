@@ -55,6 +55,20 @@ void main() {
 
   const card = Size(90, 126);
 
+  test('a small box does not shrink the card past telling it apart', () {
+    // A phone's board is 358 points wide and 485 tall, where the fit alone is
+    // 0.559 and the card on the mat comes out 50.3 points across.
+    expect(matScaleFor(const Size(358, 485)), matScaleFloor);
+    expect(matScaleFloor * cardOnMat.width, greaterThanOrEqualTo(72));
+  });
+
+  test('a big box still fits the whole mat', () {
+    // Whichever of the two runs out first, which above the floor is what it
+    // always was: the height on a wide window, the width on a tall one.
+    expect(matScaleFor(const Size(1900, 800)), closeTo(800 / 380, 1e-9));
+    expect(matScaleFor(const Size(1280, 3800)), closeTo(1280 / 640, 1e-9));
+  });
+
   test('a card with a position is centred on it', () {
     final spot = spotFor(position: (x: 0.5, y: 0.5), index: 0, card: card);
 
