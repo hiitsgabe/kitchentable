@@ -50,66 +50,79 @@ void main() {
     expect(find.text('FLYING'), findsOneWidget);
   });
 
-  testWidgets('it has a side, not just a face', (tester) async {
+  testWidgets('you can read the card through it', (tester) async {
     await tester.pumpWidget(_host('+4/+4'));
     await tester.pump();
 
-    // The deck reads as solid because it draws leaves behind its top card.
-    // A counter gets its thickness the same way: the shape again, darker,
-    // offset down and right, so there is an edge to catch the light.
-    expect(find.byKey(const Key('counter-side')), findsOneWidget);
-    final side = tester.getRect(find.byKey(const Key('counter-side')));
-    final face = tester.getRect(find.byKey(const Key('counter-face')));
-    expect(side.left, greaterThan(face.left));
-    expect(side.top, greaterThan(face.top));
+    final body = pieceNamed('+4/+4')!.colour;
 
-    // And both of them inside the piece's own box, which is what says the side
-    // found room rather than took it: the two shapes are each a lift smaller
-    // than the box they share, so a card wearing one is the size of a card
-    // wearing none. Drawn at 1.4 times their box instead, the face covers the
-    // side completely and every other assertion in this file still passed.
-    final piece = tester.getRect(find.byType(CounterPieceView));
-    expect(face.width, lessThan(piece.width));
-    // To a hundredth of a point and not exactly: the side's bottom edge is a
-    // lift plus a box less a lift, which comes out 3e-14 past the box it is
-    // the same edge as.
-    expect(side.bottom, moreOrLessEquals(piece.bottom, epsilon: 0.01));
+    // The whole reason this was redrawn. A moulded counter is tinted
+    // transparent plastic and the card's art and rules text are legible
+    // straight through it; what was here was an opaque tile with a flat copy
+    // of itself offset down and right, which is a sticker with a drop shadow.
+    //
+    // The shadow is painted before the body, which is the order that puts the
+    // piece on top of its own shadow rather than under it.
+    expect(
+      find.byType(CounterPieceView),
+      paints
+        // The piece is 40 by 24.8, so a shadow that fell nowhere would end at
+        // 24.8 and this point would be outside it. Deleting the shadow fails
+        // this case and the next; only flattening it against the piece, which
+        // leaves a glow rather than a thing lying on a card, needed a point to
+        // catch it.
+        ..path(
+          color: const Color(0x5C000000),
+          includes: const [Offset(20, 26.5)],
+        )
+        ..path(color: body.withValues(alpha: CounterPlastic.bodyAlpha)),
+    );
+
+    // And the see through comes from the painter and not from the box, which
+    // is what stops this passing on a piece that was simply given a pale
+    // colour.
+    expect(body.a, 1.0);
   });
 
-  testWidgets('the side is darker than the face', (tester) async {
+  testWidgets('it is lit from above along its own edge', (tester) async {
     await tester.pumpWidget(_host('+2/+2'));
     await tester.pump();
 
-    double lightness(Key k) {
-      final box = tester.widget<DecoratedBox>(find.descendant(
-        of: find.byKey(k),
-        matching: find.byType(DecoratedBox),
-      ).first);
-      return HSLColor.fromColor(
-        (box.decoration as BoxDecoration).color!,
-      ).lightness;
-    }
-
-    // Lit from above, which is what says the face is on top rather than the
-    // two being two shapes next to each other.
-    expect(lightness(const Key('counter-side')),
-        lessThan(lightness(const Key('counter-face'))));
+    // The bevel: a rim stroked light at the top and dark at the bottom, which
+    // is the one cue that says a thing has a thickness. Stroked over the path
+    // rather than inside a clip, because a stroke along a clipped path is half
+    // a stroke and the bevel came out at half the width it asked for.
+    expect(
+      find.byType(CounterPieceView),
+      paints
+        ..path()
+        ..path()
+        ..path()
+        // Stroke and not another fill, and last of the four, which is what
+        // puts the rim on top of the sheen rather than under it. The width is
+        // not asserted: the canvas keeps it as a float and 2.4800000190734863
+        // is not exactly the 2.4800000000000013 this would have to compute,
+        // and `paints` compares exactly.
+        ..path(style: PaintingStyle.stroke),
+    );
   });
 
-  testWidgets('it stands off the card', (tester) async {
-    await tester.pumpWidget(_host('+4/+4'));
-    await tester.pump();
+  testWidgets('it is a bar with a bite out of each end', (tester) async {
+    const size = Size(40, 24.8);
+    final path = CounterPlastic.pathFor(size);
 
-    // "a little 3d, like a popup illusion". A shadow under it and a light
-    // edge along its top is what makes a printed shape read as an object
-    // lying on the card rather than as ink on it.
-    final decorated = tester.widgetList<DecoratedBox>(
-      find.byType(DecoratedBox),
-    );
-    expect(
-      decorated.any((d) => (d.decoration as BoxDecoration).boxShadow != null),
-      isTrue,
-      reason: 'nothing here casts a shadow, so nothing is on top of anything',
-    );
+    // Off the photographs: every counter in them is a bar wider than it is
+    // tall with a V bitten into each end. This was a tile taller than wide
+    // notched top and bottom, which is why it read as a chip.
+    expect(size.width, greaterThan(size.height));
+
+    // The bite is real and it is on both ends: the middle of each end is
+    // inside the shape's own box, while the corners are on it.
+    expect(path.contains(Offset(size.width / 2, size.height / 2)), isTrue);
+    expect(path.contains(Offset(0.5, size.height / 2)), isFalse,
+        reason: 'the left end is not bitten into');
+    expect(path.contains(Offset(size.width - 0.5, size.height / 2)), isFalse,
+        reason: 'the right end is not bitten into');
+    expect(path.contains(const Offset(0.5, 0.5)), isTrue);
   });
 }

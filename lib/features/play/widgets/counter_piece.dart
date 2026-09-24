@@ -1,20 +1,27 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 import '../counters.dart';
 
 /// One plastic counter, sitting on a card.
 ///
-/// The shape is off the photograph: a squarish tile notched into a V at the
-/// top and at the bottom, so the silhouette reads as a bent corner rather than
-/// as a chip. Its value is printed once. The real plastic prints it twice, the
-/// lower one turned around, because a counter on a table has to be readable
-/// from the other side of it: on a screen one person is looking and the upside
-/// down copy is noise.
+/// Drawn against the photographs rather than against an idea of what a counter
+/// looks like, and the photographs are of **translucent moulded plastic**:
+/// the card's art and its rules text are legible straight through a piece, the
+/// piece throws a soft shadow onto the card a millimetre under it, and its
+/// edges are a bevel that catches the light from above while the underside
+/// goes dark. What was here before was an opaque tile with a flat copy of
+/// itself offset down and right, which is a sticker with a drop shadow.
 ///
-/// It is drawn twice instead, the same shape in a darker shade offset down and
-/// right, which is the trick the deck uses to read as solid rather than as one
-/// printed card. Not a perspective transform: the card it sits on turns in
-/// three dimensions and a piece with a vanishing point of its own fights it.
+/// Four things that make it read as plastic, in the order they are painted:
+/// the cast shadow, the see through body, a sheen down the face, and a rim
+/// lit along the top and dark along the bottom.
+///
+/// One painter and not a stack of clipped boxes, because a stroke along a
+/// clipped path is half a stroke: the clip eats the outer half and the bevel
+/// comes out at half the width it was asked for, thinner on the curves. A
+/// path drawn and then stroked keeps both halves.
 ///
 /// A count of one draws no number. One `+1/+1` is a piece, not a pile.
 class CounterPieceView extends StatelessWidget {
@@ -27,190 +34,103 @@ class CounterPieceView extends StatelessWidget {
 
   final CounterPiece piece;
 
-  /// How many of this kind are on the card. Drawn as a number in the middle
+  /// How many of this kind are on the card. Drawn as a number at one end
   /// rather than as that many pieces, which would cover the card, and which is
   /// what a stack of three looks like from above anyway.
   final int count;
 
   final double width;
 
-  /// A little taller than wide, which is what makes the notches read as
-  /// notches rather than as a squash.
-  static const _ratio = 1.18;
-
-  /// How far each V cuts in, as a fraction of the height.
-  static const _notch = 0.13;
-
-  /// How far the side stands out from under the face, as a fraction of the
-  /// width.
+  /// Wider than tall, which is the shape the plastic actually is.
   ///
-  /// Out of the piece's own box and not added to it. The face is drawn at the
-  /// top left of the box and the side at the bottom right, both of them a
-  /// [_lift] smaller than the box, so a piece with a side to it is exactly as
-  /// big as one without. The row of these is positioned in the card's
-  /// `Clip.none` stack rather than laid out in it, precisely so the pieces
-  /// have no size of their own, and a second copy offset outwards is exactly
-  /// the shape of thing that starts having one: two earlier things added to a
-  /// card each cost the board nine and a half percent that way.
-  static const _lift = 0.09;
+  /// It was 1.18, taller than wide, and that is what made the old piece read
+  /// as a chip or a sticker: every counter in the photographs is a bar. It is
+  /// also what the text wants, since the longest thing printed on one is a
+  /// word and a word is wide.
+  static const _ratio = 0.62;
+
+  /// How far the V bites into each end, as a fraction of the width.
+  static const _notch = 0.13;
 
   /// How tall a piece of a given width comes out.
   ///
   /// The row of them on a card has to lay a pile out before it builds one, and
-  /// the shape's proportions belong to the shape rather than to its callers.
+  /// this is the one place that arithmetic lives.
   static double heightFor(double width) => width * _ratio;
 
   @override
   Widget build(BuildContext context) {
-    final height = width * _ratio;
-    final lift = width * _lift;
+    final height = heightFor(width);
     final colour = piece.colour;
 
-    // Dark ink on the pale pieces, light on the dark ones. Off the colour
-    // rather than a constant: the box holds a white `-1/-1` and a near black
-    // `+1/+1` and one ink cannot sit on both.
-    final ink = colour.computeLuminance() > 0.45
-        ? const Color(0xFF14121A)
-        : const Color(0xFFF7F5FA);
+    // Dark ink on the pale pieces, light on the dark ones, off the colour
+    // rather than off the theme: these are objects with their own colours.
+    final ink = colour.computeLuminance() > 0.5
+        ? const Color(0xFF1A1714)
+        : const Color(0xFFF6F2EC);
 
     return SizedBox(
       width: width,
       height: height,
-      child: Stack(
-        children: [
-          // The shadow, on a box of its own under the piece.
+      child: CustomPaint(
+        painter: CounterPlastic(colour: colour),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: width * (_notch + 0.04),
+            vertical: height * 0.16,
+          ),
+          // Along the bar and not down it. The reference prints the value at
+          // one end and the word at the other, and a bar this shape has room
+          // across and none to spare downwards.
           //
-          // It cannot be the clipped shape's own boxShadow: everything outside
-          // the path is clipped away and the shadow with it. So what casts it
-          // is a plain box inset inside the silhouette, and what shows is the
-          // spill below and around, which is all a contact shadow ever is.
-          Positioned.fill(
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: width * 0.14,
-                vertical: height * 0.2,
-              ),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(width * 0.1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF000000).withValues(alpha: 0.55),
-                      blurRadius: width * 0.18,
-                      offset: Offset(0, height * 0.07),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          // Flexible and not plain children: each print is a FittedBox, which
+          // sizes to the text and not to the room, so the two together
+          // overflowed the piece by a point at forty wide. Given a share each
+          // they scale down instead, and the shares are the font sizes so the
+          // count stays the big one.
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(flex: 20, child: _print(ink)),
+              if (count > 1) ...[
+                SizedBox(width: width * 0.05),
+                Flexible(flex: 12, child: _count(ink)),
+              ],
+            ],
           ),
-          // The side, under the face and down and to the right of it. Darker
-          // than the face's own bottom stop, which is what makes it read as
-          // the edge of a thing rather than as more of the front of one.
-          Positioned(
-            left: lift,
-            top: lift,
-            child: _shape(
-              key: const Key('counter-side'),
-              size: Size(width - lift, height - lift),
-              colour: Color.lerp(colour, const Color(0xFF000000), 0.42)!,
-            ),
-          ),
-          Positioned(
-            left: 0,
-            top: 0,
-            child: _shape(
-              key: const Key('counter-face'),
-              size: Size(width - lift, height - lift),
-              colour: colour,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  // Lit from above. The light stop along the top edge is the
-                  // other half of the popup illusion: a flat fill reads as ink
-                  // printed on the card however deep the shadow under it is.
-                  //
-                  // Over the piece's colour rather than mixed into it, so the
-                  // colour is said once and the lighting is the only thing
-                  // this says. White at 42 percent over a colour is the same
-                  // pixel as that colour lerped 42 percent towards white,
-                  // which is what this was.
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    stops: const [0, 0.16, 1],
-                    colors: [
-                      const Color(0xFFFFFFFF).withValues(alpha: 0.42),
-                      const Color(0x00FFFFFF),
-                      const Color(0xFF000000).withValues(alpha: 0.26),
-                    ],
-                  ),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: width * 0.06,
-                    vertical: (height - lift) * _notch,
-                  ),
-                  // Flexible and not plain children. Each print is a
-                  // FittedBox, which sizes to the text and not to the room, so
-                  // the two together overflowed the piece by a point at forty
-                  // wide when there were three of them. Given a share each
-                  // they scale down instead, and the shares are the font sizes
-                  // so the count stays the big one.
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(flex: 18, child: _print(ink)),
-                      if (count > 1) Flexible(flex: 26, child: _count(ink)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
-
-  /// The silhouette once, in one flat colour.
-  ///
-  /// The face and the side are this shape twice and not one shape with a
-  /// border on it: the notches are a clip, and a stroke along a clipped path
-  /// is half a stroke.
-  Widget _shape({
-    required Key key,
-    required Size size,
-    required Color colour,
-    Widget? child,
-  }) =>
-      SizedBox(
-        key: key,
-        width: size.width,
-        height: size.height,
-        child: ClipPath(
-          clipper: const _Chevron(_notch),
-          child: DecoratedBox(
-            decoration: BoxDecoration(color: colour),
-            child: child,
-          ),
-        ),
-      );
 
   /// What is printed on it.
   ///
   /// Scaled down to fit rather than wrapped: INDESTRUCTIBLE is fourteen
   /// letters across a piece that is forty points wide, and a word broken over
-  /// two lines stops looking like a moulded label.
+  /// two lines on a counter is not a thing that exists.
+  ///
+  /// A shadow under the letters because the body under them is see through:
+  /// on a pale piece over pale art the ink was landing on whatever the card
+  /// happened to have there.
   Widget _print(Color ink) => FittedBox(
         fit: BoxFit.scaleDown,
         child: Text(
           piece.label,
           maxLines: 1,
           style: TextStyle(
-            fontSize: width * 0.18,
+            fontSize: width * 0.2,
             fontWeight: FontWeight.w800,
-            letterSpacing: width * 0.004,
+            letterSpacing: width * 0.006,
+            height: 1,
             color: ink,
+            shadows: [
+              Shadow(
+                color: ink.computeLuminance() > 0.5
+                    ? const Color(0x99000000)
+                    : const Color(0x55FFFFFF),
+                blurRadius: width * 0.03,
+              ),
+            ],
           ),
         ),
       );
@@ -219,36 +139,107 @@ class CounterPieceView extends StatelessWidget {
         fit: BoxFit.scaleDown,
         child: Text(
           '$count',
+          maxLines: 1,
           style: TextStyle(
             fontSize: width * 0.26,
-            fontWeight: FontWeight.w700,
-            color: ink.withValues(alpha: 0.85),
+            fontWeight: FontWeight.w900,
+            height: 1,
+            color: ink,
           ),
         ),
       );
 }
 
-/// The silhouette. Straight down both sides, a V cut into the top edge and
-/// another into the bottom.
-class _Chevron extends CustomClipper<Path> {
-  const _Chevron(this.notch);
+/// The piece itself: shadow, body, sheen and rim.
+///
+/// Public so a test can read what it was told to draw. There are no goldens
+/// in this project, so the alternative to asserting on the painter's inputs is
+/// asserting on a widget tree that no longer has one box per visual effect,
+/// which is what the old shape had and is the reason a probe that took the
+/// shadow off could pass.
+class CounterPlastic extends CustomPainter {
+  const CounterPlastic({required this.colour});
 
-  final double notch;
+  final Color colour;
 
-  @override
-  Path getClip(Size size) {
-    final dip = size.height * notch;
+  /// How see through the body is.
+  ///
+  /// The whole point of the rewrite. Moulded counters are tinted transparent
+  /// plastic and you read the card through them; an opaque one is a sticker.
+  /// Not lower than this, because the label has to stay legible over whatever
+  /// art happens to be underneath.
+  static const bodyAlpha = 0.78;
+
+  /// How far the shadow falls and how soft it is, as fractions of the height.
+  static const shadowDrop = 0.16;
+  static const shadowBlur = 0.18;
+
+  /// The bevel, as a fraction of the height. Lit along the top edge and dark
+  /// along the bottom, which is the one cue that says a thing has a thickness.
+  static const rimWidth = 0.1;
+
+  /// The silhouette: a bar with a V bitten out of each end.
+  static Path pathFor(Size size) {
+    final bite = size.width * CounterPieceView._notch;
+    final middle = size.height / 2;
 
     return Path()
       ..moveTo(0, 0)
-      ..lineTo(size.width / 2, dip)
       ..lineTo(size.width, 0)
+      ..lineTo(size.width - bite, middle)
       ..lineTo(size.width, size.height)
-      ..lineTo(size.width / 2, size.height - dip)
       ..lineTo(0, size.height)
+      ..lineTo(bite, middle)
       ..close();
   }
 
   @override
-  bool shouldReclip(_Chevron old) => old.notch != notch;
+  void paint(Canvas canvas, Size size) {
+    final path = pathFor(size);
+    final box = Offset.zero & size;
+
+    canvas.drawPath(
+      path.shift(Offset(0, size.height * shadowDrop)),
+      Paint()
+        ..color = const Color(0x5C000000)
+        ..maskFilter = ui.MaskFilter.blur(
+          ui.BlurStyle.normal,
+          size.height * shadowBlur,
+        ),
+    );
+
+    canvas.drawPath(
+      path,
+      Paint()..color = colour.withValues(alpha: bodyAlpha),
+    );
+
+    // Lit from above. The light stop along the top edge and the dark one along
+    // the bottom are the other half of the illusion: a flat fill reads as ink
+    // printed on the card however deep the shadow under it is.
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          box.topCenter,
+          box.bottomCenter,
+          const [Color(0x6BFFFFFF), Color(0x00FFFFFF), Color(0x4D000000)],
+          const [0, 0.46, 1],
+        ),
+    );
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.height * rimWidth
+        ..shader = ui.Gradient.linear(
+          box.topCenter,
+          box.bottomCenter,
+          const [Color(0xB3FFFFFF), Color(0x73000000)],
+        ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(CounterPlastic old) => old.colour != colour;
 }
