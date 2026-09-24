@@ -99,6 +99,24 @@ Future<ProviderContainer> _seatedPod(
 }
 
 void main() {
+  // Once for the file, not eight times inside it.
+  //
+  // `RendererChoice.choose` persists through SharedPreferences and the mock
+  // store is process global, so a case that taps `switch-renderer` leaks the
+  // canvas into whatever runs next. That is how a case here failed on an
+  // ambiguous finder: on the canvas the command corner draws a second
+  // TableCard inside `your-board`. Eight cases had grown their own reset and
+  // the ninth to be appended would have had to know.
+  //
+  // **Deleting this line does not currently fail anything**, and that is not
+  // a reason to delete it. `RendererChoice` restores asynchronously, so a
+  // leaked value only lands if the next case pumps long enough to let the
+  // microtask run: whether it bites depends on case order and on how long
+  // each one pumps, which is why it appeared once during development and
+  // does not reproduce now. A guard against an order dependent failure
+  // cannot be pinned by a suite that runs in one order.
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('an empty table says so instead of drawing nothing',
       (tester) async {
     await tester.pumpWidget(
@@ -286,7 +304,6 @@ void main() {
   });
 
   testWidgets('the size pills reach the cards on the board', (tester) async {
-    SharedPreferences.setMockInitialValues({});
     final container = await _seatedPod(tester, ['you']);
     final play = container.read(playProvider.notifier);
     final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
@@ -511,7 +528,6 @@ void main() {
 
   testWidgets('the deck and the commander are the size of the cards',
       (tester) async {
-    SharedPreferences.setMockInitialValues({});
     final container = await _seatedPod(tester, ['you'],
         window: const Size(1900, 900), withCommander: true);
 
@@ -658,7 +674,6 @@ void main() {
     // choice to the preferences, and the choice wins over the width. Without
     // this the wide window opened the bands and the pile found below was the
     // one in the column beside the board.
-    SharedPreferences.setMockInitialValues({});
     final container = await _seatedPod(tester, ['you'],
         window: const Size(1280, 800));
     final play = container.read(playProvider.notifier);
@@ -727,7 +742,6 @@ void main() {
   });
 
   testWidgets('the wide view can make a token too', (tester) async {
-    SharedPreferences.setMockInitialValues({});
     await _seatedPod(tester, ['you'],
         window: const Size(1280, 800), withCatalog: true);
 
@@ -851,7 +865,6 @@ void main() {
 
   testWidgets('the token control is on the same side in both views',
       (tester) async {
-    SharedPreferences.setMockInitialValues({});
     await _seatedPod(tester, ['you'],
         window: const Size(1280, 800), withCommander: true);
     await tester.pumpAndSettle();
@@ -892,7 +905,6 @@ void main() {
   });
 
   testWidgets('nothing in the aside runs off the bottom', (tester) async {
-    SharedPreferences.setMockInitialValues({});
     await _seatedPod(tester, ['you'],
         window: const Size(1280, 800), withCommander: true);
     await tester.pumpAndSettle();
@@ -982,7 +994,6 @@ void main() {
     // one opens. On the canvas your corner draws the commander beside the
     // board and `your-board` holds two cards, which is a finder this case
     // cannot resolve. Six cases in this file already open with this line.
-    SharedPreferences.setMockInitialValues({});
     final container =
         await _seatedPod(tester, ['you'], withCommander: true);
     final play = container.read(playProvider.notifier);
@@ -1008,7 +1019,6 @@ void main() {
 
   testWidgets('an ordinary card thrown in the graveyard stays there',
       (tester) async {
-    SharedPreferences.setMockInitialValues({});
     final container =
         await _seatedPod(tester, ['you'], withCommander: true);
     final play = container.read(playProvider.notifier);
