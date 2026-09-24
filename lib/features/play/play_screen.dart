@@ -366,7 +366,6 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                     Expanded(child: board),
                     SizedBox(height: gap),
                     _Underneath(
-                      room: box.maxWidth,
                       gap: gap,
                       graveyard: _chip(m, graveyard, width: card),
                       dice: _diceTray(width: card),
@@ -1044,7 +1043,6 @@ class _Across extends StatelessWidget {
 /// out loud.
 class _Underneath extends StatelessWidget {
   const _Underneath({
-    required this.room,
     required this.gap,
     required this.graveyard,
     required this.dice,
@@ -1052,15 +1050,6 @@ class _Underneath extends StatelessWidget {
     required this.command,
     required this.library,
   });
-
-  /// How wide the row it stands in is.
-  ///
-  /// So the pieces spread across it rather than bunching at the left: the
-  /// graveyard ends up hard against one edge and the deck against the other,
-  /// which is where the two columns had them and where a deck is at a table.
-  /// It is also the width past which the row scrolls, and then there is no
-  /// room left over to spread and the gaps are the gaps below.
-  final double room;
 
   final double gap;
   final Widget graveyard;
@@ -1074,30 +1063,60 @@ class _Underneath extends StatelessWidget {
   final Widget library;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+  Widget build(BuildContext context) => Row(
         // Along the bottom edge and not up the middle of the row. The pieces
         // are different heights, and a table stands them all on the same
         // surface.
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minWidth: room),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              graveyard,
-              SizedBox(width: gap),
-              dice,
-              SizedBox(width: gap),
-              makeToken,
-              SizedBox(width: gap),
-              if (command != null) ...[
-                command!,
-                SizedBox(width: gap),
-              ],
-              library,
-            ],
-          ),
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // In the order they matter, most first, because left is where the
+          // eye lands and the first slot is the most valuable thing this row
+          // has to give away.
+          //
+          // It used to run token, dice, graveyard, command, deck. That is the
+          // ranking upside down: the two controls a game touches least had the
+          // first two slots, an empty graveyard was the most prominent object
+          // on the screen, and the deck, which is the only one of the five you
+          // touch every single turn, was last and was the thing that scrolled
+          // off the edge.
+          //
+          // Outside the flex as well as first, so it is laid out before
+          // anything else is given a share: no zoom setting and no number of
+          // chips can take room from it.
+          library,
+          SizedBox(width: gap),
+          // A drop target several times a turn, which is more than the command
+          // zone and far more than the dice. Empty, it is already a chip, and
+          // that is the right amount of nothing.
+          _squeezed(graveyard),
+          if (command != null) ...[
+            SizedBox(width: gap),
+            _squeezed(command!),
+          ],
+          SizedBox(width: gap),
+          _squeezed(dice),
+          SizedBox(width: gap),
+          _squeezed(makeToken),
+        ],
+      );
+
+  /// Takes its natural size while there is room and gets smaller when there is
+  /// not, rather than overflowing or scrolling off.
+  ///
+  /// The row used to scroll sideways, and what scrolled off was the deck: the
+  /// card size is a setting, and at five notches of zoom the furniture came to
+  /// 457 points on a 358 point phone, which put the one thing you touch every
+  /// turn 67 points past the right edge. Reported as "you need to scroll right
+  /// to see the deck", measured at scale 1.4 and worse at 1.5.
+  ///
+  /// Scaled down whole rather than given a narrower box, because these are
+  /// pictures of objects and a graveyard squeezed into a thinner graveyard is
+  /// not what a crowded table looks like.
+  static Widget _squeezed(Widget child) => Flexible(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.bottomCenter,
+          child: child,
         ),
       );
 }
