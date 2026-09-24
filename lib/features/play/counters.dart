@@ -28,13 +28,19 @@ class CounterPiece {
   /// A word rather than a number, printed in capitals the way the plastic is.
   final bool isKeyword;
 
-  /// What is printed on it, twice, top and bottom.
+  /// What is printed on it.
   ///
-  /// A keyword goes up in capitals because that is how the piece is moulded. A
-  /// kind nobody printed keeps the case it arrived in: it came off a card
-  /// somebody played, and shouting it back is inventing a house style for a
-  /// string the table chose.
-  String get label => isKeyword ? name.toUpperCase() : name;
+  /// Capitals, always, because that is how the plastic is moulded and because
+  /// one object cannot have two rules. This read `isKeyword ? toUpperCase() :
+  /// name`, on the reasoning that a kind nobody printed should keep the case
+  /// it arrived in rather than have a house style invented for it. What that
+  /// produced on a card was FLYING beside Vigilance beside deathtouch, three
+  /// pieces out of the same box disagreeing about how they are stamped, which
+  /// is worse than any one of the three choices.
+  ///
+  /// `+1/+1` is unaffected either way, which is why this went unnoticed: the
+  /// kinds that carry a word are the ones nobody looked at together.
+  String get label => name.toUpperCase();
 }
 
 /// The colours are the photograph's, not [Palette]'s.

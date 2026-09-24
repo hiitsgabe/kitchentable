@@ -157,7 +157,7 @@ void main() {
     expect(find.text('+4/+8'), findsOneWidget);
   });
 
-  testWidgets('a kind nobody printed keeps its own name', (tester) async {
+  testWidgets('a kind nobody printed is stamped like the rest', (tester) async {
     await tester.pumpWidget(_host(
       const CardInstance(
         id: 'a',
@@ -173,7 +173,7 @@ void main() {
     // Once, for the reason the case above gives: the two matches were the one
     // marker's two prints, not two markers.
     expect(find.text('+2/+2'), findsOneWidget);
-    expect(find.textContaining('charge'), findsWidgets);
+    expect(find.textContaining('CHARGE'), findsWidgets);
   });
 
   testWidgets('a right click opens what a hold opens', (tester) async {
