@@ -146,8 +146,15 @@ void main() {
     // Five objects to add up by eye is what the raw map looked like. One
     // marker saying the net, plus the keyword, which is not a number and has
     // nothing to add to.
+    //
+    // One print of the net and not two. The piece printed its value at both
+    // ends, the lower one turned around, the way the plastic does so it reads
+    // from the other side of a table; on a screen one person is looking. This
+    // asserted two because there were two of the same Text, so it counted the
+    // second print rather than a second marker, and the marker count above is
+    // the part that says there is one of those.
     expect(find.byType(CounterPieceView), findsNWidgets(2));
-    expect(find.text('+4/+8'), findsNWidgets(2));
+    expect(find.text('+4/+8'), findsOneWidget);
   });
 
   testWidgets('a kind nobody printed keeps its own name', (tester) async {
@@ -162,7 +169,10 @@ void main() {
 
     // `charge` does nothing to power or toughness, so it cannot join the sum
     // and has to stand on its own with its count.
-    expect(find.text('+2/+2'), findsNWidgets(2));
+    //
+    // Once, for the reason the case above gives: the two matches were the one
+    // marker's two prints, not two markers.
+    expect(find.text('+2/+2'), findsOneWidget);
     expect(find.textContaining('charge'), findsWidgets);
   });
 
