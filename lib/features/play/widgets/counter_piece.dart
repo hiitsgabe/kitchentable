@@ -54,7 +54,8 @@ class CounterPieceView extends StatelessWidget {
   /// word and a word is wide.
   static const _ratio = 0.62;
 
-  /// How far the V bites into each end, as a fraction of the width.
+  /// How far the point at each end sets in from the corner, as a fraction of
+  /// the width.
   static const _notch = 0.13;
 
   /// How tall a piece of a given width comes out.
@@ -294,18 +295,25 @@ class CounterPlastic extends CustomPainter {
   static const edgeLit = Color(0xD9FFFFFF);
   static const edgeShade = Color(0x8CFFFFFF);
 
-  /// The silhouette: a bar with a V bitten out of each end.
+  /// The silhouette: a hexagon lying on its side.
+  ///
+  /// Flat along the top and the bottom and pointed at each end, so it stacks
+  /// against the ones beside it and the text runs the long way, which is the
+  /// way the words on a counter are written.
+  ///
+  /// It was a bar with a V bitten out of each end, which is one of the shapes
+  /// the plastic comes in and reads as a ribbon rather than as a token.
   static Path pathFor(Size size) {
-    final bite = size.width * CounterPieceView._notch;
+    final point = size.width * CounterPieceView._notch;
     final middle = size.height / 2;
 
     return Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width - bite, middle)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..lineTo(bite, middle)
+      ..moveTo(point, 0)
+      ..lineTo(size.width - point, 0)
+      ..lineTo(size.width, middle)
+      ..lineTo(size.width - point, size.height)
+      ..lineTo(point, size.height)
+      ..lineTo(0, middle)
       ..close();
   }
 
