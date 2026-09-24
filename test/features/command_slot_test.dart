@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/features/play/widgets/card_drag.dart';
@@ -14,17 +15,23 @@ Widget _host({
   void Function(CardInstance)? onTap,
   Game? game,
 }) =>
-    MaterialApp(
-      home: Scaffold(
-        body: CommandSlot(
-          metrics: Metrics.of(DeviceClass.handheld),
-          cards: cards,
-          printings: const {},
-          width: 60,
-          onTap: onTap ?? (_) {},
-          onInspect: (_) {},
-          onSendHome: (_) {},
-          game: game,
+    // Every card here is a `DraggableCard`, which says a drag is on through a
+    // provider rather than through a parameter of its own, so it needs a scope
+    // to say it into. In the app that scope is the one the whole screen is
+    // under.
+    ProviderScope(
+      child: MaterialApp(
+        home: Scaffold(
+          body: CommandSlot(
+            metrics: Metrics.of(DeviceClass.handheld),
+            cards: cards,
+            printings: const {},
+            width: 60,
+            onTap: onTap ?? (_) {},
+            onInspect: (_) {},
+            onSendHome: (_) {},
+            game: game,
+          ),
         ),
       ),
     );
@@ -69,26 +76,28 @@ void main() {
 
   testWidgets('a card dropped on the corner is reported', (tester) async {
     CardInstance? sent;
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Column(
-          children: [
-            DraggableCard(
-              card: const CardInstance(id: 'x', oracleId: 'General'),
-              child: const SizedBox(key: Key('loose'), width: 40, height: 56),
-            ),
-            Expanded(
-              child: CommandSlot(
-                metrics: Metrics.of(DeviceClass.handheld),
-                cards: const [],
-                printings: const {},
-                width: 60,
-                onTap: (_) {},
-                onInspect: (_) {},
-                onSendHome: (c) => sent = c,
+    await tester.pumpWidget(ProviderScope(
+      child: MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              DraggableCard(
+                card: const CardInstance(id: 'x', oracleId: 'General'),
+                child: const SizedBox(key: Key('loose'), width: 40, height: 56),
               ),
-            ),
-          ],
+              Expanded(
+                child: CommandSlot(
+                  metrics: Metrics.of(DeviceClass.handheld),
+                  cards: const [],
+                  printings: const {},
+                  width: 60,
+                  onTap: (_) {},
+                  onInspect: (_) {},
+                  onSendHome: (c) => sent = c,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ));

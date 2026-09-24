@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/features/play/renderers/mat_layout.dart';
@@ -35,37 +36,43 @@ Widget _host({
   void Function(String zoneId, String id, double x, double y)? onPlace,
   Game? game,
 }) =>
-    MaterialApp(
-      home: Scaffold(
-        body: CursorBoard(
-          metrics: Metrics.of(DeviceClass.tv),
-          zones: [
-            (
-              id: 'battlefield-s1',
-              label: 'Battlefield',
-              cards: [
-                for (var i = 0; i < board; i++)
-                  CardInstance(
-                    id: 'b$i',
-                    oracleId: 'card$i',
-                    position: placed['b$i'],
-                  ),
-              ],
-            ),
-            (
-              id: 'graveyard-s1',
-              label: 'Graveyard',
-              cards: [
-                for (var i = 0; i < graveyard; i++)
-                  CardInstance(id: 'g$i', oracleId: 'card$i'),
-              ],
-            ),
-          ],
-          printings: printings,
-          onActivate: onActivate ?? (_) {},
-          onInspect: onInspect ?? (_) {},
-          onPlace: onPlace ?? (_, _, _, _) {},
-          game: game,
+    // Every card here is a `DraggableCard`, which says a drag is on through a
+    // provider rather than through a parameter of its own, so it needs a scope
+    // to say it into. In the app that scope is the one the whole screen is
+    // under.
+    ProviderScope(
+      child: MaterialApp(
+        home: Scaffold(
+          body: CursorBoard(
+            metrics: Metrics.of(DeviceClass.tv),
+            zones: [
+              (
+                id: 'battlefield-s1',
+                label: 'Battlefield',
+                cards: [
+                  for (var i = 0; i < board; i++)
+                    CardInstance(
+                      id: 'b$i',
+                      oracleId: 'card$i',
+                      position: placed['b$i'],
+                    ),
+                ],
+              ),
+              (
+                id: 'graveyard-s1',
+                label: 'Graveyard',
+                cards: [
+                  for (var i = 0; i < graveyard; i++)
+                    CardInstance(id: 'g$i', oracleId: 'card$i'),
+                ],
+              ),
+            ],
+            printings: printings,
+            onActivate: onActivate ?? (_) {},
+            onInspect: onInspect ?? (_) {},
+            onPlace: onPlace ?? (_, _, _, _) {},
+            game: game,
+          ),
         ),
       ),
     );

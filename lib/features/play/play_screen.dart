@@ -32,6 +32,7 @@ import 'widgets/library_stack.dart';
 import 'widgets/pile_sheet.dart';
 import 'widgets/radar_strip.dart';
 import 'widgets/token_sheet.dart';
+import 'widgets/zone_chip.dart';
 
 class PlayScreen extends ConsumerStatefulWidget {
   const PlayScreen({super.key});
@@ -348,7 +349,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                     _Underneath(
                       room: box.maxWidth,
                       gap: gap,
-                      graveyard: _pile(m, graveyard, width: card),
+                      graveyard: _chip(m, graveyard, width: card),
                       dice: _diceTray(width: card),
                       makeToken: _tokenButton(m, width: card),
                       command: corner,
@@ -362,7 +363,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _Across(
-                    graveyard: _pile(m, graveyard, width: card),
+                    graveyard: _chip(m, graveyard, width: card),
                     dice: _diceTray(width: card),
                     // Across from the deck, with the graveyard, because that
                     // is where the canvas had to put it: three things do not
@@ -598,21 +599,53 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
       faceUp: true,
       face: onTop == null ? null : _printings[onTop.oracleId],
       onDraw: _lookInThePile,
-      onDrop: (c) {
+      onDrop: _throwIn(graveyard),
+    );
+  }
+
+  /// Your graveyard as a chip, which is what it is worth on a screen with a
+  /// row under the board rather than strips beside a mat.
+  ///
+  /// An empty one was a 50 by 70 outline of a card that is not there, and it
+  /// was the leftmost and most prominent object on a 390 point phone. The chip
+  /// grows into a card sized target for as long as a card is in the air, which
+  /// is the only time a drop target has to be the size of a card.
+  ///
+  /// The same top card, the same sheet and the same drop as the pile above, so
+  /// the two arrangements cannot disagree about which end of the pile is its
+  /// top or about where a commander thrown in here ends up.
+  Widget _chip(Metrics m, Zone graveyard, {required double width}) {
+    final onTop = graveyard.top;
+
+    return ZoneChip(
+      metrics: m,
+      pileName: 'graveyard',
+      label: graveyard.label,
+      count: graveyard.size,
+      cardWidth: width,
+      face: onTop == null ? null : _printings[onTop.oracleId],
+      onTap: _lookInThePile,
+      onDrop: _throwIn(graveyard),
+    );
+  }
+
+  /// What a card let go over your graveyard does.
+  ///
+  /// One copy for the pile and the chip. Which zone a commander lands in is
+  /// exactly the kind of rule that would be right in one of them and wrong in
+  /// the other, and the seat is read off the zone rather than handed down from
+  /// the build method: a seat threaded through each arrangement is a hand off
+  /// site apiece that nothing pins, and the canvas took a wrong seat once with
+  /// the whole suite green behind it.
+  void Function(CardInstance) _throwIn(Zone graveyard) => (c) {
         final play = ref.read(playProvider.notifier);
         play.run(MoveCard(
           cardId: c.id,
           toZoneId: play.isCommander(c.id)
-              // The zone's own seat, not one handed down from the build
-              // method. Both renderers call this and a seat threaded through
-              // each of them is a hand-off site apiece that nothing pins: the
-              // canvas took a wrong seat and the whole suite stayed green.
               ? 'command-${graveyard.seatId}'
               : graveyard.id,
         ));
-      },
-    );
-  }
+      };
 
   /// The way to a token that is not a copy of something already on the table.
   ///

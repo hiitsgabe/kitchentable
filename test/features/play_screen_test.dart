@@ -1120,6 +1120,115 @@ void main() {
     expect(bin.right, lessThanOrEqualTo(board.left));
   });
 
+  testWidgets('an empty graveyard does not take a card of room',
+      (tester) async {
+    await _seatedPod(tester, ['you'], withCommander: true);
+    await tester.pumpAndSettle();
+
+    final bin = tester.getRect(find.byKey(const Key('graveyard-stack')));
+
+    // It was 50 by 70, an outline of a card that is not there, and it was the
+    // leftmost and most prominent object on a 390 point screen.
+    expect(bin.height, lessThan(44));
+  });
+
+  testWidgets('a zone grows into a target while a card is in the air',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    final resting = tester.getRect(find.byKey(const Key('graveyard-stack')));
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.descendant(
+        of: find.byKey(const Key('your-board')),
+        matching: find.byType(TableCard),
+      )),
+    );
+    await gesture.moveBy(const Offset(0, 150));
+    await tester.pumpAndSettle();
+
+    final aiming = tester.getRect(find.byKey(const Key('graveyard-stack')));
+    expect(aiming.height, greaterThan(resting.height * 1.5),
+        reason: 'the chip did not grow into a drop target');
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(
+      tester.getRect(find.byKey(const Key('graveyard-stack'))).height,
+      resting.height,
+      reason: 'the chip did not collapse when the drag ended',
+    );
+  });
+
+  testWidgets('a cancelled drag leaves no zone expanded', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    final resting = tester.getRect(find.byKey(const Key('graveyard-stack')));
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.descendant(
+        of: find.byKey(const Key('your-board')),
+        matching: find.byType(TableCard),
+      )),
+    );
+    await gesture.moveBy(const Offset(0, 150));
+    await tester.pumpAndSettle();
+    await gesture.cancel();
+    await tester.pumpAndSettle();
+
+    // A drag that is interrupted rather than let go: the chips have to come
+    // back down for that too, or the row keeps a card of room nobody is
+    // aiming at.
+    expect(
+      tester.getRect(find.byKey(const Key('graveyard-stack'))).height,
+      resting.height,
+      reason: 'the chip stayed expanded after the drag was cancelled',
+    );
+  });
+
+  testWidgets('a card that goes away mid drag still puts the zones back',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    final resting = tester.getRect(find.byKey(const Key('graveyard-stack')));
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.descendant(
+        of: find.byKey(const Key('your-board')),
+        matching: find.byType(TableCard),
+      )),
+    );
+    await gesture.moveBy(const Offset(0, 150));
+    await tester.pumpAndSettle();
+
+    // The card leaves the board while it is in the air, which takes the widget
+    // that is reporting the drag out of the tree with it. `Draggable` guards
+    // its `onDragEnd` on the widget still being mounted and does not guard its
+    // cancel, so this is the one end of a drag that only the cancel reports.
+    play.run(MoveCard(cardId: card.id, toZoneId: 'graveyard-s1'));
+    await tester.pumpAndSettle();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getRect(find.byKey(const Key('graveyard-stack'))).height,
+      resting.height,
+      reason: 'a drag whose card was taken away left the zones expanded',
+    );
+  });
+
   testWidgets('the row under the board is drawn at the board\'s own card',
       (tester) async {
     final container = await _seatedPod(tester, ['you']);
