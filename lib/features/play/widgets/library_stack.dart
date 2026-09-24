@@ -199,14 +199,11 @@ class LibraryStack extends StatelessWidget {
           ),
           SizedBox(height: m.scaled(4)),
         ],
-        if (thrownAt == null)
-          tappable
-        else
-          CardDropTarget(
-            onDrop: (card, _) => thrownAt(card),
-            child: tappable,
-          ),
-        SizedBox(height: m.scaled(6)),
+        // The count and the control above the pile and not under it. Under
+        // it they sat between the deck and the bottom of the screen, which is
+        // the one edge a pile is supposed to be standing on, and the row of
+        // furniture beside it then had to find a baseline that was neither the
+        // pile's nor the caption's.
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -241,6 +238,14 @@ class LibraryStack extends StatelessWidget {
             ],
           ],
         ),
+        SizedBox(height: m.scaled(6)),
+        if (thrownAt == null)
+          tappable
+        else
+          CardDropTarget(
+            onDrop: (card, _) => thrownAt(card),
+            child: tappable,
+          ),
       ],
     );
   }

@@ -369,9 +369,10 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                     SizedBox(height: gap),
                     _Underneath(
                       gap: gap,
-                      band: ref.watch(draggingProvider)
+                      band: zoneChipHeight,
+                      aiming: ref.watch(draggingProvider)
                           ? card * 88 / 63
-                          : zoneChipHeight,
+                          : null,
                       graveyard: _chip(m, graveyard, width: card),
                       dice: _diceTray(width: card),
                       makeToken: _tokenButton(m, width: card),
@@ -1055,6 +1056,7 @@ class _Underneath extends StatelessWidget {
   const _Underneath({
     required this.gap,
     required this.band,
+    required this.aiming,
     required this.graveyard,
     required this.dice,
     required this.makeToken,
@@ -1064,13 +1066,22 @@ class _Underneath extends StatelessWidget {
 
   final double gap;
 
-  /// How tall the band beside the deck stands.
+  /// How tall the smallest thing in the band beside the deck stands.
   ///
-  /// [zoneChipHeight] at rest, and a card while something is being dragged:
-  /// the chips grow into drop targets then, and a band pinned to the resting
-  /// height scaled them straight back down again, which is a target that looks
-  /// like it grew and did not.
+  /// The band is not one height. One height made every slot the same size,
+  /// which flattened the ranking the row exists to show: the command zone
+  /// holds a card and deserves to look like it, the dice were unreadable, and
+  /// the token control was already right. So three tiers off this one number,
+  /// all standing on the same baseline.
   final double band;
+
+  /// The height every slot takes while a card is in the air, or null.
+  ///
+  /// The chips grow into drop targets then, and a band pinned to its resting
+  /// heights scaled them straight back down, which is a target that looks like
+  /// it grew and did not. Aiming, the tiers stop mattering: they are all a
+  /// card, because they are all the same size of thing to hit.
+  final double? aiming;
 
   final Widget graveyard;
   final Widget dice;
@@ -1128,10 +1139,14 @@ class _Underneath extends StatelessWidget {
                 // band is a card tall and every chip grows with it, which came
                 // to 60 points more than the row has. They give width back
                 // instead of overflowing.
-                Flexible(child: _band(graveyard)),
-                if (command != null) Flexible(child: _band(command!)),
-                Flexible(child: _band(dice)),
-                Flexible(child: _band(makeToken)),
+                Flexible(child: _band(graveyard, _mid)),
+                if (command != null) Flexible(child: _band(command!, _card)),
+                // Twice the share of the others. Three dice side by side is
+                // the widest thing in the band, so an equal slot bound it by
+                // width before its tier could bind it by height and it came
+                // out 30.2 points in a 47.9 point tier.
+                Flexible(flex: 2, child: _band(dice, _mid)),
+                Flexible(child: _band(makeToken, 1)),
               ],
             ),
           ),
@@ -1144,8 +1159,18 @@ class _Underneath extends StatelessWidget {
   /// Scaled whole rather than given a narrower box, because these are pictures
   /// of objects and a graveyard squeezed into a thinner graveyard is not what
   /// a crowded table looks like.
-  Widget _band(Widget child) => SizedBox(
-        height: band,
+  /// The middle tier, for the graveyard and the dice.
+  ///
+  /// The dice were 21.7 points and read as dropped rather than placed; the
+  /// graveyard is a drop target several times a turn. Both want more than the
+  /// token control, which was already the right size and is the unit here.
+  static const _mid = 1.33;
+
+  /// The command zone, which holds a card and should look like it holds one.
+  static const _card = 1.95;
+
+  Widget _band(Widget child, double tier) => SizedBox(
+        height: aiming ?? band * tier,
         // Contain and not scaleDown: scaleDown only ever shrinks, which left
         // the dice at 21.7 points in a 36 point band looking dropped rather
         // than placed. Contain fills the band in both directions.
@@ -1251,6 +1276,13 @@ class _TopBar extends StatelessWidget {
         Expanded(
           child: Text(
             seatName,
+            // One line, cut short if it has to be. With neither of these the
+            // name is handed whatever the nine controls beside it leave over,
+            // which on a 365 point window was a column one letter wide, and
+            // "you" came out stacked as y, o, u down the side of the bar.
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: m.scaled(14), color: Palette.inkMuted),
           ),
         ),

@@ -12,6 +12,7 @@ import 'package:kitchentable/features/play/play_screen.dart';
 import 'package:kitchentable/features/play/renderers/free_canvas.dart';
 import 'package:kitchentable/features/play/renderers/stacked_seats.dart';
 import 'package:kitchentable/features/play/dice/dice_tray.dart';
+import 'package:kitchentable/features/play/widgets/library_stack.dart';
 import 'package:kitchentable/features/play/widgets/command_slot.dart';
 import 'package:kitchentable/features/play/widgets/cursor_board.dart';
 import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
@@ -1530,18 +1531,51 @@ void main() {
       find.byType(DiceTray),
       find.byKey(const Key('make-token')),
     ].map(tester.getRect).toList();
-    final band = chips.first.height;
     for (final chip in chips) {
-      expect(chip.bottom, chips.first.bottom,
+      // To a hundredth of a point: a tier is the band times a fraction and
+      // 36 times 1.95 lands a 1e-13 short of the edge it shares.
+      expect(chip.bottom, moreOrLessEquals(chips.first.bottom, epsilon: 0.01),
           reason: 'the band has more than one baseline');
-      // Within a fifth of the band and never over it. Not exactly equal: a
-      // command slot holding a commander is bound by its share of the width
-      // before it is bound by the band, and comes out 30.2 against 36. The
-      // fifth is what still catches the row this replaced, where the same four
-      // objects were 36, 77, 21.7 and 51.
-      expect(chip.height, lessThanOrEqualTo(band));
-      expect(chip.height, greaterThanOrEqualTo(band * 0.8));
     }
+
+    // And their heights fall in the order they matter, which is the same
+    // order they are laid out in. One uniform height was the first attempt
+    // and it flattened exactly what the row is for: a command zone holds a
+    // card and should look like it does, and the dice were unreadable.
+    //
+    // Measured: deck 122.9, command 68.9, dice 47.9, graveyard 40.1, token 36.
+    // The row this replaced ran 122.9, 36, 77, 21.7, 51 in the order token,
+    // dice, graveyard, command, deck, which is neither a ranking nor a band.
+    final deckWhole = tester.getRect(find.byType(LibraryStack));
+    final heights = [
+      deckWhole.height,
+      chips[1].height,
+      chips[2].height,
+      chips[0].height,
+      chips[3].height,
+    ];
+    for (var i = 1; i < heights.length; i++) {
+      expect(heights[i], lessThan(heights[i - 1]),
+          reason: 'slot $i is not smaller than the one that outranks it');
+    }
+  });
+
+  testWidgets('the deck\'s count and controls sit above the pile',
+      (tester) async {
+    await _seatedPod(tester, ['you']);
+    await tester.pumpAndSettle();
+
+    final pile = tester.getRect(find.byKey(const Key('library-stack')));
+    final count = tester.getRect(find.text('53'));
+    final work = tester.getRect(find.byKey(const Key('library-work')));
+
+    // Under the pile they sat between the deck and the bottom of the screen,
+    // which is the edge a pile is supposed to be standing on, and the row of
+    // furniture beside it then had a baseline that was neither the pile's nor
+    // the caption's. Nothing pinned this: moving them back under the pile left
+    // all 579 cases green.
+    expect(count.bottom, lessThanOrEqualTo(pile.top));
+    expect(work.bottom, lessThanOrEqualTo(pile.top));
   });
 
   testWidgets('a phone held sideways still peeks', (tester) async {
