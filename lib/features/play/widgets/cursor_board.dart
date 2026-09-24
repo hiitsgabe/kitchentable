@@ -240,30 +240,57 @@ class _CursorBoardState extends State<CursorBoard> {
         final scale = matScaleFor(constraints.biggest);
         final size = matSize * scale;
 
-        // The slack is real and it is not the mat's: a wide window has room
-        // at the sides, a tall one above and below. Centred, that reads as a
-        // table with room around it. It is also load bearing rather than
-        // decoration: fitting hands this box a height it must not take, and
-        // Center is what lets the mat be smaller than the box it is in.
-        return Center(
-          child: SizedBox(
-            width: size.width,
-            height: size.height,
-            child: CardDropTarget(
-              onDrop: (card, at) => _drop(zone, card, at, scale),
-              child: Stack(
-                // The box a drop is measured against, and the one the test
-                // measures it against too.
-                key: Key('mat-${zone.id}'),
-                children: [
-                  if (zone.cards.isEmpty) _nothingHere(),
-                  for (var i = 0; i < zone.cards.length; i++)
-                    _card(zone, i, cursor, scale),
-                ],
-              ),
+        final mat = SizedBox(
+          width: size.width,
+          height: size.height,
+          child: CardDropTarget(
+            onDrop: (card, at) => _drop(zone, card, at, scale),
+            child: Stack(
+              // The box a drop is measured against, and the one the test
+              // measures it against too.
+              key: Key('mat-${zone.id}'),
+              children: [
+                if (zone.cards.isEmpty) _nothingHere(),
+                for (var i = 0; i < zone.cards.length; i++)
+                  _card(zone, i, cursor, scale),
+              ],
             ),
           ),
         );
+
+        // Either bigger than its box or smaller than it, and both happen on
+        // the same screen. Below the floor the mat stops fitting and the board
+        // is moved instead of the card being shrunk, which is the whole of
+        // task 4; above it the slack is real and it is not the mat's, because
+        // a wide window has room at the sides and a tall one above and below.
+        //
+        // The minimum is what keeps the second half of that true. A scroll
+        // view offers its child as much room as it wants and none that it does
+        // not, so a mat inside one has nothing to be centred in: handed the
+        // box's own size as a minimum, the Center has the slack back and the
+        // mat sits in the middle of it exactly as it did before there was
+        // anywhere to scroll.
+        final middled = ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: constraints.hasBoundedWidth ? constraints.maxWidth : 0,
+            minHeight: constraints.hasBoundedHeight ? constraints.maxHeight : 0,
+          ),
+          child: Center(child: mat),
+        );
+
+        // Both axes, and the vertical one only where there is a height to
+        // scroll inside. A pile whose share is under its own label is already
+        // inside a scroll view of the board's, which hands this an unbounded
+        // height, and a vertical viewport given an unbounded height is an
+        // error rather than a scroll.
+        final sideways = SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: middled,
+        );
+
+        return constraints.hasBoundedHeight
+            ? SingleChildScrollView(child: sideways)
+            : sideways;
       },
     );
 

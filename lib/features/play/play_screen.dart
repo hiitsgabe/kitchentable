@@ -293,6 +293,17 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                   (room < 0 ? 0.0 : room) /
                   (matSize.width + beside);
 
+              // The room the row has, and deliberately not the floor the mat
+              // keeps for itself. Below `matScaleFloor` the mat stops shrinking
+              // and the board scrolls, and the furniture cannot follow it
+              // there: five pieces at a floored card apiece is 428 points of
+              // row on a 358 point phone, measured, and what scrolls off the
+              // right hand end of it is the deck, which is the one thing here
+              // you touch every turn. On a phone the deck comes out at 0.699 of
+              // the card on the mat beside it, which is inside the six tenths
+              // to fourteen tenths a pile of these cards has always been
+              // allowed, and every window wide enough to stand the furniture in
+              // columns is above the floor, where these are the same number.
               final card = math.min(byHeight, byWidth);
 
               // Built once and arranged twice. Two branches each building
