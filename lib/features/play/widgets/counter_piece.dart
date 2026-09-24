@@ -14,9 +14,9 @@ import '../counters.dart';
 /// goes dark. What was here before was an opaque tile with a flat copy of
 /// itself offset down and right, which is a sticker with a drop shadow.
 ///
-/// Four things that make it read as plastic, in the order they are painted:
-/// the cast shadow, the see through body, a sheen down the face, and a rim
-/// lit along the top and dark along the bottom.
+/// Five things that make it read as acrylic, in the order they are painted:
+/// the cast shadow, the see through body, a sheen down the face, a hard gloss
+/// streak across it, and the cut edge lit all the way round.
 ///
 /// One painter and not a stack of clipped boxes, because a stroke along a
 /// clipped path is half a stroke: the clip eats the outer half and the bevel
@@ -253,9 +253,29 @@ class CounterPlastic extends CustomPainter {
   static const shadowDrop = 0.16;
   static const shadowBlur = 0.18;
 
-  /// The bevel, as a fraction of the height. Lit along the top edge and dark
-  /// along the bottom, which is the one cue that says a thing has a thickness.
+  /// The cut edge, as a fraction of the height.
+  ///
+  /// **Bright, not dark.** These are laser cut from transparent acrylic, and a
+  /// cut edge in transparent acrylic pipes light along the sheet and glows: it
+  /// is the lightest part of the object, not the darkest. The first version
+  /// had it lit along the top and dark along the bottom, which is how an
+  /// opaque bevel behaves and is why the piece still read as a printed shape
+  /// with a highlight on it.
   static const rimWidth = 0.1;
+
+  /// The gloss: a hard diagonal streak across the upper half.
+  ///
+  /// The other half of what says acrylic. A sheet of it is glossy and catches
+  /// the room in a band with an edge to it, which is different from the soft
+  /// vertical shading that says "lit from above" and which was all this had.
+  static const glossAt = 0.34;
+
+  /// The two ends of the cut edge. Both lighter than any piece in the box:
+  /// the edge is where the light comes out, so the darker of the two is still
+  /// white, just less of it. This was `0x73000000`, black, which is what an
+  /// opaque bevel does and what made the piece read as printed.
+  static const edgeLit = Color(0xD9FFFFFF);
+  static const edgeShade = Color(0x8CFFFFFF);
 
   /// The silhouette: a bar with a V bitten out of each end.
   static Path pathFor(Size size) {
@@ -306,6 +326,35 @@ class CounterPlastic extends CustomPainter {
         ),
     );
 
+    // The gloss, clipped to the piece: a band with an edge to it, running
+    // across rather than down, which is the room reflected in a sheet of
+    // plastic and not a light source above it.
+
+    // The gloss, clipped to the piece: a band with an edge to it, running
+    // across rather than down, which is the room reflected in a sheet of
+    // plastic and not a light source above it.
+    canvas.save();
+    canvas.clipPath(path);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          box.topLeft,
+          box.bottomRight,
+          const [
+            Color(0x00FFFFFF),
+            Color(0x59FFFFFF),
+            Color(0x59FFFFFF),
+            Color(0x00FFFFFF),
+          ],
+          const [0, glossAt, glossAt + 0.1, glossAt + 0.16],
+        ),
+    );
+    canvas.restore();
+
+    // The cut edge last and brightest, all the way round. Stroked over the
+    // path rather than inside a clip, because a stroke along a clipped path is
+    // half a stroke and the edge came out at half the width it asked for.
     canvas.drawPath(
       path,
       Paint()
@@ -314,7 +363,7 @@ class CounterPlastic extends CustomPainter {
         ..shader = ui.Gradient.linear(
           box.topCenter,
           box.bottomCenter,
-          const [Color(0xB3FFFFFF), Color(0x73000000)],
+          const [edgeLit, edgeShade],
         ),
     );
   }
