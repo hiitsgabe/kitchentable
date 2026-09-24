@@ -97,9 +97,11 @@ void main() {
     // three is still a flat shape. The sheet is about three millimetres, so
     // from above you see the top face and a sliver of the side under it.
     //
-    // A point below the face's own bottom edge and inside the side's, which
-    // only exists if the side is there and is offset.
-    final under = Offset(piece.width / 2, piece.height - 1);
+    // Below the face's own bottom edge and inside the side's. It has to be
+    // below: a point inside the piece is inside the face as well, so taking
+    // the offset away left the whole file green and the probe proved nothing.
+    // The sheet is 0.13 of the height, so at 24.8 tall the side reaches 28.
+    final under = Offset(piece.width / 2, piece.height + 1.5);
     expect(
       find.byType(CounterPieceView),
       paints
