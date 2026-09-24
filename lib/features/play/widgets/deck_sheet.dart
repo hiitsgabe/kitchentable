@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../sources/model/catalog_card.dart';
 import '../../../table/model/card_instance.dart';
+import '../../../ui/atoms/text_field_box.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import '../look_at_top.dart';
@@ -70,12 +71,58 @@ class _DeckSheetState extends State<DeckSheet> {
   /// than filling it in when the cards arrive.
   final Map<String, Landing> _going = {};
 
+  /// Set when the pile on screen is the whole deck being searched rather than
+  /// the top few being looked at.
+  ///
+  /// The two are the same screen and deliberately so: a tutor is looking at
+  /// the deck with a filter on it and a rule about shuffling afterwards.
+  bool _searching = false;
+  final _filter = TextEditingController();
+
+  @override
+  void dispose() {
+    _filter.dispose();
+    super.dispose();
+  }
+
+  /// Every card in the deck, with the filter box open over it.
+  ///
+  /// "Search your library for a card" is on hundreds of cards and there was no
+  /// way to do it: the deck offered shuffling and looking at the top few, so a
+  /// tutor meant looking at all 93 in order.
+  Future<void> _search() async {
+    final cards = await widget.peek(widget.count);
+    if (!mounted) return;
+    setState(() {
+      _looked = cards;
+      _going.clear();
+      _filter.clear();
+      _searching = true;
+      _stage = _Stage.looking;
+    });
+  }
+
+  /// What the filter leaves, by name, or everything when it is empty.
+  List<CardInstance> get _shown {
+    final want = _filter.text.trim().toLowerCase();
+    if (!_searching || want.isEmpty) return _looked;
+
+    return [
+      for (final card in _looked)
+        if ((widget.printings[card.oracleId]?.name ?? '')
+            .toLowerCase()
+            .contains(want))
+          card,
+    ];
+  }
+
   Future<void> _look(int n) async {
     final cards = await widget.peek(n);
     if (!mounted) return;
     setState(() {
       _looked = cards;
       _going.clear();
+      _searching = false;
       _stage = _Stage.looking;
     });
   }
@@ -113,6 +160,14 @@ class _DeckSheetState extends State<DeckSheet> {
             style: TextStyle(fontSize: m.scaled(13), color: Palette.inkFaint),
           )
         else ...[
+          SheetChoice(
+            metrics: m,
+            key: const Key('deck-search'),
+            icon: Icons.search_rounded,
+            label: 'Search for a card',
+            onTap: _search,
+          ),
+          SizedBox(height: m.scaled(10)),
           SheetChoice(
             metrics: m,
             key: const Key('deck-shuffle'),
@@ -189,11 +244,26 @@ class _DeckSheetState extends State<DeckSheet> {
   List<Widget> _looking(Metrics m) => [
         SheetHeading(
           metrics: m,
-          text: _looked.length == 1
-              ? 'The top card'
-              : 'The top ${_looked.length}',
-          note: 'in the order they came off',
+          text: _searching
+              ? 'Search your deck'
+              : _looked.length == 1
+                  ? 'The top card'
+                  : 'The top ${_looked.length}',
+          note: _searching
+              ? 'the whole deck, and it shuffles when you are done'
+              : 'in the order they came off',
         ),
+        if (_searching) ...[
+          SizedBox(height: m.scaled(12)),
+          TextFieldBox(
+            key: const Key('deck-filter'),
+            metrics: m,
+            controller: _filter,
+            hint: 'Card name',
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
         SizedBox(height: m.scaled(12)),
         Flexible(
           child: SingleChildScrollView(
@@ -201,7 +271,7 @@ class _DeckSheetState extends State<DeckSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final card in _looked) _row(m, card),
+                for (final card in _shown) _row(m, card),
               ],
             ),
           ),
@@ -216,10 +286,16 @@ class _DeckSheetState extends State<DeckSheet> {
           // Every card that was looked at, touched or not, because a card
           // left alone is a card going back on top and `arrange` reads the
           // order of the top pile out of this list.
-          onTap: () => widget.onArrange([
-            for (final card in _looked)
-              (cardId: card.id, to: _going[card.id] ?? Landing.top),
-          ]),
+          onTap: () {
+            widget.onArrange([
+              for (final card in _looked)
+                (cardId: card.id, to: _going[card.id] ?? Landing.top),
+            ]);
+            // A tutor shuffles. It is the rule on every card that says
+            // "search your library", and it is also the only thing that stops
+            // a search being a free look at the whole deck in order.
+            if (_searching) widget.onShuffle();
+          },
         ),
       ];
 
