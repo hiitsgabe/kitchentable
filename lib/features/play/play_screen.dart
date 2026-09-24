@@ -142,6 +142,23 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
       (id: battlefield.id, label: battlefield.label, cards: battlefield.cards),
     ];
 
+    // What a card in your hand is drawn at: the card the board under it
+    // draws, up to the width one line of the hand has always been.
+    //
+    // The hand's card was a flat `m.scaled(64)` and the board's was whatever
+    // the leftover came to, 32.19 on a 390 point phone, so a card in your
+    // hand was exactly twice the same card on the table and nothing related
+    // the two. Nothing but the width here, because that is all the board's
+    // card depends on once the furniture is a row under it, and the hand
+    // stands outside the board's own LayoutBuilder where the number is
+    // worked out. Above the threshold this comes out over the hand's ceiling
+    // and the ceiling is what the hand draws at, which is the size it has
+    // always drawn at.
+    final handCard = cardOnMat.width *
+        cardScale *
+        (media.size.width - media.padding.horizontal - m.safeInset * 2) /
+        matSize.width;
+
     final yours = Column(
       key: const Key('your-seat'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -182,16 +199,76 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
               );
               final gap = m.scaled(10);
 
+              // Whether the furniture stands in a row under the board rather
+              // than in two columns beside it.
+              //
+              // The columns cost `aside * 2 + gap * 2` of the row before
+              // either of them has drawn a card in it. A tenth of the row
+              // spent on furniture that draws nothing is the share this calls
+              // too much, and at handheld metrics it falls out to 584 points
+              // of row, which is a 616 point window.
+              //
+              // A tenth and not an eighth because it is also where the card
+              // this arithmetic budgets for stops coming out under 64, the
+              // width one line of the hand is drawn at: that crossing is at
+              // 577.5 points of row, six below this, so from the threshold up
+              // the hand draws at its own ceiling.
+              //
+              // The card the board then draws is not the card budgeted for
+              // here, and it is the smaller of the two: measured at a 616
+              // point window the budget comes to 65.2 and the mat draws 58.5,
+              // so between there and about 690 the hand is still up to nine
+              // percent the bigger of the two. It was a hundred percent on a
+              // phone, which is what this is for, and closing the rest of it
+              // means the hand reading a number that is only known inside
+              // this builder.
+              //
+              // The thickest a pile is ever drawn and not the pile as it
+              // stands, so the layout is settled when you sit down. A pile's
+              // leaves are the fraction of itself it has left, so a count
+              // equal to what it started at is a full one whatever that size
+              // was. Read `aside` live instead and the threshold walks from a
+              // 616 point window down to a 240 point one as the deck thins,
+              // which moves the furniture from a row to two columns somewhere
+              // around the fourth turn of a game.
+              final widest = math.max(
+                LibraryStack.spreadFor(1, 1),
+                m.scaled(6),
+              );
+              final inARow = (widest * 2 + gap * 2) / box.maxWidth > 0.1;
+
               // What is left over when height is what runs out. Infinite
               // when the board is too short to fit a mat at all and scrolls
               // instead, and then the width below is the only answer.
+              //
+              // The row stands in that height, and what it stands there is a
+              // card at the board's own scale: the same shape as the width
+              // below, solved the same way, so the piles under the board are
+              // the size of the cards on it rather than of the ones a board
+              // with the whole height would have drawn. Generous by the
+              // pile's own count row, the way `aside` is and for the same
+              // reason.
+              //
+              // No case pins this: at a phone's width it is the width that
+              // binds and this term changes nothing there. What it buys shows
+              // up on a window too short for the mat it is wide enough for,
+              // measured on a 390 by 500 one at a deck 1.53 times the card
+              // beside it with this and 2.45 times without. Neither of those
+              // is a phone and neither of them is right; a board that short
+              // is its own job.
+              final under = inARow ? cardOnMat.height * cardScale : 0.0;
               final byHeight = cardOnMat.width *
                   cardScale *
                   CursorBoard.scaleFor(
-                    box: Size(double.infinity, box.maxHeight),
+                    box: Size(
+                      double.infinity,
+                      inARow ? box.maxHeight - gap : box.maxHeight,
+                    ),
                     zones: zones,
                     metrics: m,
-                  );
+                  ) *
+                  matSize.height /
+                  (matSize.height + under);
 
               // And when width is. The card is on both sides of this one,
               // because the board only gets the width the cards beside it
@@ -201,13 +278,84 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
               // Two lots of that now, not one: the graveyard stands in its own
               // column across the board from the deck, so there is a card and
               // its furniture out of the row on each side.
-              final room = box.maxWidth - aside * 2 - gap * 2;
+              //
+              // In a row there is neither a column to subtract nor a card
+              // beside the board: it gets the whole row, and the mat's own
+              // 640 units are all the card is a fraction of.
+              final beside = inARow ? 0.0 : cardOnMat.width * cardScale;
+              final room = inARow
+                  ? box.maxWidth
+                  : box.maxWidth - aside * 2 - gap * 2;
               final byWidth = cardOnMat.width *
                   cardScale *
                   (room < 0 ? 0.0 : room) /
-                  (matSize.width + cardOnMat.width * cardScale);
+                  (matSize.width + beside);
 
               final card = math.min(byHeight, byWidth);
+
+              // Built once and arranged twice. Two branches each building
+              // their own board is how the two renderers drifted apart, and
+              // the corner and the deck take the card they are handed here
+              // whichever way round they end up standing.
+              final board = CursorBoard(
+                key: const Key('your-board'),
+                metrics: m,
+                cardScale: cardScale,
+                zones: zones,
+                printings: _printings,
+                onActivate: (c) => play.run(RotateCard(c.id)),
+                onInspect: _inspect,
+                onPlace: _place,
+                game: play.gameAt(seat.id),
+              );
+              final corner = command == null
+                  ? null
+                  : CommandSlot(
+                      metrics: m,
+                      cards: command.cards,
+                      printings: _printings,
+                      width: card,
+                      onTap: (c) => play.run(
+                        MoveCard(cardId: c.id, toZoneId: battlefield.id),
+                      ),
+                      onInspect: _inspect,
+                      onSendHome: (c) => play.run(
+                        MoveCard(cardId: c.id, toZoneId: command.id),
+                      ),
+                      game: play.gameAt(seat.id),
+                    );
+              final deck = LibraryStack(
+                metrics: m,
+                count: library.size,
+                of: play.deckSizeAt(seat.id),
+                width: card,
+                game: play.gameAt(seat.id),
+                onDraw: () => play.run(DrawCards(
+                  fromZoneId: library.id,
+                  toZoneId: hand.id,
+                  count: 1,
+                )),
+                onWork: _workTheDeck,
+              );
+
+              if (inARow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: board),
+                    SizedBox(height: gap),
+                    _Underneath(
+                      room: box.maxWidth,
+                      gap: gap,
+                      graveyard: _pile(m, graveyard, width: card),
+                      dice: _diceTray(width: card),
+                      makeToken: _tokenButton(m, width: card),
+                      command: corner,
+                      library: deck,
+                    ),
+                  ],
+                );
+              }
 
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -223,52 +371,9 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                     makeToken: _tokenButton(m, width: card),
                   ),
                   SizedBox(width: gap),
-                  Expanded(
-                    child: CursorBoard(
-                      key: const Key('your-board'),
-                      metrics: m,
-                      cardScale: cardScale,
-                      zones: zones,
-                      printings: _printings,
-                      onActivate: (c) => play.run(RotateCard(c.id)),
-                      onInspect: _inspect,
-                      onPlace: _place,
-                      game: play.gameAt(seat.id),
-                    ),
-                  ),
+                  Expanded(child: board),
                   SizedBox(width: gap),
-                  _Beside(
-                    metrics: m,
-                    command: command == null
-                        ? null
-                        : CommandSlot(
-                            metrics: m,
-                            cards: command.cards,
-                            printings: _printings,
-                            width: card,
-                            onTap: (c) => play.run(
-                              MoveCard(cardId: c.id, toZoneId: battlefield.id),
-                            ),
-                            onInspect: _inspect,
-                            onSendHome: (c) => play.run(
-                              MoveCard(cardId: c.id, toZoneId: command.id),
-                            ),
-                            game: play.gameAt(seat.id),
-                          ),
-                    library: LibraryStack(
-                      metrics: m,
-                      count: library.size,
-                      of: play.deckSizeAt(seat.id),
-                      width: card,
-                      game: play.gameAt(seat.id),
-                      onDraw: () => play.run(DrawCards(
-                        fromZoneId: library.id,
-                        toZoneId: hand.id,
-                        count: 1,
-                      )),
-                      onWork: _workTheDeck,
-                    ),
-                  ),
+                  _Beside(metrics: m, command: corner, library: deck),
                 ],
               );
             },
@@ -276,6 +381,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
         ),
         HandSheet(
           metrics: m,
+          cardWidth: handCard,
           cards: mine ? hand.cards : const [],
           printings: _printings,
           onPlay: (c) => play.run(
@@ -835,6 +941,86 @@ class _Across extends StatelessWidget {
             const SizedBox(height: 12),
             makeToken,
           ],
+        ),
+      );
+}
+
+/// The graveyard, the dice, the token control, the corner and the deck, in a
+/// row under your own board.
+///
+/// Two columns beside the board cost `aside * 2 + gap * 2` of the row before
+/// either of them draws a card, and on a 390 point phone that left the board
+/// 59 percent of the screen with a card on it half the size of the same card
+/// in your hand. Under the board what they cost is height, which is the one
+/// thing a phone held upright has to spare.
+///
+/// The graveyard at one end and the deck at the other, the way the columns
+/// had them: a graveyard sits across the table from the library, and the
+/// controls that are not piles of cards stand between them rather than either
+/// side of the board.
+///
+/// It scrolls sideways rather than overflowing, for the same reason [_Beside]
+/// scrolls down. Five pieces of furniture at a card's width each is more than
+/// a phone's row holds, and the answer is not to shave the card down to
+/// whatever a fifth of the row comes to: these are cards off this table and
+/// the size of the cards on it is the whole reason the board says its scale
+/// out loud.
+class _Underneath extends StatelessWidget {
+  const _Underneath({
+    required this.room,
+    required this.gap,
+    required this.graveyard,
+    required this.dice,
+    required this.makeToken,
+    required this.command,
+    required this.library,
+  });
+
+  /// How wide the row it stands in is.
+  ///
+  /// So the pieces spread across it rather than bunching at the left: the
+  /// graveyard ends up hard against one edge and the deck against the other,
+  /// which is where the two columns had them and where a deck is at a table.
+  /// It is also the width past which the row scrolls, and then there is no
+  /// room left over to spread and the gaps are the gaps below.
+  final double room;
+
+  final double gap;
+  final Widget graveyard;
+  final Widget dice;
+  final Widget makeToken;
+
+  /// Null in a format without commanders, which is not an empty corner: an
+  /// empty one is still drawn, for the reason [_Beside] gives.
+  final Widget? command;
+
+  final Widget library;
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        // Along the bottom edge and not up the middle of the row. The pieces
+        // are different heights, and a table stands them all on the same
+        // surface.
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: room),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              graveyard,
+              SizedBox(width: gap),
+              dice,
+              SizedBox(width: gap),
+              makeToken,
+              SizedBox(width: gap),
+              if (command != null) ...[
+                command!,
+                SizedBox(width: gap),
+              ],
+              library,
+            ],
+          ),
         ),
       );
 }
