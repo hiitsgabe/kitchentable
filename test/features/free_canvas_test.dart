@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/features/play/renderers/free_canvas.dart';
@@ -48,21 +49,27 @@ Widget _host(
   Game? Function(String seatId)? gameFor,
   List<CardInstance>? commandCards,
 }) =>
-    MaterialApp(
-      home: Scaffold(
-        body: FreeCanvas(
-          metrics: Metrics.of(DeviceClass.handheld),
-          seats: [for (final s in seats) SeatView.of(s, viewer: viewer)],
-          viewerSeatId: viewer,
-          printings: const {},
-          libraryCount: libraryCount,
-          onTapCard: onTapCard ?? (_) {},
-          onInspectCard: (_) {},
-          onPlace: onPlace ?? (_, _, _) {},
-          onDraw: onDraw ?? () {},
-          onWorkDeck: onWorkDeck ?? () {},
-          gameFor: gameFor,
-          commandCards: commandCards,
+    // Every card here is a `DraggableCard`, which says a drag is on through a
+    // provider rather than through a parameter of its own, so it needs a scope
+    // to say it into. In the app that scope is the one the whole screen is
+    // under.
+    ProviderScope(
+      child: MaterialApp(
+        home: Scaffold(
+          body: FreeCanvas(
+            metrics: Metrics.of(DeviceClass.handheld),
+            seats: [for (final s in seats) SeatView.of(s, viewer: viewer)],
+            viewerSeatId: viewer,
+            printings: const {},
+            libraryCount: libraryCount,
+            onTapCard: onTapCard ?? (_) {},
+            onInspectCard: (_) {},
+            onPlace: onPlace ?? (_, _, _) {},
+            onDraw: onDraw ?? () {},
+            onWorkDeck: onWorkDeck ?? () {},
+            gameFor: gameFor,
+            commandCards: commandCards,
+          ),
         ),
       ),
     );

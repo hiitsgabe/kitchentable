@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/features/play/widgets/card_drag.dart';
 import 'package:kitchentable/table/model/card_instance.dart';
@@ -9,33 +10,39 @@ Widget _host({
   void Function(CardInstance, Offset)? onDrop,
   bool canDrag = true,
 }) =>
-    MaterialApp(
-      home: Scaffold(
-        body: Column(
-          children: [
-            SizedBox(
-              height: 120,
-              child: Center(
-                child: DraggableCard(
-                  card: _card,
-                  canDrag: canDrag,
-                  child: const SizedBox(
-                    key: Key('the-card'),
-                    width: 60,
-                    height: 84,
+    // Every card here is a `DraggableCard`, which says a drag is on through a
+    // provider rather than through a parameter of its own, so it needs a scope
+    // to say it into. In the app that scope is the one the whole screen is
+    // under.
+    ProviderScope(
+      child: MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              SizedBox(
+                height: 120,
+                child: Center(
+                  child: DraggableCard(
+                    card: _card,
+                    canDrag: canDrag,
+                    child: const SizedBox(
+                      key: Key('the-card'),
+                      width: 60,
+                      height: 84,
+                    ),
                   ),
                 ),
               ),
-            ),
-            Expanded(
-              child: CardDropTarget(
-                onDrop: onDrop ?? (_, _) {},
-                child: const SizedBox.expand(
-                  key: Key('the-target'),
+              Expanded(
+                child: CardDropTarget(
+                  onDrop: onDrop ?? (_, _) {},
+                  child: const SizedBox.expand(
+                    key: Key('the-target'),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

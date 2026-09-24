@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../table/model/card_instance.dart';
+import '../dragging.dart';
 
 /// A card you can pick up and drop somewhere else.
 ///
@@ -13,7 +15,7 @@ import '../../../table/model/card_instance.dart';
 /// The feedback is the card itself at full size and what is left behind is a
 /// faint outline, so it still looks like the card is moving rather than like
 /// a ghost being spawned. That was the part worth keeping.
-class DraggableCard extends StatelessWidget {
+class DraggableCard extends ConsumerWidget {
   const DraggableCard({
     super.key,
     required this.card,
@@ -28,11 +30,28 @@ class DraggableCard extends StatelessWidget {
   final bool canDrag;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (!canDrag) return child;
+
+    final dragging = ref.read(draggingProvider.notifier);
 
     return Draggable<CardInstance>(
       data: card,
+      // Said out loud, once, rather than handed to each thing a card can land
+      // on. Every zone on the screen watches this and grows into a target
+      // while it is true, and a parameter instead would be a hand off site per
+      // widget between here and each of them.
+      onDragStarted: dragging.started,
+      // These two and not `onDragEnd`, which is the obvious one and is the
+      // one that does not always arrive. A card can leave the tree while it is
+      // in the air: somebody else moves it, or it lands somewhere that redraws
+      // the row it came from. `Draggable` keeps the drag alive across that on
+      // purpose, and then guards `onDragEnd` on the widget still being
+      // mounted, so the end of that drag is never reported to it. These two
+      // are not guarded and exactly one of them fires for every end there is,
+      // accepted or not, so between them nothing is left in the air.
+      onDragCompleted: dragging.ended,
+      onDraggableCanceled: (_, _) => dragging.ended(),
       // The whole rectangle is the grab area, corners and gaps included. A
       // card reads as one solid object, and deferring to the child means the
       // transparent parts of it are not pickable.

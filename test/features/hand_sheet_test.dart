@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
@@ -30,16 +31,22 @@ Widget _host({
   void Function(String cardId, int to)? onReorder,
   Game? game,
 }) =>
-    MaterialApp(
-      home: Scaffold(
-        body: HandSheet(
-          metrics: Metrics.of(DeviceClass.handheld),
-          cards: _hand(cards),
-          printings: printings,
-          onPlay: (_) {},
-          onInspect: (_) {},
-          onReorder: onReorder ?? (_, _) {},
-          game: game,
+    // Every card here is a `DraggableCard`, which says a drag is on through a
+    // provider rather than through a parameter of its own, so it needs a scope
+    // to say it into. In the app that scope is the one the whole screen is
+    // under.
+    ProviderScope(
+      child: MaterialApp(
+        home: Scaffold(
+          body: HandSheet(
+            metrics: Metrics.of(DeviceClass.handheld),
+            cards: _hand(cards),
+            printings: printings,
+            onPlay: (_) {},
+            onInspect: (_) {},
+            onReorder: onReorder ?? (_, _) {},
+            game: game,
+          ),
         ),
       ),
     );
@@ -103,15 +110,17 @@ void main() {
 
   testWidgets('a tap still plays the card', (tester) async {
     CardInstance? played;
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: HandSheet(
-          metrics: Metrics.of(DeviceClass.handheld),
-          cards: _hand(3),
-          printings: const {},
-          onPlay: (c) => played = c,
-          onInspect: (_) {},
-          onReorder: (_, _) {},
+    await tester.pumpWidget(ProviderScope(
+      child: MaterialApp(
+        home: Scaffold(
+          body: HandSheet(
+            metrics: Metrics.of(DeviceClass.handheld),
+            cards: _hand(3),
+            printings: const {},
+            onPlay: (c) => played = c,
+            onInspect: (_) {},
+            onReorder: (_, _) {},
+          ),
         ),
       ),
     ));
