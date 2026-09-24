@@ -32,6 +32,7 @@ import 'widgets/library_stack.dart';
 import 'widgets/pile_sheet.dart';
 import 'widgets/radar_strip.dart';
 import 'widgets/token_sheet.dart';
+import 'dragging.dart';
 import 'widgets/zone_chip.dart';
 
 class PlayScreen extends ConsumerStatefulWidget {
@@ -72,10 +73,11 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
+    final device = classifyDevice(
       size: media.size,
       hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    );
+    final m = Metrics.of(device);
     final table = ref.watch(playProvider);
     final play = ref.read(playProvider.notifier);
     final cardScale = ref.watch(cardScaleProvider);
@@ -367,6 +369,9 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                     SizedBox(height: gap),
                     _Underneath(
                       gap: gap,
+                      band: ref.watch(draggingProvider)
+                          ? card * 88 / 63
+                          : zoneChipHeight,
                       graveyard: _chip(m, graveyard, width: card),
                       dice: _diceTray(width: card),
                       makeToken: _tokenButton(m, width: card),
@@ -576,13 +581,18 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                     ),
                 },
               ),
-              HintBar(
-                metrics: m,
-                hints: const [
-                  Hint(button: 'A', label: 'tap to turn'),
-                  Hint(button: 'B', label: 'back'),
-                ],
-              ),
+              // Only where there is a D-pad. These name the buttons on a
+              // remote, and on a phone or a desktop they are two rows of
+              // nothing at the bottom of the screen naming controls the device
+              // does not have.
+              if (device == DeviceClass.tv)
+                HintBar(
+                  metrics: m,
+                  hints: const [
+                    Hint(button: 'A', label: 'tap to turn'),
+                    Hint(button: 'B', label: 'back'),
+                  ],
+                ),
             ],
           ),
         ),
@@ -1044,6 +1054,7 @@ class _Across extends StatelessWidget {
 class _Underneath extends StatelessWidget {
   const _Underneath({
     required this.gap,
+    required this.band,
     required this.graveyard,
     required this.dice,
     required this.makeToken,
@@ -1052,6 +1063,15 @@ class _Underneath extends StatelessWidget {
   });
 
   final double gap;
+
+  /// How tall the band beside the deck stands.
+  ///
+  /// [zoneChipHeight] at rest, and a card while something is being dragged:
+  /// the chips grow into drop targets then, and a band pinned to the resting
+  /// height scaled them straight back down again, which is a target that looks
+  /// like it grew and did not.
+  final double band;
+
   final Widget graveyard;
   final Widget dice;
   final Widget makeToken;
@@ -1085,40 +1105,57 @@ class _Underneath extends StatelessWidget {
           // chips can take room from it.
           library,
           SizedBox(width: gap),
-          // A drop target several times a turn, which is more than the command
-          // zone and far more than the dice. Empty, it is already a chip, and
-          // that is the right amount of nothing.
-          _squeezed(graveyard),
-          if (command != null) ...[
-            SizedBox(width: gap),
-            _squeezed(command!),
-          ],
-          SizedBox(width: gap),
-          _squeezed(dice),
-          SizedBox(width: gap),
-          _squeezed(makeToken),
+          // Everything that is not the deck, in one band of equal height and
+          // equal share, running to the same right hand gutter the board and
+          // the hand end on.
+          //
+          // It used to be five things 122.9, 36, 77, 21.7 and 51 points tall
+          // sitting on one baseline and stopping 52 points short of that
+          // gutter, which is the whole of "a linha que tem o deck toda
+          // confusa e desalinhada": nothing lined up with anything and the row
+          // did not end where the two bands above it end.
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              // Spread rather than given equal shares: equal shares centre
+              // each thing in its own column, which left the last one 13.5
+              // points short of the gutter the board and the hand end on.
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // A drop target several times a turn, which is more than the
+                // command zone and far more than the dice.
+                // Flexible as well as spread: while a card is in the air the
+                // band is a card tall and every chip grows with it, which came
+                // to 60 points more than the row has. They give width back
+                // instead of overflowing.
+                Flexible(child: _band(graveyard)),
+                if (command != null) Flexible(child: _band(command!)),
+                Flexible(child: _band(dice)),
+                Flexible(child: _band(makeToken)),
+              ],
+            ),
+          ),
         ],
       );
 
-  /// Takes its natural size while there is room and gets smaller when there is
-  /// not, rather than overflowing or scrolling off.
+  /// One slot in the band beside the deck: a fixed height, and whatever is in
+  /// it scaled down to sit in it.
   ///
-  /// The row used to scroll sideways, and what scrolled off was the deck: the
-  /// card size is a setting, and at five notches of zoom the furniture came to
-  /// 457 points on a 358 point phone, which put the one thing you touch every
-  /// turn 67 points past the right edge. Reported as "you need to scroll right
-  /// to see the deck", measured at scale 1.4 and worse at 1.5.
-  ///
-  /// Scaled down whole rather than given a narrower box, because these are
-  /// pictures of objects and a graveyard squeezed into a thinner graveyard is
-  /// not what a crowded table looks like.
-  static Widget _squeezed(Widget child) => Flexible(
+  /// Scaled whole rather than given a narrower box, because these are pictures
+  /// of objects and a graveyard squeezed into a thinner graveyard is not what
+  /// a crowded table looks like.
+  Widget _band(Widget child) => SizedBox(
+        height: band,
+        // Contain and not scaleDown: scaleDown only ever shrinks, which left
+        // the dice at 21.7 points in a 36 point band looking dropped rather
+        // than placed. Contain fills the band in both directions.
         child: FittedBox(
-          fit: BoxFit.scaleDown,
+          fit: BoxFit.contain,
           alignment: Alignment.bottomCenter,
           child: child,
         ),
       );
+
 }
 
 /// The corner, the deck and the token button, standing beside your own mat.

@@ -19,6 +19,14 @@ import 'card_drag.dart';
 /// what an outline of a card cost and says more than the outline did.
 const _resting = 36.0;
 
+/// How tall a chip stands when nothing is being dragged at it.
+///
+/// Said out loud so the row under the board can stand its other furniture in
+/// a band of the same height. A row of five things 21.7, 36, 51, 77 and 122.9
+/// points tall, bottom aligned, is what "toda confusa e desalinhada" was: no
+/// two of them agreed about anything, so the eye had nothing to follow.
+const zoneChipHeight = _resting;
+
 /// A pile of cards as a chip, which is what a zone is worth until you aim at
 /// something at it.
 ///

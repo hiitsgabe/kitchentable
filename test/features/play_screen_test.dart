@@ -1493,6 +1493,57 @@ void main() {
         reason: 'the hand is still peeking on a window with room');
   });
 
+  testWidgets('every band on the phone runs between the same two margins',
+      (tester) async {
+    await _seatedPod(tester, ['you'], withCommander: true);
+    await tester.pumpAndSettle();
+
+    final screen = tester.getRect(find.byType(PlayScreen));
+    const gutter = 16.0;
+
+    // Measured before this existed: the board and the hand ran 16 to 374 and
+    // the row under them stopped at 337.5, so the one band with five objects
+    // in it was also the one that did not end where the others end. The strip
+    // of dead air at its right was most of "toda confusa e desalinhada".
+    for (final band in {
+      'board': find.byKey(const Key('your-board')),
+      'hand': find.byType(HandSheet),
+    }.entries) {
+      final r = tester.getRect(band.value);
+      expect(r.left, gutter, reason: '${band.key} starts off the margin');
+      expect(screen.right - r.right, gutter,
+          reason: '${band.key} ends off the margin');
+    }
+
+    final deck = tester.getRect(find.byKey(const Key('library-stack')));
+    final token = tester.getRect(find.byKey(const Key('make-token')));
+    expect(deck.left, gutter, reason: 'the row starts off the margin');
+    expect(screen.right - token.right, gutter,
+        reason: 'the row ends off the margin');
+
+    // And the four things beside the deck stand in one band rather than at
+    // five different heights. They were 36, 77, 21.7 and 51 points tall on one
+    // baseline, which gave the eye nothing to follow.
+    final chips = [
+      find.byKey(const Key('graveyard-stack')),
+      find.byType(CommandSlot),
+      find.byType(DiceTray),
+      find.byKey(const Key('make-token')),
+    ].map(tester.getRect).toList();
+    final band = chips.first.height;
+    for (final chip in chips) {
+      expect(chip.bottom, chips.first.bottom,
+          reason: 'the band has more than one baseline');
+      // Within a fifth of the band and never over it. Not exactly equal: a
+      // command slot holding a commander is bound by its share of the width
+      // before it is bound by the band, and comes out 30.2 against 36. The
+      // fifth is what still catches the row this replaced, where the same four
+      // objects were 36, 77, 21.7 and 51.
+      expect(chip.height, lessThanOrEqualTo(band));
+      expect(chip.height, greaterThanOrEqualTo(band * 0.8));
+    }
+  });
+
   testWidgets('a phone held sideways still peeks', (tester) async {
     await _seatedPod(tester, ['you'], window: const Size(844, 390));
     await tester.pumpAndSettle();
