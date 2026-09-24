@@ -27,6 +27,35 @@ String? artFor(
   return card.imageSmall ?? card.imageNormal ?? card.imageLarge;
 }
 
+/// How much bigger than its own width a card is actually being drawn.
+///
+/// The canvas lays every card out in mat units and then scales the whole
+/// surface with an `InteractiveViewer`, so a card that asks for a 90 unit
+/// picture can be on screen at 225 points once somebody zooms in. [artFor]
+/// only ever saw the 90 and kept handing out the small file to be stretched,
+/// which is what "a qualidade da imagem das cartas diminui" was on the view
+/// with everybody's mat in it.
+///
+/// An inherited value and not a parameter. The cards it has to reach are
+/// behind mats, asides, piles and corners, and threading a number through all
+/// of them is a hand off site per widget that nothing checks: this codebase
+/// has already shipped a `Game?` that six widgets passed on and a seventh
+/// quietly did not.
+///
+/// One where nothing says otherwise, which is every view that draws a card at
+/// the size it means.
+class ArtScale extends InheritedWidget {
+  const ArtScale({super.key, required this.scale, required super.child});
+
+  final double scale;
+
+  static double around(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ArtScale>()?.scale ?? 1;
+
+  @override
+  bool updateShouldNotify(ArtScale old) => old.scale != scale;
+}
+
 /// A card, as a picture.
 ///
 /// Fetched one at a time and cached on the device, never in bulk. A whole
@@ -56,7 +85,8 @@ class CardArt extends StatelessWidget {
     final url = artFor(
       card,
       width: width,
-      pixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1,
+      pixelRatio: (MediaQuery.maybeDevicePixelRatioOf(context) ?? 1) *
+          ArtScale.around(context),
     );
 
     return ClipRRect(
