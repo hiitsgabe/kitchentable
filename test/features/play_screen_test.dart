@@ -11,6 +11,7 @@ import 'package:kitchentable/features/menu/menu_controller.dart';
 import 'package:kitchentable/features/play/play_screen.dart';
 import 'package:kitchentable/features/play/renderers/free_canvas.dart';
 import 'package:kitchentable/features/play/renderers/stacked_seats.dart';
+import 'package:kitchentable/features/play/dice/dice_tray.dart';
 import 'package:kitchentable/features/play/widgets/command_slot.dart';
 import 'package:kitchentable/features/play/widgets/cursor_board.dart';
 import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
@@ -411,19 +412,30 @@ void main() {
     expect(library.cards.last.id, top.id);
     expect(library.cards, hasLength(53));
   });
-  testWidgets('the deck sits to the right, not in the middle',
+  testWidgets('nothing can take the deck\'s place in the row',
       (tester) async {
-    await _seatedPod(tester, ['you']);
+    // Five notches of zoom, which is a setting a player can be sitting on and
+    // which scales every piece of furniture in the row. At this size the row
+    // came to 457 points on a 358 point phone and what went past the edge was
+    // the deck, because the deck was last.
+    SharedPreferences.setMockInitialValues({'cardScale': 1.5});
+    await _seatedPod(tester, ['you'], withCommander: true);
+    await tester.pumpAndSettle();
 
     final screen = tester.getRect(find.byType(PlayScreen));
     final deck = tester.getRect(find.byKey(const Key('library-stack')));
+    final bin = tester.getRect(find.byKey(const Key('graveyard-stack')));
 
-    // A deck sits by your right hand at a table. In the middle it reads as
-    // part of the battlefield.
-    expect(deck.center.dx, greaterThan(screen.center.dx),
-        reason: 'the deck must be on the right half');
-    expect(screen.right - deck.right, lessThan(screen.width * 0.2),
-        reason: 'and close to the edge, not adrift');
+    // First, and outside the flex, so it is laid out before anything else is
+    // given a share. A deck by your right hand is a rule about a table; this
+    // is a rule about a screen you read left to right, where the first slot is
+    // the most valuable thing the row has to give away and the deck is the
+    // only one of the five you touch every single turn.
+    expect(deck.left, lessThan(bin.left),
+        reason: 'something is ahead of the deck');
+    expect(deck.right, lessThanOrEqualTo(screen.right),
+        reason: 'the deck is off the edge again');
+    expect(deck.left, greaterThanOrEqualTo(screen.left));
   });
 
   testWidgets('the pile on the table is drawn with the game\'s back',
@@ -913,7 +925,7 @@ void main() {
         reason: 'the token control swaps sides between the two views');
   });
 
-  testWidgets('the graveyard is on the far side from the deck',
+  testWidgets('the row under the board is ranked, not just filled',
       (tester) async {
     await _seatedPod(tester, ['you'], withCommander: true);
     await tester.pumpAndSettle();
@@ -922,18 +934,21 @@ void main() {
     final bin = tester.getRect(find.byKey(const Key('graveyard-stack')));
     final deck = tester.getRect(find.byKey(const Key('library-stack')));
 
-    // A graveyard sits across the table from the library, not stacked under
-    // it: stacked, the column is two cards tall and the corner has nowhere
-    // left to go.
+    final dice = tester.getRect(find.byType(DiceTray));
+    final token = tester.getRect(find.byKey(const Key('make-token')));
+
+    // Ranked, and read left to right. The row used to run token, dice,
+    // graveyard, command, deck, which is this list upside down: the two
+    // controls a game touches least held the first two slots and an empty
+    // graveyard was the most prominent object on the screen.
     //
-    // At a phone's width that is along the row under the board rather than in
-    // the columns either side of it, and the two ends of the row are what is
-    // left of the far side: the pieces went below the board, not on top of
-    // each other. The wide arrangement is pinned by the case that keeps the
-    // furniture beside the board on a wide window.
+    // Deck every turn, graveyard several times a turn as a drop target, the
+    // command zone a few times a game, dice and tokens hardly ever.
     expect(bin.top, greaterThanOrEqualTo(board.bottom),
         reason: 'the furniture is still beside the board, not under it');
-    expect(bin.right, lessThanOrEqualTo(deck.left));
+    expect(deck.left, lessThan(bin.left));
+    expect(bin.left, lessThan(dice.left));
+    expect(dice.left, lessThan(token.left));
   });
 
   testWidgets('nothing in the aside runs off the bottom', (tester) async {
