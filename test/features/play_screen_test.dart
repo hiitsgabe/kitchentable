@@ -16,6 +16,7 @@ import 'package:kitchentable/features/play/widgets/cursor_board.dart';
 import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
 import 'package:kitchentable/features/play/widgets/radar_strip.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
+import 'package:kitchentable/features/play/widgets/zone_chip.dart';
 import 'package:kitchentable/features/play/widgets/seat_band.dart';
 import 'package:kitchentable/table/model/seat_owner.dart';
 import 'package:kitchentable/table/actions/table_action.dart';
@@ -1450,6 +1451,45 @@ void main() {
         reason: 'the board is under the ceiling, so this window proves '
             'nothing about the hand following it');
     expect(inHand, closeTo(64, 0.5));
+  });
+
+  testWidgets('a window with room shows the whole graveyard and hand',
+      (tester) async {
+    await _seatedPod(tester, ['you'], window: const Size(1440, 900));
+    await tester.pumpAndSettle();
+
+    // Both of these are adaptations to a phone and both of them shipped
+    // unconditionally. On a 1909 by 989 desktop the graveyard was a 36 point
+    // chip in an acre of empty table and the hand was a strip with the top
+    // thirty points of seven cards showing, on a window with room for all of
+    // it. A phone's answer is not a smaller version of the right answer.
+    expect(find.byType(ZoneChip), findsNothing,
+        reason: 'the graveyard is still a chip on a window with room');
+    expect(find.byKey(const Key('graveyard-stack')), findsOneWidget);
+
+    final hand = tester.getRect(find.byType(HandSheet));
+    final card = tester
+        .getSize(find.descendant(
+          of: find.byType(HandSheet),
+          matching: find.byType(TableCard),
+        ).first)
+        .height;
+    expect(hand.height, greaterThan(card),
+        reason: 'the hand is still peeking on a window with room');
+  });
+
+  testWidgets('a phone held sideways still peeks', (tester) async {
+    await _seatedPod(tester, ['you'], window: const Size(844, 390));
+    await tester.pumpAndSettle();
+
+    final screen = tester.getRect(find.byType(PlayScreen));
+    final hand = tester.getRect(find.byType(HandSheet));
+
+    // Wide enough to be past every width threshold in this file and 390
+    // points tall, so the room that matters is the one it has least of. The
+    // desktop case above must not be bought by giving this one a parked hand
+    // in 390 points of height.
+    expect(hand.height / screen.height, lessThan(0.2));
   });
 }
 

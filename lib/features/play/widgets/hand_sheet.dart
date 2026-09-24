@@ -46,6 +46,57 @@ const _handleHeight = 22.0;
 /// show you seven cards you are only choosing between.
 const _cardWidth = 64.0;
 
+/// The share of the screen a hand standing at its full height is worth.
+///
+/// Past this it peeks instead and comes up on a tap. A fifth, because that is
+/// where the two windows this has to tell apart fall either side: seven cards
+/// at 64 points wrap onto two lines on a 358 point phone, 198 points of an 844
+/// point screen at 23 percent, and stand on one line on a desktop at 96 points
+/// of 900 at 11 percent.
+const _worthStandingUp = 0.2;
+
+/// How many cards of this width fit across, never fewer than one.
+int _perLineFor(double room, double width, double gap) {
+  final fits = ((room + gap) / (width + gap)).floor();
+  return fits < 1 ? 1 : fits;
+}
+
+/// Whether standing this hand up costs more of the screen than it is worth.
+///
+/// The peek was written for a phone and shipped on every window, which put a
+/// strip with the top thirty points of seven cards showing on a 1909 by 989
+/// desktop with room for all of it. A phone's answer is not a smaller version
+/// of the right answer.
+///
+/// Neither a width test nor a height test, because a phone is expensive both
+/// ways round and for different reasons: held upright the hand wraps onto a
+/// second line and costs 198 of 844 points, and held sideways it needs only
+/// one line and that line is a quarter of the 390 points there are. What both
+/// have in common is the share, so the share is what this asks, and the height
+/// it asks about comes out of the same arithmetic the hand lays itself out
+/// with rather than an estimate standing beside it.
+///
+/// An empty hand is never expensive: there is nothing to stand up.
+bool handIsExpensive(
+  Size screen,
+  Metrics m, {
+  required double room,
+  required double card,
+  required int cards,
+}) {
+  if (cards == 0) return false;
+
+  final gap = m.scaled(6);
+  final ceiling = m.scaled(_cardWidth);
+  final width = card < ceiling ? card : ceiling;
+
+  var lines = (cards / _perLineFor(room, width, gap)).ceil();
+  if (lines > _mostLines) lines = _mostLines;
+
+  return lines * m.scaled(_lineHeight) + (lines - 1) * gap >
+      screen.height * _worthStandingUp;
+}
+
 /// The hand, along the bottom, peeking until you ask for it.
 ///
 /// Shut it is a strip of the tops of the cards, and one tap target: 55 points
@@ -213,7 +264,7 @@ class _HandSheetState extends State<HandSheet> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final room = constraints.maxWidth;
-        var perLine = _perLine(room, full, gap);
+        var perLine = _perLineFor(room, full, gap);
         var lines = (widget.cards.length / perLine).ceil();
         var width = full;
 
@@ -250,12 +301,6 @@ class _HandSheetState extends State<HandSheet> {
         );
       },
     );
-  }
-
-  /// How many cards of this width fit across, never fewer than one.
-  int _perLine(double room, double width, double gap) {
-    final fits = ((room + gap) / (width + gap)).floor();
-    return fits < 1 ? 1 : fits;
   }
 
   Widget _card(Metrics m, int index, double width) {
