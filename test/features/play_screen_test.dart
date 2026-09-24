@@ -1602,6 +1602,50 @@ void main() {
     expect(work.bottom, lessThanOrEqualTo(pile.top));
   });
 
+  testWidgets('the mat shows where the table is, louder while you aim',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    Border edgeOfMat() => (tester
+            .widget<DecoratedBox>(find
+                .ancestor(
+                  of: find.byKey(const Key('mat-battlefield-s1')),
+                  matching: find.byType(DecoratedBox),
+                )
+                .first)
+            .decoration as BoxDecoration)
+        .border! as Border;
+
+    // The mat had no surface at all: the dark gradient behind it is the
+    // screen's, so the rectangle a card can be dropped on was invisible. On a
+    // phone it is 304 points of a 590 point board and the slack above and
+    // below it belongs to nothing.
+    final resting = edgeOfMat();
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.descendant(
+        of: find.byKey(const Key('your-board')),
+        matching: find.byType(TableCard),
+      )),
+    );
+    await gesture.moveBy(const Offset(0, 150));
+    await tester.pumpAndSettle();
+
+    // Louder while a card is in the air, which is the one moment the answer to
+    // "where can this go" is worth saying out loud.
+    final aiming = edgeOfMat();
+    expect(aiming.top.color, isNot(resting.top.color));
+    expect(aiming.top.width, greaterThan(resting.top.width));
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(edgeOfMat().top.color, resting.top.color);
+  });
+
   testWidgets('a phone held sideways still peeks', (tester) async {
     await _seatedPod(tester, ['you'], window: const Size(844, 390));
     await tester.pumpAndSettle();

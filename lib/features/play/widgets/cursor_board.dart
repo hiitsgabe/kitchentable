@@ -1,6 +1,7 @@
 import 'dart:ui' show clampDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
 import '../../../decks/model/game.dart';
@@ -9,6 +10,7 @@ import '../../../table/model/card_instance.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import '../board_cursor.dart';
+import '../dragging.dart';
 import '../renderers/mat_layout.dart';
 import 'card_drag.dart';
 import 'table_card.dart';
@@ -49,8 +51,7 @@ class CursorBoard extends StatefulWidget {
   /// The pile is named rather than read back off the card, because a card can
   /// arrive here from a hand, and then where it was is no guide at all to
   /// where it should go.
-  final void Function(String zoneId, String cardId, double x, double y)
-      onPlace;
+  final void Function(String zoneId, String cardId, double x, double y) onPlace;
 
   /// The player's own multiplier on the card size. One is the mat exactly as
   /// the layout drew it.
@@ -66,9 +67,9 @@ class CursorBoard extends StatefulWidget {
   /// that appears only once a card is already there could never take the
   /// first one.
   static List<BoardZone> _drawn(List<BoardZone> zones) => [
-        for (final (i, zone) in zones.indexed)
-          if (i == 0 || zone.cards.isNotEmpty) zone,
-      ];
+    for (final (i, zone) in zones.indexed)
+      if (i == 0 || zone.cards.isNotEmpty) zone,
+  ];
 
   /// What the label above a mat, the gap under it and the gap under the pile
   /// cost, for one pile.
@@ -116,8 +117,9 @@ class _CursorBoardState extends State<CursorBoard> {
   /// still leaves a gap in the flow.
   Size get _cardSize => cardOnMat * widget.cardScale;
 
-  List<CursorZone> get _sizes =>
-      [for (final z in widget.zones) (id: z.id, size: z.cards.length)];
+  List<CursorZone> get _sizes => [
+    for (final z in widget.zones) (id: z.id, size: z.cards.length),
+  ];
 
   @override
   void initState() {
@@ -245,14 +247,41 @@ class _CursorBoardState extends State<CursorBoard> {
           height: size.height,
           child: CardDropTarget(
             onDrop: (card, at) => _drop(zone, card, at, scale),
-            child: Stack(
-              // The box a drop is measured against, and the one the test
-              // measures it against too.
-              key: Key('mat-${zone.id}'),
-              children: [
-                for (var i = 0; i < zone.cards.length; i++)
-                  _card(zone, i, cursor, scale),
-              ],
+            // The mat is a surface you can see. It had none: the dark gradient
+            // behind it is the screen's, so the rectangle a card can be
+            // dropped on was invisible and, on a phone, is 304 points of a 590
+            // point board with the slack above and below it belonging to
+            // nothing.
+            //
+            // Lit while a card is in the air, which is the one moment the
+            // answer to "where can this go" is worth saying out loud.
+            child: Consumer(
+              builder: (context, ref, child) {
+                final aiming = ref.watch(draggingProvider);
+
+                return DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Palette.felt,
+                    borderRadius: BorderRadius.circular(m.scaled(14)),
+                    border: Border.all(
+                      color: aiming
+                          ? Palette.accent.withValues(alpha: 0.55)
+                          : Palette.surfaceEdge,
+                      width: aiming ? m.scaled(2) : m.scaled(1),
+                    ),
+                  ),
+                  child: child,
+                );
+              },
+              child: Stack(
+                // The box a drop is measured against, and the one the test
+                // measures it against too.
+                key: Key('mat-${zone.id}'),
+                children: [
+                  for (var i = 0; i < zone.cards.length; i++)
+                    _card(zone, i, cursor, scale),
+                ],
+              ),
             ),
           ),
         );
@@ -322,8 +351,7 @@ class _CursorBoardState extends State<CursorBoard> {
             height: m.scaled(14),
             child: Text(
               zone.label,
-              style:
-                  TextStyle(fontSize: m.scaled(11), color: Palette.inkFaint),
+              style: TextStyle(fontSize: m.scaled(11), color: Palette.inkFaint),
             ),
           ),
           SizedBox(height: m.scaled(6)),
@@ -335,14 +363,14 @@ class _CursorBoardState extends State<CursorBoard> {
 
   /// Centred on what you can see, not on the mat.
   Widget _nothingHere() => Center(
-        child: Text(
-          'Nothing on the battlefield',
-          style: TextStyle(
-            fontSize: widget.metrics.scaled(12),
-            color: Palette.inkFaint,
-          ),
-        ),
-      );
+    child: Text(
+      'Nothing on the battlefield',
+      style: TextStyle(
+        fontSize: widget.metrics.scaled(12),
+        color: Palette.inkFaint,
+      ),
+    ),
+  );
 
   Widget _card(BoardZone zone, int index, BoardCursor? cursor, double scale) {
     final m = widget.metrics;
