@@ -7,6 +7,7 @@ import '../../../decks/model/game.dart';
 import '../../../sources/model/catalog_card.dart';
 import '../../../table/model/card_instance.dart';
 import '../../../table/view/seat_view.dart';
+import '../../../ui/atoms/card_art.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import '../widgets/card_drag.dart';
@@ -121,12 +122,33 @@ class FreeCanvas extends StatefulWidget {
 class _FreeCanvasState extends State<FreeCanvas> {
   final _view = TransformationController();
 
+  /// The surface's zoom, rounded, for choosing which picture file to fetch.
+  ///
+  /// Rounded, and kept as its own field, because the controller fires on every
+  /// frame of a pinch and rebuilding every mat sixty times a second to change
+  /// a number that picks between three files is waste. [artFor] only has three
+  /// answers, so a quarter is finer than it can use.
+  double _artScale = 1;
+
+  void _watchZoom() {
+    final now = (_view.value.getMaxScaleOnAxis() * 4).round() / 4;
+    if (now == _artScale || now <= 0 || !now.isFinite) return;
+    setState(() => _artScale = now);
+  }
+
   /// Whether the table has been fitted to the window once already. After that
   /// the view is the player's: a fit that ran again would undo every pan.
   bool _fitted = false;
 
   @override
+  void initState() {
+    super.initState();
+    _view.addListener(_watchZoom);
+  }
+
+  @override
   void dispose() {
+    _view.removeListener(_watchZoom);
     _view.dispose();
     super.dispose();
   }
@@ -197,68 +219,72 @@ class _FreeCanvasState extends State<FreeCanvas> {
           minScale: 0.2,
           maxScale: 2.5,
           boundaryMargin: const EdgeInsets.all(matGap),
-          child: SizedBox(
-            width: surface.width,
-            height: surface.height,
-            child: Stack(
-              children: [
-                // Walked in seat order and not in table order, so your own mat
-                // is the one at the bottom, next to your hand.
-                for (final (slot, seatAt) in seatOrder(
-                  count: seats.length,
-                  viewerAt:
-                      seats.indexWhere((s) => s.seatId == widget.viewerSeatId),
-                ).indexed) ...[
-                  Positioned.fromRect(
-                    rect: matFor(slot, seats.length),
-                    child: _Mat(
-                      metrics: widget.metrics,
-                      seat: seats[seatAt],
-                      printings: widget.printings,
-                      isViewer: seats[seatAt].seatId == widget.viewerSeatId,
-                      isTurn: seats[seatAt].seatId == widget.turnSeatId,
-                      onTapCard: widget.onTapCard,
-                      onInspectCard: widget.onInspectCard,
-                      onPlace: widget.onPlace,
-                      cardScale: widget.cardScale,
-                      game: widget.gameFor?.call(seats[seatAt].seatId),
+          child: ArtScale(
+            scale: _artScale,
+            child: SizedBox(
+              width: surface.width,
+              height: surface.height,
+              child: Stack(
+                children: [
+                  // Walked in seat order and not in table order, so your own mat
+                  // is the one at the bottom, next to your hand.
+                  for (final (slot, seatAt) in seatOrder(
+                    count: seats.length,
+                    viewerAt: seats.indexWhere(
+                      (s) => s.seatId == widget.viewerSeatId,
                     ),
-                  ),
-                  // In the strips beside the mat and not in it. Stacked inside
-                  // the mat's own rect the corner and the piles sat over the
-                  // battlefield at every zoom, and the token button ran off
-                  // the bottom edge of the mat itself.
-                  if (seats[seatAt].seatId == widget.viewerSeatId) ...[
+                  ).indexed) ...[
                     Positioned.fromRect(
-                      rect: _strip(slot, seats.length, onTheLeft: true),
-                      child: _Across(
+                      rect: matFor(slot, seats.length),
+                      child: _Mat(
                         metrics: widget.metrics,
-                        seatId: widget.viewerSeatId,
-                        graveyard: widget.graveyard,
-                        diceTray: widget.diceTray,
-                        tokenButton: widget.tokenButton,
-                      ),
-                    ),
-                    Positioned.fromRect(
-                      rect: _strip(slot, seats.length, onTheLeft: false),
-                      child: _Aside(
-                        metrics: widget.metrics,
-                        seatId: widget.viewerSeatId,
+                        seat: seats[seatAt],
                         printings: widget.printings,
-                        libraryCount: widget.libraryCount,
-                        libraryOf: widget.libraryOf,
-                        commandCards: widget.commandCards,
-                        game: widget.gameFor?.call(widget.viewerSeatId),
+                        isViewer: seats[seatAt].seatId == widget.viewerSeatId,
+                        isTurn: seats[seatAt].seatId == widget.turnSeatId,
+                        onTapCard: widget.onTapCard,
                         onInspectCard: widget.onInspectCard,
-                        onDraw: widget.onDraw,
-                        onWorkDeck: widget.onWorkDeck,
-                        onPlayCommand: widget.onPlayCommand,
-                        onSendHome: widget.onSendHome,
+                        onPlace: widget.onPlace,
+                        cardScale: widget.cardScale,
+                        game: widget.gameFor?.call(seats[seatAt].seatId),
                       ),
                     ),
+                    // In the strips beside the mat and not in it. Stacked inside
+                    // the mat's own rect the corner and the piles sat over the
+                    // battlefield at every zoom, and the token button ran off
+                    // the bottom edge of the mat itself.
+                    if (seats[seatAt].seatId == widget.viewerSeatId) ...[
+                      Positioned.fromRect(
+                        rect: _strip(slot, seats.length, onTheLeft: true),
+                        child: _Across(
+                          metrics: widget.metrics,
+                          seatId: widget.viewerSeatId,
+                          graveyard: widget.graveyard,
+                          diceTray: widget.diceTray,
+                          tokenButton: widget.tokenButton,
+                        ),
+                      ),
+                      Positioned.fromRect(
+                        rect: _strip(slot, seats.length, onTheLeft: false),
+                        child: _Aside(
+                          metrics: widget.metrics,
+                          seatId: widget.viewerSeatId,
+                          printings: widget.printings,
+                          libraryCount: widget.libraryCount,
+                          libraryOf: widget.libraryOf,
+                          commandCards: widget.commandCards,
+                          game: widget.gameFor?.call(widget.viewerSeatId),
+                          onInspectCard: widget.onInspectCard,
+                          onDraw: widget.onDraw,
+                          onWorkDeck: widget.onWorkDeck,
+                          onPlayCommand: widget.onPlayCommand,
+                          onSendHome: widget.onSendHome,
+                        ),
+                      ),
+                    ],
                   ],
                 ],
-              ],
+              ),
             ),
           ),
         );
@@ -321,8 +347,7 @@ class _Mat extends StatelessWidget {
             ),
           ),
         ),
-        for (var i = 0; i < cards.length; i++)
-          _place(cards[i], i),
+        for (var i = 0; i < cards.length; i++) _place(cards[i], i),
       ],
     );
 

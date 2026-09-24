@@ -8,6 +8,7 @@ import 'package:kitchentable/features/play/renderers/mat_layout.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
 import 'package:kitchentable/table/model/card_instance.dart';
 import 'package:kitchentable/table/model/seat.dart';
+import 'package:kitchentable/ui/atoms/card_art.dart';
 import 'package:kitchentable/table/model/zone.dart';
 import 'package:kitchentable/table/view/seat_view.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
@@ -454,5 +455,25 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('the canvas tells its cards how far it is zoomed out',
+      (tester) async {
+    await tester.pumpWidget(_host([_seat('s1'), _seat('s2'), _seat('s3')]));
+    await tester.pumpAndSettle();
+
+    final fitted = tester.widget<ArtScale>(find.byType(ArtScale)).scale;
+
+    // Three seats on an 800 by 600 test window do not fit at one to one, so
+    // the canvas fits them and every card on it is on screen at a fraction of
+    // the width it asked for. A card asks for the file its own width deserves
+    // and the surface's zoom is the difference between that and what is
+    // actually drawn.
+    //
+    // Nothing pinned this half: the picker could read the zoom perfectly and
+    // the canvas could go on never telling it, which is the shape of hand off
+    // this codebase has already shipped once.
+    expect(fitted, lessThan(1));
+    expect(fitted, greaterThan(0));
   });
 }

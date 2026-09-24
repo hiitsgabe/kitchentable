@@ -1,6 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 import 'package:kitchentable/ui/atoms/card_art.dart';
+import 'package:kitchentable/ui/atoms/card_image.dart';
+import 'package:kitchentable/ui/tokens/metrics.dart';
 
 const _full = CatalogCard(
   oracleId: 'o',
@@ -56,5 +59,41 @@ void main() {
         CatalogCard(oracleId: 'o', name: 'Token', typeLine: 'Token', cmc: 0);
 
     expect(artFor(bare, width: 340, pixelRatio: 2), isNull);
+  });
+
+  testWidgets('a card drawn bigger than it asked for takes a bigger file',
+      (tester) async {
+    Future<String> urlUnder(Widget Function(Widget) wrap) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: wrap(
+            const CardArt(
+              metrics: Metrics(scale: 1, safeInset: 16, focusRing: 2),
+              card: _full,
+              width: 90,
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+      return tester.widget<CardImage>(find.byType(CardImage)).url;
+    }
+
+    // 90 points is what a card on the canvas asks for, in mat units. At a
+    // device ratio of one that is 90 pixels, and the small file is 146, so the
+    // small file is the right answer for the size this card says it is.
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    expect(await urlUnder((c) => c), 'small.jpg');
+
+    // But the canvas scales its whole surface, so the same card is on screen
+    // at twice that and the 146 pixel file is being stretched over 180. It
+    // used to go on asking for the file its own width deserved however far it
+    // was zoomed, which is what "a qualidade da imagem das cartas diminui" was
+    // on the view with everybody's mat in it.
+    expect(
+      await urlUnder((c) => ArtScale(scale: 2, child: c)),
+      'normal.jpg',
+    );
   });
 }
