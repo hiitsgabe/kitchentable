@@ -163,13 +163,11 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     // phone drew 72 on the table against 50.3 in the hand while a phone held
     // sideways drew 72 against 64, so the two sizes agreed everywhere except
     // the window this was all for.
+    final handRoom =
+        media.size.width - media.padding.horizontal - m.safeInset * 2;
     final handCard = cardOnMat.width *
         cardScale *
-        math.max(
-          matScaleFloor,
-          (media.size.width - media.padding.horizontal - m.safeInset * 2) /
-              matSize.width,
-        );
+        math.max(matScaleFloor, handRoom / matSize.width);
 
     final yours = Column(
       key: const Key('your-seat'),
@@ -384,7 +382,13 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _Across(
-                    graveyard: _chip(m, graveyard, width: card),
+                    // The pile and not the chip. The chip is what a graveyard
+                    // is worth on a phone, where an empty one was a card
+                    // sized outline of nothing in the most prominent place on
+                    // the screen. This branch is the window that has room, and
+                    // a phone's answer shipped here too: a 36 point chip in an
+                    // acre of empty table, on a 1909 by 989 desktop.
+                    graveyard: _pile(m, graveyard, width: card),
                     dice: _diceTray(width: card),
                     // Across from the deck, with the graveyard, because that
                     // is where the canvas had to put it: three things do not
@@ -405,6 +409,13 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
         HandSheet(
           metrics: m,
           cardWidth: handCard,
+          startsOpen: !handIsExpensive(
+            media.size,
+            m,
+            room: handRoom,
+            card: handCard,
+            cards: mine ? hand.cards.length : 0,
+          ),
           cards: mine ? hand.cards : const [],
           printings: _printings,
           onPlay: (c) => play.run(
@@ -540,6 +551,17 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                         // spec rules out by geometry.
                         HandSheet(
                           metrics: m,
+                          // The same question as the bands ask. The peek is
+                          // about the room the screen has, which is not a
+                          // thing either renderer gets to have its own
+                          // opinion about.
+                          startsOpen: !handIsExpensive(
+                            media.size,
+                            m,
+                            room: handRoom,
+                            card: handCard,
+                            cards: mine ? hand.cards.length : 0,
+                          ),
                           cards: mine ? hand.cards : const [],
                           printings: _printings,
                           onPlay: (c) => play.run(
