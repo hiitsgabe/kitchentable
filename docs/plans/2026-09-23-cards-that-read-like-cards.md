@@ -904,8 +904,16 @@ passes already.
 filled in `startPod` from the cards `sitDownTogether` put in each command
 zone, cleared in `leave`, read as `bool isCommander(String cardId)`.
 
+**`leave` already forgets to clear one of the two maps beside it.** Check all
+of them, and add a case: nothing asserted any were cleared, and a deck size
+left behind outlives its table and sizes the next one's pile.
+
 The screen's graveyard drop checks it and sends the card to
-`command-<seat>` instead.
+`command-<seat>` instead. **Do not thread the seat id in from the renderers
+to get it.** That reads naturally and leaves a hand-off site per renderer
+that nothing can see: a garbage seat passed to the canvas leaves the whole
+suite green. `Zone` already carries `seatId`, so the pile reads
+`graveyard.seatId` and there is no hand-off at all.
 
 **Do not put this on the referee.** The referee reviews an action and refuses
 it; this one has to change the destination, which is a different verb. When
@@ -992,8 +1000,14 @@ drawn at once today.
 
 - [ ] **Step 3: Page it**
 
-A page size that fills a phone without scrolling, and a row of controls
-saying which page this is. The chosen destinations already live in a map keyed
+**Fifteen rows a page.** An earlier draft of this sentence said "a page size
+that fills a phone without scrolling", which is about six rows at 390 by 844,
+and the second case above forbids six: it taps `pile-next` once from page one
+of thirty and then requires `pile-card-c29`, which needs at least fifteen. The
+sentence and the case disagreed and the case won. Keep the rows scrolling
+inside a page so a short window still works.
+
+Then a row of controls saying which page this is. The chosen destinations already live in a map keyed
 by card id, so they survive a page turn for free: **the fourth case is there
 to prove that, not to make it true.** If it fails, the state went into the
 page rather than the sheet.
@@ -1131,6 +1145,22 @@ and what each means:
 - [ ] **Step 2 onward**
 
 Written once Step 1 has reported. Do not guess at the fix.
+
+**It reported, and the answer is stop.** Measured at all three sites and at
+device ratios 1, 2 and 3, with a control confirming the tree really saw each
+ratio: the width passed is 48.0 points, the `CardImage` rect is 48.0 by
+67.048, equal to the pixel with no stretch anywhere, and `artFor` returns
+`imageSmall`.
+
+At the worst ratio a row needs **144 device pixels from a 146 pixel file**: a
+slight downscale, not an upscale, so there is nothing to sharpen. Above 146
+`artFor` picks `imageNormal` by itself, so a 3.5x screen already gets it.
+
+The 146, 488 and 672 in `artFor`'s doc comment were the load bearing numbers
+and they were only a comment, so they were checked against the real files:
+**146x204, 488x680, 672x936**. The comment is right.
+
+Both halves of this task's premise are false. No fix.
 
 ---
 
