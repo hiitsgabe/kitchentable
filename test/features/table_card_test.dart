@@ -215,4 +215,26 @@ void main() {
     expect(turned?.id, 'a');
     expect(inspected, isNull, reason: 'a tap opened the menu as well');
   });
+
+  testWidgets('a row of counters interlocks rather than overlapping',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      const CardInstance(
+        id: 'a',
+        oracleId: 'o',
+        counters: {'flying': 1, 'vigilance': 1},
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final first = tester.getRect(find.byKey(const Key('counter-flying')));
+    final second = tester.getRect(find.byKey(const Key('counter-vigilance')));
+
+    // Seated, not stacked. The step was a flat 0.82 of the width, which buried
+    // a fifth of every piece under the next one; the second piece is hollowed
+    // out on its left by exactly the angle the first comes to a point at, so
+    // the gap between them is that point and nothing else.
+    final point = first.width * CounterPieceView.notch;
+    expect(second.left, moreOrLessEquals(first.right - point, epsilon: 0.01));
+  });
 }

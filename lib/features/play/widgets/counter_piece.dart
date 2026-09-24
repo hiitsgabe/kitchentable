@@ -35,7 +35,14 @@ class CounterPieceView extends StatelessWidget {
     required this.piece,
     required this.width,
     this.count = 1,
+    this.joins = false,
   });
+
+  /// Whether this one is slotting onto the piece before it in a row.
+  ///
+  /// False for the first, and for a piece standing on its own: those come to a
+  /// point at both ends. See [CounterPlastic.pathFor].
+  final bool joins;
 
   final CounterPiece piece;
 
@@ -56,7 +63,11 @@ class CounterPieceView extends StatelessWidget {
 
   /// How far the point at each end sets in from the corner, as a fraction of
   /// the width.
-  static const _notch = 0.13;
+  ///
+  /// Public because it is also the step a row of interlocking pieces moves by:
+  /// the point of one fills the notch of the next, so they seat together at a
+  /// width less this.
+  static const notch = 0.13;
 
   /// How tall a piece of a given width comes out.
   ///
@@ -79,10 +90,10 @@ class CounterPieceView extends StatelessWidget {
       width: width,
       height: height,
       child: CustomPaint(
-        painter: CounterPlastic(colour: colour),
+        painter: CounterPlastic(colour: colour, joins: joins),
         child: Padding(
           padding: EdgeInsets.symmetric(
-            horizontal: width * (_notch + 0.04),
+            horizontal: width * (notch + 0.04),
             vertical: height * 0.16,
           ),
           // Along the bar and not down it. The reference prints the value at
@@ -199,8 +210,12 @@ class CountersOnCard extends StatelessWidget {
 
     final pieceWidth = width * 0.27;
     final pieceHeight = CounterPieceView.heightFor(pieceWidth);
-    // Overlapping, the way a handful of them dropped on a card does.
-    final step = pieceWidth * 0.82;
+    // Interlocking, not overlapping. Each piece after the first is hollowed
+    // out on its left by exactly the angle the one before it comes to a point
+    // at, so stepping by the width less that point seats the two together with
+    // no seam and no overlap. It was a flat 0.82 of the width, which buried a
+    // fifth of every piece under the next one.
+    final step = pieceWidth * (1 - CounterPieceView.notch);
 
     return Positioned(
       left: 0,
@@ -225,6 +240,7 @@ class CountersOnCard extends StatelessWidget {
                     piece: pieces[i],
                     count: counts[i],
                     width: pieceWidth,
+                    joins: i > 0,
                   ),
                 ),
             ],
@@ -243,9 +259,12 @@ class CountersOnCard extends StatelessWidget {
 /// which is what the old shape had and is the reason a probe that took the
 /// shadow off could pass.
 class CounterPlastic extends CustomPainter {
-  const CounterPlastic({required this.colour});
+  const CounterPlastic({required this.colour, this.joins = false});
 
   final Color colour;
+
+  /// Whether this one slots onto the piece before it. See [pathFor].
+  final bool joins;
 
   /// How see through the body is.
   ///
@@ -295,31 +314,39 @@ class CounterPlastic extends CustomPainter {
   static const edgeLit = Color(0xD9FFFFFF);
   static const edgeShade = Color(0x8CFFFFFF);
 
-  /// The silhouette: a hexagon lying on its side.
+  /// The silhouette: a hexagon lying on its side, and the piece that slots
+  /// onto one.
   ///
-  /// Flat along the top and the bottom and pointed at each end, so it stacks
-  /// against the ones beside it and the text runs the long way, which is the
-  /// way the words on a counter are written.
+  /// Flat along the top and the bottom and pointed at the right, so the text
+  /// runs the long way, which is the way the words on a counter are written.
   ///
-  /// It was a bar with a V bitten out of each end, which is one of the shapes
-  /// the plastic comes in and reads as a ribbon rather than as a token.
-  static Path pathFor(Size size) {
-    final point = size.width * CounterPieceView._notch;
+  /// The left end is the half that moves. The first piece in a row is a whole
+  /// hexagon and comes to a point at both ends; every piece after it has that
+  /// end **hollowed into the same angle**, so the point of the one before it
+  /// fits the notch exactly and the row reads as a chain of pieces pushed
+  /// together rather than as four tokens lying near each other.
+  ///
+  /// Both halves use the same [CounterPieceView.notch], which is what makes
+  /// them complementary: one is the other turned inside out.
+  static Path pathFor(Size size, {bool joins = false}) {
+    final point = size.width * CounterPieceView.notch;
     final middle = size.height / 2;
 
     return Path()
-      ..moveTo(point, 0)
+      // Square where it takes the piece before it, set in where it does not.
+      ..moveTo(joins ? 0 : point, 0)
       ..lineTo(size.width - point, 0)
       ..lineTo(size.width, middle)
       ..lineTo(size.width - point, size.height)
-      ..lineTo(point, size.height)
-      ..lineTo(0, middle)
+      ..lineTo(joins ? 0 : point, size.height)
+      // In to meet the point it is receiving, or out to a point of its own.
+      ..lineTo(joins ? point : 0, middle)
       ..close();
   }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = pathFor(size);
+    final path = pathFor(size, joins: joins);
     final box = Offset.zero & size;
 
     canvas.drawPath(
@@ -405,5 +432,6 @@ class CounterPlastic extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(CounterPlastic old) => old.colour != colour;
+  bool shouldRepaint(CounterPlastic old) =>
+      old.colour != colour || old.joins != joins;
 }

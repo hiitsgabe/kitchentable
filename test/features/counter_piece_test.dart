@@ -177,4 +177,32 @@ void main() {
       reason: 'the bottom right corner is not cut',
     );
   });
+
+  testWidgets('the piece after the first is hollowed out to take it',
+      (tester) async {
+    const size = Size(40, 24.8);
+    final first = CounterPlastic.pathFor(size);
+    final next = CounterPlastic.pathFor(size, joins: true);
+    final point = size.width * CounterPieceView.notch;
+
+    // The two ends are complementary: one is the other turned inside out, and
+    // that is what lets a row of them seat together with no seam. Where the
+    // first comes to a point the next is hollow, and where the first is cut
+    // away at the corner the next is square.
+    expect(first.contains(Offset(0.5, size.height / 2)), isTrue);
+    expect(next.contains(Offset(0.5, size.height / 2)), isFalse,
+        reason: 'the left end is not hollowed out to receive a point');
+
+    expect(first.contains(const Offset(0.5, 0.5)), isFalse);
+    expect(next.contains(const Offset(0.5, 0.5)), isTrue,
+        reason: 'the corner beside the notch was cut away as well');
+
+    // And the right end is a point on both, because every piece has something
+    // that might slot onto it.
+    expect(next.contains(Offset(size.width - 0.5, size.height / 2)), isTrue);
+
+    // The notch reaches exactly as far in as the point reaches out, which is
+    // the whole of why they fit.
+    expect(next.contains(Offset(point + 0.5, size.height / 2)), isTrue);
+  });
 }
