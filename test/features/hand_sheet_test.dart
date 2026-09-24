@@ -30,6 +30,7 @@ Widget _host({
   Map<String, CatalogCard> printings = const {},
   void Function(String cardId, int to)? onReorder,
   Game? game,
+  bool open = true,
 }) =>
     // Every card here is a `DraggableCard`, which says a drag is on through a
     // provider rather than through a parameter of its own, so it needs a scope
@@ -38,6 +39,10 @@ Widget _host({
     ProviderScope(
       child: MaterialApp(
         home: Scaffold(
+          // Open, because every case below is about how the cards inside it
+          // lay out and a shut hand is a strip of their tops with nothing in
+          // it you can hit. The screen's own hand starts shut, which is what
+          // `the hand peeks instead of parking` is for.
           body: HandSheet(
             metrics: Metrics.of(DeviceClass.handheld),
             cards: _hand(cards),
@@ -46,6 +51,7 @@ Widget _host({
             onInspect: (_) {},
             onReorder: onReorder ?? (_, _) {},
             game: game,
+            startsOpen: open,
           ),
         ),
       ),
@@ -120,6 +126,7 @@ void main() {
             onPlay: (c) => played = c,
             onInspect: (_) {},
             onReorder: (_, _) {},
+            startsOpen: true,
           ),
         ),
       ),
@@ -259,6 +266,20 @@ void main() {
 
     expect(moved?.id, 'h0');
     expect(moved?.to, 5);
+  });
+
+  testWidgets('playing a card from an open hand puts the hand down',
+      (tester) async {
+    await tester.pumpWidget(_host(cards: 3));
+    await tester.pump();
+
+    final open = tester.getSize(find.byType(HandSheet)).height;
+    await tester.tap(find.byType(TableCard).first);
+    await tester.pumpAndSettle();
+
+    // Otherwise the card goes onto a board that is half the height it was and
+    // you go looking for it, which is worse than the strip ever was.
+    expect(tester.getSize(find.byType(HandSheet)).height, lessThan(open / 2));
   });
 
   testWidgets('a card in hand is drawn on the game s own back',

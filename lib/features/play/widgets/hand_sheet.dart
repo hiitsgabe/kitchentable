@@ -24,6 +24,19 @@ const _mostLines = 2;
 /// exactly as tall as it was.
 const _lineHeight = 96.0;
 
+/// How much of the cards a hand shows while it is shut, before scaling.
+///
+/// The whole strip is one tap target, and 34 is the smallest thing this app
+/// asks a thumb for anywhere: every pill in the top bar is 34 square. It is
+/// also enough of a card to tell two of them apart, which is the whole of what
+/// a peek is for. At the width a phone's hand draws a card, 50.3, a card is
+/// 70.3 tall and the art box of a Magic card ends 46 percent down it, so 34
+/// points is the name and all of the picture.
+const _peekHeight = 34.0;
+
+/// The bar you tap to put an open hand down, before scaling.
+const _handleHeight = 22.0;
+
 /// The widest a card in the hand is ever drawn, while the hand fits.
 ///
 /// A ceiling and not a size. The hand draws at whatever the board under it
@@ -33,12 +46,19 @@ const _lineHeight = 96.0;
 /// show you seven cards you are only choosing between.
 const _cardWidth = 64.0;
 
-/// The hand, along the bottom, wrapped onto as many lines as it needs.
+/// The hand, along the bottom, peeking until you ask for it.
 ///
-/// It sits below the board and never on top of it. On mobile Arena opens the
-/// hand into a fan across the battlefield, so you cannot look at your hand and
-/// the board at the same time, and that is the one thing this must not copy.
-class HandSheet extends StatelessWidget {
+/// Shut it is a strip of the tops of the cards, and one tap target: 55 points
+/// of a phone rather than the 117 it took at all times so that it could be
+/// ready. Open it is the hand as it has always been drawn, wrapped onto as
+/// many lines as it needs, and it takes that room from the board underneath it
+/// for as long as you are choosing.
+///
+/// It still sits below the board and never on top of it. Arena opens its phone
+/// hand into a fan across the battlefield; the room an open hand here takes
+/// comes out of the board's height instead, so the board is shorter rather
+/// than covered, and what is left of it is still yours to look at.
+class HandSheet extends StatefulWidget {
   const HandSheet({
     super.key,
     required this.metrics,
@@ -49,6 +69,7 @@ class HandSheet extends StatelessWidget {
     required this.onReorder,
     this.cardWidth,
     this.game,
+    this.startsOpen = false,
   });
 
   final Metrics metrics;
@@ -77,41 +98,123 @@ class HandSheet extends StatelessWidget {
   /// the right back.
   final Game? game;
 
+  /// Whether it starts open rather than peeking.
+  ///
+  /// Shut on the screen, which is the whole point of the strip. Open is what a
+  /// harness that is about how the cards inside it lay out wants, and there is
+  /// nothing about that arithmetic a closed hand could show it.
+  final bool startsOpen;
+
+  @override
+  State<HandSheet> createState() => _HandSheetState();
+}
+
+class _HandSheetState extends State<HandSheet> {
+  late bool _open = widget.startsOpen;
+
+  void _toggle() => setState(() => _open = !_open);
+
+  /// Playing a card from an open hand puts the hand down with it.
+  ///
+  /// Otherwise you drop a card onto a board that is half the height it was and
+  /// then go looking for the card, which is worse than the strip ever was.
+  void _play(CardInstance card) {
+    if (_open) setState(() => _open = false);
+    widget.onPlay(card);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final m = metrics;
+    final m = widget.metrics;
 
     return Container(
       padding: EdgeInsets.symmetric(vertical: m.scaled(10)),
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: Palette.rule)),
       ),
-      child: cards.isEmpty
-          ? SizedBox(
-              height: m.scaled(_lineHeight),
-              child: Center(
-                child: Text(
-                  'No cards in hand',
-                  style:
-                      TextStyle(fontSize: m.scaled(12), color: Palette.inkFaint),
-                ),
-              ),
-            )
-          : _cards(m),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: _open
+            ? [
+                _handle(m),
+                SizedBox(height: m.scaled(6)),
+                _hand(m, m.scaled(_lineHeight)),
+              ]
+            : [_peek(m)],
+      ),
     );
   }
+
+  /// The strip: the tops of the cards, and nothing in it you can hit but the
+  /// strip itself.
+  ///
+  /// The cards are drawn at their own size and cropped, not squashed into the
+  /// strip: a card squashed out of its 63 by 88 is the one thing on a table
+  /// that reads as broken. They take no taps while they are cropped, because a
+  /// tap here is for the hand and not for the card whose corner it landed on.
+  Widget _peek(Metrics m) {
+    final peek = m.scaled(_peekHeight);
+
+    return GestureDetector(
+      key: const Key('hand-handle'),
+      onTap: _toggle,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        height: peek,
+        child: widget.cards.isEmpty
+            ? _nothingInHand(m, peek)
+            : ClipRect(
+                child: OverflowBox(
+                  alignment: Alignment.topCenter,
+                  maxHeight: double.infinity,
+                  child: IgnorePointer(child: _cards(m)),
+                ),
+              ),
+      ),
+    );
+  }
+
+  /// The bar that puts it down again. A hand you cannot put down is worse than
+  /// one that never moved.
+  Widget _handle(Metrics m) => GestureDetector(
+        key: const Key('hand-handle'),
+        onTap: _toggle,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          height: m.scaled(_handleHeight),
+          child: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: m.scaled(20),
+            color: Palette.inkMuted,
+          ),
+        ),
+      );
+
+  Widget _hand(Metrics m, double emptyHeight) =>
+      widget.cards.isEmpty ? _nothingInHand(m, emptyHeight) : _cards(m);
+
+  Widget _nothingInHand(Metrics m, double height) => SizedBox(
+        height: height,
+        child: Center(
+          child: Text(
+            'No cards in hand',
+            style: TextStyle(fontSize: m.scaled(12), color: Palette.inkFaint),
+          ),
+        ),
+      );
 
   Widget _cards(Metrics m) {
     final gap = m.scaled(6);
     final ceiling = m.scaled(_cardWidth);
-    final asked = cardWidth ?? ceiling;
+    final asked = widget.cardWidth ?? ceiling;
     final full = asked < ceiling ? asked : ceiling;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final room = constraints.maxWidth;
         var perLine = _perLine(room, full, gap);
-        var lines = (cards.length / perLine).ceil();
+        var lines = (widget.cards.length / perLine).ceil();
         var width = full;
 
         // A hand of sixty is a Battle of Wits deck and it still cannot be
@@ -119,7 +222,7 @@ class HandSheet extends StatelessWidget {
         // squeezed onto the lines there are rather than asking for another.
         if (lines > _mostLines) {
           lines = _mostLines;
-          perLine = (cards.length / _mostLines).ceil();
+          perLine = (widget.cards.length / _mostLines).ceil();
           width = (room - (perLine - 1) * gap) / perLine;
         }
 
@@ -138,7 +241,8 @@ class HandSheet extends StatelessWidget {
                 spacing: gap,
                 runSpacing: gap,
                 children: [
-                  for (var i = 0; i < cards.length; i++) _card(m, i, width),
+                  for (var i = 0; i < widget.cards.length; i++)
+                    _card(m, i, width),
                 ],
               ),
             ),
@@ -155,7 +259,7 @@ class HandSheet extends StatelessWidget {
   }
 
   Widget _card(Metrics m, int index, double width) {
-    final card = cards[index];
+    final card = widget.cards[index];
 
     return DraggableCard(
       card: card,
@@ -163,11 +267,11 @@ class HandSheet extends StatelessWidget {
         key: Key('hand-card-${card.id}'),
         metrics: m,
         instance: card,
-        printing: printings[card.oracleId],
+        printing: widget.printings[card.oracleId],
         width: width,
-        game: game,
-        onTap: () => onPlay(card),
-        onLongPress: () => onInspect(card),
+        game: widget.game,
+        onTap: () => _play(card),
+        onLongPress: () => widget.onInspect(card),
       ),
     );
   }
@@ -186,6 +290,7 @@ class HandSheet extends StatelessWidget {
     double gap,
     int perLine,
   ) {
+    final cards = widget.cards;
     final from = cards.indexWhere((c) => c.id == card.id);
     if (from < 0) return;
 
@@ -202,6 +307,6 @@ class HandSheet extends StatelessWidget {
 
     final to = line * perLine + column;
     if (to == from) return;
-    onReorder(card.id, to);
+    widget.onReorder(card.id, to);
   }
 }
