@@ -1325,7 +1325,7 @@ void main() {
     expect(onBoard, greaterThanOrEqualTo(72));
   });
 
-  testWidgets('a mat too big for the phone scrolls rather than shrinking',
+  testWidgets('nothing on the phone\'s battlefield is off the board',
       (tester) async {
     await _seatedPod(tester, ['you']);
     await tester.pumpAndSettle();
@@ -1333,9 +1333,14 @@ void main() {
     final board = tester.getRect(find.byKey(const Key('your-board')));
     final mat = tester.getRect(find.byKey(const Key('mat-battlefield-s1')));
 
-    expect(mat.width, greaterThan(board.width),
-        reason: 'the mat still fits, so nothing here is being tested');
-    expect(find.byType(Scrollable), findsWidgets);
+    // This case used to assert the opposite: that the mat was bigger than the
+    // board and the board scrolled. That was the readable floor fighting a
+    // fixed 640 by 380 shape, and what it cost was a battlefield that was
+    // always cut off. The card is sized on its own now and the mat is the
+    // board.
+    expect(mat.width, moreOrLessEquals(board.width, epsilon: 1));
+    expect(mat.height, lessThanOrEqualTo(board.height + 1));
+    expect(mat.left, moreOrLessEquals(board.left, epsilon: 1));
   });
 
   testWidgets('a drop means the same place whatever the window is',
@@ -1378,28 +1383,6 @@ void main() {
     expect(places.first.y, closeTo(0.6, 0.01));
     expect(places.last.x, closeTo(places.first.x, 0.01));
     expect(places.last.y, closeTo(places.first.y, 0.01));
-  });
-
-  testWidgets('a short window scrolls the board down as well as across',
-      (tester) async {
-    // 390 by 500, where the board gets 173 points of height and a mat at the
-    // floor is 304. Nothing else in the suite is short enough to need the
-    // second axis: at 390 by 844 the mat is 304 in a 485 point box and only
-    // the width runs out, so dropping the vertical scroll left every other
-    // case in this file green.
-    await _seatedPod(tester, ['you'], window: const Size(390, 500));
-    await tester.pumpAndSettle();
-
-    final board = tester.getRect(find.byKey(const Key('your-board')));
-    final mat = tester.getRect(find.byKey(const Key('mat-battlefield-s1')));
-
-    // The shape is what makes a drop mean the same place on two devices, so a
-    // box too short for the mat has to move it rather than squash it. Squashed
-    // into this one the mat comes out 512 by 141 and the ratio 3.63, measured
-    // with the second axis taken out.
-    expect(mat.width / mat.height, closeTo(640 / 380, 0.01));
-    expect(mat.bottom, greaterThan(board.bottom),
-        reason: 'the mat was made to fit the box instead of scrolling in it');
   });
 
   testWidgets('the row under the board is drawn at the board\'s own card',
@@ -1602,7 +1585,7 @@ void main() {
     expect(work.bottom, lessThanOrEqualTo(pile.top));
   });
 
-  testWidgets('the mat shows where the table is, louder while you aim',
+  testWidgets('the mat shows where the table is while you aim at it',
       (tester) async {
     final container = await _seatedPod(tester, ['you']);
     final play = container.read(playProvider.notifier);
@@ -1610,7 +1593,7 @@ void main() {
     play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
     await tester.pumpAndSettle();
 
-    Border edgeOfMat() => (tester
+    Border? edgeOfMat() => (tester
             .widget<DecoratedBox>(find
                 .ancestor(
                   of: find.byKey(const Key('mat-battlefield-s1')),
@@ -1618,13 +1601,13 @@ void main() {
                 )
                 .first)
             .decoration as BoxDecoration)
-        .border! as Border;
+        .border as Border?;
 
-    // The mat had no surface at all: the dark gradient behind it is the
-    // screen's, so the rectangle a card can be dropped on was invisible. On a
-    // phone it is 304 points of a 590 point board and the slack above and
-    // below it belongs to nothing.
-    final resting = edgeOfMat();
+    // Nothing at rest. The mat had no surface at all and could not be seen,
+    // then it had a dark outline drawn around most of the screen for nobody:
+    // the question an edge answers is "where can this go", and nobody is
+    // asking that with both hands empty.
+    expect(edgeOfMat(), isNull);
 
     final gesture = await tester.startGesture(
       tester.getCenter(find.descendant(
@@ -1635,15 +1618,15 @@ void main() {
     await gesture.moveBy(const Offset(0, 150));
     await tester.pumpAndSettle();
 
-    // Louder while a card is in the air, which is the one moment the answer to
-    // "where can this go" is worth saying out loud.
+    // And there while a card is in the air, which is the one moment it is
+    // worth saying out loud.
     final aiming = edgeOfMat();
-    expect(aiming.top.color, isNot(resting.top.color));
-    expect(aiming.top.width, greaterThan(resting.top.width));
+    expect(aiming, isNotNull);
+    expect(aiming!.top.width, greaterThan(0));
 
     await gesture.up();
     await tester.pumpAndSettle();
-    expect(edgeOfMat().top.color, resting.top.color);
+    expect(edgeOfMat(), isNull, reason: 'the edge outlived the drag');
   });
 
   testWidgets('a phone held sideways still peeks', (tester) async {

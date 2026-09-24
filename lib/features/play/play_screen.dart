@@ -167,10 +167,11 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     // the window this was all for.
     final handRoom =
         media.size.width - media.padding.horizontal - m.safeInset * 2;
-    final handCard =
-        cardOnMat.width *
-        cardScale *
-        math.max(matScaleFloor, handRoom / matSize.width);
+    // The same rule the board uses, off the same width, so a card in your hand
+    // and the same card on the table are the same size up to the hand's own
+    // ceiling. It used to solve for the scale a fixed mat would fit at with a
+    // floor under it; there is no mat to fit any more.
+    final handCard = cardWidthFor(handRoom) * cardScale;
 
     final yours = Column(
       key: const Key('your-seat'),
@@ -247,74 +248,22 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
               );
               final inARow = (widest * 2 + gap * 2) / box.maxWidth > 0.1;
 
-              // What is left over when height is what runs out. Infinite
-              // when the board is too short to fit a mat at all and scrolls
-              // instead, and then the width below is the only answer.
+              // What the board will draw a card at, worked out from the
+              // width it is about to be given.
               //
-              // The row stands in that height, and what it stands there is a
-              // card at the board's own scale: the same shape as the width
-              // below, solved the same way, so the piles under the board are
-              // the size of the cards on it rather than of the ones a board
-              // with the whole height would have drawn. Generous by the
-              // pile's own count row, the way `aside` is and for the same
-              // reason.
+              // The same rule the board itself uses, so the deck and the
+              // corner beside it come out at the size of the cards on it. It
+              // was three paragraphs of arithmetic solving for the scale a 640
+              // by 380 mat would fit at, on both axes, with the card falling
+              // out of that: the mat is the board now, so there is no fit to
+              // solve and the card is simply the card.
               //
-              // No case pins this: at a phone's width it is the width that
-              // binds and this term changes nothing there. What it buys shows
-              // up on a window too short for the mat it is wide enough for,
-              // measured on a 390 by 500 one at a deck 1.53 times the card
-              // beside it with this and 2.45 times without. Neither of those
-              // is a phone and neither of them is right; a board that short
-              // is its own job.
-              final under = inARow ? cardOnMat.height * cardScale : 0.0;
-              final byHeight =
-                  cardOnMat.width *
-                  cardScale *
-                  CursorBoard.scaleFor(
-                    box: Size(
-                      double.infinity,
-                      inARow ? box.maxHeight - gap : box.maxHeight,
-                    ),
-                    zones: zones,
-                    metrics: m,
-                  ) *
-                  matSize.height /
-                  (matSize.height + under);
-
-              // And when width is. The card is on both sides of this one,
-              // because the board only gets the width the cards beside it
-              // leave: a card of w takes w + aside + gap out of the row, and
-              // the mat is scaled by what remains. Solved once, here.
-              //
-              // Two lots of that now, not one: the graveyard stands in its own
-              // column across the board from the deck, so there is a card and
-              // its furniture out of the row on each side.
-              //
-              // In a row there is neither a column to subtract nor a card
-              // beside the board: it gets the whole row, and the mat's own
-              // 640 units are all the card is a fraction of.
-              final beside = inARow ? 0.0 : cardOnMat.width * cardScale;
-              final room = inARow
-                  ? box.maxWidth
-                  : box.maxWidth - aside * 2 - gap * 2;
-              final byWidth =
-                  cardOnMat.width *
-                  cardScale *
-                  (room < 0 ? 0.0 : room) /
-                  (matSize.width + beside);
-
-              // The room the row has, and deliberately not the floor the mat
-              // keeps for itself. Below `matScaleFloor` the mat stops shrinking
-              // and the board scrolls, and the furniture cannot follow it
-              // there: five pieces at a floored card apiece is 428 points of
-              // row on a 358 point phone, measured, and what scrolls off the
-              // right hand end of it is the deck, which is the one thing here
-              // you touch every turn. On a phone the deck comes out at 0.699 of
-              // the card on the mat beside it, which is inside the six tenths
-              // to fourteen tenths a pile of these cards has always been
-              // allowed, and every window wide enough to stand the furniture in
-              // columns is above the floor, where these are the same number.
-              final card = math.min(byHeight, byWidth);
+              // Minus what stands beside it, because the board only gets the
+              // width the columns leave: a card of w takes w plus its own
+              // furniture out of the row on each side.
+              final beside = inARow ? 0.0 : aside * 2 + gap * 2;
+              final room = box.maxWidth - beside;
+              final card = cardWidthFor(room < 0 ? 0 : room) * cardScale;
 
               // Built once and arranged twice. Two branches each building
               // their own board is how the two renderers drifted apart, and
