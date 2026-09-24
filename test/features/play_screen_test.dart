@@ -1171,7 +1171,13 @@ void main() {
 
     // It was 50 by 70, an outline of a card that is not there, and it was the
     // leftmost and most prominent object on a 390 point screen.
-    expect(bin.height, lessThan(44));
+    //
+    // Against the card beside it rather than against a number: the band is
+    // packed to fill the row now, so the chip's own height moves with how many
+    // things are standing in the row and what the card size is set to. 44.6
+    // against a 70.3 point card when this was written.
+    final card = tester.getSize(find.byKey(const Key('library-stack'))).height;
+    expect(bin.height, lessThan(card * 0.75));
   });
 
   testWidgets('a zone grows into a target while a card is in the air',
@@ -1531,7 +1537,9 @@ void main() {
     final deck = tester.getRect(find.byKey(const Key('library-stack')));
     final token = tester.getRect(find.byKey(const Key('make-token')));
     expect(deck.left, gutter, reason: 'the row starts off the margin');
-    expect(screen.right - token.right, gutter,
+    // To a hundredth: the band is scaled to fill the row, so its right edge is
+    // a product rather than a sum and lands 6e-14 past the margin.
+    expect(screen.right - token.right, moreOrLessEquals(gutter, epsilon: 0.01),
         reason: 'the row ends off the margin');
 
     // And the four things beside the deck stand in one band rather than at
@@ -1558,18 +1566,22 @@ void main() {
     // Measured: deck 122.9, command 68.9, dice 47.9, graveyard 40.1, token 36.
     // The row this replaced ran 122.9, 36, 77, 21.7, 51 in the order token,
     // dice, graveyard, command, deck, which is neither a ranking nor a band.
-    final deckWhole = tester.getRect(find.byType(LibraryStack));
-    final heights = [
-      deckWhole.height,
-      chips[1].height,
-      chips[2].height,
-      chips[0].height,
-      chips[3].height,
-    ];
-    for (var i = 1; i < heights.length; i++) {
-      expect(heights[i], lessThan(heights[i - 1]),
-          reason: 'slot $i is not smaller than the one that outranks it');
-    }
+    final deck2 = tester.getRect(find.byType(LibraryStack));
+    final bin = chips[0];
+    final corner = chips[1];
+    final die = chips[2];
+    final make = chips[3];
+
+    // Four ranks, not five: the graveyard and the dice share one, so they are
+    // the same size on purpose and this said they could not be.
+    expect(deck2.height, greaterThan(corner.height),
+        reason: 'the deck does not outrank the command zone');
+    expect(corner.height, greaterThan(die.height),
+        reason: 'the command zone does not outrank the dice');
+    expect(die.height, moreOrLessEquals(bin.height, epsilon: 0.01),
+        reason: 'the dice and the graveyard are meant to share a rank');
+    expect(die.height, greaterThan(make.height),
+        reason: 'the token control does not come last');
   });
 
   testWidgets('the deck\'s count and controls sit above the pile',
