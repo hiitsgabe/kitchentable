@@ -156,10 +156,20 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     // worked out. Above the threshold this comes out over the hand's ceiling
     // and the ceiling is what the hand draws at, which is the size it has
     // always drawn at.
+    //
+    // Through the same floor the mat goes through, and not the bare fit. The
+    // mat stops shrinking at [matScaleFloor] and the hand has to stop there
+    // too, or the two disagree again in the one direction nothing asserts: a
+    // phone drew 72 on the table against 50.3 in the hand while a phone held
+    // sideways drew 72 against 64, so the two sizes agreed everywhere except
+    // the window this was all for.
     final handCard = cardOnMat.width *
         cardScale *
-        (media.size.width - media.padding.horizontal - m.safeInset * 2) /
-        matSize.width;
+        math.max(
+          matScaleFloor,
+          (media.size.width - media.padding.horizontal - m.safeInset * 2) /
+              matSize.width,
+        );
 
     final yours = Column(
       key: const Key('your-seat'),
