@@ -149,7 +149,13 @@ class _CardViewerState extends State<CardViewer>
   /// twenty times a game and every other kind once. It was hardcoded before
   /// this, which made a planeswalker's loyalty, a Pokemon's damage and an
   /// artifact's charge all the same thing.
-  String _counting = counterPieces.first.name;
+  /// What this card is wearing, as far as this viewer knows.
+  ///
+  /// Its own copy, updated as it sends each change out. The instance handed in
+  /// is a snapshot taken when the viewer opened and it never changes, which
+  /// did not matter while every counter you added closed the viewer on its way
+  /// out. It matters now that they do not.
+  late final Map<String, int> _counts = {...?widget.instance?.counters};
 
   @override
   void initState() {
@@ -258,6 +264,7 @@ class _CardViewerState extends State<CardViewer>
                         yaw: _yaw,
                         pitch: _pitch,
                         width: width * _zoom,
+                        counters: _counts,
                       ),
                     ),
                   ),
@@ -303,7 +310,7 @@ class _CardViewerState extends State<CardViewer>
       ...counterKinds,
       // Whatever arrived on the card and is on no list. Appended rather than
       // sorted in, so the ones that are always there never move about.
-      for (final kind in instance.counters.keys)
+      for (final kind in _counts.keys)
         if (pieceNamed(kind) == null && !counterKinds.contains(kind)) kind,
     ];
 
@@ -326,7 +333,7 @@ class _CardViewerState extends State<CardViewer>
               runSpacing: m.scaled(6),
               children: [
                 for (final kind in kinds)
-                  _kind(m, kind, instance.counters[kind] ?? 0),
+                  _kind(m, kind, _counts[kind] ?? 0),
               ],
             ),
             SizedBox(height: m.scaled(10)),
@@ -365,24 +372,6 @@ class _CardViewerState extends State<CardViewer>
                 ],
                 _act(m, const Key('act-copy'), Icons.content_copy_rounded,
                     'Copy', CardAction.copy),
-                _act(m, const Key('act-counter-down'), Icons.remove_rounded,
-                    null, CardAction.counterDown, by: -1),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: m.scaled(10)),
-                  child: Text(
-                    // The chosen kind and not every kind added up, which read
-                    // `+1/+1: 2, damage: 3` back as five of something.
-                    '${instance.counters[_counting] ?? 0}',
-                    key: const Key('counter-count'),
-                    style: TextStyle(
-                      fontSize: m.scaled(18),
-                      fontWeight: FontWeight.w700,
-                      color: Palette.ink,
-                    ),
-                  ),
-                ),
-                _act(m, const Key('act-counter-up'), Icons.add_rounded, null,
-                    CardAction.counterUp, by: 1),
               ],
             ),
           ],
@@ -403,50 +392,71 @@ class _CardViewerState extends State<CardViewer>
   /// printing it twice is how somebody ends up counting the wrong one. What
   /// the unchosen ones carry is the answer to what else is on this card.
   Widget _kind(Metrics m, String kind, int count) {
-    final chosen = kind == _counting;
+    final piece = pieceNamed(kind) ?? unknownPiece(kind);
+    final on = count > 0;
+
+    // A keyword is not a quantity. Two FLYING is not a thing a card can be
+    // wearing, so the word toggles and the numbers count.
+    final up = piece.isKeyword ? (on ? -count : 1) : 1;
 
     return GestureDetector(
       key: Key('kind-$kind'),
-      onTap: () => setState(() => _counting = kind),
+      // The tap is the whole action. It used to choose which kind a separate
+      // plus and minus further down would act on, so putting one `+1/+1` on a
+      // card was two taps with nothing between them to say the first had
+      // landed, and the second tap closed the card. Three counters meant
+      // opening the card three times.
+      onTap: () => _count(kind, up),
+      // And back off again, on the piece you put on rather than on a minus
+      // somewhere else.
+      onLongPress: on ? () => _count(kind, -1) : null,
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: EdgeInsets.all(m.scaled(3)),
         decoration: BoxDecoration(
-          // A ring around the chosen one and nothing at all around the rest.
-          // A tile behind every piece would be a second object under the
+          // Lit when the card is wearing one, and nothing at all around the
+          // rest. A tile behind every piece would be a second object under the
           // object, and twenty two of them is a wall of chrome.
-          color: chosen ? Palette.tileFocused : Colors.transparent,
+          color: on ? Palette.tileFocused : Colors.transparent,
           borderRadius: BorderRadius.circular(m.scaled(9)),
-          border: Border.all(
-            color: chosen ? Palette.accent : Colors.transparent,
-          ),
+          border: Border.all(color: on ? Palette.accent : Colors.transparent),
         ),
         child: CounterPieceView(
-          piece: pieceNamed(kind) ?? unknownPiece(kind),
+          piece: piece,
           width: m.scaled(28),
-          count: chosen ? 1 : count,
+          count: count,
         ),
       ),
     );
   }
 
-  /// One control. [by] is set only on the two that count, and it is what
-  /// carries the chosen kind out: the verb still goes through `onAct`, which
-  /// is what closes the viewer.
+  /// Sends a change out and keeps a copy, so the viewer can stay open.
+  void _count(String kind, int by) {
+    setState(() {
+      final now = (_counts[kind] ?? 0) + by;
+      if (now <= 0) {
+        _counts.remove(kind);
+      } else {
+        _counts[kind] = now;
+      }
+    });
+    widget.onCount?.call(kind, by);
+  }
+
+  /// One control. Every one of these is a verb that closes the viewer.
+  ///
+  /// Counting used to come through here too, carrying a chosen kind, which is
+  /// why adding a counter closed the card it was being added to.
   Widget _act(
     Metrics m,
     Key key,
     IconData icon,
     String? label,
-    CardAction action, {
-    int? by,
-  }) =>
+    CardAction action,
+  ) =>
       GestureDetector(
         key: key,
-        onTap: () {
-          if (by != null) widget.onCount?.call(_counting, by);
-          widget.onAct?.call(action);
-        },
+        onTap: () => widget.onAct?.call(action),
         behavior: HitTestBehavior.opaque,
         child: Container(
           padding: EdgeInsets.symmetric(
@@ -482,7 +492,17 @@ class _Card extends StatelessWidget {
     required this.yaw,
     required this.pitch,
     required this.width,
+    this.counters = const {},
   });
+
+  /// What the card is wearing. Drawn on the front only, and inside the
+  /// rotation, so the pieces turn with the card they are sitting on rather
+  /// than floating in front of it.
+  ///
+  /// They used to be on the battlefield's card and nowhere else, so opening a
+  /// card to look at it closely was the one view that did not show what it was
+  /// wearing.
+  final Map<String, int> counters;
 
   final CatalogCard card;
   final double yaw;
@@ -607,6 +627,22 @@ class _Card extends StatelessWidget {
                             ),
                           ),
                         ),
+
+                        // Last, so nothing is painted over them, and hidden
+                        // with the front when the card is turned over: a
+                        // counter sits on the face, not on the back.
+                        if (!showingBack)
+                          IgnorePointer(
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                CountersOnCard(
+                                  counters: counters,
+                                  width: width,
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ),
