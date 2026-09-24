@@ -1629,6 +1629,28 @@ void main() {
     expect(edgeOfMat(), isNull, reason: 'the edge outlived the drag');
   });
 
+  testWidgets('finishing a deck search leaves you at the table',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('library-work')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('deck-search')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('deck-done')));
+    await tester.pumpAndSettle();
+
+    // A search ends in an arrange and a shuffle, and each of those popped:
+    // the first closed the sheet and the second closed the table under it, so
+    // Done put you back in the main menu with the game still running.
+    expect(find.byType(PlayScreen), findsOneWidget,
+        reason: 'the sheet closed the table as well as itself');
+    expect(find.byKey(const Key('deck-search')), findsNothing,
+        reason: 'the sheet is still open');
+    expect(container.read(playProvider), isNotNull);
+  });
+
   testWidgets('a phone held sideways still peeks', (tester) async {
     await _seatedPod(tester, ['you'], window: const Size(844, 390));
     await tester.pumpAndSettle();

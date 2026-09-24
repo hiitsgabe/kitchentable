@@ -283,14 +283,8 @@ class _DeckSheetState extends State<DeckSheet> {
           icon: Icons.check_rounded,
           label: 'Done',
           loud: true,
-          // Every card that was looked at, touched or not, because a card
-          // left alone is a card going back on top and `arrange` reads the
-          // order of the top pile out of this list.
           onTap: () {
-            widget.onArrange([
-              for (final card in _looked)
-                (cardId: card.id, to: _going[card.id] ?? Landing.top),
-            ]);
+            widget.onArrange(_placements());
             // A tutor shuffles. It is the rule on every card that says
             // "search your library", and it is also the only thing that stops
             // a search being a free look at the whole deck in order.
@@ -299,15 +293,48 @@ class _DeckSheetState extends State<DeckSheet> {
         ),
       ];
 
+  /// What Done sends out.
+  ///
+  /// Looking at the top few: every card that was looked at, touched or not,
+  /// because a card left alone is a card going back on top and `arrange` reads
+  /// the order of the top pile out of this list.
+  ///
+  /// Searching: only the cards you actually chose a destination for. You are
+  /// pulling one card out of ninety three and the other ninety two are not
+  /// going anywhere, so reporting them all said the whole deck was about to be
+  /// rearranged, and it was.
+  ///
+  /// Written out here and not as a collection `if` inside the list: with a
+  /// `for` on each arm the `else` binds to the inner `if` instead of the outer
+  /// one, and the looking case quietly started sending nothing at all.
+  List<Placement> _placements() {
+    if (!_searching) {
+      return [
+        for (final card in _looked)
+          (cardId: card.id, to: _going[card.id] ?? Landing.top),
+      ];
+    }
+
+    return [
+      for (final card in _looked)
+        if (_going[card.id] case final to?) (cardId: card.id, to: to),
+    ];
+  }
+
   Widget _row(Metrics m, CardInstance card) => CardRow(
         key: Key('peeked-${card.id}'),
         metrics: m,
         cardId: card.id,
         printing: widget.printings[card.oracleId],
         destinations: Landing.values,
-        // A card nobody touched is going back on top, so the row opens with
-        // the top already lit rather than with nothing lit.
-        chosen: _going[card.id] ?? Landing.top,
+        // Looking at the top few, a card nobody touched is going back on top,
+        // so the row opens with the top already lit.
+        //
+        // Searching, nothing is lit. You are pulling one card out of ninety
+        // three and the other ninety two are not going anywhere: lighting
+        // `top` on all of them said the whole deck was about to be rearranged,
+        // and it was, because every one of them was reported as a placement.
+        chosen: _searching ? _going[card.id] : _going[card.id] ?? Landing.top,
         onChoose: (to) => setState(() => _going[card.id] = to),
       );
 }
