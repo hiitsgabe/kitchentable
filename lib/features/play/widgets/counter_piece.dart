@@ -14,9 +14,14 @@ import '../counters.dart';
 /// goes dark. What was here before was an opaque tile with a flat copy of
 /// itself offset down and right, which is a sticker with a drop shadow.
 ///
-/// Five things that make it read as acrylic, in the order they are painted:
-/// the cast shadow, the see through body, a sheen down the face, a hard gloss
-/// streak across it, and the cut edge lit all the way round.
+/// Six things that make it read as acrylic, in the order they are painted:
+/// the cast shadow, the thickness of the sheet showing under the face, the see
+/// through body, a sheen down the face, a hard gloss streak across it, and the
+/// cut edge lit all the way round.
+///
+/// The thickness is the one that was missing. A flat translucent shape with a
+/// shadow and a lit edge is still a flat shape: what says an object is lying
+/// on the card is that you can see the side of it.
 ///
 /// One painter and not a stack of clipped boxes, because a stroke along a
 /// clipped path is half a stroke: the clip eats the outer half and the bevel
@@ -263,6 +268,18 @@ class CounterPlastic extends CustomPainter {
   /// with a highlight on it.
   static const rimWidth = 0.1;
 
+  /// How thick the sheet is, as a fraction of the height.
+  ///
+  /// The piece is cut from acrylic about three millimetres thick, so from
+  /// above you see the top face and a sliver of the side under it, and that
+  /// sliver is the whole of why it reads as an object rather than a shape.
+  /// Translucency, a shadow and a lit edge were all true of the flat version
+  /// and it still looked printed: none of them is thickness.
+  ///
+  /// The side is the same colour seen through more material, so it is darker
+  /// and more saturated than the face, not a shade of grey.
+  static const thickness = 0.13;
+
   /// The gloss: a hard diagonal streak across the upper half.
   ///
   /// The other half of what says acrylic. A sheet of it is glossy and catches
@@ -305,6 +322,17 @@ class CounterPlastic extends CustomPainter {
           ui.BlurStyle.normal,
           size.height * shadowBlur,
         ),
+    );
+
+    // The side, under the face and offset down by the sheet's thickness. Drawn
+    // before the face so the face sits on top of it, which is what the two of
+    // them are: one object seen from slightly above.
+    final deep = size.height * thickness;
+    canvas.drawPath(
+      path.shift(Offset(0, deep)),
+      Paint()
+        ..color = Color.lerp(colour, const Color(0xFF000000), 0.45)!
+            .withValues(alpha: 0.92),
     );
 
     canvas.drawPath(

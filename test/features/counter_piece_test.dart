@@ -75,6 +75,8 @@ void main() {
           color: const Color(0x5C000000),
           includes: const [Offset(20, 26.5)],
         )
+        // The side of the sheet, between the shadow and the face.
+        ..path()
         ..path(color: body.withValues(alpha: CounterPlastic.bodyAlpha)),
     );
 
@@ -82,6 +84,28 @@ void main() {
     // is what stops this passing on a piece that was simply given a pale
     // colour.
     expect(body.a, 1.0);
+  });
+
+  testWidgets('you can see the side of it, not just the top', (tester) async {
+    await tester.pumpWidget(_host('+4/+4'));
+    await tester.pump();
+
+    final piece = tester.getRect(find.byType(CounterPieceView));
+
+    // The thing that was still missing after translucency, a shadow and a lit
+    // edge: none of those is thickness, and a flat translucent shape with all
+    // three is still a flat shape. The sheet is about three millimetres, so
+    // from above you see the top face and a sliver of the side under it.
+    //
+    // A point below the face's own bottom edge and inside the side's, which
+    // only exists if the side is there and is offset.
+    final under = Offset(piece.width / 2, piece.height - 1);
+    expect(
+      find.byType(CounterPieceView),
+      paints
+        ..path()
+        ..path(includes: [under]),
+    );
   });
 
   testWidgets('its cut edge glows instead of darkening', (tester) async {
@@ -106,6 +130,9 @@ void main() {
     expect(
       find.byType(CounterPieceView),
       paints
+        ..path()
+        // The side of the sheet showing under the face, which is the one that
+        // makes it an object rather than a shape.
         ..path()
         ..path()
         ..path()

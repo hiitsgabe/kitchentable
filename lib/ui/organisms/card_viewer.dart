@@ -100,24 +100,23 @@ class CardViewer extends StatefulWidget {
     CardInstance? instance,
     bool hasCommandZone = false,
     void Function(String kind, int by)? onCount,
-  }) =>
-      Navigator.of(context).push(
-        // Not PageRouteBuilder<CardAction?>. push<T> already hands back a
-        // Future<T?>, so the route's own type argument is the non null one.
-        PageRouteBuilder<CardAction>(
-          opaque: false,
-          barrierColor: Colors.black.withValues(alpha: 0.78),
-          pageBuilder: (context, _, _) => CardViewer(
-            card: card,
-            instance: instance,
-            hasCommandZone: hasCommandZone,
-            onCount: onCount,
-            onAct: (action) => Navigator.of(context).pop(action),
-          ),
-          transitionsBuilder: (_, animation, _, child) =>
-              FadeTransition(opacity: animation, child: child),
-        ),
-      );
+  }) => Navigator.of(context).push(
+    // Not PageRouteBuilder<CardAction?>. push<T> already hands back a
+    // Future<T?>, so the route's own type argument is the non null one.
+    PageRouteBuilder<CardAction>(
+      opaque: false,
+      barrierColor: Colors.black.withValues(alpha: 0.78),
+      pageBuilder: (context, _, _) => CardViewer(
+        card: card,
+        instance: instance,
+        hasCommandZone: hasCommandZone,
+        onCount: onCount,
+        onAct: (action) => Navigator.of(context).pop(action),
+      ),
+      transitionsBuilder: (_, animation, _, child) =>
+          FadeTransition(opacity: animation, child: child),
+    ),
+  );
 
   @override
   State<CardViewer> createState() => _CardViewerState();
@@ -226,71 +225,74 @@ class _CardViewerState extends State<CardViewer>
           children: [
             Expanded(
               child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Listener(
-                    // A mouse wheel is not a scale gesture, so it is caught
-                    // separately. Without this, zoom would be touch only and
-                    // the browser build could never read a card's text.
-                    onPointerSignal: (event) {
-                      if (event is PointerScrollEvent) {
-                        setState(() {
-                          _zoom = (_zoom - event.scrollDelta.dy * 0.0016)
-                              .clamp(1.0, 3.2);
-                        });
-                      }
-                    },
-                    child: GestureDetector(
-                      onTap: _flip,
-                      // Scale rather than pan, because a GestureDetector
-                      // cannot arbitrate both. focalPointDelta carries the
-                      // drag, so the turn and the pinch come from one
-                      // recogniser.
-                      onScaleStart: (_) => _zoomAtGestureStart = _zoom,
-                      onScaleUpdate: (d) => setState(() {
-                        _zoom = (_zoomAtGestureStart * d.scale).clamp(1.0, 3.2);
-                        if (d.pointerCount == 1) {
-                          _yaw += d.focalPointDelta.dx * 0.011;
-                          // Inverted so dragging the top of the card away from
-                          // you tips the top away from you.
-                          _pitch = (_pitch - d.focalPointDelta.dy * 0.006)
-                              .clamp(-0.45, 0.45);
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Listener(
+                      // A mouse wheel is not a scale gesture, so it is caught
+                      // separately. Without this, zoom would be touch only and
+                      // the browser build could never read a card's text.
+                      onPointerSignal: (event) {
+                        if (event is PointerScrollEvent) {
+                          setState(() {
+                            _zoom = (_zoom - event.scrollDelta.dy * 0.0016)
+                                .clamp(1.0, 3.2);
+                          });
                         }
-                      }),
-                      onScaleEnd: (_) => _settle(),
-                      child: _Card(
-                        card: widget.card,
-                        yaw: _yaw,
-                        pitch: _pitch,
-                        width: width * _zoom,
-                        counters: _counts,
+                      },
+                      child: GestureDetector(
+                        onTap: _flip,
+                        // Scale rather than pan, because a GestureDetector
+                        // cannot arbitrate both. focalPointDelta carries the
+                        // drag, so the turn and the pinch come from one
+                        // recogniser.
+                        onScaleStart: (_) => _zoomAtGestureStart = _zoom,
+                        onScaleUpdate: (d) => setState(() {
+                          _zoom = (_zoomAtGestureStart * d.scale).clamp(
+                            1.0,
+                            3.2,
+                          );
+                          if (d.pointerCount == 1) {
+                            _yaw += d.focalPointDelta.dx * 0.011;
+                            // Inverted so dragging the top of the card away from
+                            // you tips the top away from you.
+                            _pitch = (_pitch - d.focalPointDelta.dy * 0.006)
+                                .clamp(-0.45, 0.45);
+                          }
+                        }),
+                        onScaleEnd: (_) => _settle(),
+                        child: _Card(
+                          card: widget.card,
+                          yaw: _yaw,
+                          pitch: _pitch,
+                          width: width * _zoom,
+                          counters: _counts,
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: m.scaled(26)),
-                  Text(
-                    widget.card.name,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: m.scaled(17),
-                      fontWeight: FontWeight.w600,
-                      color: Palette.ink,
+                    SizedBox(height: m.scaled(26)),
+                    Text(
+                      widget.card.name,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: m.scaled(17),
+                        fontWeight: FontWeight.w600,
+                        color: Palette.ink,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: m.scaled(6)),
-                  Text(
-                    widget.card.imageBack == null
-                        ? 'drag to turn it over, pinch or scroll to read it'
-                        : 'drag to turn it over, it has a second face',
-                    style: TextStyle(
-                      fontSize: m.scaled(11),
-                      color: Palette.inkFaint,
+                    SizedBox(height: m.scaled(6)),
+                    Text(
+                      widget.card.imageBack == null
+                          ? 'drag to turn it over, pinch or scroll to read it'
+                          : 'drag to turn it over, it has a second face',
+                      style: TextStyle(
+                        fontSize: m.scaled(11),
+                        color: Palette.inkFaint,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
             ),
             _actions(m),
           ],
@@ -332,8 +334,7 @@ class _CardViewerState extends State<CardViewer>
               spacing: m.scaled(6),
               runSpacing: m.scaled(6),
               children: [
-                for (final kind in kinds)
-                  _kind(m, kind, _counts[kind] ?? 0),
+                for (final kind in kinds) _kind(m, kind, _counts[kind] ?? 0),
               ],
             ),
             SizedBox(height: m.scaled(10)),
@@ -352,13 +353,21 @@ class _CardViewerState extends State<CardViewer>
               runSpacing: m.scaled(10),
               children: [
                 if (instance.rotation == 180)
-                  _act(m, const Key('act-straighten'),
-                      Icons.straighten_rounded, 'Straighten',
-                      CardAction.straighten)
+                  _act(
+                    m,
+                    const Key('act-straighten'),
+                    Icons.straighten_rounded,
+                    'Straighten',
+                    CardAction.straighten,
+                  )
                 else
-                  _act(m, const Key('act-upside-down'),
-                      Icons.flip_camera_android_rounded, 'Upside down',
-                      CardAction.upsideDown),
+                  _act(
+                    m,
+                    const Key('act-upside-down'),
+                    Icons.flip_camera_android_rounded,
+                    'Upside down',
+                    CardAction.upsideDown,
+                  ),
                 _act(
                   m,
                   const Key('act-flip'),
@@ -367,11 +376,21 @@ class _CardViewerState extends State<CardViewer>
                   CardAction.flip,
                 ),
                 if (widget.hasCommandZone) ...[
-                  _act(m, const Key('act-command'), Icons.home_rounded, null,
-                      CardAction.commandZone),
+                  _act(
+                    m,
+                    const Key('act-command'),
+                    Icons.home_rounded,
+                    null,
+                    CardAction.commandZone,
+                  ),
                 ],
-                _act(m, const Key('act-copy'), Icons.content_copy_rounded,
-                    'Copy', CardAction.copy),
+                _act(
+                  m,
+                  const Key('act-copy'),
+                  Icons.content_copy_rounded,
+                  'Copy',
+                  CardAction.copy,
+                ),
               ],
             ),
           ],
@@ -453,37 +472,35 @@ class _CardViewerState extends State<CardViewer>
     IconData icon,
     String? label,
     CardAction action,
-  ) =>
-      GestureDetector(
-        key: key,
-        onTap: () => widget.onAct?.call(action),
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: m.scaled(label == null ? 10 : 14),
-            vertical: m.scaled(10),
-          ),
-          decoration: BoxDecoration(
-            color: Palette.tile,
-            borderRadius: BorderRadius.circular(m.scaled(10)),
-            border: Border.all(color: Palette.tileEdge),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: m.scaled(17), color: Palette.inkMuted),
-              if (label != null) ...[
-                SizedBox(width: m.scaled(8)),
-                Text(
-                  label,
-                  style:
-                      TextStyle(fontSize: m.scaled(12), color: Palette.ink),
-                ),
-              ],
-            ],
-          ),
-        ),
-      );
+  ) => GestureDetector(
+    key: key,
+    onTap: () => widget.onAct?.call(action),
+    behavior: HitTestBehavior.opaque,
+    child: Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: m.scaled(label == null ? 10 : 14),
+        vertical: m.scaled(10),
+      ),
+      decoration: BoxDecoration(
+        color: Palette.tile,
+        borderRadius: BorderRadius.circular(m.scaled(10)),
+        border: Border.all(color: Palette.tileEdge),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: m.scaled(17), color: Palette.inkMuted),
+          if (label != null) ...[
+            SizedBox(width: m.scaled(8)),
+            Text(
+              label,
+              style: TextStyle(fontSize: m.scaled(12), color: Palette.ink),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
 }
 
 class _Card extends StatelessWidget {
@@ -566,85 +583,93 @@ class _Card extends StatelessWidget {
                 child: SizedBox(
                   width: width,
                   height: height,
-                  child: ClipRRect(
-                    borderRadius: radius,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Both faces are built, always. Only one is painted,
-                        // but a widget in the tree fetches its picture, so the
-                        // far side has already arrived by the time the card
-                        // turns. Building it on demand meant turning over onto
-                        // a black rectangle and watching it load.
-                        Opacity(
-                          opacity: showingBack ? 0 : 1,
-                          child: _Side(url: frontUrl, name: card.name),
-                        ),
-                        Opacity(
-                          opacity: showingBack ? 1 : 0,
-                          child: _Side(url: backUrl, name: card.name),
-                        ),
-
-                        // Gloss. A narrow band of white that slides across the
-                        // face as the card turns, which is most of what sells it.
-                        IgnorePointer(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment(-1 - math.sin(yaw) * 2, -1),
-                                end: Alignment(1 - math.sin(yaw) * 2, 1),
-                                stops: const [0.30, 0.46, 0.62],
-                                colors: [
-                                  Colors.white.withValues(alpha: 0),
-                                  Colors.white.withValues(
-                                    alpha: 0.26 * (1 - openness * 0.5),
-                                  ),
-                                  Colors.white.withValues(alpha: 0),
-                                ],
-                              ),
+                  // The counters are a sibling of the clip and not a child of
+                  // it. They are drawn deliberately overhanging the card's
+                  // bottom edge, the way a piece dropped on a card sits half
+                  // off it, and inside the ClipRRect that overhang was simply
+                  // sliced off square along the card's border.
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ClipRRect(
+                        borderRadius: radius,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // Both faces are built, always. Only one is painted,
+                            // but a widget in the tree fetches its picture, so the
+                            // far side has already arrived by the time the card
+                            // turns. Building it on demand meant turning over onto
+                            // a black rectangle and watching it load.
+                            Opacity(
+                              opacity: showingBack ? 0 : 1,
+                              child: _Side(url: frontUrl, name: card.name),
                             ),
-                          ),
-                        ),
-
-                        // The side swinging away falls into shadow.
-                        IgnorePointer(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: yaw.isNegative
-                                    ? Alignment.centerRight
-                                    : Alignment.centerLeft,
-                                end: yaw.isNegative
-                                    ? Alignment.centerLeft
-                                    : Alignment.centerRight,
-                                colors: [
-                                  Colors.black.withValues(
-                                    alpha: 0.55 * (1 - openness),
-                                  ),
-                                  Colors.black.withValues(alpha: 0),
-                                ],
-                              ),
+                            Opacity(
+                              opacity: showingBack ? 1 : 0,
+                              child: _Side(url: backUrl, name: card.name),
                             ),
-                          ),
-                        ),
 
-                        // Last, so nothing is painted over them, and hidden
-                        // with the front when the card is turned over: a
-                        // counter sits on the face, not on the back.
-                        if (!showingBack)
-                          IgnorePointer(
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                CountersOnCard(
-                                  counters: counters,
-                                  width: width,
+                            // Gloss. A narrow band of white that slides across the
+                            // face as the card turns, which is most of what sells it.
+                            IgnorePointer(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment(
+                                      -1 - math.sin(yaw) * 2,
+                                      -1,
+                                    ),
+                                    end: Alignment(1 - math.sin(yaw) * 2, 1),
+                                    stops: const [0.30, 0.46, 0.62],
+                                    colors: [
+                                      Colors.white.withValues(alpha: 0),
+                                      Colors.white.withValues(
+                                        alpha: 0.26 * (1 - openness * 0.5),
+                                      ),
+                                      Colors.white.withValues(alpha: 0),
+                                    ],
+                                  ),
                                 ),
-                              ],
+                              ),
                             ),
+
+                            // The side swinging away falls into shadow.
+                            IgnorePointer(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: yaw.isNegative
+                                        ? Alignment.centerRight
+                                        : Alignment.centerLeft,
+                                    end: yaw.isNegative
+                                        ? Alignment.centerLeft
+                                        : Alignment.centerRight,
+                                    colors: [
+                                      Colors.black.withValues(
+                                        alpha: 0.55 * (1 - openness),
+                                      ),
+                                      Colors.black.withValues(alpha: 0),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Hidden with the front when the card is turned over: a
+                      // counter sits on the face, not on the back.
+                      if (!showingBack)
+                        IgnorePointer(
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              CountersOnCard(counters: counters, width: width),
+                            ],
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
               ),
