@@ -84,25 +84,40 @@ void main() {
     expect(body.a, 1.0);
   });
 
-  testWidgets('it is lit from above along its own edge', (tester) async {
+  testWidgets('its cut edge glows instead of darkening', (tester) async {
     await tester.pumpWidget(_host('+2/+2'));
     await tester.pump();
 
-    // The bevel: a rim stroked light at the top and dark at the bottom, which
-    // is the one cue that says a thing has a thickness. Stroked over the path
-    // rather than inside a clip, because a stroke along a clipped path is half
-    // a stroke and the bevel came out at half the width it asked for.
+    final body = pieceNamed('+2/+2')!.colour;
+
+    // This is the whole difference between acrylic and an opaque bevel, and it
+    // is what the piece still got wrong after the first rewrite. A laser cut
+    // edge in transparent acrylic pipes light along the sheet and comes out
+    // the brightest part of the object. The edge was stroked black at the
+    // bottom, which is how an opaque bevel behaves.
+    //
+    // Against the piece's own colour rather than against a number, so a darker
+    // box of pieces cannot quietly make this true.
+    expect(CounterPlastic.edgeLit.computeLuminance(),
+        greaterThan(body.computeLuminance()));
+    expect(CounterPlastic.edgeShade.computeLuminance(),
+        greaterThan(body.computeLuminance()));
+
     expect(
       find.byType(CounterPieceView),
       paints
         ..path()
         ..path()
         ..path()
-        // Stroke and not another fill, and last of the four, which is what
-        // puts the rim on top of the sheen rather than under it. The width is
-        // not asserted: the canvas keeps it as a float and 2.4800000190734863
-        // is not exactly the 2.4800000000000013 this would have to compute,
-        // and `paints` compares exactly.
+        // The gloss: a hard band across the face, clipped to the piece, which
+        // is the room reflected in a sheet of plastic rather than a light
+        // source above it.
+        ..path()
+        // Stroke and not another fill, and last of the five, which is what
+        // puts the edge over everything else rather than under it. The width
+        // is not asserted: the canvas keeps it as a float and
+        // 2.4800000190734863 is not exactly the 2.4800000000000013 this would
+        // have to compute, and `paints` compares exactly.
         ..path(style: PaintingStyle.stroke),
     );
   });
