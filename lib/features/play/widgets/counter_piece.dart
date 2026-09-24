@@ -6,8 +6,15 @@ import '../counters.dart';
 ///
 /// The shape is off the photograph: a squarish tile notched into a V at the
 /// top and at the bottom, so the silhouette reads as a bent corner rather than
-/// as a chip. Its value is printed twice, the lower one turned around, because
-/// a counter on a table has to be readable from the other side of it.
+/// as a chip. Its value is printed once. The real plastic prints it twice, the
+/// lower one turned around, because a counter on a table has to be readable
+/// from the other side of it: on a screen one person is looking and the upside
+/// down copy is noise.
+///
+/// It is drawn twice instead, the same shape in a darker shade offset down and
+/// right, which is the trick the deck uses to read as solid rather than as one
+/// printed card. Not a perspective transform: the card it sits on turns in
+/// three dimensions and a piece with a vanishing point of its own fights it.
 ///
 /// A count of one draws no number. One `+1/+1` is a piece, not a pile.
 class CounterPieceView extends StatelessWidget {
@@ -34,6 +41,19 @@ class CounterPieceView extends StatelessWidget {
   /// How far each V cuts in, as a fraction of the height.
   static const _notch = 0.13;
 
+  /// How far the side stands out from under the face, as a fraction of the
+  /// width.
+  ///
+  /// Out of the piece's own box and not added to it. The face is drawn at the
+  /// top left of the box and the side at the bottom right, both of them a
+  /// [_lift] smaller than the box, so a piece with a side to it is exactly as
+  /// big as one without. The row of these is positioned in the card's
+  /// `Clip.none` stack rather than laid out in it, precisely so the pieces
+  /// have no size of their own, and a second copy offset outwards is exactly
+  /// the shape of thing that starts having one: two earlier things added to a
+  /// card each cost the board nine and a half percent that way.
+  static const _lift = 0.09;
+
   /// How tall a piece of a given width comes out.
   ///
   /// The row of them on a card has to lay a pile out before it builds one, and
@@ -43,6 +63,7 @@ class CounterPieceView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final height = width * _ratio;
+    final lift = width * _lift;
     final colour = piece.colour;
 
     // Dark ink on the pale pieces, light on the dark ones. Off the colour
@@ -83,46 +104,65 @@ class CounterPieceView extends StatelessWidget {
               ),
             ),
           ),
-          ClipPath(
-            clipper: const _Chevron(_notch),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                // Lit from above. The light stop along the top edge is the
-                // other half of the popup illusion: a flat fill reads as ink
-                // printed on the card however deep the shadow under it is.
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: const [0, 0.16, 1],
-                  colors: [
-                    Color.lerp(colour, const Color(0xFFFFFFFF), 0.42)!,
-                    colour,
-                    Color.lerp(colour, const Color(0xFF000000), 0.26)!,
-                  ],
+          // The side, under the face and down and to the right of it. Darker
+          // than the face's own bottom stop, which is what makes it read as
+          // the edge of a thing rather than as more of the front of one.
+          Positioned(
+            left: lift,
+            top: lift,
+            child: _shape(
+              key: const Key('counter-side'),
+              size: Size(width - lift, height - lift),
+              colour: Color.lerp(colour, const Color(0xFF000000), 0.42)!,
+            ),
+          ),
+          Positioned(
+            left: 0,
+            top: 0,
+            child: _shape(
+              key: const Key('counter-face'),
+              size: Size(width - lift, height - lift),
+              colour: colour,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  // Lit from above. The light stop along the top edge is the
+                  // other half of the popup illusion: a flat fill reads as ink
+                  // printed on the card however deep the shadow under it is.
+                  //
+                  // Over the piece's colour rather than mixed into it, so the
+                  // colour is said once and the lighting is the only thing
+                  // this says. White at 42 percent over a colour is the same
+                  // pixel as that colour lerped 42 percent towards white,
+                  // which is what this was.
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0, 0.16, 1],
+                    colors: [
+                      const Color(0xFFFFFFFF).withValues(alpha: 0.42),
+                      const Color(0x00FFFFFF),
+                      const Color(0xFF000000).withValues(alpha: 0.26),
+                    ],
+                  ),
                 ),
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: width * 0.06,
-                  vertical: height * _notch,
-                ),
-                // Flexible and not three plain children. Each print is a
-                // FittedBox, which sizes to the text and not to the room, so
-                // the three together overflowed the piece by a point at forty
-                // wide. Given a share each they scale down instead, and the
-                // shares are the font sizes so the count stays the big one.
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(flex: 18, child: _print(ink)),
-                    if (count > 1) Flexible(flex: 26, child: _count(ink)),
-                    // Turned around, not a second string: the two are the same
-                    // Text so they cannot drift apart.
-                    Flexible(
-                      flex: 18,
-                      child: RotatedBox(quarterTurns: 2, child: _print(ink)),
-                    ),
-                  ],
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: width * 0.06,
+                    vertical: (height - lift) * _notch,
+                  ),
+                  // Flexible and not plain children. Each print is a
+                  // FittedBox, which sizes to the text and not to the room, so
+                  // the two together overflowed the piece by a point at forty
+                  // wide when there were three of them. Given a share each
+                  // they scale down instead, and the shares are the font sizes
+                  // so the count stays the big one.
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(flex: 18, child: _print(ink)),
+                      if (count > 1) Flexible(flex: 26, child: _count(ink)),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -132,7 +172,31 @@ class CounterPieceView extends StatelessWidget {
     );
   }
 
-  /// What is printed on it, at whichever end.
+  /// The silhouette once, in one flat colour.
+  ///
+  /// The face and the side are this shape twice and not one shape with a
+  /// border on it: the notches are a clip, and a stroke along a clipped path
+  /// is half a stroke.
+  Widget _shape({
+    required Key key,
+    required Size size,
+    required Color colour,
+    Widget? child,
+  }) =>
+      SizedBox(
+        key: key,
+        width: size.width,
+        height: size.height,
+        child: ClipPath(
+          clipper: const _Chevron(_notch),
+          child: DecoratedBox(
+            decoration: BoxDecoration(color: colour),
+            child: child,
+          ),
+        ),
+      );
+
+  /// What is printed on it.
   ///
   /// Scaled down to fit rather than wrapped: INDESTRUCTIBLE is fourteen
   /// letters across a piece that is forty points wide, and a word broken over
