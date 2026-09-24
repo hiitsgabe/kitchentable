@@ -1413,6 +1413,44 @@ void main() {
     expect(deck / onBoard, closeTo(1, 0.05),
         reason: 'the deck in the row is not the size of the cards on the mat');
   });
+
+  testWidgets('the hand draws the card the board draws, up to its ceiling',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('hand-handle')));
+    await tester.pumpAndSettle();
+
+    final onBoard = tester
+        .getSize(find.descendant(
+          of: find.byKey(const Key('your-board')),
+          matching: find.byType(TableCard),
+        ))
+        .width;
+    final inHand = tester
+        .getSize(find.descendant(
+          of: find.byType(HandSheet),
+          matching: find.byType(TableCard),
+        ).first)
+        .width;
+
+    // The mat has a floor under it now and the hand has to come through the
+    // same one. It did not: this window drew 72 on the table against 50.3 in
+    // the hand while the same phone held sideways drew 72 against 64, so the
+    // two sizes agreed everywhere except the window the floor was added for.
+    // The whole suite was green.
+    //
+    // Both directions. `a card on the table is not smaller than one in your
+    // hand` only holds the floor down, and a hand that quietly stopped
+    // following the board would pass it forever.
+    expect(onBoard, greaterThan(64),
+        reason: 'the board is under the ceiling, so this window proves '
+            'nothing about the hand following it');
+    expect(inHand, closeTo(64, 0.5));
+  });
 }
 
 class _GrumpyReferee implements Referee {
