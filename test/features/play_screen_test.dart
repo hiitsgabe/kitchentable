@@ -450,6 +450,12 @@ void main() {
     // card would go in at 0 either way and prove nothing.
     final card = container.read(playProvider)!.zone('hand-s1')!.cards[3];
 
+    // Open first, for the reason `tapping a card in hand still plays it`
+    // gives: while the hand peeks, the middle of a card in it is below the
+    // strip and the drag would start on the hint bar under the sheet.
+    await tester.tap(find.byKey(const Key('hand-handle')));
+    await tester.pumpAndSettle();
+
     final board = tester.getRect(find.byKey(const Key('your-board')));
     final from = tester.getCenter(find.byKey(Key('hand-card-${card.id}')));
 
@@ -471,6 +477,13 @@ void main() {
     final container = await _seatedPod(tester, ['you']);
     final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
 
+    // The hand has to be open first. A shut hand is a strip of the tops of the
+    // cards and one tap target, and a tap on it is for the hand rather than for
+    // whichever card's corner it landed on: this case used to tap the card
+    // straight off the screen and now it takes two taps, which is what a peek
+    // is.
+    await tester.tap(find.byKey(const Key('hand-handle')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(Key('hand-card-${card.id}')));
     await tester.pumpAndSettle();
 
@@ -1227,6 +1240,35 @@ void main() {
       resting.height,
       reason: 'a drag whose card was taken away left the zones expanded',
     );
+  });
+
+  testWidgets('the hand peeks instead of parking', (tester) async {
+    await _seatedPod(tester, ['you']);
+    await tester.pumpAndSettle();
+
+    final screen = tester.getRect(find.byType(PlayScreen));
+    final hand = tester.getRect(find.byType(HandSheet));
+
+    // It owned 117 of 844 points at all times so that it could be ready.
+    expect(hand.height / screen.height, lessThan(0.09));
+  });
+
+  testWidgets('tapping the hand opens it over the board', (tester) async {
+    await _seatedPod(tester, ['you']);
+    await tester.pumpAndSettle();
+
+    final shut = tester.getRect(find.byType(HandSheet)).height;
+    await tester.tap(find.byKey(const Key('hand-handle')));
+    await tester.pumpAndSettle();
+    final open = tester.getRect(find.byType(HandSheet)).height;
+
+    expect(open, greaterThan(shut * 2));
+
+    // And back, because a hand you cannot put down is worse than one that
+    // never moved.
+    await tester.tap(find.byKey(const Key('hand-handle')));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(find.byType(HandSheet)).height, shut);
   });
 
   testWidgets('the row under the board is drawn at the board\'s own card',
