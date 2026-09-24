@@ -55,11 +55,25 @@ work**, and to **reorganise the content on a narrow screen rather than relying
 on scaling**. In their forums the standing workaround when a board comes out
 too small is to turn the phone sideways.
 
-**And the pattern that decides the frame.** Every client with a free form
-board went landscape on a phone: Arena is landscape, Pokemon TCG Live added a
-landscape layout. The ones that stayed in portrait redesigned the board into a
-small fixed number of slots first: Pokemon TCG Pocket is one active Pokemon
-and three on the bench. Nobody keeps a free board in portrait.
+**And the pattern that shows how hard the problem is.** Every client with a
+free form board went landscape on a phone: Arena is landscape, Pokemon TCG
+Live added a landscape layout. The ones that stayed in portrait redesigned the
+board into a small fixed number of slots first: Pokemon TCG Pocket is one
+active Pokemon and three on the bench.
+
+**That is context, not a recommendation, and this is the locked decision:
+making the player turn the phone is not an option here.** Portrait at 390 by
+844 has to be a good table on its own. The industry going landscape says the
+constraint is real and that the other three decisions have to carry the whole
+weight; it does not license leaning on rotation, an orientation lock, or a
+message telling anyone the app is best held sideways. Landscape is allowed to
+be better than portrait. It is not allowed to be the answer.
+
+The place this bites is the readable floor in decision 3. If the floor makes
+portrait scroll so far that the table stops being usable, the floor comes
+down, and if the floor and the portrait budget genuinely cannot both be
+satisfied then that is a finding worth stopping on, not a reason to ask for a
+rotation.
 
 ## The four decisions
 
