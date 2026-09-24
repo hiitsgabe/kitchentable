@@ -820,7 +820,17 @@ void main() {
 
   testWidgets('the board is budgeted for both columns, not one',
       (tester) async {
-    final container = await _seatedPod(tester, ['you']);
+    // 700 and not the 390 this was written at: below a 616 point window the
+    // furniture stands in a row under the board and there are no columns to
+    // budget for, so at a phone's width this case has no subject. Well clear
+    // of that threshold on purpose, and still a window where the width
+    // arithmetic is the one that binds, 75.6 against a height that would
+    // allow 137.8.
+    final container = await _seatedPod(
+      tester,
+      ['you'],
+      window: const Size(700, 844),
+    );
     final play = container.read(playProvider.notifier);
     final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
 
@@ -847,19 +857,20 @@ void main() {
     // card is height bound and the width arithmetic never binds at all.
     //
     // This is the only observable, and it is not a wide one. Measured on this
-    // window: 1.160 with both columns budgeted, 1.239 with one. The bound
-    // sits between them, with two and a half percent of room below it and four
-    // above, so if this ever fails on a change that was not about the row's
-    // width, check those two numbers before loosening it. It was 1.145 against
-    // 1.232 until the pile learned to thin as it is drawn, which narrows the
-    // column the row budgets for and so moves both.
+    // window: 1.121 with both columns budgeted, 1.188 with one. The bound
+    // sits between them, with three percent of room below it and three above,
+    // so if this ever fails on a change that was not about the row's width,
+    // check those two numbers before loosening it. It was 1.160 against 1.239
+    // on a 390 point window, which is where this was measured until the
+    // furniture moved into a row below that width: a wider window spends a
+    // smaller share of itself on the estimate's error, so both ends come in.
     //
     // It is also the case that catches a control in either column whose own
     // width does not shrink with the card. The dice tray's caption was a ten
     // point font beside an eight point die, which made the column 41 wide
     // where a card is 32 and took this to 1.269. Sizes in those columns come
     // off the card and not off the metrics for that reason.
-    expect(deck / onBoard, lessThan(1.19),
+    expect(deck / onBoard, lessThan(1.155),
         reason: 'the row is budgeting for one column and there are two');
   });
 
@@ -900,8 +911,15 @@ void main() {
     // A graveyard sits across the table from the library, not stacked under
     // it: stacked, the column is two cards tall and the corner has nowhere
     // left to go.
-    expect(bin.right, lessThanOrEqualTo(board.left));
-    expect(deck.left, greaterThanOrEqualTo(board.right));
+    //
+    // At a phone's width that is along the row under the board rather than in
+    // the columns either side of it, and the two ends of the row are what is
+    // left of the far side: the pieces went below the board, not on top of
+    // each other. The wide arrangement is pinned by the case that keeps the
+    // furniture beside the board on a wide window.
+    expect(bin.top, greaterThanOrEqualTo(board.bottom),
+        reason: 'the furniture is still beside the board, not under it');
+    expect(bin.right, lessThanOrEqualTo(deck.left));
   });
 
   testWidgets('nothing in the aside runs off the bottom', (tester) async {
@@ -1039,6 +1057,104 @@ void main() {
     // first case would pass against a graveyard that swallows nothing.
     expect(container.read(playProvider)!.zone('graveyard-s1')!.cards,
         hasLength(1));
+  });
+
+  testWidgets('on a phone the board gets the width', (tester) async {
+    await _seatedPod(tester, ['you'], withCommander: true);
+    await tester.pumpAndSettle();
+
+    final screen = tester.getRect(find.byType(PlayScreen));
+    final board = tester.getRect(find.byKey(const Key('your-board')));
+
+    // A graveyard column on one side and a deck column on the other cost 41
+    // percent of a 390 point screen. On a television that is a rounding
+    // error; here it is nearly half the table.
+    expect(board.width / screen.width, greaterThan(0.85),
+        reason: 'the furniture is still eating the board');
+  });
+
+  testWidgets('a card on the table is not smaller than one in your hand',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    final onBoard = tester
+        .getSize(find.descendant(
+          of: find.byKey(const Key('your-board')),
+          matching: find.byType(TableCard),
+        ))
+        .width;
+    final inHand = tester
+        .getSize(find.descendant(
+          of: find.byType(HandSheet),
+          matching: find.byType(TableCard),
+        ).first)
+        .width;
+
+    // It was exactly half: 32.19 against 64.0. The hand is a row of things
+    // you are choosing between and the battlefield is the thing you are
+    // looking at, so the board is the one that sets the size.
+    expect(onBoard, greaterThanOrEqualTo(inHand * 0.95));
+  });
+
+  testWidgets('a wide window keeps the furniture beside the board',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await _seatedPod(tester, ['you'],
+        window: const Size(1280, 800), withCommander: true);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('switch-renderer')));
+    await tester.pumpAndSettle();
+
+    final board = tester.getRect(find.byKey(const Key('your-board')));
+    final deck = tester.getRect(find.byKey(const Key('library-stack')));
+    final bin = tester.getRect(find.byKey(const Key('graveyard-stack')));
+
+    // The row is for a narrow window. With room at the sides the piles stay
+    // where a table puts them, which is beside you and not in front of you.
+    expect(deck.left, greaterThanOrEqualTo(board.right));
+    expect(bin.right, lessThanOrEqualTo(board.left));
+  });
+
+  testWidgets('the row under the board is drawn at the board\'s own card',
+      (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+
+    final onBoard = tester
+        .getSize(find.descendant(
+          of: find.byKey(const Key('your-board')),
+          matching: find.byType(TableCard),
+        ))
+        .width;
+    final deck = tester
+        .getSize(find.descendant(
+          of: find.byKey(const Key('library-stack')),
+          matching: find.byType(CardBack),
+        ).first)
+        .width;
+
+    // The row branch's half of `the board is budgeted for both columns, not
+    // one`. That case guards the arithmetic a window with columns uses and it
+    // cannot be run at this width, because below a 616 point window there are
+    // no columns to budget for: with the row's own width arithmetic out by a
+    // third the whole suite stayed green and the deck simply came out at
+    // 0.700 of the card beside it.
+    //
+    // Both ways round, and tight. The board gets the whole row here, so the
+    // width the row budgets for and the width the mat draws at are the same
+    // number arrived at twice rather than an estimate and a measurement.
+    // Measured at 1.0000.
+    expect(deck / onBoard, closeTo(1, 0.05),
+        reason: 'the deck in the row is not the size of the cards on the mat');
   });
 }
 

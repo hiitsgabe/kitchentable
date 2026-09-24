@@ -24,7 +24,13 @@ const _mostLines = 2;
 /// exactly as tall as it was.
 const _lineHeight = 96.0;
 
-/// How wide a card in the hand is drawn while the hand fits.
+/// The widest a card in the hand is ever drawn, while the hand fits.
+///
+/// A ceiling and not a size. The hand draws at whatever the board under it
+/// draws at, and this is the point past which it stops following: a line is
+/// [_lineHeight] tall and a card wider than this does not fit in one, and a
+/// hand drawn at a television's card size would take the board's screen to
+/// show you seven cards you are only choosing between.
 const _cardWidth = 64.0;
 
 /// The hand, along the bottom, wrapped onto as many lines as it needs.
@@ -41,10 +47,24 @@ class HandSheet extends StatelessWidget {
     required this.onPlay,
     required this.onInspect,
     required this.onReorder,
+    this.cardWidth,
     this.game,
   });
 
   final Metrics metrics;
+
+  /// What the board this hand sits under draws a card at.
+  ///
+  /// The hand draws at that, up to [_cardWidth]. A card in your hand was
+  /// twice the same card on the table on a phone, 64 against 32.19, because
+  /// this was a point size of its own and the board's came out of whatever
+  /// space was left over: nothing made them disagree and nothing stopped them
+  /// either.
+  ///
+  /// Null keeps the ceiling, which is the canvas: the card on that surface is
+  /// a zoom away from any point size at all, and a hand on a narrow window
+  /// there is a job of its own.
+  final double? cardWidth;
   final List<CardInstance> cards;
   final Map<String, CatalogCard> printings;
   final void Function(CardInstance) onPlay;
@@ -83,7 +103,9 @@ class HandSheet extends StatelessWidget {
 
   Widget _cards(Metrics m) {
     final gap = m.scaled(6);
-    final full = m.scaled(_cardWidth);
+    final ceiling = m.scaled(_cardWidth);
+    final asked = cardWidth ?? ceiling;
+    final full = asked < ceiling ? asked : ceiling;
 
     return LayoutBuilder(
       builder: (context, constraints) {
