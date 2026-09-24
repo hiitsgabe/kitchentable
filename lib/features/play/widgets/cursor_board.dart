@@ -112,10 +112,16 @@ class CursorBoard extends StatefulWidget {
 class _CursorBoardState extends State<CursorBoard> {
   BoardCursor? _cursor;
 
-  /// The card as this board lays it out. The whole size scales and not just
-  /// the drawn width, so a bigger card is still centred on its own spot and
-  /// still leaves a gap in the flow.
-  Size get _cardSize => cardOnMat * widget.cardScale;
+  /// The card as this board lays it out, on a board this wide.
+  ///
+  /// [cardWidthFor] and not a fraction of a fixed mat: the two used to be the
+  /// same number and could not both be right on a phone. The whole size is
+  /// worked out and not just the drawn width, so a bigger card is still
+  /// centred on its own spot and still leaves a gap in the flow.
+  Size _cardSize(double boardWidth) {
+    final w = cardWidthFor(boardWidth) * widget.cardScale;
+    return Size(w, w * 88 / 63);
+  }
 
   List<CursorZone> get _sizes => [
     for (final z in widget.zones) (id: z.id, size: z.cards.length),
@@ -229,24 +235,18 @@ class _CursorBoardState extends State<CursorBoard> {
 
     final mat = LayoutBuilder(
       builder: (context, constraints) {
-        // The mat keeps its shape whatever the window does, so a drag on a
-        // phone and the same drag on a television land on the same
-        // normalized spot. Only the scale moves.
-        //
-        // Scaled by width alone it was 1138 points tall on a 1917 point
-        // window against a viewport of about 550: half your own battlefield
-        // was below the fold, and a card parked there looked cut off rather
-        // than scrolled away. Whichever of the two runs out first decides.
-        // Scrolling, the height is infinite and the width is the only one
-        // that can run out, which is the old arithmetic saying itself.
-        final scale = matScaleFor(constraints.biggest);
-        final size = matSize * scale;
+        // The board is the mat. It used to be a 640 by 380 mat scaled to fit
+        // inside this box, which on a phone was either a 50 point card or a
+        // 512 point mat inside a 358 point board with the rest panned off the
+        // edge. Sized on its own, the card no longer has an opinion about the
+        // shape of the table, so the table can be the shape of the screen.
+        final size = constraints.biggest;
 
         final mat = SizedBox(
           width: size.width,
           height: size.height,
           child: CardDropTarget(
-            onDrop: (card, at) => _drop(zone, card, at, scale),
+            onDrop: (card, at) => _drop(zone, card, at, size),
             // The mat is a surface you can see. It had none: the dark gradient
             // behind it is the screen's, so the rectangle a card can be
             // dropped on was invisible and, on a phone, is 304 points of a 590
@@ -267,12 +267,16 @@ class _CursorBoardState extends State<CursorBoard> {
                     // already the table: it darkened the middle of the screen
                     // to say something only the edges have to say.
                     borderRadius: BorderRadius.circular(m.scaled(14)),
-                    border: Border.all(
-                      color: aiming
-                          ? Palette.accent.withValues(alpha: 0.55)
-                          : Palette.surfaceEdge,
-                      width: aiming ? m.scaled(2) : m.scaled(1),
-                    ),
+                    // Only while a card is in the air. At rest it is a dark
+                    // outline drawn around most of the screen for nobody: the
+                    // question it answers is "where can this go", and nobody
+                    // is asking that with both hands empty.
+                    border: aiming
+                        ? Border.all(
+                            color: Palette.accent.withValues(alpha: 0.55),
+                            width: m.scaled(2),
+                          )
+                        : null,
                   ),
                   child: child,
                 );
@@ -282,67 +286,22 @@ class _CursorBoardState extends State<CursorBoard> {
                 // measures it against too.
                 key: Key('mat-${zone.id}'),
                 children: [
+                  // Centred on the board, which is now the mat, so it no
+                  // longer lands off to one side of a table that is wider than
+                  // what you can see.
+                  if (zone.cards.isEmpty)
+                    Positioned.fill(
+                      child: IgnorePointer(child: _nothingHere()),
+                    ),
                   for (var i = 0; i < zone.cards.length; i++)
-                    _card(zone, i, cursor, scale),
+                    _card(zone, i, cursor, size),
                 ],
               ),
             ),
           ),
         );
 
-        // Either bigger than its box or smaller than it, and both happen on
-        // the same screen. Below the floor the mat stops fitting and the board
-        // is moved instead of the card being shrunk, which is the whole of
-        // task 4; above it the slack is real and it is not the mat's, because
-        // a wide window has room at the sides and a tall one above and below.
-        //
-        // The minimum is what keeps the second half of that true. A scroll
-        // view offers its child as much room as it wants and none that it does
-        // not, so a mat inside one has nothing to be centred in: handed the
-        // box's own size as a minimum, the Center has the slack back and the
-        // mat sits in the middle of it exactly as it did before there was
-        // anywhere to scroll.
-        final middled = ConstrainedBox(
-          constraints: BoxConstraints(
-            minWidth: constraints.hasBoundedWidth ? constraints.maxWidth : 0,
-            minHeight: constraints.hasBoundedHeight ? constraints.maxHeight : 0,
-          ),
-          child: Center(child: mat),
-        );
-
-        // Both axes, and the vertical one only where there is a height to
-        // scroll inside. A pile whose share is under its own label is already
-        // inside a scroll view of the board's, which hands this an unbounded
-        // height, and a vertical viewport given an unbounded height is an
-        // error rather than a scroll.
-        final sideways = SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: middled,
-        );
-
-        final scrolling = constraints.hasBoundedHeight
-            ? SingleChildScrollView(child: sideways)
-            : sideways;
-
-        if (zone.cards.isNotEmpty) return scrolling;
-
-        // Over the viewport rather than inside the mat. It used to be a
-        // Positioned.fill in the mat's own Stack, on the reasoning that the
-        // words and the place a card can be put down should be the same
-        // rectangle. That held while the mat always fitted: now it is 512
-        // points wide inside a 358 point board and it scrolls, so the middle
-        // of the mat is not the middle of anything you can see, and the words
-        // sat 72 points right of centre with the board parked at the left.
-        //
-        // Ignoring pointers, so the mat underneath still takes the drop and
-        // the rectangle the words are about is still the one that catches a
-        // card.
-        return Stack(
-          children: [
-            scrolling,
-            Positioned.fill(child: IgnorePointer(child: _nothingHere())),
-          ],
-        );
+        return mat;
       },
     );
 
@@ -376,20 +335,22 @@ class _CursorBoardState extends State<CursorBoard> {
     ),
   );
 
-  Widget _card(BoardZone zone, int index, BoardCursor? cursor, double scale) {
+  Widget _card(BoardZone zone, int index, BoardCursor? cursor, Size mat) {
     final m = widget.metrics;
     final card = zone.cards[index];
     final ringed =
         cursor != null && zone.id == cursor.zoneId && index == cursor.index;
+    final size = _cardSize(mat.width);
     final spot = spotFor(
       position: card.position,
       index: index,
-      card: _cardSize,
+      card: size,
+      mat: mat,
     );
 
     return Positioned(
-      left: spot.dx * scale,
-      top: spot.dy * scale,
+      left: spot.dx,
+      top: spot.dy,
       child: DraggableCard(
         card: card,
         child: Container(
@@ -406,7 +367,7 @@ class _CursorBoardState extends State<CursorBoard> {
             metrics: m,
             instance: card,
             printing: widget.printings[card.oracleId],
-            width: _cardSize.width * scale,
+            width: size.width,
             game: widget.game,
             onTap: () => widget.onActivate(card),
             onLongPress: () => widget.onInspect(card),
@@ -427,16 +388,15 @@ class _CursorBoardState extends State<CursorBoard> {
   /// centre, and spotFor centres a positioned card on the number it is given:
   /// the two are inverses, which is what stops a card walking on every drag.
   ///
-  /// Divided by the scale first, because the mat is drawn at whatever width
-  /// the board was given and a drop has to mean the same thing on a phone and
-  /// on a television.
-  void _drop(BoardZone zone, CardInstance card, Offset at, double scale) {
-    final mat = at / scale;
+  /// Against the board's own size, which is the mat now: a drop has to mean
+  /// the same fraction across and the same fraction down on a phone and on a
+  /// television, and it no longer has to mean the same shape of table.
+  void _drop(BoardZone zone, CardInstance card, Offset at, Size mat) {
     widget.onPlace(
       zone.id,
       card.id,
-      clampDouble(mat.dx / matSize.width, 0, 1),
-      clampDouble(mat.dy / matSize.height, 0, 1),
+      clampDouble(at.dx / mat.width, 0, 1),
+      clampDouble(at.dy / mat.height, 0, 1),
     );
   }
 }

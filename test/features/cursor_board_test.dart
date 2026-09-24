@@ -273,59 +273,7 @@ void main() {
     expect(acted, isNull, reason: 'dragging a card must not turn it');
   });
 
-  testWidgets('the mat fits the window rather than running off the bottom',
-      (tester) async {
-    tester.view.physicalSize = const Size(1900, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(_host());
-    await tester.pump();
-
-    final mat = tester.getSize(find.byKey(const Key('mat-battlefield-s1')));
-    final board = tester.getSize(find.byType(CursorBoard));
-
-    // Scaled by width alone, a 640 by 380 mat on a 1900 point window is 1128
-    // tall, which is more than the window. Half the battlefield was below the
-    // fold and a card parked there looked cut off rather than scrolled away.
-    expect(mat.height, lessThanOrEqualTo(board.height));
-
-    // Fitting is not clipping, and the line above alone cannot tell the two
-    // apart: the mat is centred in its box, so it is clamped to that box
-    // whatever the arithmetic says. Scaling by the wrong one of the two
-    // survived it, measured. What the line above does catch is a height
-    // going unbounded again, which is what the scroll view did.
-    //
-    // This is the line that catches the arithmetic. Height is what runs out
-    // on a window this wide, so the mat has to hand the width back: 640 by
-    // 380 at the height on offer is about 1261 points across, not 1900.
-    expect(mat.width, lessThan(board.width));
-  });
-
-  testWidgets('a narrow window still uses the width it has', (tester) async {
-    // 560 and not the 390 this was written at. Below 512 points of width the
-    // fit falls under the floor under a card, and there the mat deliberately
-    // stops taking the width it is given: it keeps its size and the board
-    // scrolls sideways instead, which is what `a mat too big for the phone
-    // scrolls rather than shrinking` is about. This case is the other half of
-    // that, the window where the fit is still the bigger number, and 560 is
-    // narrow and tall by the same margin 390 by 1200 was.
-    tester.view.physicalSize = const Size(560, 1600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(_host());
-    await tester.pump();
-
-    final mat = tester.getSize(find.byKey(const Key('mat-battlefield-s1')));
-    final board = tester.getSize(find.byType(CursorBoard));
-
-    // Tall and narrow: width is what runs out, so the mat takes all of it and
-    // the height follows the shape. Nothing is wasted sideways.
-    expect(mat.width, closeTo(board.width, 1));
-  });
-
-  testWidgets('the mat keeps its shape whichever way round the window is',
+  testWidgets('the mat is the board, whatever shape the board is',
       (tester) async {
     for (final window in [const Size(1900, 800), const Size(390, 1200)]) {
       tester.view.physicalSize = window;
@@ -336,13 +284,33 @@ void main() {
       await tester.pump();
 
       final mat = tester.getSize(find.byKey(const Key('mat-battlefield-s1')));
+      final board = tester.getSize(find.byType(CursorBoard));
 
-      // The shape is what makes a drop position mean the same thing on a
-      // phone and on a television, so it is not negotiable, only the scale is.
-      expect(mat.width / mat.height,
-          closeTo(matSize.width / matSize.height, 0.01),
-          reason: 'the mat is the wrong shape at $window');
+      // The mat used to be a fixed 640 by 380 scaled to fit inside the board,
+      // and the two could not both be satisfied on a phone: fitting it gave a
+      // 50 point card, and a readable card made it 512 points wide inside a
+      // 358 point board, so the battlefield was permanently cut off and had to
+      // be panned. Reported three times as "sempre fica cortado".
+      //
+      // The card is sized on its own now, so it has no opinion about the shape
+      // of the table and the table can be the shape of the screen. Nothing is
+      // outside the board, in either direction, on a window of either shape.
+      expect(mat.width, closeTo(board.width, 1),
+          reason: 'the mat is not the width of the board at $window');
+      expect(mat.height, lessThanOrEqualTo(board.height + 1),
+          reason: 'the mat runs off the bottom at $window');
     }
+  });
+
+  testWidgets('a card is readable before the board is wide, and grows after',
+      (tester) async {
+    // The rule that replaced the fit: a card is 72 points, or a ninth of the
+    // board, whichever is bigger. A phone shows about five across and a
+    // desktop about nine, with no breakpoint between them.
+    expect(cardWidthFor(358), readableCard);
+    expect(cardWidthFor(640), readableCard);
+    expect(cardWidthFor(1248), closeTo(1248 / 9, 0.01));
+    expect(cardWidthFor(1248), greaterThan(readableCard));
   });
 
   testWidgets('a card on the battlefield does not grow under the pointer',

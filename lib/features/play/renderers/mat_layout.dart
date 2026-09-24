@@ -50,6 +50,38 @@ double matScaleFor(Size box) => math.max(
       ),
     );
 
+/// The smallest a card on a board is drawn, in points.
+///
+/// What it costs to go below this is not the rules text, which is gone at any
+/// size a phone can give and is what the long press is for: it is the picture.
+/// A Magic card's art box is about 86 percent of its width and 42 percent of
+/// its height, so a card of 50 carries a picture 43 by 30 points and a card of
+/// 72 carries one 62 by 42, which is twice as much of the only thing on a card
+/// you recognise from across a table.
+const readableCard = 72.0;
+
+/// How many cards across a board wide enough to afford them shows.
+///
+/// A phone shows five and a desktop shows nine, and the rule below is what
+/// gets from one to the other without a breakpoint.
+const _acrossWhenRoomy = 9;
+
+/// How wide a card is drawn on a board this wide.
+///
+/// [readableCard], or a ninth of the board, whichever is bigger.
+///
+/// **Not a fraction of a fixed mat.** The board used to be a 640 by 380 mat
+/// scaled to fit, with the card's size falling out of that scale, and the two
+/// could not both be satisfied on a phone: fitting the mat gave a 50 point
+/// card, and a readable card made the mat 512 points wide inside a 358 point
+/// board, so the battlefield was permanently cut off and had to be panned.
+/// Sizing the card on its own leaves the board free to be exactly the shape of
+/// the screen, which is what a table is.
+double cardWidthFor(double boardWidth) {
+  final roomy = boardWidth / _acrossWhenRoomy;
+  return roomy > readableCard ? roomy : readableCard;
+}
+
 /// Between mats, so two battlefields never read as one.
 const matGap = 40.0;
 
@@ -144,27 +176,28 @@ Offset spotFor({
   required ({double x, double y})? position,
   required int index,
   required Size card,
+  Size mat = matSize,
 }) {
-  if (position == null) return _flowSpot(index, card);
+  if (position == null) return _flowSpot(index, card, mat);
 
   return Offset(
     clampDouble(
-      position.x * matSize.width - card.width / 2,
+      position.x * mat.width - card.width / 2,
       0,
-      matSize.width - card.width,
+      mat.width - card.width,
     ),
     clampDouble(
-      position.y * matSize.height - card.height / 2,
+      position.y * mat.height - card.height / 2,
       0,
-      matSize.height - card.height,
+      mat.height - card.height,
     ),
   );
 }
 
-Offset _flowSpot(int index, Size card) {
+Offset _flowSpot(int index, Size card, Size mat) {
   final perRow = math.max(
     1,
-    ((matSize.width - matPadding) / (card.width + matPadding)).floor(),
+    ((mat.width - matPadding) / (card.width + matPadding)).floor(),
   );
 
   return Offset(
