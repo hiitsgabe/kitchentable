@@ -254,14 +254,18 @@ class _CursorBoardState extends State<CursorBoard> {
             // nothing.
             //
             // Lit while a card is in the air, which is the one moment the
-            // answer to "where can this go" is worth saying out loud.
+            // answer to "where can this go" is worth saying out loud, and the
+            // one part of this anybody asked to keep.
             child: Consumer(
               builder: (context, ref, child) {
                 final aiming = ref.watch(draggingProvider);
 
                 return DecoratedBox(
                   decoration: BoxDecoration(
-                    color: Palette.felt,
+                    // An outline and no fill. A fill was the first attempt and
+                    // it is a black rectangle laid over a background that is
+                    // already the table: it darkened the middle of the screen
+                    // to say something only the edges have to say.
                     borderRadius: BorderRadius.circular(m.scaled(14)),
                     border: Border.all(
                       color: aiming

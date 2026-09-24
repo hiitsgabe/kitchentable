@@ -151,22 +151,30 @@ void main() {
     );
   });
 
-  testWidgets('it is a bar with a bite out of each end', (tester) async {
+  testWidgets('it is a hexagon lying on its side', (tester) async {
     const size = Size(40, 24.8);
     final path = CounterPlastic.pathFor(size);
 
-    // Off the photographs: every counter in them is a bar wider than it is
-    // tall with a V bitten into each end. This was a tile taller than wide
-    // notched top and bottom, which is why it read as a chip.
+    // Wider than tall, so the text runs the long way, which is the way the
+    // words on a counter are written.
     expect(size.width, greaterThan(size.height));
 
-    // The bite is real and it is on both ends: the middle of each end is
-    // inside the shape's own box, while the corners are on it.
+    // Pointed at each end: the middle of the left and right edges is on the
+    // shape, and the four corners are cut away. A rectangle passes the first
+    // three of these and fails the last two, and the bar with a V bitten out
+    // of each end that this replaced fails the two points and passes the
+    // corners, so the pair of them is what names a hexagon.
     expect(path.contains(Offset(size.width / 2, size.height / 2)), isTrue);
-    expect(path.contains(Offset(0.5, size.height / 2)), isFalse,
-        reason: 'the left end is not bitten into');
-    expect(path.contains(Offset(size.width - 0.5, size.height / 2)), isFalse,
-        reason: 'the right end is not bitten into');
-    expect(path.contains(const Offset(0.5, 0.5)), isTrue);
+    expect(path.contains(Offset(0.5, size.height / 2)), isTrue,
+        reason: 'the left end does not come to a point');
+    expect(path.contains(Offset(size.width - 0.5, size.height / 2)), isTrue,
+        reason: 'the right end does not come to a point');
+    expect(path.contains(const Offset(0.5, 0.5)), isFalse,
+        reason: 'the top left corner is not cut');
+    expect(
+      path.contains(Offset(size.width - 0.5, size.height - 0.5)),
+      isFalse,
+      reason: 'the bottom right corner is not cut',
+    );
   });
 }
