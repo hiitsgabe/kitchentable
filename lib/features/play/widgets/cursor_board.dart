@@ -250,7 +250,6 @@ class _CursorBoardState extends State<CursorBoard> {
               // measures it against too.
               key: Key('mat-${zone.id}'),
               children: [
-                if (zone.cards.isEmpty) _nothingHere(),
                 for (var i = 0; i < zone.cards.length; i++)
                   _card(zone, i, cursor, scale),
               ],
@@ -288,9 +287,29 @@ class _CursorBoardState extends State<CursorBoard> {
           child: middled,
         );
 
-        return constraints.hasBoundedHeight
+        final scrolling = constraints.hasBoundedHeight
             ? SingleChildScrollView(child: sideways)
             : sideways;
+
+        if (zone.cards.isNotEmpty) return scrolling;
+
+        // Over the viewport rather than inside the mat. It used to be a
+        // Positioned.fill in the mat's own Stack, on the reasoning that the
+        // words and the place a card can be put down should be the same
+        // rectangle. That held while the mat always fitted: now it is 512
+        // points wide inside a 358 point board and it scrolls, so the middle
+        // of the mat is not the middle of anything you can see, and the words
+        // sat 72 points right of centre with the board parked at the left.
+        //
+        // Ignoring pointers, so the mat underneath still takes the drop and
+        // the rectangle the words are about is still the one that catches a
+        // card.
+        return Stack(
+          children: [
+            scrolling,
+            Positioned.fill(child: IgnorePointer(child: _nothingHere())),
+          ],
+        );
       },
     );
 
@@ -314,16 +333,13 @@ class _CursorBoardState extends State<CursorBoard> {
     );
   }
 
-  /// Said inside the mat rather than instead of it, so the words and the
-  /// place a card can be put down are the same rectangle.
-  Widget _nothingHere() => Positioned.fill(
-        child: Center(
-          child: Text(
-            'Nothing on the battlefield',
-            style: TextStyle(
-              fontSize: widget.metrics.scaled(12),
-              color: Palette.inkFaint,
-            ),
+  /// Centred on what you can see, not on the mat.
+  Widget _nothingHere() => Center(
+        child: Text(
+          'Nothing on the battlefield',
+          style: TextStyle(
+            fontSize: widget.metrics.scaled(12),
+            color: Palette.inkFaint,
           ),
         ),
       );
