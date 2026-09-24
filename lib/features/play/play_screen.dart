@@ -858,35 +858,49 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
       ),
     );
 
+    // Closed once, however many of its callbacks fire. Searching the deck ends
+    // in an arrange and a shuffle, and each of those used to pop: the first
+    // closed the sheet and the second closed the table under it, so finishing
+    // a search put you back in the main menu.
+    var closed = false;
+
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Palette.surface,
       isScrollControlled: true,
-      builder: (sheet) => DeckSheet(
-        metrics: m,
-        count: library.size,
-        printings: _printings,
-        peek: (n) async => library.cards.take(n).toList(),
-        onShuffle: () {
+      builder: (sheet) {
+        void close() {
+          if (closed) return;
+          closed = true;
           Navigator.of(sheet).pop();
-          ref
-              .read(playProvider.notifier)
-              .run(ShuffleZone(zoneId: library.id, seed: freshSeed()));
-        },
-        onArrange: (placements) {
-          Navigator.of(sheet).pop();
-          final play = ref.read(playProvider.notifier);
-          for (final move in arrange(
-            libraryId: library.id,
-            placements: placements,
-            librarySize: library.size,
-            graveyardId: table.zone('graveyard-$seatId')?.id,
-            handId: table.zone('hand-$seatId')?.id,
-          )) {
-            play.run(move);
-          }
-        },
-      ),
+        }
+
+        return DeckSheet(
+          metrics: m,
+          count: library.size,
+          printings: _printings,
+          peek: (n) async => library.cards.take(n).toList(),
+          onShuffle: () {
+            close();
+            ref
+                .read(playProvider.notifier)
+                .run(ShuffleZone(zoneId: library.id, seed: freshSeed()));
+          },
+          onArrange: (placements) {
+            close();
+            final play = ref.read(playProvider.notifier);
+            for (final move in arrange(
+              libraryId: library.id,
+              placements: placements,
+              librarySize: library.size,
+              graveyardId: table.zone('graveyard-$seatId')?.id,
+              handId: table.zone('hand-$seatId')?.id,
+            )) {
+              play.run(move);
+            }
+          },
+        );
+      },
     );
   }
 

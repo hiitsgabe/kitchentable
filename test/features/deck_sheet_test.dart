@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/features/play/look_at_top.dart';
 import 'package:kitchentable/features/play/widgets/deck_sheet.dart';
+import 'package:kitchentable/features/play/widgets/sheet_parts.dart';
 import 'package:kitchentable/table/model/card_instance.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
@@ -165,18 +166,49 @@ void main() {
     expect(find.byKey(const Key('peeked-c0')), findsNothing);
     expect(find.byKey(const Key('peeked-c2')), findsNothing);
 
+    // Nothing is lit until you choose. Looking at the top few opens with
+    // `top` on every row, because a card you leave alone there is going back
+    // on top; searching, the other ninety two cards are not going anywhere and
+    // saying they were is how the whole deck got rearranged by a tutor.
+    //
+    // Reading the row's own state and not the placements it ends up sending:
+    // sending the right thing while showing every card lit up as going to the
+    // top is exactly what this looked like, and no case here could tell.
+    expect(tester.widget<CardRow>(find.byKey(const Key('peeked-c1'))).chosen,
+        isNull);
+
+    await tester.tap(find.byKey(const Key('hand-c1')));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byKey(const Key('deck-done')));
     await tester.pumpAndSettle();
 
-    // Every card is still reported, filtered or not: the filter is what you
-    // can see, not what you are holding, and a card hidden by it is a card
-    // going back where it was.
-    expect(arranged.single, hasLength(3));
+    // Only the card you chose. The two the filter hid are not in here either,
+    // and neither is the one it showed and you left alone.
+    expect(arranged.single, [(cardId: 'c1', to: Landing.hand)]);
 
     // And a tutor shuffles. It is the rule on every card that says "search
     // your library", and it is the only thing that stops a search being a free
     // look at the whole deck in order.
     expect(shuffled, 1);
+  });
+
+  testWidgets('a search moves nothing you did not choose', (tester) async {
+    final arranged = <List<Placement>>[];
+    await tester.pumpWidget(
+      _host(count: 3, printings: _named, onArrange: arranged.add),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('deck-search')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('deck-done')));
+    await tester.pumpAndSettle();
+
+    // Opening the search and closing it again is not a move. It used to report
+    // all three as going to the top, which is a rearrangement of the whole
+    // deck dressed up as a no-op.
+    expect(arranged.single, isEmpty);
   });
 
   testWidgets('looking at the top few is not a search', (tester) async {
@@ -190,6 +222,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('deck-filter')), findsNothing);
+
+    // And the other way round: looking does open with the top lit, which is
+    // the behaviour the search case above is the exception to.
+    expect(tester.widget<CardRow>(find.byKey(const Key('peeked-c0'))).chosen,
+        Landing.top);
 
     await tester.tap(find.byKey(const Key('deck-done')));
     await tester.pumpAndSettle();
