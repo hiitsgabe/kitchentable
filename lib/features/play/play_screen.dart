@@ -125,6 +125,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
 
     final renderer = rendererFor(
       width: media.size.width,
+      height: media.size.height,
       chosen: ref.watch(rendererChoiceProvider),
     );
 
