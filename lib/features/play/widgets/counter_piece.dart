@@ -150,6 +150,85 @@ class CounterPieceView extends StatelessWidget {
       );
 }
 
+/// Every counter a card is wearing, in a row along its bottom edge.
+///
+/// One place, used by the card on the battlefield and by the big view. They
+/// were two copies of this arithmetic and they had already drifted: opening a
+/// card with counters on it showed a card with no counters on it.
+///
+/// Sized off the card and not off the metrics, and positioned rather than laid
+/// out, so a card wearing counters is exactly as big as a card wearing none.
+/// Two earlier things added to a card each cost the board nine and a half
+/// percent by having a size of their own.
+class CountersOnCard extends StatelessWidget {
+  const CountersOnCard({
+    super.key,
+    required this.counters,
+    required this.width,
+  });
+
+  final Map<String, int> counters;
+
+  /// The card's width, which every size here is a fraction of.
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    final pieces = <CounterPiece>[];
+    final counts = <int>[];
+
+    final net = netPiece(counters);
+    if (net != null) {
+      pieces.add(net);
+      counts.add(1);
+    }
+    for (final entry in counters.entries) {
+      // The numbers have already gone into the marker. A keyword and a kind
+      // nobody printed have nothing to add to, so they stand on their own.
+      if (entry.value == 0 || isNumberKind(entry.key)) continue;
+      pieces.add(pieceNamed(entry.key) ?? unknownPiece(entry.key));
+      counts.add(entry.value);
+    }
+    if (pieces.isEmpty) return const SizedBox.shrink();
+
+    final pieceWidth = width * 0.27;
+    final pieceHeight = CounterPieceView.heightFor(pieceWidth);
+    // Overlapping, the way a handful of them dropped on a card does.
+    final step = pieceWidth * 0.82;
+
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: -pieceHeight * 0.2,
+      // Scaled down rather than overflowing. A card wearing five kinds has a
+      // row of pieces wider than the card, and pieces getting smaller is what
+      // a crowded card looks like anyway.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.bottomCenter,
+        child: SizedBox(
+          width: pieceWidth + step * (pieces.length - 1),
+          height: pieceHeight,
+          child: Stack(
+            children: [
+              for (var i = 0; i < pieces.length; i++)
+                Positioned(
+                  left: step * i,
+                  child: CounterPieceView(
+                    key: Key('counter-${pieces[i].name}'),
+                    piece: pieces[i],
+                    count: counts[i],
+                    width: pieceWidth,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The piece itself: shadow, body, sheen and rim.
 ///
 /// Public so a test can read what it was told to draw. There are no goldens

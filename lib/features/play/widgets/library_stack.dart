@@ -155,12 +155,7 @@ class LibraryStack extends StatelessWidget {
               top: (leaves - i) * _leafStep,
               child: CardBack(width: width, game: game),
             ),
-          if (count > 0)
-            Positioned(
-              left: lift,
-              top: lift,
-              child: _top(m),
-            ),
+          if (count > 0) Positioned(left: lift, top: lift, child: _top(m)),
         ],
       ),
     );
@@ -192,8 +187,10 @@ class LibraryStack extends StatelessWidget {
               fit: BoxFit.scaleDown,
               child: Text(
                 word,
-                style:
-                    TextStyle(fontSize: m.scaled(10), color: Palette.inkFaint),
+                style: TextStyle(
+                  fontSize: m.scaled(10),
+                  color: Palette.inkFaint,
+                ),
               ),
             ),
           ),
@@ -204,48 +201,48 @@ class LibraryStack extends StatelessWidget {
         // the one edge a pile is supposed to be standing on, and the row of
         // furniture beside it then had to find a baseline that was neither the
         // pile's nor the caption's.
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '$count',
-              style: TextStyle(
-                fontSize: m.scaled(14),
-                fontWeight: FontWeight.w700,
-                color: Palette.ink,
-              ),
-            ),
-            if (work != null) ...[
-              SizedBox(width: m.scaled(8)),
-              GestureDetector(
-                key: Key('$pileName-work'),
-                onTap: work,
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  padding: EdgeInsets.all(m.scaled(6)),
-                  decoration: BoxDecoration(
-                    color: Palette.tile,
-                    borderRadius: BorderRadius.circular(m.scaled(8)),
-                    border: Border.all(color: Palette.tileEdge),
-                  ),
-                  child: Icon(
-                    Icons.more_horiz_rounded,
-                    size: m.scaled(15),
-                    color: Palette.inkMuted,
-                  ),
+        // Sized off the pile and never wider than it. Fixed point sizes put a
+        // bold 14 point number beside a 34 point tile over a 68 point pile,
+        // which came to most of the pile's width in furniture about it and is
+        // what "esse 93 e ... ta bem feio" was. A caption belongs to the thing
+        // it captions, so it is measured in that thing.
+        SizedBox(
+          width: width + lift,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: width * 0.2,
+                  fontWeight: FontWeight.w700,
+                  color: Palette.ink,
                 ),
               ),
+              if (work != null) ...[
+                GestureDetector(
+                  key: Key('$pileName-work'),
+                  onTap: work,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: EdgeInsets.all(width * 0.04),
+                    child: Icon(
+                      Icons.more_horiz_rounded,
+                      size: width * 0.26,
+                      color: Palette.inkMuted,
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
         SizedBox(height: m.scaled(6)),
         if (thrownAt == null)
           tappable
         else
-          CardDropTarget(
-            onDrop: (card, _) => thrownAt(card),
-            child: tappable,
-          ),
+          CardDropTarget(onDrop: (card, _) => thrownAt(card), child: tappable),
       ],
     );
   }

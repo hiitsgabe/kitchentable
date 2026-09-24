@@ -813,9 +813,10 @@ void main() {
       matching: find.byType(TableCard),
     ));
     await tester.pumpAndSettle();
+    // One tap on the piece, which is the whole gesture now. It used to be a
+    // tap to choose the kind and a second tap on a plus, and the second tap
+    // closed the card.
     await tester.tap(find.byKey(const Key('kind-damage')));
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('act-counter-up')));
     await tester.pumpAndSettle();
 
     // Not in the plan, which probes the kind inside the viewer and leaves the
@@ -825,6 +826,17 @@ void main() {
     expect(
       container.read(playProvider)!.locate(card.id)!.card.counters,
       {'damage': 1},
+    );
+
+    // And the card is still open, which is the point of the change: three
+    // counters used to mean opening the card three times.
+    expect(find.byKey(const Key('kind-damage')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('kind-damage')));
+    await tester.pumpAndSettle();
+    expect(
+      container.read(playProvider)!.locate(card.id)!.card.counters,
+      {'damage': 2},
     );
   });
 

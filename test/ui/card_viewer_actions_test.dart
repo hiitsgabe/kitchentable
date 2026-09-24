@@ -15,6 +15,7 @@ const _printing = CatalogCard(
 Widget _host({
   CardInstance? instance,
   void Function(CardAction)? onAct,
+  void Function(String, int)? onCount,
   bool hasCommandZone = false,
 }) =>
     MaterialApp(
@@ -23,6 +24,7 @@ Widget _host({
           card: _printing,
           instance: instance,
           onAct: onAct,
+          onCount: onCount,
           hasCommandZone: hasCommandZone,
         ),
       ),
@@ -94,8 +96,9 @@ void main() {
 
     expect(find.byKey(const Key('act-upside-down')), findsOneWidget);
     expect(find.byKey(const Key('act-flip')), findsOneWidget);
-    expect(find.byKey(const Key('act-counter-up')), findsOneWidget);
-    expect(find.byKey(const Key('act-counter-down')), findsOneWidget);
+    // The counters are the pieces themselves now, not a plus and a minus
+    // acting on whichever piece was tapped last.
+    expect(find.byKey(const Key('kind-+1/+1')), findsOneWidget);
   });
 
   testWidgets('turning it upside down is reported', (tester) async {
@@ -136,20 +139,48 @@ void main() {
     expect(find.text('3'), findsOneWidget);
   });
 
-  testWidgets('both counter directions report', (tester) async {
+  testWidgets('tapping a piece puts one on, holding it takes one off',
+      (tester) async {
+    final counted = <(String, int)>[];
     final acted = <CardAction>[];
     await tester.pumpWidget(_host(
       instance: const CardInstance(id: 'a', oracleId: 'o'),
       onAct: acted.add,
+      onCount: (kind, by) => counted.add((kind, by)),
     ));
     await tester.pump();
 
-    await tester.tap(find.byKey(const Key('act-counter-up')));
+    await tester.tap(find.byKey(const Key('kind-+1/+1')));
     await tester.pump();
-    await tester.tap(find.byKey(const Key('act-counter-down')));
+    await tester.longPress(find.byKey(const Key('kind-+1/+1')));
     await tester.pump();
 
-    expect(acted, [CardAction.counterUp, CardAction.counterDown]);
+    expect(counted, [('+1/+1', 1), ('+1/+1', -1)]);
+
+    // And the card stays open through both. Every counter used to leave
+    // through onAct as well, which closed the viewer, so putting three on a
+    // card meant opening the card three times.
+    expect(acted, isEmpty);
+  });
+
+  testWidgets('a keyword toggles rather than counting up', (tester) async {
+    final counted = <(String, int)>[];
+    await tester.pumpWidget(_host(
+      instance: const CardInstance(
+        id: 'a',
+        oracleId: 'o',
+        counters: {'flying': 1},
+      ),
+      onCount: (kind, by) => counted.add((kind, by)),
+    ));
+    await tester.pump();
+
+    // Two FLYING is not a thing a card can be wearing, so the word comes off
+    // again instead of becoming two.
+    await tester.tap(find.byKey(const Key('kind-flying')));
+    await tester.pump();
+
+    expect(counted, [('flying', -1)]);
   });
 
   testWidgets('a card can be sent to the command zone from the big view',
@@ -204,20 +235,20 @@ void main() {
     expect(find.byKey(const Key('act-copy')), findsNothing);
   });
 
-  testWidgets('the kind of counter is the player s choice', (tester) async {
-    final acted = <CardAction>[];
+  testWidgets('the piece tapped is the kind counted', (tester) async {
+    final counted = <(String, int)>[];
     await tester.pumpWidget(_host(
       instance: const CardInstance(id: 'a', oracleId: 'o'),
-      onAct: acted.add,
+      onCount: (kind, by) => counted.add((kind, by)),
     ));
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('kind-loyalty')));
     await tester.pump();
-    await tester.tap(find.byKey(const Key('act-counter-up')));
-    await tester.pump();
 
-    expect(acted, [CardAction.counterUp]);
+    // One tap, and it names the kind. It used to take two, the first of which
+    // showed nothing had happened because nothing had.
+    expect(counted, [('loyalty', 1)]);
   });
 
   testWidgets('a card already carrying a kind offers that kind',
@@ -233,7 +264,15 @@ void main() {
 
     // Not in the fixed list, because it came off a card somebody played.
     expect(find.byKey(const Key('kind-charge')), findsOneWidget);
-    expect(find.text('4'), findsOneWidget);
+    // Inside the picker's own tile: the card behind it is wearing the same
+    // four now, so a bare find.text('4') matches twice.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('kind-charge')),
+        matching: find.text('4'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a kind nobody put on the list is offered too', (tester) async {
@@ -252,7 +291,7 @@ void main() {
     expect(find.byKey(const Key('kind-energy')), findsOneWidget);
   });
 
-  testWidgets('the counter shown is the kind that is chosen', (tester) async {
+  testWidgets('a piece counts up under your finger', (tester) async {
     await tester.pumpWidget(_host(
       instance: const CardInstance(
         id: 'a',
@@ -262,14 +301,18 @@ void main() {
     ));
     await tester.pump();
 
+    // Twice: once on the card it is sitting on and once in the picker.
+    expect(find.text('7'), findsNWidgets(2));
+
     await tester.tap(find.byKey(const Key('kind-damage')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('counter-count')), findsOneWidget);
-    expect(
-      tester.widget<Text>(find.byKey(const Key('counter-count'))).data,
-      '7',
-    );
+    // The instance handed in is a snapshot taken when the viewer opened and it
+    // never changes. That did not matter while every counter closed the
+    // viewer on its way out; now that they do not, the viewer keeps its own
+    // copy and this is what says so.
+    expect(find.text('8'), findsNWidgets(2));
+    expect(find.text('7'), findsNothing);
   });
 
   testWidgets('the picker draws each kind as its own piece', (tester) async {
