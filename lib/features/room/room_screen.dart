@@ -26,10 +26,12 @@ class RoomScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final room = ref.watch(roomProvider);
 
     // Nobody should reach this screen without a room, and the one way it could
@@ -56,7 +58,7 @@ class RoomScreen extends ConsumerWidget {
       label: config == null
           ? 'somebody else\'s room'
           : '${config.format.label} · ${config.seats} chairs · '
-              '${config.life} life',
+                '${config.life} life',
       onBack: () => _leave(context, ref),
       hints: const [
         Hint(button: HintBar.dpad, label: 'move'),
@@ -70,7 +72,11 @@ class RoomScreen extends ConsumerWidget {
           MenuRow(
             key: const Key('room-copy'),
             title: 'Copy the link',
-            subtitle: 'send it to whoever is not in the kitchen',
+            // The front half of the link is only where the app is downloaded
+            // from; the table itself lives on this phone. Said so, because a
+            // link that starts with somebody else's domain reads as somebody
+            // else's server.
+            subtitle: 'it opens the app and brings them to your phone',
             icon: Icons.link_rounded,
             metrics: m,
             onActivate: () => _copy(context, link),
@@ -81,7 +87,8 @@ class RoomScreen extends ConsumerWidget {
             metrics: m,
             id: 'room-no-link',
             colour: Palette.inkMuted,
-            text: 'No link from this build: a link points at the web version, '
+            text:
+                'No link from this build: a link points at the web version, '
                 'and this one is not served anywhere. Read the code out, or '
                 'let somebody type it in.',
           ),
@@ -93,7 +100,8 @@ class RoomScreen extends ConsumerWidget {
           // "Unencrypted" is a sentence about software; this is a sentence
           // about their hand, which is the thing they would have assumed was
           // theirs.
-          text: 'Everybody in this room can see everything in it. Your hand and '
+          text:
+              'Everybody in this room can see everything in it. Your hand and '
               'your deck are sent to the other phones as they are, and what '
               'keeps a card face down is their copy of the app choosing not to '
               'draw it. Fine for friends at a kitchen table. Not safe against '
@@ -103,7 +111,8 @@ class RoomScreen extends ConsumerWidget {
           metrics: m,
           id: 'room-reach',
           colour: Palette.inkMuted,
-          text: 'Nobody can actually arrive yet: carrying people between phones '
+          text:
+              'Nobody can actually arrive yet: carrying people between phones '
               'is the next piece of work. The code and the link are real, and '
               'for now the only chair that fills is yours.',
         ),
@@ -133,7 +142,8 @@ class RoomScreen extends ConsumerWidget {
             // deal them as one table", and a player reading that had to work
             // out for themselves that it meant playing everybody at the table.
             title: 'Fill the other chairs from this device',
-            subtitle: 'bring a deck for each chair and play all '
+            subtitle:
+                'bring a deck for each chair and play all '
                 '${config.seats} hands yourself. Until people can actually '
                 'arrive, this is the only way the other chairs fill.',
             icon: Icons.group_add_rounded,
@@ -217,7 +227,11 @@ class _Code extends StatelessWidget {
             ),
             SizedBox(height: m.scaled(4)),
             Text(
-              'nothing in it can be misheard: no o against 0, no l against 1',
+              // What the code is, said in the terms of the person holding the
+              // phone. It is how a friend finds this table: they type it into
+              // Join, or open the link, and their phone connects to yours.
+              'read it out, or send the link. Either one brings a friend to '
+              'this table, on your phone, from anywhere.',
               style: TextStyle(
                 fontSize: m.scaled(11),
                 height: 1.4,
@@ -321,7 +335,9 @@ class _Note extends StatelessWidget {
         decoration: BoxDecoration(
           color: Palette.surface,
           borderRadius: BorderRadius.circular(m.scaled(10)),
-          border: Border(left: BorderSide(color: colour, width: m.scaled(3))),
+          border: Border(
+            left: BorderSide(color: colour, width: m.scaled(3)),
+          ),
         ),
         child: Text(
           text,
