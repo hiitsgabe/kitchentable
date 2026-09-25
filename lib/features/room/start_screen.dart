@@ -9,6 +9,7 @@ import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
+import '../settings/player_name.dart';
 import 'room_controller.dart';
 import 'room_screen.dart';
 
@@ -28,7 +29,6 @@ class StartScreen extends ConsumerStatefulWidget {
 
 class _StartScreenState extends ConsumerState<StartScreen> {
   final _roomName = TextEditingController();
-  final _hostName = TextEditingController();
   final _life = TextEditingController();
 
   DeckFormat _format = DeckFormat.commander;
@@ -51,7 +51,6 @@ class _StartScreenState extends ConsumerState<StartScreen> {
   @override
   void dispose() {
     _roomName.dispose();
-    _hostName.dispose();
     _life.dispose();
     super.dispose();
   }
@@ -89,17 +88,6 @@ class _StartScreenState extends ConsumerState<StartScreen> {
             metrics: m,
             controller: _roomName,
             hint: 'the kitchen table',
-            onChanged: (_) => setState(() {}),
-          ),
-        ),
-        _Field(
-          metrics: m,
-          label: 'Your name',
-          child: TextFieldBox(
-            key: const Key('host-name'),
-            metrics: m,
-            controller: _hostName,
-            hint: 'you',
             onChanged: (_) => setState(() {}),
           ),
         ),
@@ -165,7 +153,10 @@ class _StartScreenState extends ConsumerState<StartScreen> {
       format: _format,
       seats: _seats,
       life: life,
-      hostName: _trimmed(_hostName, 'you'),
+      // Read and not asked for. A name is the same in every room somebody
+      // joins, so it lives with them in settings, and the room still carries
+      // who made it.
+      hostName: ref.read(yourNameProvider),
       roomName: _trimmed(_roomName, 'the kitchen table'),
     );
     ref.read(roomProvider.notifier).open(config);
