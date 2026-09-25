@@ -16,10 +16,12 @@ import 'package:kitchentable/features/room/join_screen.dart';
 import 'package:kitchentable/features/room/room_controller.dart';
 import 'package:kitchentable/features/room/room_screen.dart';
 import 'package:kitchentable/features/room/start_screen.dart';
+import 'package:kitchentable/features/settings/player_name.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 import 'package:kitchentable/table/room/room.dart';
 import 'package:kitchentable/ui/atoms/menu_row.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Where the web build is served from, for the tests that want a link. Off the
 /// web there is no origin at all and the room has only a code, which is its
@@ -82,12 +84,17 @@ ProviderContainer _container({
   String? origin = _origin,
   String? launchCode,
   List<Deck> shelf = const [],
+  String? yourName = namelessPlayer,
   MenuState menu = const MenuState(cardCount: 36079, enabledSources: 1),
 }) {
   final container = ProviderContainer(
     overrides: [
       roomOriginProvider.overrideWithValue(origin),
       launchRoomCodeProvider.overrideWithValue(launchCode),
+      // Your name comes off the device rather than out of this screen now, and
+      // overriding the resolved one keeps these cases off the disk. Null means
+      // no override: the real chain, from an empty store to the fallback.
+      if (yourName != null) yourNameProvider.overrideWithValue(yourName),
       // Null keeps every screen this pushes off the disk, and stands in for
       // the web build, which has no local catalog.
       catalogDbProvider.overrideWithValue(null),
@@ -137,6 +144,9 @@ String _textAt(WidgetTester tester, String key) {
 }
 
 void main() {
+  // The name lives on the device now, so any screen reading it reads a store.
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   group('the menu', () {
     test('offers starting a table and joining one rather than playing', () {
       const state = MenuState(cardCount: 36079, enabledSources: 1);
@@ -224,7 +234,6 @@ void main() {
       await _pump(tester, container, const StartScreen());
 
       await tester.enterText(find.byKey(const Key('room-name')), 'the kitchen');
-      await tester.enterText(find.byKey(const Key('host-name')), 'kit');
       await tester.enterText(find.byKey(const Key('life-field')), '30');
       await tester.pump();
       await tester.tap(find.byKey(const Key('seats-row')));
@@ -234,11 +243,45 @@ void main() {
 
       final config = container.read(roomProvider)!.config!;
       expect(config.roomName, 'the kitchen');
-      expect(config.hostName, 'kit');
       expect(config.life, 30);
       expect(roomSeatChoices, contains(config.seats));
       expect(config.seats, isNot(roomSeatChoices.first),
           reason: 'the seats row was pressed once, so it moved off the first');
+    });
+
+    testWidgets('your name comes off the device and the room never asks',
+        (tester) async {
+      // A name is a property of the person: it is the same in every room they
+      // ever join, so a room that asks again is asking somebody to repeat
+      // themselves and making a second place it can disagree from.
+      final container = _container(yourName: 'kit');
+      await _pump(tester, container, const StartScreen());
+
+      expect(find.byKey(const Key('host-name')), findsNothing);
+      // The positive control. The room's own name is still asked for on this
+      // screen, so a screen that failed to build cannot satisfy the line above
+      // by being empty.
+      expect(find.byKey(const Key('room-name')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('make-room')));
+      await tester.pumpAndSettle();
+
+      expect(container.read(roomProvider)!.config!.hostName, 'kit');
+    });
+
+    testWidgets('a room made by somebody who never said their name',
+        (tester) async {
+      // No override here, so this runs the real chain: an empty store, the
+      // provider that puts the fallback in front of it, and the screen reading
+      // it. An override handing the screen `you` would prove only the reading.
+      final container = _container(yourName: null);
+      await _pump(tester, container, const StartScreen());
+
+      await tester.tap(find.byKey(const Key('make-room')));
+      await tester.pumpAndSettle();
+
+      expect(container.read(roomProvider)!.config!.hostName, namelessPlayer,
+          reason: 'which is where the old empty box landed too');
     });
 
     testWidgets('off the web there is no link to give, only the code',
