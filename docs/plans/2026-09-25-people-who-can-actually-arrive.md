@@ -100,6 +100,40 @@ git commit -m "Take the turn off a table that never had one"
 
 ---
 
+### What running Task 0 found
+
+**The plan's sentence "nothing on any screen reads either" was mine and it
+was false.** `play_screen.dart` passed `turnSeatId` into both renderers, each
+derived `isTurn` from it, and `seat_band.dart` and the canvas painted an
+accent ring and a thicker border on that seat. Since setup always stamped the
+first seat and nothing ever constructed `PassTurn`, **seat 1 wore the "your
+turn" ring forever**, a visible bug nobody had reported. My grep was
+`\.turn\b` and `PassTurn`; the field is `turnSeatId` and the consumer is
+`isTurn`, and a concept-shaped regex finds neither. The ruling was the full
+removal, ring included: an `isTurn` that is always false is the same field
+that exists to be wrong, moved into widgets, and the next reader wires it
+back. A derived case now reads the two renderer files and asserts neither
+names `turnSeatId` or `isTurn`.
+
+**The version-refusal sample verb is `RollDice([6])`**, because it invents no
+id, so the version is the only thing wrong with the message. `PassTurn` had
+been the sample precisely because it carried nothing, and it is gone.
+
+**Files the brief's list missed, found by grep:** `lib/table/setup.dart` (two
+constructions with `turnSeatId`), `test/table/apply_test.dart`,
+`test/table/pod_setup_test.dart` (a case "the turn starts with the first
+seat", deleted), and three sites in `test/table/mesh_test.dart`.
+
+**Five probes, none survived:** `turnSeatId` back on the wire fails on the key
+list (wire_test:285); version left at 1 fails by returning a verb (:307); the
+refusal check removed fails by returning a table (:291); "refuse and still
+apply" fails with `Expected: empty, Actual: [6]` (mesh_test:578); `dart:io`
+added to the moved mesh fails the import sweep (:618).
+
+**The move is `git mv`** for `mesh.dart`, `transport.dart`, `mesh_test.dart`
+and `fake_transport.dart`; the import sweep's allowed set and paths moved with
+it and it still asserts per file that the set is non-empty before differencing.
+
 ## Task 1: A Nostr client small enough to read
 
 **Files:**
