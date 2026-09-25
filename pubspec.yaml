@@ -50,6 +50,12 @@ dependencies:
   # Flutter drops it the build breaks with no warning at all. One line here is
   # cheaper than four suppressions of a lint that is telling the truth.
   vector_math: ^2.4.0
+  # The QR code on the room screen. A room's link is a name rather than an
+  # address, so it is short enough to hold up on a phone and have somebody
+  # else's camera read it, which is the fastest way into a room at the same
+  # table as you. Drawn rather than fetched: an image from a QR service would
+  # send the link to somebody who has no business seeing it.
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

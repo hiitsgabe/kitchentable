@@ -104,18 +104,31 @@ class PlayController extends Notifier<TableState?> {
   @override
   TableState? build() => null;
 
-  void start(Deck deck, {String? seed}) => startPod(
+  void start(Deck deck, {String? seed, int? life}) => startPod(
         players: [(deck: deck, name: 'you', owner: const SeatOwner.here())],
         seed: seed,
+        life: life,
       );
 
   /// Everybody at this device. Solo comes through here too: one player is a
   /// pod of one, and a separate path for it is how the one seat case drifts
   /// away from the four seat one without anybody noticing.
-  void startPod({required List<Player> players, String? seed}) {
+  ///
+  /// [life] is what the room plays to, when a room said so. Null leaves every
+  /// seat on whatever its format starts at, which is every table opened without
+  /// a room around it.
+  void startPod({required List<Player> players, String? seed, int? life}) {
     if (players.isEmpty) return;
 
-    final table = sitDownTogether(players: players, seed: seed ?? freshSeed());
+    var table = sitDownTogether(players: players, seed: seed ?? freshSeed());
+    if (life != null) {
+      // Set rather than nudged by a difference. Two decks in different formats
+      // at one table start on two different numbers, and a room that says
+      // thirty means thirty for everybody in it.
+      table = table.copyWith(
+        seats: [for (final seat in table.seats) seat.copyWith(life: life)],
+      );
+    }
     // sitDownTogether seats the players in the order they arrived, so the
     // two lists line up. Matching on the id it minted would tie this to that
     // id's spelling instead.

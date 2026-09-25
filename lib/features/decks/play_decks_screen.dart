@@ -13,6 +13,7 @@ import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../play/play_controller.dart';
 import '../play/play_screen.dart';
+import '../room/room_controller.dart';
 import 'decks_controller.dart';
 
 /// Pick a deck and the game starts.
@@ -27,6 +28,10 @@ import 'decks_controller.dart';
 /// changes what a tap means rather than what a row is: with it on, a tap
 /// collects the deck instead of dealing it, and Deal opens one table with a
 /// chair for each deck collected.
+///
+/// Reached from inside a room rather than from the menu. The room is the place
+/// and this is where you say what you brought to it, which is why it reads the
+/// room for what the table plays to.
 class PlayDecksScreen extends ConsumerStatefulWidget {
   const PlayDecksScreen({super.key});
 
@@ -183,12 +188,24 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
     return full;
   }
 
+  /// What the room plays to, or null where there is no room saying.
+  ///
+  /// Null is not only the no room case: a guest has a code and not the host's
+  /// settings, because those travel over a mesh that does not exist yet. A guest
+  /// therefore starts on the format's own number until it does, which is wrong
+  /// and is at least wrong in the same direction as knowing nothing.
+  int? get _roomLife => ref.read(roomProvider)?.config?.life;
+
   /// One deck, one seat, straight from the row that was tapped.
   Future<void> _deal(Deck deck) async {
     final full = await _hydrate(deck);
     if (full == null || !mounted) return;
 
-    ref.read(playProvider.notifier).start(full, seed: freshSeed());
+    ref.read(playProvider.notifier).start(
+          full,
+          seed: freshSeed(),
+          life: _roomLife,
+        );
     await _open();
   }
 
@@ -205,7 +222,11 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
       ));
     }
 
-    ref.read(playProvider.notifier).startPod(players: full, seed: freshSeed());
+    ref.read(playProvider.notifier).startPod(
+          players: full,
+          seed: freshSeed(),
+          life: _roomLife,
+        );
     await _open();
   }
 

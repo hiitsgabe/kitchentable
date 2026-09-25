@@ -77,22 +77,20 @@ Future<ProviderContainer> _listed(WidgetTester tester) async {
   return container;
 }
 
+/// The deck picker is reached from inside a room now, not from the menu, so
+/// what this file pins is what the picker does once you are on it. The case
+/// that used to open it asserted that a table starts from a deck, which is the
+/// order this slice reverses; the menu's own doors are in room_flow_test.dart.
 void main() {
-  test('Play says it deals, which is what it does', () {
-    const state = MenuState(cardCount: 36079, enabledSources: 1);
-    final play = state.entries.firstWhere((e) => e.id == MenuEntryId.play);
-
-    expect(play.subtitle, contains('deals'));
-    expect(play.enabled, isTrue,
-        reason: 'a table starts from a deck, and this is the door that deals');
-  });
-
-  test('it waits for a source first', () {
+  test('nothing opens until there is a source', () {
     const state = MenuState(cardCount: 0, enabledSources: 0);
-    final play = state.entries.firstWhere((e) => e.id == MenuEntryId.play);
+    final start = state.entries.firstWhere((e) => e.id == MenuEntryId.start);
+    final join = state.entries.firstWhere((e) => e.id == MenuEntryId.join);
 
-    expect(play.enabled, isFalse);
-    expect(play.subtitle, 'needs a source');
+    expect(start.enabled, isFalse);
+    expect(start.subtitle, 'needs a source');
+    expect(join.enabled, isFalse,
+        reason: 'a room you cannot bring a deck to is a room you stand in');
   });
 
   testWidgets('tapping a deck still deals straight away', (tester) async {

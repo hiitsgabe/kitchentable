@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'features/menu/menu_screen.dart';
+import 'features/room/entry.dart';
 import 'ui/background/backdrop.dart';
 import 'ui/background/backdrop_controller.dart';
 import 'ui/tokens/theme.dart';
@@ -22,7 +22,9 @@ class KitchentableApp extends ConsumerWidget {
         style: ref.watch(backdropProvider),
         child: child ?? const SizedBox.shrink(),
       ),
-      home: const MenuScreen(),
+      // Not the menu directly: a tab opened on a room link has somewhere else
+      // to be. See [Entry].
+      home: const Entry(),
     );
   }
 }
