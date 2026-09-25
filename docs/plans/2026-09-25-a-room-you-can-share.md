@@ -312,6 +312,42 @@ git commit -m "Make a room before anybody brings a deck"
 
 ---
 
+### What running Task 3 found
+
+**Six files beyond the Files list**, and each earns its place. `room_controller.dart`
+is the code-to-config pairing the plan said was the implementer's to invent.
+`entry.dart` exists so the deep link is testable at all: the branch inline in
+`MaterialApp.home` would have meant testing through the whole app shell, and a
+`home` that flips after startup swaps the root out from under a pushed route.
+`launch.dart` plus `_io` and `_web` are the conditional export that reads the
+address bar, copying the `catalog_opener` idiom.
+
+**The room's starting life had to reach the table, which the plan did not ask
+for.** Without it the settings screen collects a life total the table ignores,
+and a room reading "Commander, 4 chairs, 30 life" over a table that dealt 40 is
+exactly the failure the spec calls worse than shipping something limited.
+`startPod` took an optional `int? life`; no existing caller changed.
+
+**A room off the web has no link, and says so.** `launchOrigin()` is null on a
+phone, so there is no link and no QR and a line explains that a link is a thing
+the web build has. The plan says the room carries a code, a link and a QR; on a
+phone it can only honestly carry the code.
+
+**One case was deleted rather than re-pointed.** `Play says it deals, which is
+what it does` asserted the subtitle contains "deals", with the reason "a table
+starts from a deck, and this is the door that deals". That premise is what this
+slice reverses, so there was nothing to re-aim.
+
+**The decision the plan left open.** A `#room=` code naming a room nobody is
+hosting opens the room anyway, as a guest, with the line saying nobody can
+arrive yet. Nothing in this slice can tell an absent room from an unreachable
+one, so "no such room" would be a guess dressed as a fact.
+
+**And the disclosure that matters most:** all seventeen new cases passed on
+their first run after the screens compiled. The Step 2 red was a compile error
+and proved nothing. The thirteen probes are the only evidence those cases are
+worth anything.
+
 ## Task 4: The mesh, against a seam
 
 **Files:**
@@ -373,6 +409,49 @@ git commit -m "Replicate a table across a mesh"
 ```
 
 ---
+
+### What running Task 4 found
+
+**Two probes survived and both were findings.**
+
+The first, succession reading a number off the ask, went red on the wrong line
+and then, with the stamp assertions removed, survived: an unrelated guard of
+the implementer's own stopped the forged number ever arriving, so the
+succession half was double guarded and untested. It bit only with both removed.
+
+The second is the more useful. Making the hello carry a `joinedAt` changed
+nothing, because with the fake transport a guest knows nobody at `start()` and
+**the hello loop never ran in any case at all**. Production code with no cover
+reads exactly like a passing probe. The fix was a fourth peer whose transport
+learns who is present before its mesh is built, which is an order a real
+transport can produce.
+
+**A third probe showed a case naming the wrong attacker.** The unsolicited
+state case used a peer that a different check already refuses, so the window
+under test was never reached. Rewritten as the design's actual sentence: the
+peer pushing its own table the moment it legitimately takes over.
+
+**The attack is closed structurally, not by a test.** `_handTheTableTo` takes
+the asking peer's id and nothing else, and the `hello` case passes
+`message.from` and discards the body, so there is no number to read. A probe
+that tries to read one does not compile.
+
+**Same instant verbs diverge, and that is a decision.** Nothing orders the
+mesh; each peer applies in arrival order. A verb that adds commutes and a verb
+that sets can end differently per peer, and the consequence is pinned in a case
+rather than described in a comment. The alternative, routing every verb through
+the host to be ordered, is the star the design rejected and puts a mobile round
+trip in front of every tap.
+
+**A peer that missed ten verbs gets a snapshot, not a replay.** `apply` is
+deliberately a no-op for a verb naming a card that is not there, so a replay
+that fell short would leave a peer with a table that looks correct and is
+wrong, which is the failure Task 1 refused for unknown verbs. The cost, on the
+record: anything the returning peer ran while it was alone is discarded, and it
+cannot tell whether it left or everybody else did.
+
+**Eleven of thirteen cases passed on their first run.** Only two ever went red
+on their own, and both were one bug in the fake rather than in the mesh.
 
 ## What this plan deliberately leaves out
 
