@@ -236,7 +236,7 @@ void main() {
       await tester.enterText(find.byKey(const Key('room-name')), 'the kitchen');
       await tester.enterText(find.byKey(const Key('life-field')), '30');
       await tester.pump();
-      await tester.tap(find.byKey(const Key('seats-row')));
+      await tester.tap(find.byKey(const Key('seats-up')));
       await tester.pump();
       await tester.tap(find.byKey(const Key('make-room')));
       await tester.pumpAndSettle();
@@ -246,7 +246,103 @@ void main() {
       expect(config.life, 30);
       expect(roomSeatChoices, contains(config.seats));
       expect(config.seats, isNot(roomSeatChoices.first),
-          reason: 'the seats row was pressed once, so it moved off the first');
+          reason: 'plus was pressed once, so it moved off the fewest');
+    });
+
+    testWidgets('the format is picked off the list rather than cycled through',
+        (tester) async {
+      final container = _container();
+      await _pump(tester, container, const StartScreen());
+
+      // Derived from the enum, not from a list typed in here. A case holding
+      // its own five names could only ever look for the formats somebody
+      // remembered, and a sixth added to the app would leave it green.
+      for (final format in DeckFormat.values) {
+        expect(find.byKey(Key('format-${format.name}')), findsOneWidget,
+            reason: 'no way to pick ${format.name}');
+      }
+
+      MenuRow row(DeckFormat f) =>
+          tester.widget<MenuRow>(find.byKey(Key('format-${f.name}')));
+
+      final wanted = DeckFormat.values.last;
+      expect(row(wanted).subtitle, isNot(contains('picked')),
+          reason: 'the tap below has to be a change, and this is the guard '
+              'against pressing the one the screen opened on');
+
+      await tester.tap(find.byKey(Key('format-${wanted.name}')));
+      await tester.pump();
+
+      expect(row(wanted).subtitle, contains('picked'),
+          reason: 'a select says which one is chosen');
+
+      await tester.tap(find.byKey(const Key('make-room')));
+      await tester.pumpAndSettle();
+
+      expect(container.read(roomProvider)!.config!.format, wanted);
+    });
+
+    testWidgets('the chairs stepper stops at both ends instead of wrapping',
+        (tester) async {
+      // Wrapping is the failure to watch for. A row you tap to cycle wraps by
+      // nature and a stepper must not: somebody pressing minus at the fewest
+      // chairs and landing on the most has been lied to.
+      final container = _container();
+      await _pump(tester, container, const StartScreen());
+
+      int shown() => int.parse(_textAt(tester, 'seats-count'));
+      double dimming(String key) => tester
+          .widget<Opacity>(find.descendant(
+            of: find.byKey(Key(key)),
+            matching: find.byType(Opacity),
+          ))
+          .opacity;
+
+      expect(shown(), roomSeatChoices.first);
+      expect(dimming('seats-down'), lessThan(1),
+          reason: 'minus is drawn dead at the fewest chairs');
+      expect(dimming('seats-up'), 1.0);
+
+      final atFewest = _textAt(tester, 'seats-note');
+      expect(atFewest, contains('${roomSeatChoices.first}'));
+      expect(atFewest, contains('as few as'));
+
+      await tester.tap(find.byKey(const Key('seats-down')));
+      await tester.pump();
+      expect(shown(), roomSeatChoices.first,
+          reason: 'minus at ${roomSeatChoices.first} chairs must not wrap '
+              'round to ${roomSeatChoices.last}');
+
+      // Exactly enough to land on the last and not one more, so that the press
+      // past the end below is the only thing the last assertion can be about.
+      // Overshooting here made a stepper that wrapped fail on the way up, which
+      // left the assertion about pressing past the top never run at all.
+      for (var i = 0; i < roomSeatChoices.length - 1; i++) {
+        await tester.tap(find.byKey(const Key('seats-up')));
+        await tester.pump();
+      }
+
+      expect(shown(), roomSeatChoices.last);
+      expect(dimming('seats-up'), lessThan(1),
+          reason: 'and plus is drawn dead at the most');
+      expect(dimming('seats-down'), 1.0);
+
+      final atMost = _textAt(tester, 'seats-note');
+      expect(atMost, contains('${roomSeatChoices.last}'));
+      expect(atMost, contains('as many as'));
+      expect(atMost, isNot(atFewest),
+          reason: 'both ends say when they have stopped, in their own words');
+
+      await tester.tap(find.byKey(const Key('seats-up')));
+      await tester.pump();
+      expect(shown(), roomSeatChoices.last,
+          reason: 'plus at ${roomSeatChoices.last} chairs must not wrap round '
+              'to ${roomSeatChoices.first}');
+
+      await tester.tap(find.byKey(const Key('make-room')));
+      await tester.pumpAndSettle();
+      expect(container.read(roomProvider)!.config!.seats, roomSeatChoices.last,
+          reason: 'and the room is made with the number on the screen');
     });
 
     testWidgets('your name comes off the device and the room never asks',
