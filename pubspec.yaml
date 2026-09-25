@@ -56,6 +56,13 @@ dependencies:
   # table as you. Drawn rather than fetched: an image from a QR service would
   # send the link to somebody who has no business seeing it.
   qr_flutter: ^4.1.0
+  # The rendezvous. A room's link names a meeting place on public Nostr
+  # relays, and this is the whole of Nostr the app needs: a WebSocket that
+  # carries JSON arrays, and a Schnorr signature so a relay cannot forge a
+  # peer. bip340 is pure Dart and runs in the browser too; the full Nostr
+  # libraries either bring a native component or do not build for web.
+  bip340: ^0.3.1
+  web_socket_channel: ^3.0.3
 
 dev_dependencies:
   flutter_test:
