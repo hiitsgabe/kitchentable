@@ -455,6 +455,111 @@ void main() {
       expect(find.byType(PlayDecksScreen), findsOneWidget);
     });
 
+    testWidgets('the picker opened from a room picks one deck and no more',
+        (tester) async {
+      // Collecting several decks and dealing them as one table is nonsense
+      // twice over from inside a room: the room already said how many chairs,
+      // and seats are meant to fill with people.
+      final container = _container(shelf: [_deck('d1')]);
+      container.read(roomProvider.notifier).open(_config());
+      await _pump(tester, container, const RoomScreen());
+
+      await tester.tap(find.byKey(const Key('room-deck')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('add-seat')), findsNothing);
+      expect(find.byKey(const Key('deal')), findsNothing,
+          reason: 'nothing to deal together, because nothing is collected');
+      // The positive control: this is the deck picker with a deck on it, so an
+      // empty or broken screen cannot satisfy the two lines above.
+      expect(find.byKey(const Key('deck-row-0')), findsOneWidget);
+    });
+
+    testWidgets('the room offers to fill the other chairs from this device',
+        (tester) async {
+      final container = _container();
+      container.read(roomProvider.notifier).open(_config(seats: 4));
+      await _pump(tester, container, const RoomScreen());
+
+      final row = tester.widget<MenuRow>(find.byKey(const Key('room-fill')));
+      final words = '${row.title} ${row.subtitle}'.toLowerCase();
+
+      // Named as what it does, which is the whole point of moving it. The old
+      // row said "More than one seat" over "collect several decks and deal
+      // them as one table", and somebody reading that had to work out that it
+      // meant they would be playing everybody.
+      expect(words, contains('chairs'));
+      expect(words, contains('this device'));
+      expect(words, contains('4'), reason: 'and how many it is filling');
+      expect(words, isNot(contains('more than one seat')));
+    });
+
+    testWidgets('filling them opens a picker that takes a deck per chair',
+        (tester) async {
+      // Deliberately kept rather than deleted. With no transport, this is the
+      // only way to see a table with more than one seat at all, and the pod
+      // renderers are unreachable without it.
+      final container = _container(shelf: [_deck('d1')]);
+      container.read(roomProvider.notifier).open(_config(seats: 4));
+      await _pump(tester, container, const RoomScreen());
+
+      await tester.tap(find.byKey(const Key('room-fill')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('deck-row-0')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('deck-row-0')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('deal')));
+      await tester.pumpAndSettle();
+
+      final table = container.read(playProvider);
+      expect(table!.seats, hasLength(2));
+      expect(table.seats.every((s) => s.owner.actableHere), isTrue,
+          reason: 'every chair is held by this device');
+    });
+
+    testWidgets('it will not collect more decks than the room has chairs',
+        (tester) async {
+      // The room said how many chairs. A picker that let somebody collect a
+      // fifth deck in a four chair room would deal a table the room does not
+      // describe, which is the same lie in the other direction.
+      final container = _container(shelf: [_deck('d1')]);
+      final seats = roomSeatChoices.first;
+      container.read(roomProvider.notifier).open(_config(seats: seats));
+      await _pump(tester, container, const RoomScreen());
+
+      expect(find.byKey(const Key('room-fill')), findsOneWidget,
+          reason: 'the fewest chairs a room has is $seats, and one of them is '
+              'somebody else\'s, so there is something to fill');
+
+      await tester.tap(find.byKey(const Key('room-fill')));
+      await tester.pumpAndSettle();
+
+      for (var i = 0; i < seats + 2; i++) {
+        await tester.tap(find.byKey(const Key('deck-row-0')));
+        await tester.pump();
+      }
+      await tester.tap(find.byKey(const Key('deal')));
+      await tester.pumpAndSettle();
+
+      expect(container.read(playProvider)!.seats, hasLength(seats));
+    });
+
+    testWidgets('a room that cannot say how many chairs does not offer it',
+        (tester) async {
+      // A guest has a code and none of the host's settings, because those
+      // travel over a mesh that does not exist yet. Offering to fill chairs it
+      // cannot count would be a control working off its own guess.
+      final container = _container();
+      container.read(roomProvider.notifier).arrive(freshRoomCode());
+      await _pump(tester, container, const RoomScreen());
+
+      expect(find.byKey(const Key('room-fill')), findsNothing);
+      // The positive control again: a guest still picks a deck and sits down.
+      expect(find.byKey(const Key('room-deck')), findsOneWidget);
+    });
+
     testWidgets('the room is what the table starts on', (tester) async {
       final container = _container(shelf: [_deck('d1')]);
       container.read(roomProvider.notifier).open(_config(life: 30));

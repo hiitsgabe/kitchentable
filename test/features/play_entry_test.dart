@@ -56,7 +56,7 @@ class _Shelf implements DeckRepository {
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Future<ProviderContainer> _listed(WidgetTester tester) async {
+Future<ProviderContainer> _listed(WidgetTester tester, {int? chairs}) async {
   final container = ProviderContainer(
     overrides: [
       // Null keeps the play screen this pushes from going to disk for its
@@ -70,7 +70,7 @@ Future<ProviderContainer> _listed(WidgetTester tester) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: PlayDecksScreen()),
+      child: MaterialApp(home: PlayDecksScreen(chairs: chairs)),
     ),
   );
   await tester.pumpAndSettle();
@@ -81,6 +81,12 @@ Future<ProviderContainer> _listed(WidgetTester tester) async {
 /// what this file pins is what the picker does once you are on it. The case
 /// that used to open it asserted that a table starts from a deck, which is the
 /// order this slice reverses; the menu's own doors are in room_flow_test.dart.
+///
+/// Collecting a deck per chair is no longer a toggle this screen carries: the
+/// row that opens it decides which of the two pickers it is, and the row lives
+/// on the room screen. So the pod case pumps the picker with a chair count
+/// rather than pressing a switch. That there is a door to it, and that the
+/// ordinary picker has no such switch, is room_flow_test.dart's job.
 void main() {
   test('nothing opens until there is a source', () {
     const state = MenuState(cardCount: 0, enabledSources: 0);
@@ -99,16 +105,15 @@ void main() {
     await tester.tap(find.byKey(const Key('deck-row-0')));
     await tester.pumpAndSettle();
 
-    // Plan 1 asked for a deck row that deals on a single press, and the seat
-    // toggle is not allowed to put a step in front of that.
+    // Plan 1 asked for a deck row that deals on a single press. Nothing on
+    // this screen is allowed to put a step in front of that, which is also why
+    // the other reading of the picker is a second door and not a switch here.
     expect(container.read(playProvider)!.seats, hasLength(1));
   });
 
   testWidgets('dealing several decks seats several people', (tester) async {
-    final container = await _listed(tester);
+    final container = await _listed(tester, chairs: 2);
 
-    await tester.tap(find.byKey(const Key('add-seat')));
-    await tester.pump();
     await tester.tap(find.byKey(const Key('deck-row-0')));
     await tester.pump();
     await tester.tap(find.byKey(const Key('deck-row-0')));

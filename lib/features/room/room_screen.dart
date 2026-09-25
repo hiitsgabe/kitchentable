@@ -120,6 +120,30 @@ class RoomScreen extends ConsumerWidget {
             MaterialPageRoute<void>(builder: (_) => const PlayDecksScreen()),
           ),
         ),
+        // Only where there are other chairs to fill. A row that fills the other
+        // chairs at a table with none is a control that cannot do anything, and
+        // a guest cannot count them: the host's settings travel over a mesh
+        // that does not exist yet, so a guest offering this would be working
+        // off its own guess at the size of somebody else's room.
+        if (config != null && config.seats > 1)
+          MenuRow(
+            key: const Key('room-fill'),
+            // Said rather than implied. This row used to live on the deck
+            // picker as "More than one seat", over "collect several decks and
+            // deal them as one table", and a player reading that had to work
+            // out for themselves that it meant playing everybody at the table.
+            title: 'Fill the other chairs from this device',
+            subtitle: 'bring a deck for each chair and play all '
+                '${config.seats} hands yourself. Until people can actually '
+                'arrive, this is the only way the other chairs fill.',
+            icon: Icons.group_add_rounded,
+            metrics: m,
+            onActivate: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => PlayDecksScreen(chairs: config.seats),
+              ),
+            ),
+          ),
       ],
     );
   }
