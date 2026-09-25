@@ -254,6 +254,17 @@ void main() {
       final container = _container();
       await _pump(tester, container, const StartScreen());
 
+      // A select and not an open list: the choices exist only while you are
+      // choosing. Five rows laid open on the screen read as a list to browse
+      // rather than a setting with a value.
+      for (final format in DeckFormat.values) {
+        expect(find.byKey(Key('format-${format.name}')), findsNothing,
+            reason: '${format.name} is laid open before anybody asked');
+      }
+
+      await tester.tap(find.byKey(const Key('format-select')));
+      await tester.pumpAndSettle();
+
       // Derived from the enum, not from a list typed in here. A case holding
       // its own five names could only ever look for the formats somebody
       // remembered, and a sixth added to the app would leave it green.
@@ -262,19 +273,21 @@ void main() {
             reason: 'no way to pick ${format.name}');
       }
 
-      MenuRow row(DeckFormat f) =>
-          tester.widget<MenuRow>(find.byKey(Key('format-${f.name}')));
+      MenuRow select() =>
+          tester.widget<MenuRow>(find.byKey(const Key('format-select')));
 
       final wanted = DeckFormat.values.last;
-      expect(row(wanted).subtitle, isNot(contains('picked')),
+      expect(select().title, isNot(wanted.label),
           reason: 'the tap below has to be a change, and this is the guard '
               'against pressing the one the screen opened on');
 
       await tester.tap(find.byKey(Key('format-${wanted.name}')));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(row(wanted).subtitle, contains('picked'),
-          reason: 'a select says which one is chosen');
+      expect(select().title, wanted.label,
+          reason: 'the select says which one is chosen');
+      expect(find.byKey(Key('format-${wanted.name}')), findsNothing,
+          reason: 'choosing closes the choices');
 
       await tester.tap(find.byKey(const Key('make-room')));
       await tester.pumpAndSettle();

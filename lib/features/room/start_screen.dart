@@ -58,16 +58,19 @@ class _StartScreenState extends ConsumerState<StartScreen> {
 
   /// Null where the box holds something that is not a number, which is the one
   /// thing on this screen that can be wrong.
-  int? get _lifeTyped =>
-      _life.text.trim().isEmpty ? _format.startingLife : int.tryParse(_life.text.trim());
+  int? get _lifeTyped => _life.text.trim().isEmpty
+      ? _format.startingLife
+      : int.tryParse(_life.text.trim());
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final life = _lifeTyped;
 
     return ScreenFrame(
@@ -95,26 +98,19 @@ class _StartScreenState extends ConsumerState<StartScreen> {
         _Field(
           metrics: m,
           label: 'Format',
-          // A closed list, so all of it is on the screen and one of them is
-          // picked. The row that cycled was a control the shape of a counter
-          // over a choice with five answers: to see the fifth you pressed four
-          // times, and the four you skipped never appeared at all.
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final format in DeckFormat.values)
-                MenuRow(
-                  key: Key('format-${format.name}'),
-                  title: format.label,
-                  subtitle: format == _format
-                      ? '${_describe(format)} · picked'
-                      : _describe(format),
-                  icon: _iconFor(format),
-                  metrics: m,
-                  autofocus: format == _format,
-                  onActivate: () => _pickFormat(format),
-                ),
-            ],
+          // A select: one row saying what is picked, and the five choices
+          // only while you are choosing. All five laid open on the screen was
+          // the first attempt and it read as a list to browse rather than a
+          // setting with a value, and it made the screen five rows taller
+          // for a choice most rooms never change.
+          child: MenuRow(
+            key: const Key('format-select'),
+            title: _format.label,
+            subtitle: _describe(_format),
+            icon: _iconFor(_format),
+            metrics: m,
+            autofocus: true,
+            onActivate: _chooseFormat,
           ),
         ),
         _Field(
@@ -148,10 +144,46 @@ class _StartScreenState extends ConsumerState<StartScreen> {
     );
   }
 
+  /// Opens the five formats to choose from, and closes on the choice.
+  Future<void> _chooseFormat() async {
+    final media = MediaQuery.of(context);
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
+    final picked = await showModalBottomSheet<DeckFormat>(
+      context: context,
+      backgroundColor: Palette.surface,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final format in DeckFormat.values)
+              MenuRow(
+                key: Key('format-${format.name}'),
+                title: format.label,
+                subtitle: format == _format
+                    ? '${_describe(format)} · picked'
+                    : _describe(format),
+                icon: _iconFor(format),
+                metrics: m,
+                autofocus: format == _format,
+                onActivate: () => Navigator.of(sheet).pop(format),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) _pickFormat(picked);
+  }
+
   void _pickFormat(DeckFormat format) => setState(() {
-        _format = format;
-        if (!_lifeIsMine) _life.text = '${format.startingLife}';
-      });
+    _format = format;
+    if (!_lifeIsMine) _life.text = '${format.startingLife}';
+  });
 
   /// One step along [roomSeatChoices], or nothing at all at an end.
   ///
@@ -159,18 +191,19 @@ class _StartScreenState extends ConsumerState<StartScreen> {
   /// would have lied to whoever pressed it: minus means fewer, and at the
   /// fewest there are none.
   void _moveSeats(int by) => setState(() {
-        final at = roomSeatChoices.indexOf(_seats) + by;
-        if (at < 0 || at >= roomSeatChoices.length) return;
-        _seats = roomSeatChoices[at];
-      });
+    final at = roomSeatChoices.indexOf(_seats) + by;
+    if (at < 0 || at >= roomSeatChoices.length) return;
+    _seats = roomSeatChoices[at];
+  });
 
   /// What a format means for a table, which is not what it means for a deck.
   ///
   /// The game is in here because two of the formats are both called Standard,
   /// and on one list the game is the only thing that tells them apart.
   static String _describe(DeckFormat format) {
-    final stakes =
-        format.winsByPrizes ? 'prize cards' : '${format.startingLife} life';
+    final stakes = format.winsByPrizes
+        ? 'prize cards'
+        : '${format.startingLife} life';
     return '${_gameOf(format).label} · ${format.deckSize} cards · $stakes';
   }
 
@@ -180,12 +213,12 @@ class _StartScreenState extends ConsumerState<StartScreen> {
       Game.values.firstWhere((game) => game.formats.contains(format));
 
   static IconData _iconFor(DeckFormat format) => switch (format) {
-        DeckFormat.commander => Icons.groups_rounded,
-        DeckFormat.standard => Icons.shield_rounded,
-        DeckFormat.pauper => Icons.savings_rounded,
-        DeckFormat.draft => Icons.inventory_2_rounded,
-        DeckFormat.pokemonStandard => Icons.catching_pokemon_rounded,
-      };
+    DeckFormat.commander => Icons.groups_rounded,
+    DeckFormat.standard => Icons.shield_rounded,
+    DeckFormat.pauper => Icons.savings_rounded,
+    DeckFormat.draft => Icons.inventory_2_rounded,
+    DeckFormat.pokemonStandard => Icons.catching_pokemon_rounded,
+  };
 
   void _open() {
     final life = _lifeTyped;
