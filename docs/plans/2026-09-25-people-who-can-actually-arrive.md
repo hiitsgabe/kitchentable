@@ -163,6 +163,43 @@ git commit -m "Speak enough Nostr to find each other"
 
 ---
 
+### What running Task 1 found
+
+**One fact in the brief was off.** `bip340.sign` takes three arguments, not
+two: the third is 32 bytes of auxiliary randomness per the BIP, drawn from
+`Random.secure()` on every call.
+
+**All eight cases passed on their first run after the library compiled**, so
+the six probes are the only evidence any of them is worth anything. All six
+bit, on named lines: an unverified event accepted (case 5, the forgery's id in
+`Actual`), deduping removed (case 7, a count of 2), the fake relay ignoring
+`#d` (case 6, the other room's id in `Actual`, which is what proves the client
+does no filtering of its own), a storable kind (case 2, `Actual: <1>`), no
+re-REQ on reconnect (case 8, but only as a timeout, and every way of breaking a
+re-request shows as a wait expiring, so that one is liveness), and the fake
+relay verifying nothing (case 4, the same id accepted twice).
+
+**The fake relay verifies on its own.** It imports nothing from `lib/`: it
+recomputes the id and calls `bip340.verify` itself, so a mistake in the
+client's canonical serialisation is caught by the fake refusing the event, and
+the reverse. Probes 1 and 6 each kill exactly one case, which is what shows the
+two verifications are independent.
+
+**The kind is 25000**, clear of every kind other NIPs have registered in the
+ephemeral range, so a relay that special cases any of those leaves this one
+alone.
+
+**Two things the plan did not ask for.** `Subscription.established` completes
+when every reachable relay has sent EOSE, which is the only honest point at
+which a REQ is known to be registered: nothing is stored, so a publish before
+it is lost, and Task 2 needs this. And `Subscription.dropped` counts forged,
+malformed and duplicate events, so a test can assert a drop as a count rather
+than as an absence.
+
+**Known and bounded:** the dedupe set per subscription is unbounded, and case
+7 carries a 100 ms settle for loopback delivery across two sockets because no
+deterministic sync point across them was found. Both are said in the code.
+
 ## Task 2: Signaling under a room code
 
 **Files:**
