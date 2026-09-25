@@ -21,7 +21,10 @@ void main() {
 
     expect(find.text('NO SOURCES CONFIGURED'), findsOneWidget);
     expect(find.text('start here'), findsOneWidget);
-    expect(find.text('needs a source'), findsNWidgets(2));
+    // Three shut doors and not two: starting a table, joining one, and Decks.
+    // Joining is shut for the same reason as the other two, because a room you
+    // cannot bring a deck to is a room you stand in.
+    expect(find.text('needs a source'), findsNWidgets(3));
   });
 
   testWidgets('a loaded catalog shows the real count', (tester) async {
@@ -31,7 +34,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('36079 CARDS'), findsOneWidget);
-    expect(find.text('pick a deck and it deals'), findsOneWidget);
+    expect(find.text('make a room and invite people'), findsOneWidget);
   });
 
   // The two tests above only read text, and MenuState computes those strings
@@ -49,7 +52,8 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(rowFor(tester, 'Play').enabled, isFalse);
+    expect(rowFor(tester, 'Start a table').enabled, isFalse);
+    expect(rowFor(tester, 'Join a table').enabled, isFalse);
     expect(rowFor(tester, 'Decks').enabled, isFalse);
     expect(rowFor(tester, 'Sources').enabled, isTrue);
     expect(rowFor(tester, 'Settings').enabled, isTrue);
@@ -70,16 +74,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(rowFor(tester, 'Sources').autofocus, isTrue);
-    expect(rowFor(tester, 'Play').autofocus, isFalse);
+    expect(rowFor(tester, 'Start a table').autofocus, isFalse);
   });
 
-  testWidgets('focus moves to Play once there are cards', (tester) async {
+  testWidgets('focus moves to starting a table once there are cards',
+      (tester) async {
     await tester.pumpWidget(_host(
       const MenuState(cardCount: 36079, enabledSources: 1),
     ));
     await tester.pumpAndSettle();
 
-    expect(rowFor(tester, 'Play').autofocus, isTrue);
+    expect(rowFor(tester, 'Start a table').autofocus, isTrue);
     expect(rowFor(tester, 'Sources').autofocus, isFalse);
   });
 }

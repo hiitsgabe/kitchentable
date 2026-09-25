@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sources/catalog/catalog_db.dart';
 import '../../sources/catalog/catalog_opener.dart';
 
-enum MenuEntryId { play, decks, sources, settings }
+enum MenuEntryId { start, join, decks, sources, settings }
 
 class MenuEntry {
   const MenuEntry({
@@ -34,17 +34,31 @@ class MenuState {
       hasCatalog ? '$cardCount CARDS' : 'NO SOURCES CONFIGURED';
 
   MenuEntryId get initialFocus =>
-      hasCatalog ? MenuEntryId.play : MenuEntryId.sources;
+      hasCatalog ? MenuEntryId.start : MenuEntryId.sources;
 
   List<MenuEntry> get entries => [
-        // Play and Decks show the same decks and go somewhere different, which
-        // is the difference worth having. Play deals immediately, Decks opens
-        // the editor. They were briefly the same screen, and two rows doing one
-        // thing was worse than the dead end that came before it.
+        // Two doors where there used to be one called Play, and neither of
+        // them is a deck. A room is a place: it is made, it is shared, and the
+        // cards come out once people are in it. The old Play row went straight
+        // to a deck picker, so a table was created by choosing a deck and there
+        // was never a moment where a room existed and nobody was playing yet,
+        // which is to say there was never anything to invite anybody to.
         MenuEntry(
-          id: MenuEntryId.play,
-          title: 'Play',
-          subtitle: hasCatalog ? 'pick a deck and it deals' : 'needs a source',
+          id: MenuEntryId.start,
+          title: 'Start a table',
+          subtitle:
+              hasCatalog ? 'make a room and invite people' : 'needs a source',
+          enabled: hasCatalog,
+        ),
+        MenuEntry(
+          id: MenuEntryId.join,
+          title: 'Join a table',
+          // Shut without a catalog for the same reason starting is: joining a
+          // room you cannot bring a deck to leaves you standing in it. The
+          // subtitle says which of the two things is missing.
+          subtitle: hasCatalog
+              ? 'paste a link, or type the code'
+              : 'needs a source',
           enabled: hasCatalog,
         ),
         MenuEntry(
