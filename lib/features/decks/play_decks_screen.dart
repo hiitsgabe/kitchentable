@@ -23,30 +23,39 @@ import 'decks_controller.dart';
 /// for sitting down with one, and a menu entry called Play that opened a deck
 /// editor would be a lie.
 ///
-/// A tap on a row still deals that deck on its own, which is the whole of what
-/// this screen was asked for first. The seat toggle sits above the list and
-/// changes what a tap means rather than what a row is: with it on, a tap
-/// collects the deck instead of dealing it, and Deal opens one table with a
-/// chair for each deck collected.
+/// A tap on a row deals that deck on its own, which is the whole of what this
+/// screen was asked for first.
 ///
 /// Reached from inside a room rather than from the menu. The room is the place
 /// and this is where you say what you brought to it, which is why it reads the
 /// room for what the table plays to.
+///
+/// [chairs] is the other reading of this screen and it is not a toggle on it.
+/// A room whose other chairs are being filled from this one device opens the
+/// picker with a chair count, and then a tap collects a deck rather than
+/// dealing it and Deal opens one table with a chair for each. Which of the two
+/// screens this is was decided by the row that opened it, because in a room the
+/// question "how many of these decks are yours" already has an answer and the
+/// picker is not the place to ask it again.
 class PlayDecksScreen extends ConsumerStatefulWidget {
-  const PlayDecksScreen({super.key});
+  const PlayDecksScreen({super.key, this.chairs});
+
+  /// How many chairs this picker is filling, or null for the ordinary one:
+  /// one deck, one tap, your own seat.
+  final int? chairs;
 
   @override
   ConsumerState<PlayDecksScreen> createState() => _PlayDecksScreenState();
 }
 
 class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
-  /// Whether a tap on a deck collects it rather than dealing it.
-  bool _collecting = false;
-
   /// The decks collected so far, in the order they were tapped, which is the
   /// order the seats end up in. A list and not a set: two people at a kitchen
   /// table can turn up with the same deck.
   final List<Deck> _picked = [];
+
+  /// Whether a tap on a deck collects it rather than dealing it.
+  bool get _filling => widget.chairs != null;
 
   @override
   Widget build(BuildContext context) {
@@ -59,53 +68,38 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
 
     return ScreenFrame(
       metrics: m,
-      title: 'Play',
+      title: _filling ? 'The other chairs' : 'Play',
       label: switch (decks) {
         AsyncData(:final value) when value.isEmpty => 'no decks to play with',
-        AsyncData() when _collecting => 'pick the decks and deal them together',
+        AsyncData() when _filling => 'one deck for each of the '
+            '${widget.chairs} chairs',
         AsyncData() => 'pick one and it deals',
         AsyncError() => 'could not read your decks',
         _ => 'reading',
       },
       onBack: () => Navigator.of(context).maybePop(),
-      hints: const [
-        Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: 'deal'),
-        Hint(button: 'B', label: 'back'),
+      hints: [
+        const Hint(button: HintBar.dpad, label: 'move'),
+        Hint(button: 'A', label: _filling ? 'add' : 'deal'),
+        const Hint(button: 'B', label: 'back'),
       ],
       children: [
         ...switch (decks) {
           AsyncData(:final value) => [
-              if (value.isNotEmpty) ...[
+              if (value.isNotEmpty && _filling)
                 MenuRow(
-                  key: const Key('add-seat'),
-                  title: _collecting
-                      ? 'One deck at a time'
-                      : 'More than one seat',
-                  subtitle: _collecting
-                      ? 'back to a tap dealing the deck it is on'
-                      : 'collect several decks and deal them as one table',
-                  icon: _collecting
-                      ? Icons.person_rounded
-                      : Icons.group_add_rounded,
+                  key: const Key('deal'),
+                  title: 'Deal',
+                  // Dimmed rather than missing, like every other dead row, and
+                  // the subtitle says who is at the table so far.
+                  subtitle: _picked.isEmpty
+                      ? 'nobody at the table yet'
+                      : _picked.map((d) => d.name).join(', '),
+                  icon: Icons.play_arrow_rounded,
+                  enabled: _picked.isNotEmpty,
                   metrics: m,
-                  onActivate: _toggleSeats,
+                  onActivate: () => _dealPod(_picked),
                 ),
-                if (_collecting)
-                  MenuRow(
-                    key: const Key('deal'),
-                    title: 'Deal',
-                    // Dimmed rather than missing, like every other dead row,
-                    // and the subtitle says who is at the table so far.
-                    subtitle: _picked.isEmpty
-                        ? 'nobody at the table yet'
-                        : _picked.map((d) => d.name).join(', '),
-                    icon: Icons.play_arrow_rounded,
-                    enabled: _picked.isNotEmpty,
-                    metrics: m,
-                    onActivate: () => _dealPod(_picked),
-                  ),
-              ],
               for (final (i, deck) in value.indexed)
                 MenuRow(
                   key: Key('deck-row-$i'),
@@ -117,7 +111,7 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
                   enabled: deck.cardCount > 0,
                   metrics: m,
                   autofocus: i == 0,
-                  onActivate: () => _collecting ? _pick(deck) : _deal(deck),
+                  onActivate: () => _filling ? _pick(deck) : _deal(deck),
                 ),
             ],
           _ => const <Widget>[],
@@ -135,12 +129,13 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
         Game.pokemon => Icons.catching_pokemon_rounded,
       };
 
-  void _toggleSeats() => setState(() {
-        _collecting = !_collecting;
-        _picked.clear();
+  /// Collects a deck for one of the chairs, and refuses once they are all
+  /// taken: the room already said how many there are, and a table with more
+  /// chairs than the room describes is the same lie the other way round.
+  void _pick(Deck deck) => setState(() {
+        if (_picked.length >= widget.chairs!) return;
+        _picked.add(deck);
       });
-
-  void _pick(Deck deck) => setState(() => _picked.add(deck));
 
   /// Loads the deck's cards. The list is deliberately read without them, so
   /// dealing straight from a row would sit down at an empty table.
