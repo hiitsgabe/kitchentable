@@ -102,6 +102,49 @@ git commit -m "Put the table's verbs on a wire"
 
 ---
 
+### What running Task 1 found
+
+**The Files list is short by one.** `lib/table/actions/table_action.dart` had to
+change: no variant had `operator==`, so the round trip case could not pass
+however perfect the encoder was, because the decoded verb is a different
+object. All eleven got value equality. Nothing depended on identity: there is
+no `Set<TableAction>` anywhere and `TableSession.run` compares states with
+`identical` rather than actions.
+
+**The second case cannot do what its own comment says, and that is my error.**
+It reads `_oneOfEach.map((a) => a.runtimeType).toSet()` and asserts
+`hasLength(11)`, with a comment claiming it notices a twelfth verb. It reads the
+hand written list and a literal and never reads the sealed set, so a verb
+nobody adds to the list leaves the list eleven long and the case green. An
+enumerated list cannot prove absence. It is now a set **derived from the source
+file** and compared against the list, and the derived set is what carries the
+count, which makes it self guarding: a broken regex yields an empty set and
+fails too.
+
+**And the compiler is the stronger guard.** The encoder is a switch expression
+over the sealed type with no default, so a twelfth verb does not compile at
+all. Confirmed by adding one: `The type 'TableAction' is not exhaustively
+matched by the switch cases since it doesn't match 'Teleport()'`. The derived
+sweep still earns its place, for the case the compiler cannot see: a verb
+declared but not yet wired, and the decoder's default.
+
+**`CardInstance` equality is its id alone, deliberately.** So `expect(decoded,
+state)` for a whole table would pass on a wire that lost every rotation,
+counter, position and face down flag. The state case asserts field by field.
+Probe 4c is the one that proves it: every card encoding rotation 0 fails at
+270 against 0 and nothing else in the file notices.
+
+**Two decisions the plan did not state.** The version is bumped when a shape
+changes and never when a verb is added, because a new verb already names itself
+on the other side and a bump would refuse the whole table instead of the one
+thing nobody understood. And the decoder is strict about missing fields: it
+throws rather than defaulting, so a truncated wire is loud.
+
+**`toWire` returns a `String`, not a `Map`.** A card's position is a record,
+which has structural equality and would round trip fine in a test, and is not
+`jsonEncode`-able. A Map returning wire would have passed here and died in the
+real transport.
+
 ## Task 2: A room with a code and a link
 
 **Files:**
@@ -167,6 +210,33 @@ git commit -m "Give a table a room, a code and a link"
 ```
 
 ---
+
+### What running Task 2 found
+
+**One probe in Step 5 is wrong, and it is mine.** "Make the generator take a
+fixed seed. The distinctness case must fail." A `Random` seeded once keeps
+advancing, so 500 successive draws in one process are still 500 distinct codes
+and all nine cases stayed green. What a fixed seed actually breaks is
+distinctness **between devices**: every phone that starts the app mints the
+same first code, two people host the same room, and a link opens the wrong one.
+No test inside one process can watch a second process, so the case that catches
+it reads `room.dart` and asserts every `Random` in it is `Random.secure`. The
+other reading of the probe, a `Random(7)` built per draw, does fail the
+distinctness case at length 1.
+
+**The life default is `DeckFormat.startingLife`, not a literal.** The plan says
+40 for Commander and 20 otherwise; `deck_format.dart` already answers this and
+says 0 for Pokemon, which is won on prize cards and has no life total. A room
+inventing its own 20 would be a second opinion about it. The case keys over
+`DeckFormat.values`, so a sixth format has to come back and say what it starts
+on.
+
+**`linkFor` normalises.** It strips a trailing slash from the origin and
+lowercases the code, because without that the plan's own expected string fails
+for a folder deploy: `.../app//#room=` against `.../app/#room=`.
+
+**`codeFrom` also rejects a code that could never have been minted**, not only
+a link with no fragment.
 
 ## Task 3: Start a table, or join one
 
