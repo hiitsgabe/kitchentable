@@ -16,6 +16,10 @@ each guest's deck so the host can deal everybody in.
 
 **Tech Stack:** Flutter 3.47.5, Dart 3.13.4. New: `flutter_webrtc` 1.6.x,
 `bip340` 0.3.x, and `web_socket_channel` 3.0.x promoted from transitive.
+The design names `ndk` and `dart_nostr` as candidates; neither is used.
+`dart_nostr` does not list web, and `ndk` is thirty dependencies and a Rust
+component for one ephemeral event kind. NIP-01 is a WebSocket carrying JSON
+and the only hard part is the Schnorr signature, which `bip340` does.
 
 The why is in `docs/specs/2026-09-21-kitchentable-design.md` under "The
 network". Read it. Two decisions there are locked and are what this plan
@@ -37,13 +41,72 @@ At `4e03b33`, 649 tests, `No issues found!`. Take your own.
 
 ---
 
+## Task 0: No turns, and the network where the spec put it
+
+**Files:**
+- Modify: `lib/table/model/table_state.dart`, `lib/table/actions/table_action.dart`,
+  `lib/table/actions/apply.dart`, `lib/table/wire/wire.dart`
+- Move: `lib/table/net/mesh.dart`, `lib/table/net/transport.dart` to `lib/net/`;
+  `test/table/mesh_test.dart`, `test/table/fake_transport.dart` to `test/net/`
+- Test: `test/table/wire_test.dart`, `test/table/table_state_test.dart`,
+  `test/table/mesh_test.dart`, `test/table/referee_test.dart`
+
+**There are no turns.** The spec's eleven verbs are `move, rotate, flip,
+counter, attach, shuffle, draw, token, life, die, undo`. The code has a
+`PassTurn` verb and a `turnSeatId` on the table instead, and nothing on any
+screen reads either. A table that "tracks whose turn it is and enforces
+nothing about it" is a field that exists to be wrong on the wire. Both go.
+This is a wire shape change, so `wireVersion` bumps.
+
+**Real time is already what the mesh does**, and it stays that way: `run`
+applies a verb locally and hands it to every peer in the same call. Nothing
+in this plan may add a queue, a batch, a tick, or a gate on whose go it is.
+A case in Task 3 asserts that a verb sent from one phone is applied on the
+other before any other message is exchanged.
+
+**The network lives in `lib/net/`**, per the design's "Code structure", not
+`lib/table/net/` where the mesh landed. Move it, with `git mv`, and fix the
+imports. The lobby is a feature, `lib/features/lobby/`, because it is the
+thing the room screen talks to.
+
+- [ ] **Step 1: Write the failing test**
+
+The wire's derived verb sweep expects ten. `stateToWire` carries no
+`turnSeatId` and refuses one that arrives. The wire refuses the previous
+version by number.
+
+- [ ] **Step 2: Run them and watch them fail**
+
+- [ ] **Step 3: Remove the turn, move the net**
+
+The encoder is an exhaustive switch, so deleting the verb fails to compile
+until every arm is gone: that is the compiler doing the sweep.
+
+- [ ] **Step 4: Run everything**
+
+Five test files name `PassTurn`. `wire_test.dart` uses it as the sample verb
+for the version refusal case: pick another, and say which.
+
+- [ ] **Step 5: Probe**
+
+- Put `turnSeatId` back on the wire. The state case must fail on the key.
+- Leave the version unbumped. The refusal case must fail.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git commit -m "Take the turn off a table that never had one"
+```
+
+---
+
 ## Task 1: A Nostr client small enough to read
 
 **Files:**
-- Create: `lib/table/net/nostr/relay.dart`
-- Create: `lib/table/net/nostr/keys.dart`
-- Create: `test/table/nostr/fake_relay.dart`
-- Test: `test/table/nostr/relay_test.dart`
+- Create: `lib/net/nostr/relay.dart`
+- Create: `lib/net/nostr/keys.dart`
+- Create: `test/net/nostr/fake_relay.dart`
+- Test: `test/net/nostr/relay_test.dart`
 - Modify: `pubspec.yaml` (`bip340`, `web_socket_channel` direct)
 
 Not `ndk` (thirty dependencies and a Rust component for one event kind) and
@@ -94,7 +157,7 @@ handshake. Tag `["d", code]`.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lib/table/net/nostr test/table/nostr pubspec.yaml pubspec.lock
+git add lib/net/nostr test/net/nostr pubspec.yaml pubspec.lock
 git commit -m "Speak enough Nostr to find each other"
 ```
 
@@ -103,8 +166,8 @@ git commit -m "Speak enough Nostr to find each other"
 ## Task 2: Signaling under a room code
 
 **Files:**
-- Create: `lib/table/net/signaling.dart`
-- Test: `test/table/signaling_test.dart`
+- Create: `lib/net/signaling.dart`
+- Test: `test/net/signaling_test.dart`
 
 The three messages WebRTC needs to set up a link, carried over Task 1 under
 the room code: `offer`, `answer`, `ice`. Each addressed to one peer's public
@@ -144,7 +207,7 @@ verify is dropped and reported, not thrown.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lib/table/net/signaling.dart test/table/signaling_test.dart
+git add lib/net/signaling.dart test/net/signaling_test.dart
 git commit -m "Introduce two phones under a room code"
 ```
 
@@ -153,11 +216,11 @@ git commit -m "Introduce two phones under a room code"
 ## Task 3: The link itself, behind a seam of its own
 
 **Files:**
-- Create: `lib/table/net/link.dart` (the seam: `PeerLink`, `LinkFactory`)
-- Create: `lib/table/net/webrtc_link.dart` (the real one, `flutter_webrtc`)
-- Create: `lib/table/net/webrtc_transport.dart` (`implements Transport`)
-- Create: `test/table/fake_link.dart`
-- Test: `test/table/webrtc_transport_test.dart`
+- Create: `lib/net/link.dart` (the seam: `PeerLink`, `LinkFactory`)
+- Create: `lib/net/webrtc_link.dart` (the real one, `flutter_webrtc`)
+- Create: `lib/net/webrtc_transport.dart` (`implements Transport`)
+- Create: `test/net/fake_link.dart`
+- Test: `test/net/webrtc_transport_test.dart`
 - Modify: `pubspec.yaml` (`flutter_webrtc`)
 
 `PeerLink` is one data channel to one peer: a stream of strings in, `send`
@@ -205,7 +268,7 @@ do not drop them.
 - Leave a closed link in `peers`. Its case must fail.
 - Swallow a link failure. Its case must fail on the reported reason.
 - Change a line in `mesh.dart`. The point of the seam is that you did not
-  have to: report `git diff --stat lib/table/net/mesh.dart` as empty.
+  have to: report `git diff --stat lib/net/mesh.dart` as empty.
 
 - [ ] **Step 6: The check no test can do**
 
@@ -221,7 +284,7 @@ week.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add lib/table/net pubspec.yaml pubspec.lock test/table
+git add lib/net pubspec.yaml pubspec.lock test/net
 git commit -m "Carry a table between two phones"
 ```
 
@@ -230,11 +293,11 @@ git commit -m "Carry a table between two phones"
 ## Task 4: The lobby, and the chairs filling with people
 
 **Files:**
-- Create: `lib/table/net/lobby.dart`
+- Create: `lib/features/lobby/lobby.dart`
 - Create: `lib/table/wire/deck_wire.dart`
 - Modify: `lib/features/room/room_screen.dart`
 - Modify: `lib/features/room/room_controller.dart`
-- Test: `test/table/lobby_test.dart`, `test/features/room_flow_test.dart`
+- Test: `test/features/lobby_test.dart`, `test/features/room_flow_test.dart`
 
 Before a table exists there are only people and their decks. The lobby runs
 on the transport first: each guest sends the host its deck, the host sees the
@@ -283,8 +346,8 @@ the fill row hides once a real person is seated.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lib/table/net/lobby.dart lib/table/wire/deck_wire.dart \
-        lib/features/room test/table test/features/room_flow_test.dart
+git add lib/features/lobby lib/table/wire/deck_wire.dart \
+        lib/features/room test/features
 git commit -m "Let the chairs fill with people"
 ```
 
@@ -308,11 +371,63 @@ room screen says so in words and points here.
 
 ---
 
+## Task 6: A hand nobody else can read
+
+**Files:**
+- Create: `lib/net/sealed.dart`
+- Modify: `lib/table/wire/wire.dart`, `lib/net/mesh.dart`
+- Test: `test/net/sealed_test.dart`, `test/net/mesh_test.dart`
+
+The spec, "Who can see what": a hand is encrypted to its owner and everybody
+else holds a blob they cannot read, which is mathematics rather than trust,
+and it calls this cheap. It is in this plan and not a later one because the
+room screen currently says "everybody in this room can see everything in it",
+and the day that line can come down is the day this task lands.
+
+The key is the peer's own Nostr key, which every peer already has. The seam
+is the wire: a card in a hand zone serialises as a blob sealed to the seat's
+owner, and `stateFromWire` on any other peer yields a card it cannot name.
+Playing a card publishes it in the clear; the proof it was that blob is a
+hash the blob carried.
+
+- [ ] Steps 1 to 6: failing test (a guest's snapshot carries the host's hand
+  as blobs; the host reads its own; a played card is clear everywhere and
+  its hash matches its blob), red, write, green, probe (seal with the wrong
+  key: the owner case must fail; skip the hash: the played-card case must
+  fail), commit `"Seal a hand to the one who holds it"`.
+
+**The library stays in the clear in this plan.** The two-neighbour protocol
+is the spec's hard problem and it has its own seam; the openness line on the
+room screen shrinks to say libraries, not hands.
+
+---
+
+## Task 7: A shuffle anybody can check
+
+**Files:**
+- Modify: `lib/table/actions/table_action.dart` (`ShuffleZone` carries a
+  commitment), `lib/net/mesh.dart`
+- Test: `test/table/shuffle_test.dart`, `test/net/mesh_test.dart`
+
+The spec, "Shuffling": seeded and deterministic, with the seat committing to
+a hash of the seed before the shuffle and revealing it after. `commitToSeed`
+already exists in `lib/table/shuffle.dart` and nothing sends it. Two verbs
+on the wire where there was one: the commitment travels first, the seed
+travels after, and every peer checks the hash before applying the shuffle.
+
+- [ ] Steps 1 to 6: failing test (a shuffle whose revealed seed does not
+  hash to the commitment is refused and reported, not applied), red, write,
+  green, probe (skip the check: the refusal case must fail on the table
+  having shuffled), commit `"Commit to a shuffle before it happens"`.
+
+---
+
 ## What this plan deliberately leaves out
 
-- **Hand and library encryption.** Everything still replicates in the clear,
-  and the room screen still says so. The design's two-layer library protocol
-  is its own slice.
+- **Library encryption.** Hands are sealed in Task 6; libraries still
+  replicate in the clear and the room screen says so. The design's
+  two-neighbour library protocol is its own slice, behind the seam the spec
+  asks for.
 - **Host migration across a real link drop.** The mesh already handles it
   against the fake; whether WebRTC surfaces a drop fast enough to matter is a
   measurement for after Task 3's hand check.
