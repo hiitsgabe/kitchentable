@@ -423,7 +423,14 @@ they cannot sign one either.
 
 ## Open questions
 
-- Whether to use QWBP for pairing or write a simpler exchange.
+- ~~Whether to use QWBP for pairing or write a simpler exchange.~~ Answered
+  2026 09 25: a simpler exchange, three signed Nostr events (`offer`,
+  `answer`, `ice`) addressed by public key under the room code, with the
+  lower key offering so two peers cannot glare. In
+  `docs/plans/2026-09-25-people-who-can-actually-arrive.md`.
+- ~~`ndk` or `dart_nostr` for Nostr.~~ Neither. `dart_nostr` lists no web
+  support and `ndk` is thirty dependencies for one event kind; the client is
+  written on `web_socket_channel` with `bip340` for the signature.
 - How the deck importer accepts a decklist. Pasted text is the obvious first
   answer. Moxfield and Archidekt have no official public API, so a URL importer
   means scraping, which is a dependency on somebody's HTML.
