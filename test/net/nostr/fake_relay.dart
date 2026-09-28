@@ -174,5 +174,20 @@ class _Client {
   final WebSocket socket;
   final Map<String, Map<String, dynamic>> filters = {};
 
-  void send(List<dynamic> message) => socket.add(jsonEncode(message));
+  /// Swallows a closed sink instead of throwing out of the fan-out.
+  ///
+  /// dart:io marks the server side sink closed on the close frame before an
+  /// earlier data event has been delivered to the listener, so a client that
+  /// hangs up right behind an EVENT is closed by the time the fan-out reaches
+  /// it. Uncaught, that threw "StreamSink is closed" out of `_fanOut` and the
+  /// OK to the publisher was never written, so the publish sat out its whole
+  /// five second timeout. Found by Task 2's exchanges, which end mid-flight
+  /// the way real ones do; Task 1's never did.
+  void send(List<dynamic> message) {
+    try {
+      socket.add(jsonEncode(message));
+    } on StateError {
+      // Gone. The presence stream is how the client learns that.
+    }
+  }
 }
