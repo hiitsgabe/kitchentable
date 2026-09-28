@@ -12,6 +12,7 @@ import 'package:kitchentable/ui/atoms/card_art.dart';
 import 'package:kitchentable/table/model/zone.dart';
 import 'package:kitchentable/table/view/seat_view.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
+import 'package:kitchentable/ui/tokens/palette.dart';
 
 Zone _zone(String kind, String seatId, ZoneVisibility v, List<CardInstance> c) =>
     Zone(
@@ -83,6 +84,24 @@ void main() {
     expect(find.byKey(const Key('mat-s2')), findsOneWidget);
     expect(find.byKey(const Key('mat-s3')), findsOneWidget);
     expect(find.text('seat s2 · 40'), findsOneWidget);
+  });
+
+  testWidgets('no mat is drawn as the one whose turn it is', (tester) async {
+    // There are no turns. Every mat's edge is the plain one, the viewer's
+    // included: read off the decoration, because a ring keyed on something
+    // other than a turn is still a ring.
+    await tester.pumpWidget(_host([_seat('s1'), _seat('s2'), _seat('s3')]));
+
+    final edges = <String, BoxBorder?>{};
+    for (final id in ['s1', 's2', 's3']) {
+      final box = tester.widget<Container>(find.byKey(Key('mat-$id')));
+      edges[id] = (box.decoration! as BoxDecoration).border;
+    }
+
+    expect(edges, hasLength(3));
+    for (final entry in edges.entries) {
+      expect(entry.value, Border.all(color: Palette.tileEdge), reason: entry.key);
+    }
   });
 
   testWidgets('a battlefield is drawn for everybody', (tester) async {

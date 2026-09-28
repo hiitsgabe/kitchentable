@@ -20,7 +20,6 @@ class SeatBand extends StatelessWidget {
     required this.seat,
     required this.printings,
     required this.onTap,
-    this.isTurn = false,
     this.focused = false,
     this.game,
   });
@@ -33,7 +32,6 @@ class SeatBand extends StatelessWidget {
   final Map<String, CatalogCard> printings;
 
   final VoidCallback onTap;
-  final bool isTurn;
   final bool focused;
 
   /// The game this seat is playing, which is not necessarily the viewer's: the
@@ -56,10 +54,7 @@ class SeatBand extends StatelessWidget {
         decoration: BoxDecoration(
           color: focused ? Palette.tileFocused : Palette.tile,
           borderRadius: BorderRadius.circular(m.scaled(10)),
-          border: Border.all(
-            color: isTurn ? Palette.accent : Palette.tileEdge,
-            width: isTurn ? m.focusRing : 1,
-          ),
+          border: Border.all(color: Palette.tileEdge),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

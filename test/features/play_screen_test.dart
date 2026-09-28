@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1663,6 +1665,35 @@ void main() {
     // desktop case above must not be bought by giving this one a parked hand
     // in 390 points of height.
     expect(hand.height / screen.height, lessThan(0.2));
+  });
+
+  test('no seat is drawn as the one whose turn it is', () {
+    // There are no turns. The spec's verbs have none and the table carries
+    // none, and the ring that used to say "whose turn" sat on seat one all
+    // evening because nothing ever moved it. Read off the source rather than
+    // rendered and inspected: a widget test can only show a ring absent on
+    // the seats it built, and this is what stops the ring coming back.
+    for (final path in [
+      'lib/features/play/play_screen.dart',
+      'lib/features/play/renderers/stacked_seats.dart',
+      'lib/features/play/renderers/free_canvas.dart',
+      'lib/features/play/widgets/seat_band.dart',
+    ]) {
+      final file = File(path);
+      expect(
+        file.existsSync(),
+        isTrue,
+        reason: 'this reads the source, so it has to run from the package '
+            'root. cwd is ${Directory.current.path}',
+      );
+
+      final source = file.readAsStringSync();
+      // The file has to draw a seat before its silence about turns means
+      // anything, or a broken path reads as a clean one.
+      expect(source, contains('seat'), reason: path);
+      expect(source, isNot(contains('turnSeatId')), reason: path);
+      expect(source, isNot(contains('isTurn')), reason: path);
+    }
   });
 }
 

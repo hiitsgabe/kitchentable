@@ -30,7 +30,6 @@ const _oneOfEach = <TableAction>[
   CreateToken(zoneId: 'battlefield-s1', oracleId: 'goblin', cardId: 'c7'),
   ChangeLife(seatId: 's1', by: -3),
   RollDice([6, 1, 20]),
-  PassTurn(),
 ];
 
 /// The shapes where an optional field is absent and the absence is the verb: a
@@ -47,7 +46,7 @@ const _theNullShapes = <TableAction>[
 /// out here.
 ///
 /// The list above is hand written and a hand written list cannot prove absence:
-/// a twelfth verb nobody put on the wire leaves it eleven long and green. This
+/// an eleventh verb nobody put on the wire leaves it ten long and green. This
 /// derives the population from the file that declares it, so the verb has to be
 /// missing from somewhere that is not also the thing doing the checking.
 Set<String> _declaredVerbs() {
@@ -153,7 +152,6 @@ TableState _aTableInProgress() {
         ],
       ),
     ],
-    turnSeatId: 's2',
     dice: const [4, 4, 20],
   );
 }
@@ -183,17 +181,17 @@ void main() {
 
   test('every verb the sealed set declares is in the list above', () {
     // The list is hand written and a hand written list cannot prove absence.
-    // This is what notices a twelfth verb: the population comes off
+    // This is what notices an eleventh verb: the population comes off
     // `table_action.dart` itself, so a verb declared there and not put on the
-    // wire is named here rather than counted as eleven of eleven.
+    // wire is named here rather than counted as ten of ten.
     expect(
       _oneOfEach.map((a) => a.runtimeType.toString()).toSet(),
       _declaredVerbs(),
     );
 
-    // Eleven, and the file says why the number is closed. A twelfth has to be
+    // Ten, and the file says why the number is closed. An eleventh has to be
     // argued for, and arguing for it includes coming back here.
-    expect(_declaredVerbs(), hasLength(11));
+    expect(_declaredVerbs(), hasLength(10));
   });
 
   test('an unknown verb is an error that names it', () {
@@ -213,8 +211,13 @@ void main() {
   });
 
   test('a newer wire is refused with a message about the version', () {
+    // `RollDice` as the sample because it is the verb that invents no id: no
+    // card, no zone, no seat. Everything about this message is right except
+    // its version, so the version is the only thing the refusal can be about.
     expect(
-      () => fromWire(jsonEncode({'v': wireVersion + 1, 'type': 'PassTurn'})),
+      () => fromWire(
+        jsonEncode({'v': wireVersion + 1, 'type': 'RollDice', 'results': [6]}),
+      ),
       throwsA(
         isA<WireError>().having(
           (e) => e.message,
@@ -232,7 +235,6 @@ void main() {
     // Field by field, because `CardInstance` equality is its id and `Seat`,
     // `Zone` and `TableState` have no equality at all: `expect(back, state)`
     // would pass on a wire that lost every rotation and counter on the table.
-    expect(back.turnSeatId, 's2');
     expect(back.dice, [4, 4, 20]);
     expect(back.seats.map((s) => s.id), ['s1', 's2']);
     expect(back.seat('s1')!.name, 'you');
@@ -271,6 +273,60 @@ void main() {
     // And the whole thing, so a field nobody thought to assert above still has
     // to make the trip. Deep, because this is decoded JSON and not the objects.
     expect(jsonDecode(stateToWire(back)), jsonDecode(wire));
+  });
+
+  test('there are no turns, so a table carries none and refuses one', () {
+    // The spec's verbs have no turn in them and no screen decides anything by
+    // one. A field that travels and means nothing is a field that will be
+    // wrong one day with nobody to notice, so it is not on the wire at all.
+    final json = jsonDecode(stateToWire(_aTableInProgress()))
+        as Map<String, Object?>;
+    expect(json.keys, isNot(contains('turnSeatId')));
+
+    // And a build that still sends one is refused in words that name it,
+    // rather than read around: the two tables would disagree about a thing
+    // one of them draws.
+    json['turnSeatId'] = 's2';
+    expect(
+      () => stateFromWire(jsonEncode(json)),
+      throwsA(
+        isA<WireError>().having(
+          (e) => e.message,
+          'message',
+          contains('turnSeatId'),
+        ),
+      ),
+    );
+  });
+
+  test('the wire from before the turn came off is refused by number', () {
+    // Taking a field off a state is a shape change, and the number is what
+    // says so to a peer still on the old build. Literal 1 rather than
+    // `wireVersion - 1`: the case is that this build is not that one.
+    expect(
+      () => fromWire(jsonEncode({'v': 1, 'type': 'RollDice', 'results': [6]})),
+      throwsA(
+        isA<WireError>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('version 1'), contains('speaks $wireVersion')),
+        ),
+      ),
+    );
+
+    final old = jsonDecode(stateToWire(_aTableInProgress()))
+        as Map<String, Object?>;
+    old['v'] = 1;
+    expect(
+      () => stateFromWire(jsonEncode(old)),
+      throwsA(
+        isA<WireError>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('version 1'), contains('speaks $wireVersion')),
+        ),
+      ),
+    );
   });
 
   test('a state wire is refused by version too', () {

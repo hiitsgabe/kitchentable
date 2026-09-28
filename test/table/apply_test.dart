@@ -29,7 +29,6 @@ TableState _table() => TableState(
           ],
         ),
       ],
-      turnSeatId: 's1',
     );
 
 void main() {

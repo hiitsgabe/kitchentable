@@ -12,7 +12,9 @@ import '../model/zone.dart';
 /// Bumped when a shape changes, never when a verb is added: a new verb is
 /// already an error that names itself on the other side, and a version bump
 /// would refuse the whole table instead of the one thing nobody understood.
-const wireVersion = 1;
+///
+/// 2: the table stopped carrying a turn.
+const wireVersion = 2;
 
 /// A wire that could not be read, and why, in words that name the thing.
 ///
@@ -31,8 +33,8 @@ class WireError implements Exception {
 
 /// Puts a verb on the wire.
 ///
-/// Hand written rather than generated: eleven verbs is less work than a build
-/// step, and the switch below is exhaustive over the sealed set, so a twelfth
+/// Hand written rather than generated: ten verbs is less work than a build
+/// step, and the switch below is exhaustive over the sealed set, so an eleventh
 /// verb does not compile until somebody writes its line. That is the check that
 /// cannot be forgotten, and it is why this is a switch expression with no
 /// default clause.
@@ -88,9 +90,8 @@ TableAction fromWire(String wire) {
         by: _int(json, 'by'),
       ),
     'RollDice' => RollDice(_ints(json, 'results')),
-    'PassTurn' => const PassTurn(),
     _ => throw WireError(
-        'unknown verb "$type". This build speaks eleven and that is not one of '
+        'unknown verb "$type". This build speaks ten and that is not one of '
         'them, so the peer that sent it is running something newer.',
       ),
   };
@@ -151,7 +152,6 @@ Map<String, Object?> _verbToJson(TableAction action) => switch (action) {
           'type': 'RollDice',
           'results': action.results,
         },
-      PassTurn() => {'type': 'PassTurn'},
     };
 
 /// The whole table, for a peer arriving late.
@@ -162,7 +162,6 @@ Map<String, Object?> _verbToJson(TableAction action) => switch (action) {
 /// says so out loud rather than leaving it to be assumed.
 String stateToWire(TableState table) => jsonEncode({
       'v': wireVersion,
-      'turnSeatId': table.turnSeatId,
       'dice': table.dice,
       'seats': [for (final seat in table.seats) _seatToJson(seat)],
     });
@@ -171,11 +170,20 @@ TableState stateFromWire(String wire) {
   final json = _objectFrom(wire);
   _checkVersion(json);
 
+  // There are no turns. A build that sends one would draw a thing this one
+  // does not, and reading around it would leave the two tables disagreeing
+  // in silence, so it is refused by name like any other field nobody knows.
+  if (json.containsKey('turnSeatId')) {
+    throw WireError(
+      'a "turnSeatId" arrived, and there are no turns at this table. The peer '
+      'that sent it is running something older.',
+    );
+  }
+
   return TableState(
     seats: [
       for (final seat in _list(json, 'seats')) _seatFrom(_object(seat, 'seat')),
     ],
-    turnSeatId: _stringOrNull(json, 'turnSeatId'),
     dice: _ints(json, 'dice'),
   );
 }

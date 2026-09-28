@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:kitchentable/table/net/transport.dart';
+import 'package:kitchentable/net/transport.dart';
 
 /// Three phones on a kitchen table, in memory.
 ///

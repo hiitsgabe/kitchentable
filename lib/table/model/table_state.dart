@@ -16,15 +16,10 @@ typedef CardLocation = ({CardInstance card, Zone zone});
 class TableState {
   const TableState({
     required this.seats,
-    this.turnSeatId,
     this.dice = const [],
   });
 
   final List<Seat> seats;
-
-  /// Null before anybody has started. The table tracks whose turn it is and
-  /// enforces nothing about it.
-  final String? turnSeatId;
 
   /// The last roll, kept so everybody sees the same number.
   final List<int> dice;
@@ -66,21 +61,12 @@ class TableState {
         ],
       );
 
-  TableState passTurn() {
-    if (seats.isEmpty) return this;
-    final at = seats.indexWhere((s) => s.id == turnSeatId);
-    final next = seats[(at + 1) % seats.length];
-    return copyWith(turnSeatId: next.id);
-  }
-
   TableState copyWith({
     List<Seat>? seats,
-    String? turnSeatId,
     List<int>? dice,
   }) =>
       TableState(
         seats: seats ?? this.seats,
-        turnSeatId: turnSeatId ?? this.turnSeatId,
         dice: dice ?? this.dice,
       );
 }

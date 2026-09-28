@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
-import '../actions/apply.dart';
-import '../actions/table_action.dart';
-import '../model/table_state.dart';
-import '../wire/wire.dart';
+import '../table/actions/apply.dart';
+import '../table/actions/table_action.dart';
+import '../table/model/table_state.dart';
+import '../table/wire/wire.dart';
 import 'transport.dart';
 
 /// The number the peer that made the room holds, and the lowest there is, so it
