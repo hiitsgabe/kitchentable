@@ -130,6 +130,29 @@ refusal check removed fails by returning a table (:291); "refuse and still
 apply" fails with `Expected: empty, Actual: [6]` (mesh_test:578); `dart:io`
 added to the moved mesh fails the import sweep (:618).
 
+**A name sweep cannot see a ring keyed on anything but a turn.** With the
+derived source case alone, a border keyed on `seat.seatId == 's1'` passed the
+whole suite: no turn word in it, same ring. So two decoration cases were added
+beyond the one the ruling asked for, one per renderer, each reading the
+`BoxDecoration.border` off every seat and asserting `Border.all(tileEdge)`.
+Those are what kill the probe, and I re-ran it myself after the commit:
+accent with width 2 on `s1` fails `no band is drawn as the one whose turn it
+is` on the border's colour.
+
+**The wire refuses `turnSeatId` by name, not only by version.** A v2 peer
+could still send one; a `WireError` naming the key is louder than a version
+mismatch that would blame the build.
+
+**Two files the ruling did not list were touched for the same reason:**
+`play_screen.dart` passes the value and `seat_band.dart` paints it, so the
+derived case reads four files, not two.
+
+**The rename and the content are two commits.** The four `git mv` renames
+rode into `6f49fb7`, a plan correction of mine, because `git mv` stages and
+`git commit` commits the index; `d9a4e17` carries the content. Nothing was
+lost. The rule now: `git diff --cached --stat` before any commit while an
+agent is live, or commit with an explicit pathspec.
+
 **The move is `git mv`** for `mesh.dart`, `transport.dart`, `mesh_test.dart`
 and `fake_transport.dart`; the import sweep's allowed set and paths moved with
 it and it still asserts per file that the set is non-empty before differencing.
