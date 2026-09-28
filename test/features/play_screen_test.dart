@@ -8,6 +8,7 @@ import 'package:drift/native.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kitchentable/decks/model/deck.dart';
 import 'package:kitchentable/decks/model/deck_format.dart';
+import 'package:kitchentable/features/lobby/lobby.dart';
 import 'package:kitchentable/features/play/play_controller.dart';
 import 'package:kitchentable/features/menu/menu_controller.dart';
 import 'package:kitchentable/features/play/play_screen.dart';
@@ -23,11 +24,14 @@ import 'package:kitchentable/features/play/widgets/table_card.dart';
 import 'package:kitchentable/features/play/widgets/zone_chip.dart';
 import 'package:kitchentable/features/play/widgets/seat_band.dart';
 import 'package:kitchentable/table/model/seat_owner.dart';
+import 'package:kitchentable/table/room/room.dart';
 import 'package:kitchentable/table/actions/table_action.dart';
 import 'package:kitchentable/table/model/table_state.dart';
 import 'package:kitchentable/table/referee/referee.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 import 'package:kitchentable/ui/atoms/card_art.dart';
+
+import '../net/fake_transport.dart';
 
 CatalogCard _card(String name) => CatalogCard(
       oracleId: name,
@@ -103,6 +107,76 @@ Future<ProviderContainer> _seatedPod(
   return container;
 }
 
+/// A table dealt from a room: the host's deck and one guest's, the way the
+/// lobby hands them over, and no catalog at all. The guest's deck is made of
+/// a card nobody's catalog has ever held, which is what a deck that arrived
+/// over the wire is on the host's phone.
+Future<ProviderContainer> _seatedFromRoom(WidgetTester tester) async {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
+  // Settled for real and not on the tester's clock: the network's own turn
+  // of the event loop never comes under the fake one, and this hung there.
+  final net = FakeNetwork();
+  final host = Lobby.host(
+    transport: net.join('host'),
+    config: RoomConfig(
+      format: DeckFormat.commander,
+      seats: 2,
+      life: null,
+      hostName: 'kit',
+      roomName: 'the kitchen',
+    ),
+  );
+  addTearDown(host.close);
+  final ana = Lobby.guest(transport: net.join('ana'));
+  addTearDown(ana.close);
+  await tester.runAsync(net.settle);
+  ana.bring(
+    deck: Deck(
+      id: 'anas',
+      name: "ana's deck",
+      format: DeckFormat.commander,
+      slots: [DeckSlot(card: _card("Ana's Swamp"), quantity: 60)],
+    ),
+    name: 'ana',
+  );
+  await tester.runAsync(net.settle);
+  host.sit(deck: _deck(), name: 'kit');
+
+  final container = ProviderContainer(
+    overrides: [
+      catalogDbProvider.overrideWithValue(null),
+      lobbyProvider.overrideWith(() => _LobbyOf(host)),
+    ],
+  );
+  addTearDown(container.dispose);
+  host.start((players) {
+    container
+        .read(playProvider.notifier)
+        .startPod(players: players, seed: 'abc');
+    return container.read(playProvider)!;
+  });
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: PlayScreen()),
+    ),
+  );
+  await tester.pump();
+  return container;
+}
+
+class _LobbyOf extends LobbyHere {
+  _LobbyOf(this.lobby);
+  final Lobby lobby;
+  @override
+  Lobby? build() => lobby;
+}
+
 void main() {
   // Once for the file, not eight times inside it.
   //
@@ -133,6 +207,44 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('No table'), findsOneWidget);
+  });
+
+  testWidgets('a card is drawn from the deck it came in, with no catalog',
+      (tester) async {
+    final container = await _seatedFromRoom(tester);
+    final play = container.read(playProvider.notifier);
+    final table = container.read(playProvider)!;
+
+    // One card of each deck onto its own battlefield, which is public and
+    // drawn on every phone. The guest's is the one that matters: it is in no
+    // catalog anywhere, and it came in with its name.
+    play.run(MoveCard(
+      cardId: table.zone('hand-s1')!.cards.first.id,
+      toZoneId: 'battlefield-s1',
+    ));
+    play.run(MoveCard(
+      cardId: table.zone('hand-s2')!.cards.first.id,
+      toZoneId: 'battlefield-s2',
+    ));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('band-s2')),
+        matching: find.text("Ana's Swamp"),
+      ),
+      findsOneWidget,
+      reason: "ana's card came over the wire with its name, and no catalog "
+          'has it',
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('your-board')),
+        matching: find.text('Mountain'),
+      ),
+      findsOneWidget,
+      reason: "the host's own card, from the host's own deck",
+    );
   });
 
   testWidgets('a seated table shows life and the pile counts', (tester) async {

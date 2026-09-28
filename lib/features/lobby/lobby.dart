@@ -14,6 +14,7 @@ import '../../net/signaling.dart';
 import '../../net/transport.dart';
 import '../../net/webrtc_link.dart';
 import '../../net/webrtc_transport.dart';
+import '../../sources/model/catalog_card.dart';
 import '../../table/model/seat_owner.dart';
 import '../../table/model/table_state.dart';
 import '../../table/room/room.dart';
@@ -130,6 +131,20 @@ class Lobby extends ChangeNotifier {
   /// The deck somebody brought, on the host. Null before it arrived.
   Deck? deckOf(String peer) => _decks[peer];
 
+  /// Every printing at this table, from the decks this lobby holds, by oracle
+  /// id. The screen draws a card from here first and asks the catalog only
+  /// for one that came from nowhere: a guest's deck arrived over the wire
+  /// with every printing field, and the catalog on this phone may never have
+  /// imported it.
+  ///
+  /// On the host that is every deck. On a guest it is the one it brought;
+  /// nobody has sent it anybody else's, and the screen there falls back to
+  /// its catalog for the rest.
+  Map<String, CatalogCard> get printings => {
+        for (final deck in _decks.values)
+          for (final slot in deck.slots) slot.card.oracleId: slot.card,
+      };
+
   /// How many messages could not be read, and were counted rather than
   /// thrown, because the other end may be a build somebody changed.
   int get refused => _refused;
@@ -166,6 +181,9 @@ class Lobby extends ChangeNotifier {
     // speak again.
     if (_mesh != null) return;
     _bringing = (deck: deck, name: name);
+    // Kept as well as sent: the deck is what this phone draws its own cards
+    // from once the table is dealt, and the host never sends it back.
+    _decks[me] = deck;
     _sendDeck();
   }
 
