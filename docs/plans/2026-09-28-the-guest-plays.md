@@ -1,0 +1,212 @@
+# The guest plays, implementation plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** A guest who brought a deck reaches the table, sees their own hand
+and nobody else's, and a card moved on one phone moves on every phone.
+
+**Architecture:** Three seams, each already located and each wrong in one
+way. The wire says whose seat is whose with a word that means something
+different on every phone. The play screen draws cards from a catalog the
+guest may not have. The play controller runs verbs on a local session and
+nothing carries them. Fix each where it is, and nothing in `lib/net/` moves.
+
+**Tech Stack:** Flutter 3.47.5, Dart 3.13.4, flutter_riverpod 3.4.3.
+
+Read first: `docs/plans/2026-09-25-people-who-can-actually-arrive.md`, the
+"What running Task 4 found" section, which names these three gaps in the
+implementer's own words. This plan is those three gaps and nothing else.
+
+---
+
+## The baseline
+
+At `5d4e93b`: 700 tests with `flutter test -j 1`, `No issues found!`. Take
+your own. The machine is short of memory; `-j 1` is the run that counts.
+
+---
+
+## Task 1: A seat's owner is a key, not a word
+
+**Files:**
+- Modify: `lib/table/wire/wire.dart` (the owner encoding at about line 212)
+- Modify: `lib/table/model/seat_owner.dart`
+- Modify: `lib/features/lobby/lobby.dart` (the host's own seat at the deal)
+- Test: `test/table/wire_test.dart`, `test/table/seat_owner_test.dart`,
+  `test/features/lobby_test.dart`
+
+`SeatOwner` is `here`, `peer:<key>` or `empty`, and the wire carries those
+three words literally. `here` is true on exactly one phone and the wire is
+read on every phone, so on the guest's phone the host's seat says `here` and
+`actableHere` lets the guest act for the host. That is the whole of why the
+guest cannot be put in front of the table today.
+
+**Every seat is owned by a key.** The host's seat at the deal is
+`SeatOwner.peer(hostKey)` like everybody else's. `here` stops being stored
+and becomes a question: `actableHere` compares the seat's key with the
+transport's `me`. `SeatOwner.here()` survives only for a table with no
+transport, the solo and the pod-on-one-device paths, and is encoded as such;
+it never travels, and `stateFromWire` on a phone with a transport refuses it
+by name, because a `here` arriving over the wire is exactly the bug.
+
+This is a wire shape change: `wireVersion` bumps to 3.
+
+- [ ] **Step 1: Write the failing test**
+
+A state dealt with three keyed seats, encoded on the host and decoded on a
+guest, where `actableHere(me: guestKey)` is true for the guest's seat only.
+A `here` on the wire is refused with a `WireError` naming it. The lobby's
+deal case (`start deals one seat per person, each owned by that person`)
+asserts the host's seat is `peer(hostKey)`, not `here`.
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Say which failed on a value. The lobby case will fail on the host's seat.
+
+- [ ] **Step 3: Make the owner a key**
+
+`actableHere` takes the local key. Grep every caller: `play_controller.dart`
+has two, and there may be more; the count is yours to find and report, not
+mine to guess.
+
+- [ ] **Step 4: Run everything**
+
+- [ ] **Step 5: Probe**
+
+- Encode a keyed seat as `here` when the key is the encoder's own. The
+  guest-side case must fail on `actableHere`, and it must fail on the host's
+  seat being actable by the guest, which is the bug reproduced.
+- Accept `here` from the wire. Its refusal case must fail.
+- Leave the version at 2. The version case must fail.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git commit -m "Own a seat by key, so a guest's phone knows whose is whose"
+```
+
+---
+
+## Task 2: The table draws the cards it was dealt
+
+**Files:**
+- Modify: `lib/features/play/play_screen.dart` (`_printings`, about line 46)
+- Modify: `lib/features/lobby/lobby.dart`
+- Test: `test/features/play_screen_test.dart`, `test/features/lobby_test.dart`
+
+`PlayScreen` fills `_printings` from `catalogDbProvider`. A guest's deck
+arrived over the wire **with every printing field** (Task 4's `deck_wire`),
+and then the screen looks the card up in a catalog that never imported it
+and draws a blank. The host has the same problem with a guest's card.
+
+**The printings come from the decks at the table**, merged from every deck
+the lobby collected, and the catalog is only the fallback for a card that
+came from nowhere. The lobby already holds `_decks` keyed by peer; expose
+the merge.
+
+- [ ] **Step 1: Write the failing test**
+
+A table dealt from two decks, one of whose cards is in no catalog, drawn on
+a play screen with `catalogDbProvider` overridden to null: the card's name is
+on screen. Today it is not.
+
+- [ ] **Step 2: Run it and watch it fail**
+
+- [ ] **Step 3: Merge the printings**
+
+- [ ] **Step 4: Run everything**
+
+Several `play_screen_test` cases seed printings through the catalog. Report
+every one that moved and whether it was testing the catalog path or just
+passing through it.
+
+- [ ] **Step 5: Probe**
+
+- Read printings from the catalog only. The new case must fail on the name.
+- Take printings from the host's deck only. A case dealt from two decks must
+  fail on the guest's card, and if none does, write it.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git commit -m "Draw a card from the deck it came in, not from a catalog"
+```
+
+---
+
+## Task 3: A verb travels
+
+**Files:**
+- Modify: `lib/features/play/play_controller.dart`
+- Modify: `lib/features/lobby/lobby.dart`
+- Modify: `lib/features/room/room_screen.dart` (the guest reaches the table)
+- Test: `test/features/play_controller_test.dart`,
+  `test/features/room_flow_test.dart`, `test/features/lobby_test.dart`
+
+`PlayController.run` reviews a verb, applies it to a `TableSession`, and
+stops. The mesh has `run(action)` which applies locally and hands it to
+every peer, and `tables` which delivers what peers ran. Nothing connects the
+two, on either phone.
+
+**When there is a mesh, the controller runs through it.** `run` hands the
+verb to `mesh.run` after the referee, and the controller's state follows
+`mesh.tables`. Undo stays local and is refused with a spoken reason while a
+mesh is up, because whose undo travels is a decision this plan does not make.
+Without a mesh, nothing changes: solo and pod keep the session.
+
+**The guest reaches the table.** On `dealt`, the guest's room screen opens
+`PlayScreen` the way the host's does, with the controller seeded from the
+mesh's table rather than from `startPod`.
+
+- [ ] **Step 1: Write the failing test**
+
+Two controllers on the fake transport from `test/net/fake_transport.dart`,
+one per phone, both under one mesh: a card moved on the host is at the same
+normalized spot on the guest, and the guest's hand on the guest's phone is
+drawn face up while the host's is face down. A guest's room screen opens the
+play screen on `dealt`. Undo with a mesh up is refused in words.
+
+- [ ] **Step 2: Run them and watch them fail**
+
+- [ ] **Step 3: Wire it**
+
+Nothing in `lib/net/` changes. The plan's probe is
+`git diff --stat lib/net/` empty.
+
+- [ ] **Step 4: Run everything**
+
+- [ ] **Step 5: Probe**
+
+- Apply locally and never hand to the mesh. The two-phone case must fail on
+  the guest's spot, and say whether it failed on the host or the guest.
+- Follow `mesh.tables` but never call `mesh.run`. Same case, and it must
+  fail the other way round.
+- Let undo through with a mesh up. Its case must fail.
+- Never open the play screen on `dealt`. The guest case must fail.
+
+- [ ] **Step 6: The check no test can do**
+
+Two phones, two networks, one on mobile data. Host starts, guest opens the
+link, both pick a deck, host starts the table. Record what each phone shows
+in its three fact lines, whether both reached the table, and whether a card
+moved on one moved on the other. If any of it did not happen, that is the
+finding and the commit lands with it written down.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git commit -m "Carry a verb from one phone to every other"
+```
+
+---
+
+## What this plan deliberately leaves out
+
+- **Hands and libraries are still in the clear.** The room screen still says
+  so. Sealing a hand is Task 6 of the previous plan and stays there.
+- **Undo across a mesh.** Refused with a reason for now.
+- **The "fill the other chairs from this device" path** still deals locally
+  without handing over to a mesh. Flagged in the previous plan; not here.
+- **Host migration on a real link drop.** The mesh handles it against the
+  fake; whether WebRTC surfaces a drop in time is a measurement for after
+  Task 3's hand check.
