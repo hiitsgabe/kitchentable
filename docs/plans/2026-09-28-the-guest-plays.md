@@ -210,3 +210,45 @@ git commit -m "Carry a verb from one phone to every other"
 - **Host migration on a real link drop.** The mesh handles it against the
   fake; whether WebRTC surfaces a drop in time is a measurement for after
   Task 3's hand check.
+
+---
+
+## What running Tasks 1 and 2 found
+
+**The mesh's own tests were carrying the bug as correct behaviour.** Its
+fixture seated the host as `SeatOwner.here()`, so every `welcome` shipped a
+`here` seat over the wire and both guests decoded it as their own. Nothing
+caught it because in one process "here" is true on both sides. Refusing
+`here` on the wire, as Task 1 requires, went red on 14 net cases at once;
+the ruling was to key the two fixtures (`peer('host')` in `mesh_test`, the
+phone's own minted key in `webrtc_transport_test`) and touch nothing else in
+`test/net/`. That is the plan's own rule applied to the fixtures.
+
+**One probe survived and it was a real hole.** `_meOf` returning null left
+every case green: nothing pinned that the controller reads the transport's
+key, so a host would open its own table as a spectator. Three assertions
+were added to the host-start case; the probe then bit on the viewer seat
+(`Expected: 's1' Actual: <null>`) and, separately, on `look`.
+
+**A guest did not keep the deck it brought.** `_bringing` was nulled after
+sending and the guest held nothing, so `printings` on the guest was empty.
+Found by Task 2's merge case on a value; fixed.
+
+**The refusal of `here` is unconditional**, not "on a phone with a
+transport": the wire has no transport to ask, and a solo table never encodes
+itself.
+
+**Not fixed, and Task 3's brief carries it:** on a guest's phone the merge
+holds only the guest's own deck. The host never forwards the other decks and
+the table wire carries oracle ids only, so the host's and other guests' cards
+still fall back to the guest's catalog. Task 2's cases are host-side only.
+
+**The pristine baseline was not measured.** The agent's first full run had
+already been mutated by its own Step 1 edit; the totals after each task
+(704, 706) agree with the plan's 700 by arithmetic, which is what it said.
+
+**The relay reconnect case flakes under load.** Task 1's liveness case
+("a relay that closes the socket...") failed once in the full run and passed
+alone; on this memory-short machine it passes about one run in three alone.
+Cause read off the test: it waits 5 s in total while the socket reconnects
+only after a 2 s default. Tightened separately.
