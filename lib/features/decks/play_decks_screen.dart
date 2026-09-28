@@ -11,9 +11,11 @@ import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
+import '../lobby/lobby.dart';
 import '../play/play_controller.dart';
 import '../play/play_screen.dart';
 import '../room/room_controller.dart';
+import '../settings/player_name.dart';
 import 'decks_controller.dart';
 
 /// Pick a deck and the game starts.
@@ -184,17 +186,28 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
   }
 
   /// What the room plays to, or null where there is no room saying.
-  ///
-  /// Null is not only the no room case: a guest has a code and not the host's
-  /// settings, because those travel over a mesh that does not exist yet. A guest
-  /// therefore starts on the format's own number until it does, which is wrong
-  /// and is at least wrong in the same direction as knowing nothing.
   int? get _roomLife => ref.read(roomProvider)?.config?.life;
 
   /// One deck, one seat, straight from the row that was tapped.
+  ///
+  /// In a room with a lobby the tap is sitting down, not dealing: the host
+  /// takes chair 1 and a guest sends the deck to the host, and the table is
+  /// dealt when the host starts it. The picker then closes on the room, which
+  /// is where the chairs are.
   Future<void> _deal(Deck deck) async {
     final full = await _hydrate(deck);
     if (full == null || !mounted) return;
+
+    final lobby = ref.read(lobbyProvider);
+    if (lobby != null) {
+      if (lobby.hosting) {
+        lobby.sit(deck: full, name: lobby.config!.hostName);
+      } else {
+        lobby.bring(deck: full, name: ref.read(yourNameProvider));
+      }
+      Navigator.of(context).pop();
+      return;
+    }
 
     ref.read(playProvider.notifier).start(
           full,
