@@ -123,7 +123,7 @@ void main() {
 
     final table = container.read(playProvider);
     expect(table!.seats, hasLength(2));
-    expect(table.seats.every((s) => s.owner.actableHere), isTrue,
+    expect(table.seats.every((s) => s.owner.actableHere(me: null)), isTrue,
         reason: 'a pod on one device holds every chair itself');
   });
 }

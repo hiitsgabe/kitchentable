@@ -14,7 +14,9 @@ import '../model/zone.dart';
 /// would refuse the whole table instead of the one thing nobody understood.
 ///
 /// 2: the table stopped carrying a turn.
-const wireVersion = 2;
+/// 3: every seat that travels is owned by a key. The word `here` came off the
+///    wire, because it was true on one phone and read on every phone.
+const wireVersion = 3;
 
 /// A wire that could not be read, and why, in words that name the thing.
 ///
@@ -208,6 +210,9 @@ Seat _seatFrom(Map<String, Object?> json) => Seat(
 
 /// `SeatOwner` holds its two fields privately and is built through three named
 /// constructors, so this reads the getters and picks the constructor back.
+///
+/// `here` is encoded as itself, for the table with no transport under it that
+/// is the only place it belongs. It is never read back: see [_ownerFrom].
 String _ownerToJson(SeatOwner owner) {
   if (owner.isHere) return 'here';
   final peerId = owner.peerId;
@@ -215,7 +220,18 @@ String _ownerToJson(SeatOwner owner) {
 }
 
 SeatOwner _ownerFrom(String owner) {
-  if (owner == 'here') return const SeatOwner.here();
+  // Refused by name and not read as anybody's. `here` is true on exactly one
+  // phone and this is read on every phone, so a `here` that arrives is the
+  // sender's own seat, actable by whoever reads it: the bug that kept a guest
+  // out of the table, and a state that will not read is a table nobody draws
+  // wrong.
+  if (owner == 'here') {
+    throw WireError(
+      'a seat is held by "here", which is one phone\'s word for itself and '
+      'means somebody else on every other phone; a seat that travels is held '
+      'by a key',
+    );
+  }
   if (owner == 'empty') return const SeatOwner.empty();
   if (owner.startsWith('peer:')) {
     return SeatOwner.peer(owner.substring('peer:'.length));

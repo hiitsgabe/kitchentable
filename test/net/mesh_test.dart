@@ -21,7 +21,7 @@ TableState _aTable() => const TableState(
           id: 's1',
           name: 'you',
           life: 40,
-          owner: SeatOwner.here(),
+          owner: SeatOwner.peer('host'),
           zones: [
             Zone(
               id: 'library-s1',

@@ -290,8 +290,9 @@ void main() {
       expect(dealt, isNotNull);
       expect(dealt!.map((p) => p.name), ['kit', 'ana', 'bo']);
       expect(dealt!.map((p) => p.deck.id), ['hosts', 'anas', 'bos']);
-      expect(dealt![0].owner, const SeatOwner.here(),
-          reason: 'the host plays its own hand here');
+      expect(dealt![0].owner, const SeatOwner.peer('host'),
+          reason: "the host's seat is keyed like everybody else's: `here` is "
+              'true on one phone only and this list is read on every phone');
       expect(dealt![1].owner, const SeatOwner.peer('ana'),
           reason: "ana's hand is ana's, on ana's phone");
       expect(dealt![2].owner, const SeatOwner.peer('bo'));
@@ -299,7 +300,7 @@ void main() {
       final table = mesh.table!;
       expect(table.seats.map((s) => s.name), ['kit', 'ana', 'bo']);
       expect(table.seats.map((s) => s.owner), [
-        const SeatOwner.here(),
+        const SeatOwner.peer('host'),
         const SeatOwner.peer('ana'),
         const SeatOwner.peer('bo'),
       ]);

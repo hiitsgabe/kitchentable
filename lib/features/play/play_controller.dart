@@ -9,6 +9,7 @@ import '../../table/referee/referee.dart';
 import '../../table/setup.dart';
 import '../../table/shuffle.dart';
 import '../../table/table_session.dart';
+import '../lobby/lobby.dart';
 
 /// The table currently being played, or null when nobody is at one.
 /// Why the last action was turned down.
@@ -45,7 +46,7 @@ class ViewerSeat extends Notifier<String?> {
   /// will ever have.
   bool look(String seatId) {
     final seat = ref.read(playProvider)?.seat(seatId);
-    if (seat == null || !seat.owner.actableHere) return false;
+    if (seat == null || !seat.owner.actableHere(me: _meOf(ref))) return false;
     state = seatId;
     return true;
   }
@@ -54,6 +55,11 @@ class ViewerSeat extends Notifier<String?> {
   /// where there is nothing to refuse yet.
   void sit(String? seatId) => state = seatId;
 }
+
+/// This phone's key on the transport, or null with no room around the table,
+/// which is the solo and pod-on-one-device paths: there every seat is held
+/// [SeatOwner.here] and the key is never compared.
+String? _meOf(Ref ref) => ref.read(transportProvider)?.me;
 
 final viewerSeatProvider =
     NotifierProvider<ViewerSeat, String?>(ViewerSeat.new);
@@ -159,7 +165,9 @@ class PlayController extends Notifier<TableState?> {
     _clearRefusal();
     state = table;
 
-    final here = table.seats.where((s) => s.owner.actableHere).firstOrNull;
+    final here = table.seats
+        .where((s) => s.owner.actableHere(me: _meOf(ref)))
+        .firstOrNull;
     ref.read(viewerSeatProvider.notifier).sit(here?.id);
   }
 

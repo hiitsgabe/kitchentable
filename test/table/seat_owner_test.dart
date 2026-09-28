@@ -36,16 +36,30 @@ void main() {
     expect(seat.owner.isEmpty, isTrue);
   });
 
-  test('only a seat on this device may be acted for', () {
+  test('a seat with no transport under it may be acted for by anybody here',
+      () {
     const here = SeatOwner.here();
-    const there = SeatOwner.peer('abc');
     const nobody = SeatOwner.empty();
 
-    // The screen reads this before offering a control. A seat somebody else
-    // holds is watched, not played, and plan 3 is where the difference starts
-    // to matter.
-    expect(here.actableHere, isTrue);
-    expect(there.actableHere, isFalse);
-    expect(nobody.actableHere, isFalse);
+    // Solo and the pod on one tablet: there is no key to compare with, and
+    // every chair is this device's, so the question has one answer whatever
+    // key is asked about, a null included.
+    expect(here.actableHere(me: null), isTrue);
+    expect(here.actableHere(me: 'abc'), isTrue);
+    expect(nobody.actableHere(me: null), isFalse);
+    expect(nobody.actableHere(me: 'abc'), isFalse);
+  });
+
+  test('a keyed seat may be acted for by its own key and nobody else', () {
+    const theirs = SeatOwner.peer('abc');
+
+    // The seat is the same object on every phone. Whose it is to play is a
+    // question each phone asks with its own key, which is what keeps a
+    // guest's hand a guest's on the host's phone and the host's on the
+    // guest's.
+    expect(theirs.actableHere(me: 'abc'), isTrue);
+    expect(theirs.actableHere(me: 'xyz'), isFalse);
+    expect(theirs.actableHere(me: null), isFalse,
+        reason: 'a phone with no key is not the phone that holds this seat');
   });
 }
