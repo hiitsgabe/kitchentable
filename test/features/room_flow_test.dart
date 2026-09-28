@@ -666,11 +666,20 @@ void main() {
       final table = container.read(playProvider)!;
       expect(table.seats.map((s) => s.name), ['kit', 'ana', 'bo']);
       expect(table.seats.map((s) => s.owner), [
-        const SeatOwner.here(),
+        const SeatOwner.peer('me'),
         const SeatOwner.peer('ana'),
         const SeatOwner.peer('bo'),
       ]);
       expect(find.byType(PlayScreen), findsOneWidget);
+      // And the host looks out of its own seat, found by its key on the
+      // transport: every seat is keyed now, so a controller that never asked
+      // the transport who it is would open this table as a spectator.
+      expect(container.read(viewerSeatProvider), table.seats.first.id,
+          reason: "the host's seat is the one under its own key");
+      final viewer = container.read(viewerSeatProvider.notifier);
+      expect(viewer.look(table.seats[1].id), isFalse,
+          reason: "ana's seat is ana's, on the host's phone too");
+      expect(viewer.look(table.seats.first.id), isTrue);
       // And the lobby's last word went to both guests. Read off the wire and
       // not settled through to them: settling runs for real, and the table
       // behind this screen starts fetching card backs the moment it can.
@@ -802,7 +811,7 @@ void main() {
 
       final table = container.read(playProvider);
       expect(table!.seats, hasLength(2));
-      expect(table.seats.every((s) => s.owner.actableHere), isTrue,
+      expect(table.seats.every((s) => s.owner.actableHere(me: 'me')), isTrue,
           reason: 'every chair is held by this device');
     });
 

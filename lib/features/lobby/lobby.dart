@@ -171,9 +171,11 @@ class Lobby extends ChangeNotifier {
 
   /// Deals everybody in and hands the transport to the mesh.
   ///
-  /// [deal] is given one [Player] per chair, the host first as
-  /// [SeatOwner.here] and each guest as [SeatOwner.peer] under their own
-  /// key, which is what keeps a guest's hand a guest's on every phone.
+  /// [deal] is given one [Player] per chair, the host first and everybody as
+  /// [SeatOwner.peer] under their own key, the host under [me]. The host's
+  /// seat is not [SeatOwner.here]: this list becomes the table, the table is
+  /// read on every phone, and `here` on a guest's phone would be the host's
+  /// seat made the guest's to play.
   Mesh start(TableState Function(List<Player> players) deal) {
     if (!hosting) throw StateError('only the host deals');
     if (_mesh != null) throw StateError('the table is already dealt');
@@ -185,7 +187,7 @@ class Lobby extends ChangeNotifier {
     }
 
     final players = <Player>[
-      (deck: _decks[me]!, name: _names[me]!, owner: const SeatOwner.here()),
+      (deck: _decks[me]!, name: _names[me]!, owner: SeatOwner.peer(me)),
       for (final peer in _order)
         (deck: _decks[peer]!, name: _names[peer]!, owner: SeatOwner.peer(peer)),
     ];

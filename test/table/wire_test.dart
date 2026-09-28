@@ -92,7 +92,7 @@ TableState _aTableInProgress() {
         id: 's1',
         name: 'you',
         life: 37,
-        owner: const SeatOwner.here(),
+        owner: const SeatOwner.peer('host-key'),
         zones: const [
           Zone(
             id: 'library-s1',
@@ -239,7 +239,7 @@ void main() {
     expect(back.seats.map((s) => s.id), ['s1', 's2']);
     expect(back.seat('s1')!.name, 'you');
     expect(back.seat('s1')!.life, 37);
-    expect(back.seat('s1')!.owner, const SeatOwner.here());
+    expect(back.seat('s1')!.owner, const SeatOwner.peer('host-key'));
     expect(back.seat('s2')!.owner, const SeatOwner.peer('peer-9'));
     expect(back.seat('s2')!.owner.peerId, 'peer-9');
 
@@ -345,6 +345,107 @@ void main() {
           (e) => e.message,
           'message',
           allOf(contains('version'), contains('${wireVersion + 1}')),
+        ),
+      ),
+    );
+  });
+
+  test('a seat is owned by a key, so a guest reads whose is whose', () {
+    // Three keyed seats, encoded on the host and decoded on a guest. The
+    // seats are the same on both phones; which one the guest may act for is a
+    // question the guest asks with its own key. Before this the host's seat
+    // travelled as the word `here`, which was true on the host and read as
+    // true on the guest as well, and the guest could act for the host.
+    const table = TableState(
+      seats: [
+        Seat(
+          id: 's1',
+          name: 'kit',
+          life: 40,
+          owner: SeatOwner.peer('host-key'),
+          zones: [],
+        ),
+        Seat(
+          id: 's2',
+          name: 'ana',
+          life: 40,
+          owner: SeatOwner.peer('ana-key'),
+          zones: [],
+        ),
+        Seat(
+          id: 's3',
+          name: 'bo',
+          life: 40,
+          owner: SeatOwner.peer('bo-key'),
+          zones: [],
+        ),
+      ],
+    );
+
+    final onAnasPhone = stateFromWire(stateToWire(table));
+
+    expect(onAnasPhone.seat('s1')!.owner.actableHere(me: 'ana-key'), isFalse,
+        reason: "the host's seat is not ana's to play");
+    expect(onAnasPhone.seat('s2')!.owner.actableHere(me: 'ana-key'), isTrue,
+        reason: "ana's seat is ana's on ana's phone");
+    expect(onAnasPhone.seat('s3')!.owner.actableHere(me: 'ana-key'), isFalse);
+    expect(
+      onAnasPhone.seats.where((s) => s.owner.actableHere(me: 'ana-key')).length,
+      1,
+      reason: 'exactly one seat at the table is hers',
+    );
+    // And the same wire on the host's phone answers the other way round.
+    expect(onAnasPhone.seat('s1')!.owner.actableHere(me: 'host-key'), isTrue);
+    expect(onAnasPhone.seat('s2')!.owner.actableHere(me: 'host-key'), isFalse);
+  });
+
+  test('a seat that says here on the wire is refused by name', () {
+    // `here` is true on one phone and the wire is read on every phone, so a
+    // `here` that arrives is exactly the bug: the sender's own seat, actable by
+    // whoever reads it. It is refused in words that name it, rather than read
+    // as anybody's, because a table with no transport under it is the only
+    // place a `here` belongs and that table never encodes itself for a peer.
+    final json = jsonDecode(stateToWire(_aTableInProgress()))
+        as Map<String, Object?>;
+    final seats = json['seats']! as List<Object?>;
+    (seats.first! as Map<String, Object?>)['owner'] = 'here';
+
+    expect(
+      () => stateFromWire(jsonEncode(json)),
+      throwsA(
+        isA<WireError>().having(
+          (e) => e.message,
+          'message',
+          contains('here'),
+        ),
+      ),
+    );
+  });
+
+  test('the wire from before seats were keyed is refused by number', () {
+    // Version 2 carried the host's seat as the word `here`. Literal 2 rather
+    // than `wireVersion - 1`: the case is that this build is not that one.
+    expect(
+      () => fromWire(jsonEncode({'v': 2, 'type': 'RollDice', 'results': [6]})),
+      throwsA(
+        isA<WireError>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('version 2'), contains('speaks $wireVersion')),
+        ),
+      ),
+    );
+
+    final old = jsonDecode(stateToWire(_aTableInProgress()))
+        as Map<String, Object?>;
+    old['v'] = 2;
+    expect(
+      () => stateFromWire(jsonEncode(old)),
+      throwsA(
+        isA<WireError>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('version 2'), contains('speaks $wireVersion')),
         ),
       ),
     );

@@ -51,7 +51,7 @@ void main() {
     expect(table.zone('hand-s1')!.size, 7);
     // Solo is not a mode. It is the case where nobody else has joined, so the
     // one seat is held here exactly like the other three would be.
-    expect(table.seats.single.owner.actableHere, isTrue);
+    expect(table.seats.single.owner.actableHere(me: null), isTrue);
     expect(container.read(viewerSeatProvider), 's1');
   });
 

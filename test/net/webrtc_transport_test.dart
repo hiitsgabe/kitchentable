@@ -84,10 +84,17 @@ Future<List<_Phone>> _phones(int n, {FakeLinks? links}) async {
   return phones;
 }
 
-/// A table with one seat, which is all a verb needs to land on.
-TableState _aTable() => const TableState(
+/// A table with one seat, which is all a verb needs to land on. Owned by the
+/// key of the phone that dealt it: a seat that travels is held by a key.
+TableState _aTable(String owner) => TableState(
   seats: [
-    Seat(id: 's1', name: 'you', life: 40, owner: SeatOwner.here(), zones: []),
+    Seat(
+      id: 's1',
+      name: 'you',
+      life: 40,
+      owner: SeatOwner.peer(owner),
+      zones: const [],
+    ),
   ],
 );
 
@@ -99,7 +106,7 @@ Future<List<Mesh>> _meshed(List<_Phone> phones) async {
   for (final (i, phone) in phones.indexed) {
     final mesh = Mesh(
       transport: phone.transport,
-      table: i == 0 ? _aTable() : null,
+      table: i == 0 ? _aTable(phone.me) : null,
       creator: i == 0,
     );
     addTearDown(mesh.close);
