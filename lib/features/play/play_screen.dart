@@ -15,6 +15,7 @@ import '../../ui/organisms/card_viewer.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
+import '../lobby/lobby.dart';
 import '../menu/menu_controller.dart';
 import 'card_size.dart';
 import 'dice/dice_tray.dart';
@@ -53,20 +54,33 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
 
   /// Every card on the table at once, looked up in one go. Looking each one up
   /// as it is drawn would be a query per card per frame.
+  ///
+  /// From the decks at the table first. A guest's deck came over the wire
+  /// with every printing field and the catalog here may never have imported
+  /// it, so a card looked up in the catalog alone drew a blank on the host's
+  /// phone, and the host's did the same on the guest's. The catalog answers
+  /// only for a card that came from nowhere: a token, or a table dealt with
+  /// no room around it.
   Future<void> _loadPrintings() async {
-    final db = ref.read(catalogDbProvider);
     final table = ref.read(playProvider);
-    if (db == null || table == null) return;
+    if (table == null) return;
 
+    final dealt = ref.read(lobbyProvider)?.printings ?? const {};
     final ids = table.allZones
         .expand((z) => z.cards)
         .map((c) => c.oracleId)
+        .where((id) => !dealt.containsKey(id))
         .toSet()
         .toList();
 
-    final cards = await db.cardsByOracleIds(ids);
+    final db = ref.read(catalogDbProvider);
+    final found = db == null || ids.isEmpty
+        ? const <CatalogCard>[]
+        : await db.cardsByOracleIds(ids);
     if (mounted) {
-      setState(() => _printings = {for (final c in cards) c.oracleId: c});
+      setState(() {
+        _printings = {...dealt, for (final c in found) c.oracleId: c};
+      });
     }
   }
 

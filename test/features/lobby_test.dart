@@ -306,6 +306,49 @@ void main() {
       ]);
     });
 
+    test('the printings at the table are every deck\'s, the guests\' included',
+        () async {
+      // A guest's deck arrived over the wire with every printing field, and
+      // the catalog on the host may never have imported it. The screen draws
+      // a card from here first, so what is here has to be every deck at the
+      // table with every field a printing carries.
+      const anasOnly = CatalogCard(
+        oracleId: 'anas-only',
+        name: "Ana's Only Card",
+        typeLine: 'Sorcery',
+        cmc: 3,
+        manaCost: '{2}{B}',
+        oracleText: 'Nobody but ana has ever heard of this.',
+        colorIdentity: ['B'],
+        rarity: 'rare',
+        setCode: 'ana',
+        imageNormal: 'https://img.test/anas-only/normal.jpg',
+      );
+      final room = _Room(seats: 2);
+      final ana = room.arrive('ana');
+      await room.settle();
+      ana.bring(
+        deck: _deck('anas', slots: const [
+          DeckSlot(card: anasOnly, quantity: 1, commander: true),
+          DeckSlot(card: _bolt, quantity: 40),
+        ]),
+        name: 'ana',
+      );
+      await room.settle();
+      room.host.sit(deck: _deck('hosts'), name: 'kit');
+
+      expect(room.host.printings.keys.toSet(), {'bear', 'bolt', 'anas-only'},
+          reason: "the host's two and ana's one, once");
+      expect(_fields(room.host.printings['anas-only']!), _fields(anasOnly),
+          reason: 'every field the wire carried is here to draw from');
+      expect(_fields(room.host.printings['bear']!), _fields(_bear));
+
+      // And on ana's phone, her own deck: nobody sent her anybody else's, and
+      // the screen there falls back to her catalog for the rest.
+      expect(ana.printings.keys.toSet(), {'anas-only', 'bolt'},
+          reason: 'a guest holds the deck it brought');
+    });
+
     test('after start the lobby has stopped and the mesh has the transport',
         () async {
       final room = _Room(seats: 2);
