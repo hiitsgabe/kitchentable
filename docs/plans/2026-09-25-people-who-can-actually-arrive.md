@@ -487,6 +487,64 @@ git commit -m "Let the chairs fill with people"
 
 ---
 
+### What running Task 3 found
+
+**All ten cases passed on their first run**, so the ten probes are the whole
+evidence, and two of them changed production: an answer arriving after a link
+had already failed made a **new** link, which failed again; and the real
+channel's send rejection was unawaited, so a channel closed between the state
+check and the send was an uncaught error. Both fixed before the commit.
+
+**No registrants to commit.** The plugin regenerated the Android and iOS ones
+on disk, but both are gitignored in this repo, so `git status` showed only the
+two pubspec files. The plan's warning was right for a repo that tracks them.
+
+**No web-versus-native branch was needed**, because `flutter_webrtc` exports
+one API; two things were written around after reading both implementations:
+the rollback description is `RTCSessionDescription('', 'rollback')` with an
+empty string and not null, and end-of-gathering arrives as an empty candidate
+on native and is filtered on web, so the link drops null or empty either way.
+
+**The default-concurrency suite was killed by the system for memory** at +638
+with no failure; `flutter test -j 1` is the run that counts on this machine.
+
+**Nothing in `webrtc_link.dart` is exercised by a test.** That is the plan's
+declared gap and the commit says "hand check pending".
+
+### What running Task 4 found
+
+**The previous agent died at Step 1** with the 14 inherited cases written and
+nothing else; the relaunch kept all 14 unchanged apart from one unused local.
+
+**The guest's knock is the mesh's own `hello`.** A guest cannot know whether
+it arrived before or after the deal, and the host's mesh answers only `hello`
+and refuses every other kind silently, so any other knock word left a late
+guest unanswered forever. A lobby answers `hello` with `chairs`; a mesh
+answers with `welcome`; a guest lobby that hears `welcome` hands over to a
+fresh `Mesh`.
+
+**Two production bugs the screen cases caught:** a guest that learned the
+config from the host was offered the "fill the other chairs" row, and chairs
+were numbered by list index while the host's list omitted its own empty chair
+1, so a guest read "chair 1: you (you)".
+
+**One flaky case, not Task 4's:** Task 1's reconnect case timed out once in
+the full run and passed on the rerun and alone. It is the liveness-shaped one
+its own findings named.
+
+**The honest gap, in the agent's words:** a guest does not reach the play
+screen in this task. Three things outside its files stop it: seat owners on
+the wire are literal (`here` / `peer:x`), so on the guest's phone the host's
+seat says `here`; `PlayScreen` loads printings from the catalog and not from
+the decks; and `PlayController` has no mesh, so no verb travels after the
+deal. The host does reach the play screen with one seat per person, each
+guest's owned by their key. **That is the next task, and it is not in this
+plan.**
+
+**Also flagged:** the "fill the other chairs from this device" path still
+deals locally and does not hand the transport to a mesh, so a host who fills
+every chair alone leaves the lobby answering knocks.
+
 ## Task 5: Settings for the relays and a TURN server
 
 **Files:**
