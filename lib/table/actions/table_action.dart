@@ -2,9 +2,10 @@ import 'package:flutter/foundation.dart';
 
 /// Everything that can happen at this table.
 ///
-/// Eleven, from the spec, and the list is closed on purpose: a sealed type
-/// means the reducer cannot quietly forget one, and a twelfth verb has to be
-/// argued for rather than added.
+/// Ten on the wire. The spec counts eleven and the eleventh is undo, which is
+/// a list of whole states on each phone and never travels. The list is closed
+/// on purpose: a sealed type means the reducer cannot quietly forget one, and
+/// an eleventh verb has to be argued for rather than added.
 ///
 /// Every one of them is a value, and equality is its fields rather than its
 /// identity. That is what the wire needs: a verb that came off a wire is a
@@ -216,14 +217,4 @@ class RollDice extends TableAction {
 
   @override
   int get hashCode => Object.hashAll(results);
-}
-
-class PassTurn extends TableAction {
-  const PassTurn();
-
-  @override
-  bool operator ==(Object other) => other is PassTurn;
-
-  @override
-  int get hashCode => (PassTurn).hashCode;
 }

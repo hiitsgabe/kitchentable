@@ -20,7 +20,6 @@ class StackedSeats extends StatelessWidget {
     required this.printings,
     required this.onFocusSeat,
     required this.yours,
-    this.turnSeatId,
     this.focusedSeatId,
     this.gameFor,
   });
@@ -42,7 +41,6 @@ class StackedSeats extends StatelessWidget {
   /// the board, the piles and the hand out of here.
   final Widget yours;
 
-  final String? turnSeatId;
   final String? focusedSeatId;
 
   /// Which game a seat is playing. Asked per seat rather than taken once,
@@ -69,7 +67,6 @@ class StackedSeats extends StatelessWidget {
                     metrics: m,
                     seat: seat,
                     printings: printings,
-                    isTurn: seat.seatId == turnSeatId,
                     focused: seat.seatId == focusedSeatId,
                     game: gameFor?.call(seat.seatId),
                     onTap: () => onFocusSeat(seat.seatId),

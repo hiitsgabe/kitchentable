@@ -54,7 +54,7 @@ TableState sitDown({
     ],
   );
 
-  var table = TableState(seats: [seat], turnSeatId: seatId);
+  var table = TableState(seats: [seat]);
 
   table = apply(
     table,
@@ -98,5 +98,5 @@ TableState sitDownTogether({
     seats.add(single.seats.single.copyWith(owner: player.owner));
   }
 
-  return TableState(seats: seats, turnSeatId: seats.first.id);
+  return TableState(seats: seats);
 }

@@ -35,7 +35,6 @@ TableState apply(TableState table, TableAction action) => switch (action) {
       CreateToken() => _token(table, action),
       ChangeLife() => table.withLife(action.seatId, action.by),
       RollDice() => table.copyWith(dice: action.results),
-      PassTurn() => table.passTurn(),
     };
 
 TableState _onCard(

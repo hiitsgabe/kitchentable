@@ -67,18 +67,4 @@ void main() {
     final table = TableState(seats: [_seat()]);
     expect(table.withLife('s1', -45).seats.single.life, -5);
   });
-
-  test('a table knows whose turn it is, and passes it round', () {
-    final table = TableState(
-      seats: [
-        _seat(),
-        const Seat(id: 's2', name: 'them', life: 40, zones: []),
-      ],
-      turnSeatId: 's1',
-    );
-
-    expect(table.passTurn().turnSeatId, 's2');
-    expect(table.passTurn().passTurn().turnSeatId, 's1',
-        reason: 'it goes round, it does not run out');
-  });
 }

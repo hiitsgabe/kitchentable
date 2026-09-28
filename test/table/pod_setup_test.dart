@@ -103,18 +103,6 @@ void main() {
     expect(handsFor('abc'), isNot(handsFor('xyz')));
   });
 
-  test('the turn starts with the first seat', () {
-    final table = sitDownTogether(
-      players: [
-        (deck: _deck('a'), name: 'you', owner: const SeatOwner.here()),
-        (deck: _deck('b'), name: 'Carla', owner: const SeatOwner.here()),
-      ],
-      seed: 'abc',
-    );
-
-    expect(table.turnSeatId, 's1');
-  });
-
   test('an owner is carried onto the seat', () {
     final table = sitDownTogether(
       players: [

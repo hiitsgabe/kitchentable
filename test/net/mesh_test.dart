@@ -8,7 +8,7 @@ import 'package:kitchentable/table/model/seat.dart';
 import 'package:kitchentable/table/model/seat_owner.dart';
 import 'package:kitchentable/table/model/table_state.dart';
 import 'package:kitchentable/table/model/zone.dart';
-import 'package:kitchentable/table/net/mesh.dart';
+import 'package:kitchentable/net/mesh.dart';
 import 'package:kitchentable/table/wire/wire.dart';
 
 import 'fake_transport.dart';
@@ -75,7 +75,6 @@ TableState _aTable() => const TableState(
           ],
         ),
       ],
-      turnSeatId: 's1',
     );
 
 /// The people at the table, their transports, and everything any of their
@@ -559,7 +558,7 @@ void main() {
       body: jsonEncode({
         'v': wireVersion + 1,
         'kind': 'action',
-        'body': toWire(const PassTurn()),
+        'body': toWire(const RollDice([6])),
       }),
     );
     seats.net.forge(from: 'b', to: 'a', body: 'this is not json');
@@ -573,11 +572,12 @@ void main() {
     );
     expect(seats.refused['a'], anyElement(contains('JSON')));
 
-    // And none of it moved the table.
-    expect(seats.mesh('a').table!.turnSeatId, 's1');
+    // And none of it moved the table: the roll behind the wrong version was
+    // never applied.
+    expect(seats.mesh('a').table!.dice, isEmpty);
   });
 
-  test('nothing under table/net knows what a relay is', () async {
+  test('neither the mesh nor its transport knows what a relay is', () async {
     // The seam. The next slice writes a real transport over Nostr and WebRTC
     // and these two files do not change, which is only true while they import
     // nothing that could tell them: coupling to a library needs an import, so
@@ -587,16 +587,16 @@ void main() {
       'dart:async',
       'dart:convert',
       'package:flutter/foundation.dart',
-      '../actions/apply.dart',
-      '../actions/table_action.dart',
-      '../model/table_state.dart',
-      '../wire/wire.dart',
+      '../table/actions/apply.dart',
+      '../table/actions/table_action.dart',
+      '../table/model/table_state.dart',
+      '../table/wire/wire.dart',
       'transport.dart',
     };
 
     for (final path in [
-      'lib/table/net/transport.dart',
-      'lib/table/net/mesh.dart',
+      'lib/net/transport.dart',
+      'lib/net/mesh.dart',
     ]) {
       final file = File(path);
       expect(
@@ -623,7 +623,7 @@ void main() {
     // same table everywhere. This covers the two ways anything in this
     // repository invents a number and no more; the imports above are the part
     // that proves an absence.
-    final mesh = File('lib/table/net/mesh.dart').readAsStringSync();
+    final mesh = File('lib/net/mesh.dart').readAsStringSync();
     expect(mesh, isNot(contains('Random')));
     expect(mesh, isNot(contains('DateTime')));
   });

@@ -16,7 +16,7 @@ void main() {
       referee.review(_table, const MoveCard(cardId: 'x', toZoneId: 'y')),
       isNull,
     );
-    expect(referee.review(_table, const PassTurn()), isNull);
+    expect(referee.review(_table, const FlipCard('c1')), isNull);
     expect(referee.review(_table, const RollDice([6])), isNull);
   });
 

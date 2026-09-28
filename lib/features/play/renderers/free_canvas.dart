@@ -42,7 +42,6 @@ class FreeCanvas extends StatefulWidget {
     this.gameFor,
     this.onPlayCommand,
     this.onSendHome,
-    this.turnSeatId,
     this.cardScale = 1,
   });
 
@@ -108,8 +107,6 @@ class FreeCanvas extends StatefulWidget {
 
   /// A card let go over the command corner, which sends it there.
   final void Function(CardInstance)? onSendHome;
-
-  final String? turnSeatId;
 
   /// The player's own multiplier on the card size. One is the surface exactly
   /// as the layout drew it.
@@ -241,7 +238,6 @@ class _FreeCanvasState extends State<FreeCanvas> {
                         seat: seats[seatAt],
                         printings: widget.printings,
                         isViewer: seats[seatAt].seatId == widget.viewerSeatId,
-                        isTurn: seats[seatAt].seatId == widget.turnSeatId,
                         onTapCard: widget.onTapCard,
                         onInspectCard: widget.onInspectCard,
                         onPlace: widget.onPlace,
@@ -299,7 +295,6 @@ class _Mat extends StatelessWidget {
     required this.seat,
     required this.printings,
     required this.isViewer,
-    required this.isTurn,
     required this.onTapCard,
     required this.onInspectCard,
     required this.onPlace,
@@ -314,7 +309,6 @@ class _Mat extends StatelessWidget {
   final Game? game;
   final Map<String, CatalogCard> printings;
   final bool isViewer;
-  final bool isTurn;
   final void Function(CardInstance) onTapCard;
   final void Function(CardInstance) onInspectCard;
   final void Function(String cardId, double x, double y) onPlace;
@@ -356,10 +350,7 @@ class _Mat extends StatelessWidget {
       decoration: BoxDecoration(
         color: isViewer ? Palette.tileFocused : Palette.tile,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isTurn ? Palette.accent : Palette.tileEdge,
-          width: isTurn ? 3 : 1,
-        ),
+        border: Border.all(color: Palette.tileEdge),
       ),
       // Only your own mat takes a card. Letting go over somebody else's is
       // letting go over nothing, and the card stays where it was, which is

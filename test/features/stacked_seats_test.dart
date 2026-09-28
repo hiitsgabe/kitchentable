@@ -8,6 +8,7 @@ import 'package:kitchentable/table/model/seat.dart';
 import 'package:kitchentable/table/model/zone.dart';
 import 'package:kitchentable/table/view/seat_view.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
+import 'package:kitchentable/ui/tokens/palette.dart';
 
 Seat _seat(String id, {int board = 0}) => Seat(
       id: id,
@@ -124,6 +125,31 @@ void main() {
     await tester.pumpWidget(_host(['s1', 's2'], viewer: ''));
 
     expect(find.byType(SeatBand), findsNWidgets(2));
+  });
+
+  testWidgets('no band is drawn as the one whose turn it is', (tester) async {
+    // There are no turns, and the ring that said otherwise sat on seat one
+    // all evening. A spectator, so seat one gets a band too, and every band's
+    // edge is the plain one: read off the decoration and not off the source,
+    // because a ring keyed on something other than a turn is still a ring.
+    _roomForBands(tester);
+    await tester.pumpWidget(_host(['s1', 's2', 's3'], viewer: 'nobody'));
+
+    final edges = <String, BoxBorder?>{};
+    for (final id in ['s1', 's2', 's3']) {
+      final box = tester.widget<Container>(
+        find.descendant(
+          of: find.byKey(Key('band-$id')),
+          matching: find.byType(Container),
+        ).first,
+      );
+      edges[id] = (box.decoration! as BoxDecoration).border;
+    }
+
+    expect(edges, hasLength(3));
+    for (final entry in edges.entries) {
+      expect(entry.value, Border.all(color: Palette.tileEdge), reason: entry.key);
+    }
   });
 
   testWidgets('each band is handed its own seat s game', (tester) async {

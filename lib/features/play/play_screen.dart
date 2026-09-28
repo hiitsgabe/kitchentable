@@ -433,7 +433,6 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                     seats: views,
                     viewerSeatId: viewerId,
                     printings: _printings,
-                    turnSeatId: table.turnSeatId,
                     onFocusSeat: _look,
                     gameFor: play.gameAt,
                     yours: yours,
@@ -450,7 +449,6 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                             seats: views,
                             viewerSeatId: viewerId,
                             printings: _printings,
-                            turnSeatId: table.turnSeatId,
                             // Your own deck and your own corner, on the mat
                             // they belong to. The bands drew both and the
                             // canvas drew neither, so opening the wide view
