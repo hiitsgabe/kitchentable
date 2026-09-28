@@ -247,8 +247,10 @@ still fall back to the guest's catalog. Task 2's cases are host-side only.
 already been mutated by its own Step 1 edit; the totals after each task
 (704, 706) agree with the plan's 700 by arithmetic, which is what it said.
 
-**The relay reconnect case flakes under load.** Task 1's liveness case
-("a relay that closes the socket...") failed once in the full run and passed
-alone; on this memory-short machine it passes about one run in three alone.
-Cause read off the test: it waits 5 s in total while the socket reconnects
-only after a 2 s default. Tightened separately.
+**The relay reconnect case flakes under load, and I misread its cause
+once.** Task 1's liveness case ("a relay that closes the socket...") failed
+once in the full run and passed alone; on this memory-short machine it passes
+about one run in three alone. I first wrote that it waited 5 s against a 2 s
+reconnect default; the test's helper already sets `reconnectAfter` to 20 ms,
+so that was not it. The real cause is not yet measured and the case is left
+as it is until it is.
