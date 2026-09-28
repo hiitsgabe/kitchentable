@@ -63,6 +63,12 @@ dependencies:
   # libraries either bring a native component or do not build for web.
   bip340: ^0.3.1
   web_socket_channel: ^3.0.3
+  # The connection. Once two phones have found each other on a relay they
+  # talk directly, browser to browser or phone to phone, over a WebRTC data
+  # channel; STUN tells each one its own public address and nothing of ours
+  # sits in between. One plugin for every platform, web included, which is
+  # why it is this one and not a per platform pair.
+  flutter_webrtc: ^1.6.2
 
 dev_dependencies:
   flutter_test:
