@@ -8,20 +8,30 @@ import 'package:kitchentable/decks/model/deck.dart';
 import 'package:kitchentable/decks/model/deck_format.dart';
 import 'package:kitchentable/features/decks/decks_controller.dart';
 import 'package:kitchentable/features/decks/play_decks_screen.dart';
+import 'package:kitchentable/features/lobby/lobby.dart';
 import 'package:kitchentable/features/menu/menu_controller.dart';
 import 'package:kitchentable/features/menu/menu_screen.dart';
 import 'package:kitchentable/features/play/play_controller.dart';
+import 'package:kitchentable/features/play/play_screen.dart';
 import 'package:kitchentable/features/room/entry.dart';
 import 'package:kitchentable/features/room/join_screen.dart';
 import 'package:kitchentable/features/room/room_controller.dart';
 import 'package:kitchentable/features/room/room_screen.dart';
 import 'package:kitchentable/features/room/start_screen.dart';
 import 'package:kitchentable/features/settings/player_name.dart';
+import 'package:kitchentable/net/link.dart';
+import 'package:kitchentable/net/signaling.dart';
+import 'package:kitchentable/net/webrtc_transport.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
+import 'package:kitchentable/table/model/seat_owner.dart';
 import 'package:kitchentable/table/room/room.dart';
+import 'package:kitchentable/table/setup.dart';
 import 'package:kitchentable/ui/atoms/menu_row.dart';
+import 'package:kitchentable/ui/organisms/screen_frame.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../net/fake_transport.dart';
 
 /// Where the web build is served from, for the tests that want a link. Off the
 /// web there is no origin at all and the room has only a code, which is its
@@ -86,11 +96,16 @@ ProviderContainer _container({
   List<Deck> shelf = const [],
   String? yourName = namelessPlayer,
   MenuState menu = const MenuState(cardCount: 36079, enabledSources: 1),
+  FakeNetwork? net,
 }) {
+  // This device is `me` on a network in memory, so a room here reaches
+  // nobody unless a case puts somebody on the other end with [_friend].
+  final network = net ?? FakeNetwork();
   final container = ProviderContainer(
     overrides: [
       roomOriginProvider.overrideWithValue(origin),
       launchRoomCodeProvider.overrideWithValue(launchCode),
+      transportFactoryProvider.overrideWithValue((_) => network.join('me')),
       // Your name comes off the device rather than out of this screen now, and
       // overriding the resolved one keeps these cases off the disk. Null means
       // no override: the real chain, from an empty store to the fallback.
@@ -103,6 +118,29 @@ ProviderContainer _container({
     ],
   );
   addTearDown(container.dispose);
+  return container;
+}
+
+/// A friend on the other side of the network, running the same lobby a
+/// phone would. They knock on arrival; [_settle] carries it.
+Lobby _friend(FakeNetwork net, String id) {
+  final lobby = Lobby.guest(transport: net.join(id));
+  addTearDown(lobby.close);
+  return lobby;
+}
+
+/// Delivers everything in flight and draws the result. Under the widget
+/// tester's fake clock the network's own turn of the event loop never comes,
+/// so it runs for real and the screen is pumped after.
+Future<void> _settle(WidgetTester tester, FakeNetwork net) async {
+  await tester.runAsync(net.settle);
+  await tester.pump();
+}
+
+/// A room with a host in it, from this device's side.
+ProviderContainer _hosting(FakeNetwork net, {int seats = 3, int? life}) {
+  final container = _container(net: net, shelf: [_deck('d1')]);
+  container.read(roomProvider.notifier).open(_config(seats: seats, life: life));
   return container;
 }
 
@@ -131,6 +169,10 @@ Future<void> _pump(
   );
   await tester.pumpAndSettle();
 }
+
+/// What the frame says under the title, before it is set in capitals.
+String _label(WidgetTester tester) =>
+    tester.widget<ScreenFrame>(find.byType(ScreenFrame)).label;
 
 /// The text under a key, and a named failure when there is none.
 ///
@@ -441,17 +483,249 @@ void main() {
       expect(line, contains('see'));
     });
 
-    testWidgets('does not pretend anybody can reach it yet', (tester) async {
-      // There is no transport in this slice at all, so a room screen counting
-      // down empty chairs would be a waiting room nobody can walk into. The
-      // code and the link are real and the connection is not, and the screen
-      // is the only place that can say which.
-      final container = _container();
-      container.read(roomProvider.notifier).open(_config());
+    test('no line on the room says nobody can arrive', () {
+      // The line came down when people could. Read off the source rather than
+      // off one pumped screen, because the screen has states and the line
+      // could hide in one a case never draws; the second line is the positive
+      // control, because a file that failed to read satisfies the first.
+      final source = File('lib/features/room/room_screen.dart');
+      expect(source.existsSync(), isTrue,
+          reason: 'this reads the source, so it has to run from the package '
+              'root. cwd is ${Directory.current.path}');
+      final text = source.readAsStringSync();
+
+      expect(text, isNot(contains('room-reach')));
+      expect(text, isNot(contains('cannot actually arrive')));
+      expect(text, contains('room-start'));
+    });
+
+    testWidgets('the chairs count down as people arrive', (tester) async {
+      final net = FakeNetwork();
+      final container = _hosting(net, seats: 3);
       await _pump(tester, container, const RoomScreen());
 
-      expect(find.byKey(const Key('room-reach')), findsOneWidget);
-      expect(_textAt(tester, 'room-reach'), isNotEmpty);
+      expect(_textAt(tester, 'room-chair-1'), contains('yours'));
+      expect(_textAt(tester, 'room-chair-2'), contains('empty'));
+      expect(_textAt(tester, 'room-chair-3'), contains('empty'));
+      expect(_label(tester), contains('3 of 3 chairs empty'));
+
+      final ana = _friend(net, 'ana');
+      await _settle(tester, net);
+      // Connected is not seated: a chair is a person with a deck.
+      expect(_textAt(tester, 'room-chair-2'), contains('empty'));
+
+      ana.bring(deck: _deck('anas'), name: 'ana');
+      await _settle(tester, net);
+
+      expect(_textAt(tester, 'room-chair-2'), 'chair 2: ana');
+      expect(_textAt(tester, 'room-chair-3'), contains('empty'));
+      expect(_label(tester), contains('2 of 3 chairs empty'));
+
+      net.drop('ana');
+      await _settle(tester, net);
+      expect(_textAt(tester, 'room-chair-2'), contains('empty'),
+          reason: 'a friend who leaves gives the chair back');
+    });
+
+    testWidgets('the connection is stated as facts, one line each',
+        (tester) async {
+      final net = FakeNetwork();
+      final container = _hosting(net);
+      await _pump(tester, container, const RoomScreen());
+
+      // Nothing has happened yet, so every line says it is waiting and no
+      // friend has a line at all.
+      expect(_textAt(tester, 'room-relay').toLowerCase(), contains('reaching'));
+      expect(_textAt(tester, 'room-stun').toLowerCase(), contains('waiting'));
+      expect(find.byKey(const Key('room-peer-ana')), findsNothing);
+
+      final reach = container.read(reachProvider.notifier);
+      reach.note(const RendezvousStep(SignalingStatus(SignalingStep.announced)));
+      reach.note(const LinkStep(LinkStatus(LinkStage.reflexive, peer: 'ana')));
+      await tester.pump();
+
+      expect(_textAt(tester, 'room-relay').toLowerCase(), contains('accepted'));
+      expect(_textAt(tester, 'room-stun').toLowerCase(), contains('answered'));
+
+      reach.note(const LinkStep(LinkStatus(LinkStage.opened, peer: 'ana')));
+      await tester.pump();
+      expect(_textAt(tester, 'room-peer-ana').toLowerCase(),
+          contains('connected'));
+      expect(_textAt(tester, 'room-peer-ana'), isNot(contains('ana')),
+          reason: 'the name is not known until the deck arrives');
+
+      _friend(net, 'ana').bring(deck: _deck('anas'), name: 'ana');
+      await _settle(tester, net);
+      expect(_textAt(tester, 'room-peer-ana'), startsWith('ana '));
+
+      reach.note(const LinkStep(LinkStatus(LinkStage.closed, peer: 'ana')));
+      await tester.pump();
+      expect(find.byKey(const Key('room-peer-ana')), findsNothing);
+    });
+
+    testWidgets('a link that needs a relay is said in words, and where to '
+        'put one', (tester) async {
+      final net = FakeNetwork();
+      final container = _hosting(net);
+      await _pump(tester, container, const RoomScreen());
+
+      expect(find.byKey(const Key('room-turn')), findsNothing);
+
+      final reach = container.read(reachProvider.notifier);
+      // A failure that a relay would not fix says nothing about relays.
+      reach.note(const LinkStep(LinkStatus(
+        LinkStage.failed,
+        peer: 'bo',
+        failure: LinkFailure(peer: 'bo', reason: 'their offer was garbage'),
+      )));
+      await tester.pump();
+      expect(find.byKey(const Key('room-turn')), findsNothing);
+
+      reach.note(const LinkStep(LinkStatus(
+        LinkStage.failed,
+        peer: 'ana',
+        failure: LinkFailure(
+          peer: 'ana',
+          reason: 'ICE completed with no candidate pair',
+          needsTurn: true,
+        ),
+      )));
+      await tester.pump();
+
+      final line = _textAt(tester, 'room-turn');
+      expect(line, contains('TURN'));
+      expect(line, contains('Settings'));
+      expect(line.toLowerCase(), contains('could not be reached directly'));
+      expect(line, isNot(contains('ICE')),
+          reason: 'in words, not in the words of the protocol');
+    });
+
+    testWidgets('the fill row hides once a real person is seated',
+        (tester) async {
+      final net = FakeNetwork();
+      final container = _hosting(net, seats: 3);
+      await _pump(tester, container, const RoomScreen());
+
+      expect(find.byKey(const Key('room-fill')), findsOneWidget);
+
+      final ana = _friend(net, 'ana');
+      await _settle(tester, net);
+      expect(find.byKey(const Key('room-fill')), findsOneWidget,
+          reason: 'connected and not seated is not a person in a chair');
+
+      ana.bring(deck: _deck('anas'), name: 'ana');
+      await _settle(tester, net);
+      expect(find.byKey(const Key('room-fill')), findsNothing);
+      expect(find.byKey(const Key('room-deck')), findsOneWidget,
+          reason: 'the positive control: the host still picks its own deck');
+    });
+
+    testWidgets('the host starts only with every chair full, and the button '
+        'says which are empty', (tester) async {
+      final net = FakeNetwork();
+      final container = _hosting(net, seats: 3);
+      await _pump(tester, container, const RoomScreen());
+
+      MenuRow start() =>
+          tester.widget<MenuRow>(find.byKey(const Key('room-start')));
+
+      expect(start().enabled, isFalse);
+      expect(start().subtitle, contains('chairs 1, 2 and 3'));
+
+      // The host sits through the picker, which closes on the room.
+      await tester.tap(find.byKey(const Key('room-deck')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('deck-row-0')));
+      await tester.pumpAndSettle();
+      expect(find.byType(PlayDecksScreen), findsNothing);
+      expect(find.byType(PlayScreen), findsNothing,
+          reason: 'sitting down is not dealing');
+      expect(start().enabled, isFalse);
+      expect(start().subtitle, contains('chairs 2 and 3'));
+
+      final ana = _friend(net, 'ana');
+      ana.bring(deck: _deck('anas'), name: 'ana');
+      await _settle(tester, net);
+      expect(start().enabled, isFalse);
+      expect(start().subtitle, contains('chair 3'));
+      expect(start().subtitle, isNot(contains('2')));
+
+      // Pressed anyway: a dimmed row does nothing.
+      await tester.tap(find.byKey(const Key('room-start')));
+      await tester.pumpAndSettle();
+      expect(container.read(playProvider), isNull);
+
+      _friend(net, 'bo').bring(deck: _deck('bos'), name: 'bo');
+      await _settle(tester, net);
+      expect(start().enabled, isTrue);
+      expect(start().subtitle, isNot(contains('waiting')));
+
+      await tester.tap(find.byKey(const Key('room-start')));
+      await tester.pumpAndSettle();
+
+      final table = container.read(playProvider)!;
+      expect(table.seats.map((s) => s.name), ['kit', 'ana', 'bo']);
+      expect(table.seats.map((s) => s.owner), [
+        const SeatOwner.here(),
+        const SeatOwner.peer('ana'),
+        const SeatOwner.peer('bo'),
+      ]);
+      expect(find.byType(PlayScreen), findsOneWidget);
+      // And the lobby's last word went to both guests. Read off the wire and
+      // not settled through to them: settling runs for real, and the table
+      // behind this screen starts fetching card backs the moment it can.
+      final sent = (container.read(transportProvider)! as FakeTransport).sent;
+      expect(
+        sent.where((s) => s.body.contains('"dealt"')).map((s) => s.to).toSet(),
+        {'ana', 'bo'},
+      );
+    });
+
+    testWidgets("a guest sees the host's room, its chairs, and that the table "
+        'was dealt', (tester) async {
+      // The other way round: this device is the guest, and the host is a
+      // lobby on the far side of the network.
+      final net = FakeNetwork();
+      final host = Lobby.host(
+        transport: net.join('kit'),
+        config: _config(seats: 2, life: 30),
+      );
+      addTearDown(host.close);
+      final container = _container(net: net, shelf: [_deck('d1')]);
+      container.read(roomProvider.notifier).arrive(freshRoomCode());
+      await _pump(tester, container, const RoomScreen());
+
+      expect(_textAt(tester, 'room-answer').toLowerCase(),
+          contains('nobody has answered'));
+      expect(find.byKey(const Key('room-chairs')), findsNothing,
+          reason: 'a guest cannot count chairs it has not been told about');
+      expect(find.byKey(const Key('room-start')), findsNothing);
+
+      await _settle(tester, net);
+      expect(_textAt(tester, 'room-answer'), contains('kit answered'));
+      expect(_textAt(tester, 'room-chair-1'), contains('host'));
+      expect(_textAt(tester, 'room-chair-2'), contains('empty'));
+      expect(find.byKey(const Key('room-fill')), findsNothing,
+          reason: 'the other chairs are other people\'s');
+
+      await tester.tap(find.byKey(const Key('room-deck')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('deck-row-0')));
+      await tester.pumpAndSettle();
+      await _settle(tester, net);
+      expect(_textAt(tester, 'room-chair-2'), 'chair 2: $namelessPlayer (you)');
+      expect(host.seated.map((s) => s.name), [namelessPlayer]);
+
+      host.sit(deck: _deck('hosts'), name: 'kit');
+      await _settle(tester, net);
+      expect(_textAt(tester, 'room-chair-1'), 'chair 1: kit');
+      expect(find.byKey(const Key('room-dealt')), findsNothing);
+
+      host.start((players) => sitDownTogether(players: players, seed: 'seed'));
+      await _settle(tester, net);
+
+      expect(_textAt(tester, 'room-dealt'), contains('kit dealt the table'));
+      expect(container.read(lobbyProvider)!.dealt, isTrue);
     });
 
     testWidgets('the deck is picked from inside the room', (tester) async {
@@ -574,18 +848,22 @@ void main() {
     });
 
     testWidgets('the room is what the table starts on', (tester) async {
-      final container = _container(shelf: [_deck('d1')]);
-      container.read(roomProvider.notifier).open(_config(life: 30));
+      final net = FakeNetwork();
+      final container = _hosting(net, seats: 2, life: 30);
       await _pump(tester, container, const RoomScreen());
 
       await tester.tap(find.byKey(const Key('room-deck')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('deck-row-0')));
       await tester.pumpAndSettle();
+      _friend(net, 'ana').bring(deck: _deck('anas'), name: 'ana');
+      await _settle(tester, net);
+      await tester.tap(find.byKey(const Key('room-start')));
+      await tester.pumpAndSettle();
 
       // Commander starts on 40 and this room said 30. A starting life you can
       // edit and the table ignores is a setting that looks like it works.
-      expect(container.read(playProvider)!.seats.single.life, 30);
+      expect(container.read(playProvider)!.seats.map((s) => s.life), [30, 30]);
     });
   });
 
@@ -684,7 +962,8 @@ void main() {
 
       expect(find.byType(RoomScreen), findsOneWidget);
       expect(_textAt(tester, 'room-code'), 'aaaa-aaa');
-      expect(find.byKey(const Key('room-reach')), findsOneWidget);
+      expect(_textAt(tester, 'room-answer').toLowerCase(),
+          contains('nobody has answered'));
     });
 
     testWidgets('and an ordinary launch still opens the menu', (tester) async {

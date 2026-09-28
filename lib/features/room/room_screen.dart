@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../table/room/room.dart';
+import '../../table/shuffle.dart';
 import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/toast.dart';
@@ -11,15 +12,19 @@ import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../decks/play_decks_screen.dart';
+import '../lobby/lobby.dart';
 import '../menu/menu_screen.dart';
+import '../play/play_controller.dart';
+import '../play/play_screen.dart';
 import 'room_controller.dart';
 
 /// The room, which is a place before it is a game.
 ///
 /// It holds the three ways in, in the order they are useful: the code you read
 /// out to somebody across the table, the link you send to somebody who is not,
-/// and the same link as a square for their camera. Under them, the two things
-/// this room is not, and then the deck.
+/// and the same link as a square for their camera. Under them, what the
+/// connection has found out so far, stated as facts, then the chairs and who is
+/// in them, then the deck.
 class RoomScreen extends ConsumerWidget {
   const RoomScreen({super.key});
 
@@ -50,15 +55,25 @@ class RoomScreen extends ConsumerWidget {
 
     final origin = ref.watch(roomOriginProvider);
     final link = origin == null ? null : linkFor(room.code, origin: origin);
-    final config = room.config;
+    final lobby = ref.watch(lobbyProvider);
+    final reach = ref.watch(reachProvider);
+    // The host's own, or what the host said when it answered: a guest has no
+    // settings of its own to show and shows none until then.
+    final config = room.config ?? lobby?.config;
+    final empty = lobby?.emptyChairs ?? const <int>[];
+    final somebodyElse =
+        lobby != null && lobby.seated.any((s) => s.peer != lobby.me);
 
     return ScreenFrame(
       metrics: m,
-      title: room.title,
+      title: config?.roomName.trim().isNotEmpty == true
+          ? config!.roomName.trim()
+          : room.title,
       label: config == null
           ? 'somebody else\'s room'
-          : '${config.format.label} · ${config.seats} chairs · '
-                '${config.life} life',
+          : '${config.format.label} · '
+                '${_chairsLabel(config.seats, lobby == null ? null : empty)}'
+                ' · ${config.life} life',
       onBack: () => _leave(context, ref),
       hints: const [
         Hint(button: HintBar.dpad, label: 'move'),
@@ -92,6 +107,60 @@ class RoomScreen extends ConsumerWidget {
                 'and this one is not served anywhere. Read the code out, or '
                 'let somebody type it in.',
           ),
+        // What the connection has said, one fact per line, in the order they
+        // happen. Somebody holding a phone that will not connect is owed the
+        // step it stopped at, not a spinner.
+        _Fact(
+          metrics: m,
+          id: 'room-relay',
+          done: reach.relayAnswered,
+          failed: reach.relayUnreachable,
+          text: reach.relayUnreachable
+              ? 'Relay: none could be reached, so nobody can find this room'
+              : reach.relayAnswered
+                  ? 'Relay: accepted this room, so it can be found'
+                  : 'Relay: reaching one',
+        ),
+        _Fact(
+          metrics: m,
+          id: 'room-stun',
+          done: reach.stunAnswered,
+          text: reach.stunAnswered
+              ? 'STUN: answered, so this phone knows its own address'
+              : 'STUN: waiting for an answer',
+        ),
+        for (final peer in reach.open)
+          _Fact(
+            metrics: m,
+            id: 'room-peer-$peer',
+            done: true,
+            text: _peerWords(lobby, peer),
+          ),
+        if (reach.needsTurn case final failure?)
+          _Fact(
+            metrics: m,
+            id: 'room-turn',
+            failed: true,
+            text:
+                '${_peerName(lobby, failure.peer)} could not be reached '
+                'directly: both phones answered STUN and still could not reach '
+                'each other, which only a relay for the connection itself '
+                'fixes. Put a TURN server in Settings, under Network, and try '
+                'again.',
+          ),
+        if (lobby != null && !lobby.hosting)
+          _Note(
+            metrics: m,
+            id: 'room-answer',
+            colour: lobby.host == null ? Palette.attention : Palette.inkMuted,
+            text: lobby.host == null
+                ? 'Nobody has answered under this code yet. If the host is '
+                    'here, their phone will answer as soon as the two connect.'
+                : '${config!.hostName} answered: ${config.format.label}, '
+                    '${config.seats} chairs, ${config.life} life.',
+          ),
+        if (lobby != null && config != null)
+          _Chairs(metrics: m, lobby: lobby, seats: config.seats),
         _Note(
           metrics: m,
           id: 'room-openness',
@@ -107,21 +176,35 @@ class RoomScreen extends ConsumerWidget {
               'draw it. Fine for friends at a kitchen table. Not safe against '
               'somebody who wants to cheat, and not private.',
         ),
-        _Note(
-          metrics: m,
-          id: 'room-reach',
-          colour: Palette.inkMuted,
-          text:
-              'Nobody can actually arrive yet: carrying people between phones '
-              'is the next piece of work. The code and the link are real, and '
-              'for now the only chair that fills is yours.',
-        ),
+        if (lobby != null && lobby.full)
+          _Note(
+            metrics: m,
+            id: 'room-full',
+            colour: Palette.attention,
+            text: 'The room is full: ${config!.seats} chairs and every one of '
+                'them taken. You can watch once the table is dealt.',
+          ),
+        if (lobby != null && lobby.mesh != null && !lobby.hosting)
+          _Note(
+            metrics: m,
+            id: 'room-dealt',
+            colour: Palette.accent,
+            text: lobby.dealt
+                ? '${config!.hostName} dealt the table and your phone has '
+                    'it. Playing it from here is the next piece of work: for '
+                    'now the table is on the host\'s screen.'
+                : 'The host dealt the table. Waiting for it to arrive.',
+          ),
         MenuRow(
           key: const Key('room-deck'),
-          title: 'Pick your deck and sit down',
-          subtitle: config == null
-              ? 'whatever you brought'
-              : 'for ${config.format.label}, starting on ${config.life}',
+          title: lobby != null && lobby.seatedHere
+              ? 'Pick a different deck'
+              : 'Pick your deck and sit down',
+          subtitle: lobby != null && lobby.seatedHere
+              ? 'you are in chair ${_chairOf(lobby)}'
+              : config == null
+                  ? 'whatever you brought'
+                  : 'for ${config.format.label}, starting on ${config.life}',
           icon: Icons.style_rounded,
           metrics: m,
           autofocus: true,
@@ -129,12 +212,24 @@ class RoomScreen extends ConsumerWidget {
             MaterialPageRoute<void>(builder: (_) => const PlayDecksScreen()),
           ),
         ),
-        // Only where there are other chairs to fill. A row that fills the other
-        // chairs at a table with none is a control that cannot do anything, and
-        // a guest cannot count them: the host's settings travel over a mesh
-        // that does not exist yet, so a guest offering this would be working
-        // off its own guess at the size of somebody else's room.
-        if (config != null && config.seats > 1)
+        if (lobby != null && lobby.hosting && config != null)
+          MenuRow(
+            key: const Key('room-start'),
+            title: 'Start',
+            // Dimmed rather than missing while a chair is empty, and the
+            // subtitle says which, so the host knows who they are waiting on
+            // rather than why a button is grey.
+            subtitle: lobby.dealt ? 'the table is dealt' : startWords(empty),
+            icon: Icons.play_arrow_rounded,
+            enabled: lobby.canStart,
+            metrics: m,
+            onActivate: () => _start(context, ref, lobby, config),
+          ),
+        // Only for the host, whose chairs they are, and only until a real
+        // person has taken one: it is still true that this device can play
+        // every hand, and it stops being the only way the moment somebody
+        // arrives.
+        if (room.config case final own? when own.seats > 1 && !somebodyElse)
           MenuRow(
             key: const Key('room-fill'),
             // Said rather than implied. This row used to live on the deck
@@ -144,13 +239,12 @@ class RoomScreen extends ConsumerWidget {
             title: 'Fill the other chairs from this device',
             subtitle:
                 'bring a deck for each chair and play all '
-                '${config.seats} hands yourself. Until people can actually '
-                'arrive, this is the only way the other chairs fill.',
+                '${own.seats} hands yourself, if nobody else is coming.',
             icon: Icons.group_add_rounded,
             metrics: m,
             onActivate: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => PlayDecksScreen(chairs: config.seats),
+                builder: (_) => PlayDecksScreen(chairs: own.seats),
               ),
             ),
           ),
@@ -158,9 +252,58 @@ class RoomScreen extends ConsumerWidget {
     );
   }
 
+  /// "2 of 4 chairs empty", or that every one is taken. Null empties is a
+  /// room with no lobby to count them, which says only how many there are.
+  static String _chairsLabel(int seats, List<int>? empty) {
+    if (empty == null) return '$seats chairs';
+    if (empty.isEmpty) return '$seats chairs, every one taken';
+    return '${empty.length} of $seats chairs empty';
+  }
+
+  static String _peerName(Lobby? lobby, String peer) =>
+      lobby?.seated.where((s) => s.peer == peer).firstOrNull?.name ??
+      'somebody';
+
+  /// "ana connected", once ana has said who she is, and before that only that
+  /// somebody has.
+  static String _peerWords(Lobby? lobby, String peer) {
+    final seat = lobby?.seated.where((s) => s.peer == peer).firstOrNull;
+    return seat == null
+        ? 'Somebody connected, and has not brought a deck yet'
+        : '${seat.name} connected, with a deck';
+  }
+
+  /// Chair 1 is the host's. The seated list leaves it out while the host
+  /// has not sat down, so a guest's chair is its place among the guests,
+  /// counted from 2, and never its index in the list.
+  static int _chairOf(Lobby lobby) {
+    if (lobby.me == lobby.host) return 1;
+    final guests = lobby.seated.where((s) => s.peer != lobby.host).toList();
+    return guests.indexWhere((s) => s.peer == lobby.me) + 2;
+  }
+
   void _copy(BuildContext context, String link) {
     Clipboard.setData(ClipboardData(text: link));
     Toast.show(context, 'Link copied', icon: Icons.check_rounded);
+  }
+
+  /// Deals everybody in, on this phone, and opens the table. The lobby hands
+  /// the transport to the mesh in the same call, so from here on the guests
+  /// hear the table and not the chairs.
+  void _start(
+    BuildContext context,
+    WidgetRef ref,
+    Lobby lobby,
+    RoomConfig config,
+  ) {
+    final play = ref.read(playProvider.notifier);
+    lobby.start((players) {
+      play.startPod(players: players, seed: freshSeed(), life: config.life);
+      return ref.read(playProvider)!;
+    });
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
+    );
   }
 
   /// Leaving ends the room for this device. Back from here is the menu, and on
@@ -174,6 +317,129 @@ class RoomScreen extends ConsumerWidget {
     if (!context.mounted) return;
     navigator.pushReplacement(
       MaterialPageRoute<void>(builder: (_) => const MenuScreen()),
+    );
+  }
+}
+
+/// The chairs, one line each, numbered the way the start button numbers them.
+class _Chairs extends StatelessWidget {
+  const _Chairs({required this.metrics, required this.lobby, required this.seats});
+
+  final Metrics metrics;
+  final Lobby lobby;
+  final int seats;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+
+    return Padding(
+      key: const Key('room-chairs'),
+      padding: EdgeInsets.only(bottom: m.scaled(14)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var chair = 1; chair <= seats; chair++)
+            Padding(
+              padding: EdgeInsets.only(bottom: m.scaled(4)),
+              child: Text(
+                _words(chair),
+                key: Key('room-chair-$chair'),
+                style: TextStyle(
+                  fontSize: m.scaled(12),
+                  height: 1.4,
+                  color: _in(chair) == null ? Palette.inkFaint : Palette.ink,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Who is in a chair. Chair 1 is the host's, and the seated list leaves it
+  /// out while the host has not sat down, so the guests are counted from 2
+  /// on their own and never by their index in the list.
+  Seated? _in(int chair) {
+    if (chair == 1) {
+      return lobby.seated.where((s) => s.peer == lobby.host).firstOrNull;
+    }
+    final guests = lobby.seated.where((s) => s.peer != lobby.host).toList();
+    return chair - 2 < guests.length ? guests[chair - 2] : null;
+  }
+
+  /// An empty chair 1 is the host not sat down yet and never somebody
+  /// else's to take.
+  String _words(int chair) {
+    final who = _in(chair);
+    if (who != null) {
+      final you = who.peer == lobby.me ? ' (you)' : '';
+      return 'chair $chair: ${who.name}$you';
+    }
+    if (chair == 1) {
+      return lobby.hosting
+          ? 'chair 1: yours, once you pick a deck'
+          : 'chair 1: the host, not sat down yet';
+    }
+    return 'chair $chair: empty';
+  }
+}
+
+/// One thing the connection found out, as a line with a mark in front of it.
+class _Fact extends StatelessWidget {
+  const _Fact({
+    required this.metrics,
+    required this.id,
+    required this.text,
+    this.done = false,
+    this.failed = false,
+  });
+
+  final Metrics metrics;
+  final String id;
+  final String text;
+  final bool done;
+  final bool failed;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+    final colour = failed
+        ? Palette.attention
+        : done
+            ? Palette.accent
+            : Palette.inkFaint;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: m.scaled(6)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(top: m.scaled(5), right: m.scaled(8)),
+            child: Icon(
+              failed
+                  ? Icons.close_rounded
+                  : done
+                      ? Icons.check_rounded
+                      : Icons.more_horiz_rounded,
+              size: m.scaled(12),
+              color: colour,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              key: Key(id),
+              style: TextStyle(
+                fontSize: m.scaled(12),
+                height: 1.4,
+                color: failed ? Palette.attention : Palette.inkMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
