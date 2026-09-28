@@ -307,6 +307,46 @@ git commit -m "Introduce two phones under a room code"
 
 ---
 
+### What running Task 2 found
+
+**Offers go through a callback, not a method.** `Signaling` takes
+`makeOffer` in its constructor and calls it only when `initiates(peer)` is
+true, and there is no public `offer()` at all. A method would let a caller
+offer out of turn or need a silent refusal, and then "exactly one offers"
+would be the test obeying the rule rather than the library. Task 3's link
+provides the callback.
+
+**The plan's glare sentence, applied literally by both sides, deadlocks.**
+"A peer that receives an offer while holding its own drops its own": if both
+drop, nobody answers. Probe 1 (every peer offers) showed it as four cases
+waiting out five seconds. Between two correct clients it never triggers,
+because only the lower key ever offers; the branch stays as defence against a
+client that does not run the rule, and its answer is dropped as "an answer to
+no offer".
+
+**Nostr event ids collide within a second.** `created_at` is in seconds and
+the id is a hash of the fields, so two `here` announcements from one key in
+the same second were one event: the relay's OK matched one publish and the
+other waited out the full `okTimeout`. Join announces and then re-announces on
+the first `here` it hears, typically inside one second, so this is a real
+hazard and not a test artefact. The content now carries a per-peer counter.
+
+**`Relay.publish` discards the OK's boolean.** Nothing above it can tell "the
+relay accepted" from "the relay rejected"; `announced` means an OK arrived
+from a connected relay. Task 4's screen has to say that much and no more,
+unless Task 3 or 4 surfaces the boolean.
+
+**The fake relay threw out of its fan-out when a client hung up behind an
+EVENT**, and the publisher's OK was never written, so the publish sat out its
+timeout. Task 1's cases never ended mid-exchange; Task 2's do. Fixed after
+Task 2 with a try/catch on the fake's send, in
+`test/net/nostr/fake_relay.dart`.
+
+**Two of ten cases passed on their first run** (the discovery case and the
+initiator case); the other eight first failed on infrastructure only. The ten
+probes are the evidence, and I re-ran the initiator one myself: the higher key
+offering fails on `offer.from` by value.
+
 ## Task 3: The link itself, behind a seam of its own
 
 **Files:**
