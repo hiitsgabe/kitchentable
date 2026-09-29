@@ -347,4 +347,14 @@ showed. Guarded on `hasListener`, and pinned.
 the lower key offered. So the introduction is right; what failed on the
 phone is after it, in the link, and the next check will say where.
 
+**A link that never opens now fails by a deadline.** ICE that checks
+forever reported nothing until the browser gave up, half a minute or
+never, and that was the host's state on the first check: "connecting" with
+no end. `WebRtcTransport.openWithin` (twenty seconds) fails the link with
+the reason "did not open within N seconds of the link being made", not the
+TURN verdict, and closes it, so the screen has a fact and the peer's next
+announcement makes a fresh link. The fake grew a `stalled` set for links
+that negotiate and then never open; the probe that removes the deadline
+fails the case on `failures` staying empty for five seconds.
+
 **Still unknown until the next check:** what the phone's own lines said.
