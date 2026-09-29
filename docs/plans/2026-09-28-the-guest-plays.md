@@ -254,3 +254,44 @@ about one run in three alone. I first wrote that it waited 5 s against a 2 s
 reconnect default; the test's helper already sets `reconnectAfter` to 20 ms,
 so that was not it. The real cause is not yet measured and the case is left
 as it is until it is.
+
+## What running Task 3 found
+
+**The stream alone is not enough for the local phone.** The plan said "the
+controller's state follows `mesh.tables`". `Mesh.run` applies locally before
+the broadcast delivers, on a later microtask, and the play screen runs two
+verbs back to back reading the table between them; with the stream alone the
+second read is stale. So `run` also sets `state = mesh.table` synchronously.
+Probe 2 (follow the stream, never call `mesh.run`) is what shows it: the
+case fails on the **host**, `Actual: 'hand-s1'` at :154. Probe 1 (apply
+locally, never hand over) fails on the **guest**, `Actual: 'hand-s1'` at
+:158. Both directions, as the plan asked, and I re-ran probe 1 myself.
+
+**Undo without the guard is a silent no-op, not a wrong table.** With the
+session dropped there is no history, so the life assertion cannot catch it;
+only the refusal-in-words assertion bites (`Expected: not null / Actual:
+<null>` at :211). That is why the case asserts the refusal and the word.
+
+**The guest reaches the table through a one-turn listener**, `dealtProvider`
+(false to true), not by watching the lobby, which notifies on every chair
+and every verb. The flagged gap: `ref.listen` reports changes, not the
+initial value, so a guest whose room screen was not mounted at the turn
+would arrive at a room with `dealt` already true and no push. Every path to
+the picker today goes through the room screen, so it is believed
+unreachable and not proven.
+
+**One existing case moved, and it is the one that was the point:** the
+guest's room_flow case used to assert the guest stops on the room screen
+with the "dealt" note; it now asserts the play screen is up, the seats are
+`[peer(kit), peer(me)]`, the viewer is s2, the hand has 7 cards, and a
+`MoveCard` run on the host's mesh lands at (0.25, 0.75) on the guest with
+the printing's name drawn. It failed twice on the agent's own assertions
+before passing: the route lands a frame after a single pump, and the 800 by
+1600 test window takes the canvas renderer, where there are no bands.
+
+**Known and left:** on a guest, `deckSizeAt` and `gameAt` are known only for
+its own seat; other piles draw the plain fallback. Undo with a mesh is
+refused for the host too. The "fill the other chairs" path still deals with
+no mesh.
+
+**Hand check pending.** Two phones, two networks. The commit says so.
