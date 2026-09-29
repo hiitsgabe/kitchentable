@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/net/nostr/keys.dart';
 import 'package:kitchentable/net/nostr/relay.dart';
@@ -261,5 +263,74 @@ void main() {
     await speaker.publish(event);
     await _eventually(() => received.isNotEmpty, 'an event after reconnect');
     expect(received.single.id, event.id);
+  });
+
+  test('a relay that never answers does not hold the handshake', () async {
+    // Accepts the connection and says nothing, forever. `relay.nostr.band`
+    // did exactly this from the machine this was written on, and the other
+    // two relays sat connected while nobody announced: the announce waits on
+    // the subscription, and the subscription waited on every relay.
+    final silent = await ServerSocket.bind('127.0.0.1', 0);
+    // Held, not dropped. An accepted socket nobody references is collected,
+    // and the OS then resets the connection, so a server that only ignored
+    // its clients was silent until the next garbage collection and reset
+    // them after it: the first run of this hung for twelve seconds and a
+    // later one settled in under one, on the same code.
+    final held = <Socket>[];
+    silent.listen(held.add);
+    addTearDown(() async {
+      for (final s in held) {
+        s.destroy();
+      }
+      await silent.close();
+    });
+    final good = await _relay();
+
+    final client = Relay(
+      [Uri.parse('ws://127.0.0.1:${silent.port}'), good.url],
+      reconnectAfter: const Duration(milliseconds: 20),
+      connectTimeout: const Duration(milliseconds: 300),
+      okTimeout: const Duration(milliseconds: 300),
+    );
+    addTearDown(client.close);
+
+    final sub = client.subscribe(
+      const Filter(kinds: [handshakeKind], tags: {'d': ['zz9k-tst']}),
+    );
+    sub.events.listen((_) {});
+    final sw = Stopwatch()..start();
+    await sub.established.timeout(const Duration(seconds: 5));
+
+    // Bounded by the cap, not by the silent relay.
+    expect(sw.elapsed, lessThan(const Duration(seconds: 2)),
+        reason: 'the silent relay held the handshake');
+    expect(client.connected, {good.url},
+        reason: 'the silent relay must not count as reachable');
+
+    // And the live relay still carries an event, which is what announcing
+    // is.
+    // Publishing waits on every relay's first attempt with no cap of its
+    // own, so this is the line the connect timeout exists for: without it a
+    // relay that never answers holds every announcement forever.
+    final keys = Keys.mint();
+    await client
+        .publish(NostrEvent.sign(keys,
+            kind: handshakeKind, tags: [['d', 'zz9k-tst']], content: '{}'))
+        .timeout(const Duration(seconds: 2));
+    expect(good.accepted, hasLength(1));
+  });
+
+  test('closing a relay whose subscription nobody read does not hang',
+      () async {
+    final good = await _relay();
+    final client = Relay([good.url],
+        reconnectAfter: const Duration(milliseconds: 20));
+    final sub = client.subscribe(const Filter(kinds: [handshakeKind]));
+    await sub.established;
+
+    // Nobody listened to sub.events. A single subscription controller's
+    // close() completes only once a listener drains it, and close() awaited
+    // it, so this hung for the whole test timeout.
+    await client.close().timeout(const Duration(seconds: 2));
   });
 }
