@@ -16,12 +16,16 @@ import 'package:kitchentable/net/link.dart';
 /// naming the side that made them, so a case can tell whose description
 /// landed where.
 class FakeLinks implements LinkFactory {
-  FakeLinks({this.unreachable = const {}});
+  FakeLinks({this.unreachable = const {}, this.stalled = const {}});
 
   /// Peers no link can be opened to or from. A link between one of these
   /// and anybody negotiates and then fails the way ICE does when the two
   /// phones cannot reach each other: with a reason, and never an error.
   final Set<String> unreachable;
+
+  /// Peers whose links negotiate and then never open and never fail: ICE
+  /// that checks forever. The transport's own deadline is what ends these.
+  final Set<String> stalled;
 
   final Map<String, Map<String, FakeLink>> _ends = {};
 
@@ -173,6 +177,8 @@ class FakeLink implements PeerLink {
     final other = _other;
     if (other == null || !_negotiated || !other._negotiated) return;
     if (_isOpen || _gone || other._gone) return;
+    final stalled = _links.stalled;
+    if (stalled.contains(me) || stalled.contains(peer)) return;
     final blocked = _links.unreachable;
     if (blocked.contains(me) || blocked.contains(peer)) {
       _fail();

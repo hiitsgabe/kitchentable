@@ -38,12 +38,13 @@ Relay _client(FakeRelay relay) {
 /// arrived and everybody who came or went, collected from before it joins,
 /// because a case that subscribes later misses what it is about.
 class _Phone {
-  _Phone(FakeRelay relay, FakeLinks links, this.keys)
+  _Phone(FakeRelay relay, FakeLinks links, this.keys, {Duration? openWithin})
     : transport = WebRtcTransport(
         relay: _client(relay),
         keys: keys,
         code: _code,
         links: links,
+        openWithin: openWithin ?? const Duration(seconds: 20),
       ) {
     transport.steps.listen(steps.add);
     transport.incoming.listen(got.add);
@@ -68,8 +69,13 @@ class _Phone {
       link.map((s) => s.failure).whereType<LinkFailure>();
 }
 
-Future<_Phone> _phone(FakeRelay relay, FakeLinks links, [Keys? keys]) async =>
-    _Phone(relay, links, keys ?? Keys.mint());
+Future<_Phone> _phone(
+  FakeRelay relay,
+  FakeLinks links, [
+  Keys? keys,
+  Duration? openWithin,
+]) async =>
+    _Phone(relay, links, keys ?? Keys.mint(), openWithin: openWithin);
 
 /// [n] phones under one code, joined and every link between them open.
 Future<List<_Phone>> _phones(int n, {FakeLinks? links}) async {
@@ -500,6 +506,33 @@ void main() {
       'username': 'kit',
       'credential': 'hunter2',
     });
+  });
+  test('a link that never opens is failed by a deadline, in words', () async {
+    // ICE that checks forever. The browser reports nothing for half a
+    // minute or ever, and on the first two-phone check that was the host's
+    // state: the phone heard, a link made, and "connecting" with no end.
+    final keys = _pair();
+    final links = FakeLinks(stalled: {keys.high.public});
+    final relay = await _relay();
+    const deadline = Duration(milliseconds: 300);
+    final low = await _phone(relay, links, keys.low, deadline);
+    final high = await _phone(relay, links, keys.high, deadline);
+
+    await Future.wait([low.transport.join(), high.transport.join()]);
+    final until = DateTime.now().add(const Duration(seconds: 5));
+    while (low.failures.isEmpty && DateTime.now().isBefore(until)) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+
+    expect(low.failures, hasLength(1),
+        reason: 'the deadline never turned the stall into a failure');
+    final failure = low.failures.single;
+    expect(failure.peer, high.me);
+    expect(failure.reason, contains('did not open'));
+    expect(failure.needsTurn, isFalse,
+        reason: 'never finishing is not the same verdict as no pair');
+    expect(low.peers, isEmpty);
+    expect(low.link.map((s) => s.stage), isNot(contains(LinkStage.opened)));
   });
 }
 
