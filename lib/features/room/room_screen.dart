@@ -143,6 +143,28 @@ class RoomScreen extends ConsumerWidget {
             done: true,
             text: _peerWords(lobby, peer),
           ),
+        // Heard but not yet connected. On the first two-phone check the host
+        // heard the phone and the link never opened, and this screen said
+        // "chair 2: empty" with no hint that anybody had been seen.
+        for (final peer in reach.seen.difference(reach.open))
+          if (!reach.failed.containsKey(peer))
+            _Fact(
+              metrics: m,
+              id: 'room-seen-$peer',
+              text: 'Somebody found this room and is connecting',
+            ),
+        // Failed for a reason a TURN server would not fix. Said with the
+        // reason, because a failure with no line is a failure nobody can
+        // report.
+        for (final entry in reach.failed.entries)
+          if (entry.value.needsTurn != true)
+            _Fact(
+              metrics: m,
+              id: 'room-failed-${entry.key}',
+              failed: true,
+              text: 'Could not connect to ${_peerName(lobby, entry.key)}: '
+                  '${entry.value.reason}',
+            ),
         if (reach.needsTurn case final failure?)
           _Fact(
             metrics: m,

@@ -295,3 +295,56 @@ refused for the host too. The "fill the other chairs" path still deals with
 no mesh.
 
 **Hand check pending.** Two phones, two networks. The commit says so.
+
+## What the first two-phone check found
+
+The owner opened the room on a computer and the link on a phone; they did
+not see each other. What the host's screen said: "Relay: accepted", "STUN:
+answered", "chair 2: empty". Read against the code, that is decisive: the
+STUN line is emitted only inside a link, and a link is made only on a word
+from a peer under the code, so **the host heard the phone and started
+negotiating, and the link never opened**. The screen said nothing about
+either fact, which is the first finding.
+
+**A seen peer and a plain failure were invisible.** The room listed a peer
+only once its channel was open, and a failure only when it was the TURN
+kind. A link heard and never opened, or failed for any other reason, drew
+nothing. `Reach` now carries `seen` (from `peerHere` and from any link
+step) and `failed` (every failure, by peer), and the room draws "Somebody
+found this room and is connecting" and "Could not connect to X: <reason>".
+Probed: dropping the `peerHere` branch, and recording only TURN failures,
+each fail the new case on its own line.
+
+**One silent relay held the whole handshake.** Reproduced with a socket that
+accepts and never answers beside a good relay: `established` waited on
+every relay and never completed, so nothing was ever announced.
+`relay.nostr.band` behaved that way from the machine this was written on;
+whether it did from the phone is not known. Two fixes, and they pin
+different things: a per-relay cap on `established` is what lets the
+handshake finish, and a `connectTimeout` on the socket is what lets
+`publish` finish, since publishing waits on every relay's first attempt
+with no cap of its own. A silent relay is retried after four of its own
+timeouts. On the VM each timed-out attempt leaks its socket, because
+closing a channel that never became ready does not tear the connect
+down; the backoff bounds the rate and the browser path has no such leak.
+
+**And the fixture lied first.** The probe "remove the connect timeout"
+survived, because the test's silent server accepted sockets and dropped
+them: the collector finalised them and the OS reset the connection, so the
+server was silent only until the next garbage collection. That is why the
+first repro hung twelve seconds and a later run on the same code settled in
+under one. Traced by instrumenting `_run`, which printed `Connection reset
+by peer` where a hang was expected. The fixture now holds every accepted
+socket, and with that the probe bites on `publish` timing out.
+
+**`Relay.close()` hung on a subscription nobody had read.** A single
+subscription controller's `close()` completes only once a listener drains
+it, and `_unsubscribe` awaited it. Every earlier case listened, so it never
+showed. Guarded on `hasListener`, and pinned.
+
+**The real rendezvous works from here.** Two peers on `relay.damus.io` and
+`nos.lol`, one code, no fake anywhere: found each other in under a second,
+the lower key offered. So the introduction is right; what failed on the
+phone is after it, in the link, and the next check will say where.
+
+**Still unknown until the next check:** what the phone's own lines said.

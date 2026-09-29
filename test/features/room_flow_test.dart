@@ -566,6 +566,50 @@ void main() {
       expect(find.byKey(const Key('room-peer-ana')), findsNothing);
     });
 
+    testWidgets('a peer that was heard shows before it connects, and a failure '
+        'shows its reason', (tester) async {
+      final net = FakeNetwork();
+      final container = _hosting(net);
+      await _pump(tester, container, const RoomScreen());
+      final reach = container.read(reachProvider.notifier);
+
+      // On the first two-phone check the host heard the phone, gathered its
+      // own address for it, and the link never opened; the screen read
+      // "chair 2: empty" with no hint anybody had been seen. Heard is a fact
+      // worth a line before it becomes a chair.
+      expect(find.byKey(const Key('room-seen-ana')), findsNothing);
+      reach.note(const RendezvousStep(
+        SignalingStatus(SignalingStep.peerHere, peer: 'ana'),
+      ));
+      await tester.pump();
+      expect(_textAt(tester, 'room-seen-ana').toLowerCase(),
+          contains('connecting'));
+
+      // Opened: the seen line gives way to the peer line.
+      reach.note(const LinkStep(LinkStatus(LinkStage.opened, peer: 'ana')));
+      await tester.pump();
+      expect(find.byKey(const Key('room-seen-ana')), findsNothing);
+      expect(find.byKey(const Key('room-peer-ana')), findsOneWidget);
+
+      // A failure that a TURN server would not fix used to be invisible: no
+      // turn line, no peer line, nothing. Now it says why.
+      reach.note(LinkStep(LinkStatus(
+        LinkStage.failed,
+        peer: 'ana',
+        failure: const LinkFailure(
+          peer: 'ana',
+          reason: 'the other side closed before the channel opened',
+          needsTurn: false,
+        ),
+      )));
+      await tester.pump();
+      expect(find.byKey(const Key('room-peer-ana')), findsNothing);
+      expect(find.byKey(const Key('room-turn')), findsNothing,
+          reason: 'this is not the TURN case');
+      expect(_textAt(tester, 'room-failed-ana'),
+          contains('closed before the channel opened'));
+    });
+
     testWidgets('a link that needs a relay is said in words, and where to '
         'put one', (tester) async {
       final net = FakeNetwork();

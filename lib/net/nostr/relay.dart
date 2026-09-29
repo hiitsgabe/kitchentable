@@ -221,6 +221,7 @@ class Relay {
     List<Uri> urls, {
     this.reconnectAfter = const Duration(seconds: 2),
     this.okTimeout = const Duration(seconds: 5),
+    this.connectTimeout = const Duration(seconds: 4),
     WebSocketChannel Function(Uri url)? connect,
   }) : _connect = connect ?? WebSocketChannel.connect {
     for (final url in urls) {
@@ -232,6 +233,23 @@ class Relay {
 
   /// How long [publish] waits for a relay's `OK` before giving up on it.
   final Duration okTimeout;
+
+  /// How long a relay gets to answer the connection before it is treated as
+  /// down.
+  ///
+  /// A relay that accepts the TCP connection and never completes the
+  /// handshake, which `relay.nostr.band` did from the machine this was
+  /// written on, used to hold every subscription's [Subscription.established]
+  /// forever: the other relays sat connected and nobody announced, because
+  /// the announce waits for the subscription. One dead relay must not stop a
+  /// phone finding a table through the live ones.
+  final Duration connectTimeout;
+
+  /// The longest [Subscription.established] waits on any one relay: time to
+  /// connect, then time to acknowledge the request. A relay slower than this
+  /// is not one the handshake can use, and it is left out rather than waited
+  /// on.
+  Duration get establishWithin => connectTimeout + okTimeout;
   final WebSocketChannel Function(Uri url) _connect;
   final List<_Socket> _sockets = [];
   final Map<String, Subscription> _subs = {};
@@ -260,7 +278,12 @@ class Relay {
     final id = hexOf(List.generate(8, (_) => _random.nextInt(256)));
     final sub = Subscription._(this, id, filter);
     _subs[id] = sub;
-    sub.established = Future.wait([for (final s in _sockets) s._request(sub)]);
+    // Capped per relay, so the slowest one bounds the wait instead of a
+    // relay that never answers making it infinite.
+    sub.established = Future.wait([
+      for (final s in _sockets)
+        s._request(sub).timeout(establishWithin, onTimeout: () {}),
+    ]);
     return sub;
   }
 
@@ -269,7 +292,15 @@ class Relay {
     for (final s in _sockets) {
       s._send(['CLOSE', sub.id]);
     }
-    await sub._events.close();
+    // A single subscription controller's close() completes only once a
+    // listener has drained it, so a subscription nobody ever listened to
+    // held [close] forever. Found by a case that subscribed to prove the
+    // handshake and never read the events.
+    if (sub._events.hasListener) {
+      await sub._events.close();
+    } else {
+      unawaited(sub._events.close());
+    }
   }
 
   Future<void> close() async {
@@ -321,6 +352,7 @@ class _Socket {
   final Map<String, Completer<void>> _oks = {};
   final Map<String, Completer<void>> _eoses = {};
   bool _closing = false;
+  bool _timedOut = false;
 
   bool get open => _channel != null;
 
@@ -328,7 +360,18 @@ class _Socket {
     while (!_closing) {
       try {
         final channel = _relay._connect(url);
-        await channel.ready;
+        try {
+          await channel.ready.timeout(_relay.connectTimeout);
+          _timedOut = false;
+        } on TimeoutException {
+          // Abandon the half-open socket. Closing the sink of a channel that
+          // never became ready does not tear the connect down on the VM, so
+          // each attempt against a silent relay leaks one socket until the
+          // relay answers; the backoff below is what bounds that.
+          _timedOut = true;
+          unawaited(channel.sink.close());
+          rethrow;
+        }
         _channel = channel;
         for (final sub in _relay._subs.values) {
           _request(sub);
@@ -353,7 +396,11 @@ class _Socket {
       _oks.clear();
       _eoses.clear();
       if (_closing) break;
-      await Future<void>.delayed(_relay.reconnectAfter);
+      // A relay that dropped us is retried at the usual pace; one that never
+      // answered is given four times its own timeout before the next try.
+      await Future<void>.delayed(
+        _timedOut ? _relay.connectTimeout * 4 : _relay.reconnectAfter,
+      );
     }
   }
 

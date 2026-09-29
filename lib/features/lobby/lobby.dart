@@ -544,7 +544,9 @@ class Reach {
     this.relayAnswered = false,
     this.relayUnreachable = false,
     this.stunAnswered = false,
+    this.seen = const {},
     this.open = const {},
+    this.failed = const {},
     this.needsTurn,
   });
 
@@ -557,8 +559,23 @@ class Reach {
   /// A STUN server told this phone its own public address.
   final bool stunAnswered;
 
+  /// Peers that have announced themselves under this code, whether or not
+  /// a link to them has opened yet.
+  ///
+  /// The screen used to show a peer only once its channel was open. On the
+  /// first two-phone check the host's browser heard the phone, gathered its
+  /// own address for it, and the link never opened, and the screen said
+  /// "chair 2: empty" with no hint that anybody had been seen at all. A peer
+  /// that was heard is a fact worth a line before it becomes a chair.
+  final Set<String> seen;
+
   /// Peers whose data channel is open right now.
   final Set<String> open;
+
+  /// Every link that failed, by peer, for whatever reason. [needsTurn] is the
+  /// one of these a relay would fix; the rest were invisible on the screen
+  /// and are not any more.
+  final Map<String, LinkFailure> failed;
 
   /// A link that failed the way only a relay for the connection itself
   /// would fix, if one has.
@@ -573,14 +590,31 @@ class Reach {
               ),
             SignalingStep.relayUnreachable => _copy(relayUnreachable: true),
             SignalingStep.relayConnected => _copy(relayUnreachable: false),
+            SignalingStep.peerHere => status.peer == null
+                ? this
+                : _copy(seen: {...seen, status.peer!}),
             _ => this,
           },
         LinkStep(:final status) => switch (status.stage) {
-            LinkStage.reflexive => _copy(stunAnswered: true),
-            LinkStage.opened => _copy(open: {...open, status.peer}),
-            LinkStage.closed => _copy(open: {...open}..remove(status.peer)),
-            LinkStage.failed => _copy(
+            LinkStage.reflexive => _copy(
+                stunAnswered: true,
+                seen: {...seen, status.peer},
+              ),
+            LinkStage.opened => _copy(
+                seen: {...seen, status.peer},
+                open: {...open, status.peer},
+                failed: {...failed}..remove(status.peer),
+              ),
+            LinkStage.closed => _copy(
+                seen: {...seen}..remove(status.peer),
                 open: {...open}..remove(status.peer),
+              ),
+            LinkStage.failed => _copy(
+                seen: {...seen}..remove(status.peer),
+                open: {...open}..remove(status.peer),
+                failed: status.failure == null
+                    ? failed
+                    : {...failed, status.peer: status.failure!},
                 needsTurn: status.failure?.needsTurn == true
                     ? status.failure
                     : needsTurn,
@@ -592,14 +626,18 @@ class Reach {
     bool? relayAnswered,
     bool? relayUnreachable,
     bool? stunAnswered,
+    Set<String>? seen,
     Set<String>? open,
+    Map<String, LinkFailure>? failed,
     LinkFailure? needsTurn,
   }) =>
       Reach(
         relayAnswered: relayAnswered ?? this.relayAnswered,
         relayUnreachable: relayUnreachable ?? this.relayUnreachable,
         stunAnswered: stunAnswered ?? this.stunAnswered,
+        seen: seen ?? this.seen,
         open: open ?? this.open,
+        failed: failed ?? this.failed,
         needsTurn: needsTurn ?? this.needsTurn,
       );
 }
