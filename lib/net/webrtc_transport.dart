@@ -59,6 +59,10 @@ class WebRtcTransport implements Transport {
   /// the link is failed with a reason and closed, so the screen has a fact
   /// to show and the peer can be tried again on its next announcement.
   final Duration openWithin;
+
+  /// The last thing each link said about its own state, so a deadline can
+  /// say where the link was when it ran out rather than only that it did.
+  final Map<String, String> _lastSaid = {};
   late final Signaling _signaling;
 
   /// Every link made and not yet gone, open or still negotiating.
@@ -215,7 +219,10 @@ class WebRtcTransport implements Transport {
       if (!_incoming.isClosed) _incoming.add(Incoming(from: peer, body: body));
     });
     end.candidates.listen((candidate) => _signaling.ice(peer, candidate));
-    end.status.listen((status) => _step(LinkStep(status)));
+    end.status.listen((status) {
+      if (status.detail != null) _lastSaid[peer] = status.detail!;
+      _step(LinkStep(status));
+    });
 
     end.open.timeout(openWithin, onTimeout: () {
       // Not needsTurn: that verdict belongs to ICE finishing with no pair.
@@ -223,7 +230,8 @@ class WebRtcTransport implements Transport {
       final failure = LinkFailure(
         peer: peer,
         reason: 'the channel did not open within ${openWithin.inSeconds} '
-            'seconds of the link being made',
+            'seconds of the link being made'
+            '${_lastSaid[peer] == null ? '' : '. States: ${_lastSaid[peer]}'}',
         needsTurn: false,
       );
       unawaited(end.close());

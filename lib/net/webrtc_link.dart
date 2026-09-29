@@ -55,6 +55,44 @@ Map<String, Object> iceConfiguration({
   'sdpSemantics': 'unified-plan',
 };
 
+/// What a connection's stats say about the route, in one clause for a
+/// failure on the screen: the DTLS state, the pair of candidates that was
+/// chosen, and whether anything ever came back over it.
+///
+/// `dtlsState` is the decisive word. ICE connected and DTLS still
+/// "connecting" is a handshake that never completed over a route that
+/// carried the checks: large packets dropped, or the far side gone before
+/// it answered. DTLS "connected" and no channel is above the transport.
+/// Bytes received of zero over a nominated pair means the route only ever
+/// worked one way.
+String routeInWords(List<StatsReport> reports) {
+  final byId = {for (final r in reports) r.id: r};
+  final transport = reports.where((r) => r.type == 'transport').firstOrNull;
+  final dtls = transport?.values['dtlsState'] ?? 'unknown';
+  StatsReport? pair;
+  final chosen = transport?.values['selectedCandidatePairId'];
+  if (chosen is String) pair = byId[chosen];
+  pair ??= reports
+      .where((r) => r.type == 'candidate-pair' && r.values['nominated'] == true)
+      .firstOrNull;
+  if (pair == null) return 'DTLS "$dtls" and no pair of addresses chosen';
+  String side(String key) {
+    final c = byId[pair!.values[key]];
+    if (c == null) return '?';
+    final kind = c.values['candidateType'] ?? '?';
+    final network = c.values['networkType'];
+    return network == null || network == 'unknown' ? '$kind' : '$kind/$network';
+  }
+
+  final protocol = byId[pair.values['localCandidateId']]?.values['protocol'];
+  final sent = pair.values['bytesSent'] ?? 0;
+  final got = pair.values['bytesReceived'] ?? 0;
+  return 'DTLS "$dtls" over ${side('localCandidateId')} to '
+      '${side('remoteCandidateId')}'
+      '${protocol == null ? '' : ' ($protocol)'}, '
+      '$sent bytes sent and $got received';
+}
+
 /// Makes real links, each over its own `RTCPeerConnection`.
 class WebRtcLinkFactory implements LinkFactory {
   const WebRtcLinkFactory({this.stun = defaultStunServers, this.turn});
@@ -106,6 +144,13 @@ class WebRtcLink implements PeerLink {
   /// without these two words the sentence on the screen could not tell.
   String _lastIce = 'new';
   String _lastConnection = 'new';
+
+  /// Every state the connection has been in, each with the second it came
+  /// at, from the moment the connection was made. This is what a failure
+  /// on the screen needs to be read without a debugger: whether the far
+  /// side went away at its own deadline is visible only as the seconds.
+  final Stopwatch _since = Stopwatch();
+  final List<String> _trail = [];
 
   final _incoming = StreamController<String>.broadcast();
   final _status = StreamController<LinkStatus>.broadcast();
@@ -210,6 +255,7 @@ class WebRtcLink implements PeerLink {
 
   Future<RTCPeerConnection> _connect() async {
     final pc = await createPeerConnection(_configuration);
+    _since.start();
     pc.onIceCandidate = _found;
     pc.onIceConnectionState = _iceState;
     pc.onConnectionState = _connectionState;
@@ -260,7 +306,7 @@ class WebRtcLink implements PeerLink {
 
   void _iceState(RTCIceConnectionState state) {
     _lastIce = _word(state.name, 'RTCIceConnectionState');
-    _say(LinkStatus(LinkStage.progress, peer: peer, detail: 'ice $_lastIce'));
+    _note('ice $_lastIce');
     switch (state) {
       case RTCIceConnectionState.RTCIceConnectionStateFailed:
         // Every pair of addresses was tried and none connected. Both phones
@@ -292,20 +338,17 @@ class WebRtcLink implements PeerLink {
 
   void _connectionState(RTCPeerConnectionState state) {
     _lastConnection = _word(state.name, 'RTCPeerConnectionState');
-    _say(LinkStatus(
-      LinkStage.progress,
-      peer: peer,
-      detail: 'connection $_lastConnection',
-    ));
+    _note('connection $_lastConnection');
     switch (state) {
       case RTCPeerConnectionState.RTCPeerConnectionStateFailed:
         _closeDown(
           LinkFailure(
             peer: peer,
             reason:
-                'the connection failed with ICE at "$_lastIce": the route '
-                'was found and the secure transport over it did not come up, '
-                'which is DTLS on this side or the other side closing first',
+                'the connection failed ${_seconds()}s after the link was '
+                'made, with ICE at "$_lastIce": the route was found and the '
+                'secure transport over it did not come up, which is DTLS on '
+                'this side or the other side closing first',
           ),
         );
       case RTCPeerConnectionState.RTCPeerConnectionStateClosed:
@@ -334,12 +377,17 @@ class WebRtcLink implements PeerLink {
   Future<void> _closeDown(LinkFailure? failure) async {
     if (_gone) return;
     _gone = true;
+    final pending = _pc;
+    if (failure != null && pending != null) {
+      // Read before the connection is closed, since closing empties it.
+      // The sentence is worth a second; it is not worth hanging for.
+      failure = await _withRoute(failure, pending);
+    }
     if (!_open.isCompleted) {
       _open.complete(
         failure ?? LinkFailure(peer: peer, reason: 'closed before it opened'),
       );
     }
-    final pending = _pc;
     if (pending != null) {
       try {
         final pc = await pending;
@@ -358,6 +406,37 @@ class WebRtcLink implements PeerLink {
 
   void _say(LinkStatus status) {
     if (!_status.isClosed) _status.add(status);
+  }
+
+  /// Adds a state to the trail and says the whole trail so far, so the
+  /// screen's "connecting" line reads as a history and not as one word.
+  void _note(String state) {
+    _trail.add('$state ${_seconds()}s');
+    _say(LinkStatus(LinkStage.progress, peer: peer, detail: _trail.join(', ')));
+  }
+
+  String _seconds() => (_since.elapsedMilliseconds / 1000).toStringAsFixed(1);
+
+  /// [failure] with the trail and what the stats say about the route, or
+  /// [failure] as it was when the stats cannot be had in time.
+  Future<LinkFailure> _withRoute(
+    LinkFailure failure,
+    Future<RTCPeerConnection> pending,
+  ) async {
+    String route;
+    try {
+      final pc = await pending;
+      route = routeInWords(
+        await pc.getStats().timeout(const Duration(seconds: 1)),
+      );
+    } on Object {
+      route = 'the stats could not be read';
+    }
+    return LinkFailure(
+      peer: failure.peer,
+      reason: '${failure.reason}. States: ${_trail.join(', ')}. Route: $route',
+      needsTurn: failure.needsTurn,
+    );
   }
 
   /// `RTCIceConnectionStateChecking` as `checking`: the enum's own name with

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' show StatsReport;
 import 'package:kitchentable/net/link.dart';
 import 'package:kitchentable/net/mesh.dart';
 import 'package:kitchentable/net/nostr/keys.dart';
@@ -507,6 +508,57 @@ void main() {
       'credential': 'hunter2',
     });
   });
+  test('the route in a failure is read off the stats, DTLS word first', () {
+    StatsReport r(String id, String type, Map<String, Object> v) =>
+        StatsReport(id, type, 0, v);
+    final chosen = [
+      r('T', 'transport', {
+        'dtlsState': 'connecting',
+        'selectedCandidatePairId': 'P2',
+      }),
+      // P1 is nominated and P2 is the one the transport says it chose;
+      // the transport's word wins, and only without it does nominated.
+      r('P1', 'candidate-pair', {
+        'localCandidateId': 'L1',
+        'remoteCandidateId': 'R1',
+        'nominated': true,
+      }),
+      r('P2', 'candidate-pair', {
+        'localCandidateId': 'L2',
+        'remoteCandidateId': 'R2',
+        'nominated': false,
+        'bytesSent': 1840,
+        'bytesReceived': 0,
+      }),
+      r('L1', 'local-candidate', {'candidateType': 'host'}),
+      r('L2', 'local-candidate', {
+        'candidateType': 'srflx',
+        'networkType': 'wifi',
+        'protocol': 'udp',
+      }),
+      r('R2', 'remote-candidate', {'candidateType': 'prflx'}),
+    ];
+    expect(
+      routeInWords(chosen),
+      'DTLS "connecting" over srflx/wifi to prflx (udp), '
+      '1840 bytes sent and 0 received',
+    );
+    // No selected id on the transport: the nominated pair is the one.
+    final nominated = [
+      r('T', 'transport', {'dtlsState': 'connected'}),
+      ...chosen.skip(1),
+    ];
+    expect(
+      routeInWords(nominated),
+      'DTLS "connected" over host to ?, 0 bytes sent and 0 received',
+    );
+    // Nothing chosen and nothing nominated: said so, with the DTLS word.
+    expect(
+      routeInWords([r('T', 'transport', {'dtlsState': 'new'}), chosen[2]]),
+      'DTLS "new" and no pair of addresses chosen',
+    );
+    expect(routeInWords([]), 'DTLS "unknown" and no pair of addresses chosen');
+  });
   test('a link that never opens is failed by a deadline, in words', () async {
     // ICE that checks forever. The browser reports nothing for half a
     // minute or ever, and on the first two-phone check that was the host's
@@ -519,6 +571,11 @@ void main() {
     final high = await _phone(relay, links, keys.high, deadline);
 
     await Future.wait([low.transport.join(), high.transport.join()]);
+    await _eventually(
+      () => links.between(low.me, high.me) != null,
+      'the stalled link',
+    );
+    links.between(low.me, high.me)!.progress('ice connected 1.2s');
     final until = DateTime.now().add(const Duration(seconds: 5));
     while (low.failures.isEmpty && DateTime.now().isBefore(until)) {
       await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -529,6 +586,8 @@ void main() {
     final failure = low.failures.single;
     expect(failure.peer, high.me);
     expect(failure.reason, contains('did not open'));
+    expect(failure.reason, contains('States: ice connected 1.2s'),
+        reason: 'a deadline with no state is a deadline nobody can read');
     expect(failure.needsTurn, isFalse,
         reason: 'never finishing is not the same verdict as no pair');
     expect(low.peers, isEmpty);
