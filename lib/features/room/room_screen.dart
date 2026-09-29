@@ -39,6 +39,13 @@ class RoomScreen extends ConsumerWidget {
     );
     final room = ref.watch(roomProvider);
 
+    // The moment the table is here, a guest is put in front of it. The host
+    // opens it itself when it deals, and a table arriving twice is not a
+    // thing: the mesh hands it over once, and this fires on the turn.
+    ref.listen(dealtProvider, (was, dealt) {
+      if (dealt && was != true) _sitDown(context, ref);
+    });
+
     // Nobody should reach this screen without a room, and the one way it could
     // happen is a rebuild the instant after leaving. An empty frame beats a
     // crash on the way out.
@@ -190,9 +197,7 @@ class RoomScreen extends ConsumerWidget {
             id: 'room-dealt',
             colour: Palette.accent,
             text: lobby.dealt
-                ? '${config!.hostName} dealt the table and your phone has '
-                    'it. Playing it from here is the next piece of work: for '
-                    'now the table is on the host\'s screen.'
+                ? '${config!.hostName} dealt the table and your phone has it.'
                 : 'The host dealt the table. Waiting for it to arrive.',
           ),
         MenuRow(
@@ -297,10 +302,27 @@ class RoomScreen extends ConsumerWidget {
     RoomConfig config,
   ) {
     final play = ref.read(playProvider.notifier);
-    lobby.start((players) {
+    final mesh = lobby.start((players) {
       play.startPod(players: players, seed: freshSeed(), life: config.life);
       return ref.read(playProvider)!;
     });
+    // From here on a verb this phone runs goes through the mesh, and one a
+    // guest runs comes back through it.
+    play.follow(mesh);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
+    );
+  }
+
+  /// A guest sits down at the table the host dealt, and the screen opens on
+  /// it the way the host's does. The host is not seated here: it dealt, and
+  /// [_start] already opened its table.
+  void _sitDown(BuildContext context, WidgetRef ref) {
+    final lobby = ref.read(lobbyProvider);
+    final mesh = lobby?.mesh;
+    if (lobby == null || lobby.hosting || mesh?.table == null) return;
+
+    ref.read(playProvider.notifier).join(mesh!, decks: lobby.decks);
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
     );

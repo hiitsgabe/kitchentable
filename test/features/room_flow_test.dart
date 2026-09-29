@@ -13,6 +13,8 @@ import 'package:kitchentable/features/menu/menu_controller.dart';
 import 'package:kitchentable/features/menu/menu_screen.dart';
 import 'package:kitchentable/features/play/play_controller.dart';
 import 'package:kitchentable/features/play/play_screen.dart';
+import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
+import 'package:kitchentable/features/play/widgets/table_card.dart';
 import 'package:kitchentable/features/room/entry.dart';
 import 'package:kitchentable/features/room/join_screen.dart';
 import 'package:kitchentable/features/room/room_controller.dart';
@@ -23,6 +25,7 @@ import 'package:kitchentable/net/link.dart';
 import 'package:kitchentable/net/signaling.dart';
 import 'package:kitchentable/net/webrtc_transport.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
+import 'package:kitchentable/table/actions/table_action.dart';
 import 'package:kitchentable/table/model/seat_owner.dart';
 import 'package:kitchentable/table/room/room.dart';
 import 'package:kitchentable/table/setup.dart';
@@ -729,12 +732,56 @@ void main() {
       await _settle(tester, net);
       expect(_textAt(tester, 'room-chair-1'), 'chair 1: kit');
       expect(find.byKey(const Key('room-dealt')), findsNothing);
+      expect(find.byType(PlayScreen), findsNothing);
 
-      host.start((players) => sitDownTogether(players: players, seed: 'seed'));
+      final mesh = host.start(
+        (players) => sitDownTogether(players: players, seed: 'seed'),
+      );
       await _settle(tester, net);
 
-      expect(_textAt(tester, 'room-dealt'), contains('kit dealt the table'));
+      // The table arrived and the guest is in front of it, looking out of the
+      // seat under its own key. The host's phone deals and this one is handed
+      // the result, so the controller here was seeded from the mesh and never
+      // dealt anything.
       expect(container.read(lobbyProvider)!.dealt, isTrue);
+      // The route is pushed from a listener, so it is on screen a frame
+      // after the table arrived and not in the same one.
+      await tester.pumpAndSettle();
+      expect(find.byType(PlayScreen), findsOneWidget,
+          reason: 'the guest reaches the table the moment it is dealt');
+      final table = container.read(playProvider)!;
+      expect(table.seats.map((s) => s.owner), [
+        const SeatOwner.peer('kit'),
+        const SeatOwner.peer('me'),
+      ]);
+      expect(container.read(viewerSeatProvider), 's2',
+          reason: "the guest's seat is the one under its own key");
+      // Its own hand, face up: seven cards in the sheet. The host's is a
+      // count on a band and never a card.
+      expect(tester.widget<HandSheet>(find.byType(HandSheet)).cards,
+          hasLength(7));
+
+      // A card the host moves lands here, at the same spot.
+      final card = mesh.table!.zone('hand-s1')!.cards.first;
+      mesh.run(MoveCard(
+        cardId: card.id,
+        toZoneId: 'battlefield-s1',
+        position: (x: 0.25, y: 0.75),
+      ));
+      await _settle(tester, net);
+      await tester.pumpAndSettle();
+      final landed = container.read(playProvider)!.locate(card.id)!;
+      expect(landed.zone.id, 'battlefield-s1');
+      expect(landed.card.position, (x: 0.25, y: 0.75));
+      // And drawn, by name: the host's battlefield is public, and the guest's
+      // own deck carries the same printing. Found by the card rather than by
+      // a band, because at this window the screen picks the canvas.
+      final drawn = find.byWidgetPredicate(
+        (w) => w is TableCard && w.instance.id == card.id,
+      );
+      expect(drawn, findsOneWidget,
+          reason: "the host's card is on this screen once it moved");
+      expect(tester.widget<TableCard>(drawn).printing?.name, 'Mountain');
     });
 
     testWidgets('the deck is picked from inside the room', (tester) async {

@@ -349,6 +349,25 @@ void main() {
           reason: 'a guest holds the deck it brought');
     });
 
+    test('the decks this phone holds are keyed by who brought them', () async {
+      // What the controller takes when it sits down at a table dealt on
+      // another phone, to know its own seat's game and deck size: every deck
+      // on the host, and on a guest only the one it brought.
+      final room = _Room(seats: 2);
+      final ana = room.arrive('ana');
+      await room.settle();
+      ana.bring(deck: _deck('anas'), name: 'ana');
+      await room.settle();
+      room.host.sit(deck: _deck('hosts'), name: 'kit');
+
+      expect(room.host.decks.keys.toSet(), {'host', 'ana'});
+      expect(room.host.decks['ana']!.id, 'anas');
+      expect(ana.decks.keys.toSet(), {'ana'},
+          reason: 'nobody sent her the host\'s');
+      expect(() => ana.decks['x'] = _deck('x'), throwsUnsupportedError,
+          reason: 'a view of what the lobby holds, not a copy to write to');
+    });
+
     test('after start the lobby has stopped and the mesh has the transport',
         () async {
       final room = _Room(seats: 2);

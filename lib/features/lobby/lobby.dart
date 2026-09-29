@@ -131,6 +131,12 @@ class Lobby extends ChangeNotifier {
   /// The deck somebody brought, on the host. Null before it arrived.
   Deck? deckOf(String peer) => _decks[peer];
 
+  /// Every deck this phone holds, by the key of whoever brought it: all of
+  /// them on the host, and on a guest the one it brought. What the controller
+  /// takes when it sits down at a table dealt elsewhere, to know its own
+  /// seat's game and deck size.
+  Map<String, Deck> get decks => Map.unmodifiable(_decks);
+
   /// Every printing at this table, from the decks this lobby holds, by oracle
   /// id. The screen draws a card from here first and asks the catalog only
   /// for one that came from nowhere: a guest's deck arrived over the wire
@@ -663,6 +669,15 @@ class LobbyHere extends Notifier<Lobby?> {
 }
 
 final lobbyProvider = NotifierProvider<LobbyHere, Lobby?>(LobbyHere.new);
+
+/// Whether the table is on this phone.
+///
+/// Its own provider and not a read off [lobbyProvider], because that one
+/// notifies on every chair and every verb and this changes once. A screen
+/// that opens the table when this turns true listens here and hears it the
+/// one time it happens.
+final dealtProvider =
+    Provider<bool>((ref) => ref.watch(lobbyProvider)?.dealt ?? false);
 
 /// What the connection has said, for the room this device is in.
 class ReachHere extends Notifier<Reach> {
