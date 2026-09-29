@@ -34,6 +34,7 @@ class WebRtcTransport implements Transport {
     required String code,
     required this._links,
     Duration announceEvery = const Duration(seconds: 30),
+    this.openWithin = const Duration(seconds: 20),
   }) : _relay = relay,
        _me = keys.public {
     _signaling = Signaling(
@@ -48,6 +49,16 @@ class WebRtcTransport implements Transport {
   final Relay _relay;
   final LinkFactory _links;
   final String _me;
+
+  /// How long a link gets to open once it exists.
+  ///
+  /// A link whose ICE never settles reports nothing until the browser
+  /// gives up, which is half a minute or never, and on the first two-phone
+  /// check that was the state the host sat in: the phone was heard, a link
+  /// was made, and the screen read "connecting" with no end to it. Past this
+  /// the link is failed with a reason and closed, so the screen has a fact
+  /// to show and the peer can be tried again on its next announcement.
+  final Duration openWithin;
   late final Signaling _signaling;
 
   /// Every link made and not yet gone, open or still negotiating.
@@ -198,7 +209,18 @@ class WebRtcTransport implements Transport {
     end.candidates.listen((candidate) => _signaling.ice(peer, candidate));
     end.status.listen((status) => _step(LinkStep(status)));
 
-    end.open.then((failure) {
+    end.open.timeout(openWithin, onTimeout: () {
+      // Not needsTurn: that verdict belongs to ICE finishing with no pair.
+      // This is ICE never finishing, which the screen says as what it is.
+      final failure = LinkFailure(
+        peer: peer,
+        reason: 'the channel did not open within ${openWithin.inSeconds} '
+            'seconds of the link being made',
+        needsTurn: false,
+      );
+      unawaited(end.close());
+      return failure;
+    }).then((failure) {
       if (failure != null) {
         _step(
           LinkStep(LinkStatus(LinkStage.failed, peer: peer, failure: failure)),
