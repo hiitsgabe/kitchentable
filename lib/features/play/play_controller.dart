@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/deck.dart';
 import '../../decks/model/game.dart';
+import '../../net/mesh.dart';
 import '../../table/actions/table_action.dart';
+import '../../table/model/seat.dart';
 import '../../table/model/seat_owner.dart';
 import '../../table/model/table_state.dart';
 import '../../table/referee/referee.dart';
@@ -65,7 +69,16 @@ final viewerSeatProvider =
     NotifierProvider<ViewerSeat, String?>(ViewerSeat.new);
 
 class PlayController extends Notifier<TableState?> {
+  /// The table when it is on this device alone: solo, or the pod on one
+  /// tablet. Null while a mesh has it, so there is exactly one place a verb
+  /// goes and undo cannot quietly rewind a table the other phones still hold.
   TableSession? _session;
+
+  /// The table when it is on every phone. Verbs go through it and come back
+  /// through [Mesh.tables], this phone's own included, so the state here is
+  /// whatever the mesh holds and never a step ahead of it.
+  Mesh? _mesh;
+  StreamSubscription<TableState>? _following;
   Referee _referee = const PermissiveReferee();
 
   /// Which game each seat's deck came from.
@@ -108,7 +121,13 @@ class PlayController extends Notifier<TableState?> {
       _commanders.values.any((ids) => ids.contains(cardId));
 
   @override
-  TableState? build() => null;
+  TableState? build() {
+    ref.onDispose(() => _following?.cancel());
+    return null;
+  }
+
+  /// Whatever holds the table right now, whichever of the two it is.
+  TableState? get _table => _mesh?.table ?? _session?.state;
 
   void start(Deck deck, {String? seed, int? life}) => startPod(
         players: [(deck: deck, name: 'you', owner: const SeatOwner.here())],
@@ -152,19 +171,76 @@ class PlayController extends Notifier<TableState?> {
         table.seats[i].id:
             players[i].deck.main.fold(0, (n, s) => n + s.quantity),
     };
-    // Read off the zone rather than off the decklist, so a card that reached
-    // the command zone by any other road is counted the same way. Empty in a
-    // format without commanders: magicZonesFor makes no such zone.
-    _commanders = {
-      for (final seat in table.seats)
-        seat.id: (table.zone('command-${seat.id}')?.cards ?? [])
-            .map((c) => c.id)
-            .toSet(),
-    };
+    _commanders = _commandersOf(table);
     _session = TableSession(table);
     _clearRefusal();
     state = table;
+    _sitAt(table);
+  }
 
+  /// Sits down at a table another phone dealt.
+  ///
+  /// The guest's way in. The mesh was handed the table by whoever is hosting,
+  /// and this seeds the controller from that rather than from a deal: nothing
+  /// here mints a card, because a table dealt on two phones is two tables.
+  ///
+  /// [decks] is what this phone holds, by the key of whoever brought it. On a
+  /// guest that is the one it brought, so the game and the deck size are
+  /// known for its own seat and nobody else's; the screen draws the rest
+  /// with what the table itself says.
+  void join(Mesh mesh, {Map<String, Deck> decks = const {}}) {
+    final table = mesh.table;
+    if (table == null) {
+      throw StateError(
+        'the mesh has not been handed the table yet, so there is nothing to '
+        'sit down at. Wait for it to arrive: a controller seeded from a guess '
+        'would be playing a different game from everybody else.',
+      );
+    }
+
+    Deck? deckOf(Seat seat) => decks[seat.owner.peerId];
+    _games = {
+      for (final seat in table.seats)
+        if (deckOf(seat) case final deck?) seat.id: deck.game,
+    };
+    _deckSizes = {
+      for (final seat in table.seats)
+        if (deckOf(seat) case final deck?)
+          seat.id: deck.main.fold(0, (n, s) => n + s.quantity),
+    };
+    _commanders = _commandersOf(table);
+    _clearRefusal();
+    state = table;
+    _sitAt(table);
+    follow(mesh);
+  }
+
+  /// Hands the table to a mesh. From here every verb goes through it and every
+  /// verb it hears lands here, until [leave].
+  ///
+  /// The host's way in, after it dealt: the lobby built the mesh around the
+  /// table this controller already holds. The session is let go rather than
+  /// kept beside the mesh, because a second copy of the table that no verb
+  /// reaches is one that undo would rewind to.
+  void follow(Mesh mesh) {
+    _following?.cancel();
+    _mesh = mesh;
+    _session = null;
+    _following = mesh.tables.listen((table) => state = table);
+  }
+
+  /// Read off the zone rather than off the decklist, so a card that reached
+  /// the command zone by any other road is counted the same way. Empty in a
+  /// format without commanders: magicZonesFor makes no such zone.
+  static Map<String, Set<String>> _commandersOf(TableState table) => {
+        for (final seat in table.seats)
+          seat.id: (table.zone('command-${seat.id}')?.cards ?? [])
+              .map((c) => c.id)
+              .toSet(),
+      };
+
+  /// Looks out of the first seat this device may act for, or none.
+  void _sitAt(TableState table) {
     final here = table.seats
         .where((s) => s.owner.actableHere(me: _meOf(ref)))
         .firstOrNull;
@@ -176,10 +252,10 @@ class PlayController extends Notifier<TableState?> {
   void useReferee(Referee referee) => _referee = referee;
 
   void run(TableAction action) {
-    final session = _session;
-    if (session == null) return;
+    final table = _table;
+    if (table == null) return;
 
-    final refusal = _referee.review(session.state, action);
+    final refusal = _referee.review(table, action);
     if (refusal != null) {
       // Not thrown and not swallowed. The screen listens to the refusal
       // provider and says this out loud, which is the behaviour a real engine
@@ -189,11 +265,32 @@ class PlayController extends Notifier<TableState?> {
     }
 
     _clearRefusal();
+    final mesh = _mesh;
+    if (mesh != null) {
+      // The mesh applies it here first and puts it on every wire, and what it
+      // holds is read back at once rather than waited for on the stream: a
+      // caller that runs two verbs in a row reads the table between them.
+      mesh.run(action);
+      state = mesh.table;
+      return;
+    }
+    final session = _session!;
     session.run(action);
     state = session.state;
   }
 
   void undo() {
+    if (_mesh != null) {
+      // Refused and said so, not thrown and not quietly dropped. Undo rewinds
+      // this phone's history and the table is on every phone: whose undo
+      // travels, and how far, is a decision nobody has made yet, and until
+      // somebody does the honest thing is to say no out loud.
+      ref.read(playRefusalProvider.notifier).say(const Refusal(
+            'Undo stays on this phone and the table is on every phone, so it '
+            'is off while other people are at it.',
+          ));
+      return;
+    }
     final session = _session;
     if (session == null) return;
     session.undo();
@@ -204,12 +301,17 @@ class PlayController extends Notifier<TableState?> {
   bool get canUndo => _session?.canUndo ?? false;
 
   List<String>? legalTargetsFor(String cardId) {
-    final session = _session;
-    if (session == null) return null;
-    return _referee.legalTargets(session.state, cardId);
+    final table = _table;
+    if (table == null) return null;
+    return _referee.legalTargets(table, cardId);
   }
 
   void leave() {
+    _following?.cancel();
+    _following = null;
+    // Not closed. The mesh is the lobby's and the transport under it belongs
+    // to whoever made it; leaving the table stops listening to it, no more.
+    _mesh = null;
     _session = null;
     _games = const {};
     _deckSizes = const {};
