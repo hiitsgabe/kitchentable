@@ -151,7 +151,12 @@ class RoomScreen extends ConsumerWidget {
             _Fact(
               metrics: m,
               id: 'room-seen-$peer',
-              text: 'Somebody found this room and is connecting',
+              // With the link's last word about itself, so a screenshot of
+              // this line says where it stopped.
+              text: reach.progress[peer] == null
+                  ? 'Somebody found this room and is connecting'
+                  : 'Somebody found this room and is connecting '
+                      '(${reach.progress[peer]})',
             ),
         // Failed for a reason a TURN server would not fix. Said with the
         // reason, because a failure with no line is a failure nobody can

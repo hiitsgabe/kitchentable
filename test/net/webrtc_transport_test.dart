@@ -534,6 +534,48 @@ void main() {
     expect(low.peers, isEmpty);
     expect(low.link.map((s) => s.stage), isNot(contains(LinkStage.opened)));
   });
+  test('a link that failed is tried again when the peer announces again',
+      () async {
+    // The first two-phone check left the host with one failed link and no
+    // way back: the phone went on announcing and every announcement was a
+    // repeat. Forgetting the peer on failure is what makes the next one
+    // count.
+    final keys = _pair();
+    final links = FakeLinks(unreachable: {keys.high.public});
+    final relay = await _relay();
+    final low = await _phone(relay, links, keys.low);
+    final high = await _phone(relay, links, keys.high);
+    await Future.wait([low.transport.join(), high.transport.join()]);
+    await _eventually(() => low.failures.isNotEmpty, 'the first failure');
+    expect(low.peers, isEmpty);
+
+    // The phone becomes reachable and announces once more.
+    links.unreachable.remove(keys.high.public);
+    await high.transport.close();
+    final again = await _phone(relay, links, keys.high);
+    await again.transport.join();
+    await _eventually(() => low.peers.contains(again.me),
+        'a fresh link after the failure');
+    expect(low.failures, hasLength(1),
+        reason: 'the retry opened; nothing failed a second time');
+  });
+
+  test('what a link says about its own state reaches the steps', () async {
+    final keys = _pair();
+    final links = FakeLinks();
+    final relay = await _relay();
+    final low = await _phone(relay, links, keys.low);
+    final high = await _phone(relay, links, keys.high);
+    await Future.wait([low.transport.join(), high.transport.join()]);
+    await _eventually(() => low.peers.contains(high.me), 'the link');
+
+    links.between(low.me, high.me)!.progress('ice checking');
+    await _settle();
+    expect(
+      low.link.where((s) => s.stage == LinkStage.progress).map((s) => s.detail),
+      contains('ice checking'),
+    );
+  });
 }
 
 extension on List<int> {

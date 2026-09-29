@@ -547,6 +547,7 @@ class Reach {
     this.seen = const {},
     this.open = const {},
     this.failed = const {},
+    this.progress = const {},
     this.needsTurn,
   });
 
@@ -571,6 +572,12 @@ class Reach {
 
   /// Peers whose data channel is open right now.
   final Set<String> open;
+
+  /// The last thing each link said about its own state, by peer, in the
+  /// stack's words: `ice checking`, `connection failed`. Shown while the
+  /// link is neither open nor failed, so the screen carries the sequence a
+  /// report needs.
+  final Map<String, String> progress;
 
   /// Every link that failed, by peer, for whatever reason. [needsTurn] is the
   /// one of these a relay would fix; the rest were invisible on the screen
@@ -600,10 +607,15 @@ class Reach {
                 stunAnswered: true,
                 seen: {...seen, status.peer},
               ),
+            LinkStage.progress => _copy(
+                seen: {...seen, status.peer},
+                progress: {...progress, status.peer: status.detail ?? ''},
+              ),
             LinkStage.opened => _copy(
                 seen: {...seen, status.peer},
                 open: {...open, status.peer},
                 failed: {...failed}..remove(status.peer),
+                progress: {...progress}..remove(status.peer),
               ),
             LinkStage.closed => _copy(
                 seen: {...seen}..remove(status.peer),
@@ -629,6 +641,7 @@ class Reach {
     Set<String>? seen,
     Set<String>? open,
     Map<String, LinkFailure>? failed,
+    Map<String, String>? progress,
     LinkFailure? needsTurn,
   }) =>
       Reach(
@@ -638,6 +651,7 @@ class Reach {
         seen: seen ?? this.seen,
         open: open ?? this.open,
         failed: failed ?? this.failed,
+        progress: progress ?? this.progress,
         needsTurn: needsTurn ?? this.needsTurn,
       );
 }

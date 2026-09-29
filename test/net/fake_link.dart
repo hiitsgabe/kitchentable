@@ -110,6 +110,12 @@ class FakeLink implements PeerLink {
     _status.add(LinkStatus(LinkStage.reflexive, peer: peer));
   }
 
+  /// Says something about the link's own state, the way the real one does
+  /// on every ICE or connection change. A test that wants the screen to
+  /// carry a step calls this.
+  void progress(String detail) =>
+      _status.add(LinkStatus(LinkStage.progress, peer: peer, detail: detail));
+
   @override
   Future<String> makeOffer() async {
     _offered = true;

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
@@ -161,7 +162,15 @@ class Signaling {
   /// Numbers every message this peer sends. A Nostr event's time is in
   /// seconds and its id is a hash of its fields, so two `here`s in one
   /// second would be one event to every relay and to every dedupe.
-  int _seq = 0;
+  /// Starts somewhere random rather than at zero, so two sessions under one
+  /// key cannot sign the same event. A Nostr id is the hash of pubkey, kind,
+  /// tags, content and a created_at in whole seconds: a fresh session that
+  /// announced within a second of the last one, from the same key and the
+  /// same counter, produced an id every subscriber had already seen and
+  /// dropped as a duplicate, so the peer was never heard again. The app
+  /// mints a key per room, so it only met this in a test that reused one;
+  /// the counter costs nothing and closes it for a phone that ever does.
+  int _seq = Random.secure().nextInt(1 << 30);
 
   /// This peer, to everybody else.
   String get me => _keys.public;
@@ -318,6 +327,19 @@ class Signaling {
       default:
         _drop(from, 'unknown message $type');
     }
+  }
+
+  /// Forgets [peer], so their next announcement is a first one again.
+  ///
+  /// A link that failed or closed has to be tried again, and the only thing
+  /// that starts a link is the arithmetic in [_onHere], which runs once per
+  /// peer. Without this a failed link was final: the peer went on
+  /// announcing every thirty seconds and every announcement was a repeat,
+  /// so nothing was offered again until somebody reloaded and minted a new
+  /// key. Found on the first two-phone check.
+  void forget(String peer) {
+    _peers.remove(peer);
+    _offered.remove(peer);
   }
 
   void _onHere(String peer) {

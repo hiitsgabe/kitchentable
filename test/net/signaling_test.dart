@@ -470,4 +470,92 @@ void main() {
     expect(saw.where((s) => s.step == SignalingStep.announced), isEmpty,
         reason: 'nothing was said to anybody');
   });
+
+  test('a forgotten peer is offered to again on its next announcement',
+      () async {
+    // A failed link is retried only if the peer's next announcement is
+    // treated as a first one. Without forget, the arithmetic ran once per
+    // peer and a failure was final until somebody reloaded.
+    final fake = await FakeRelay.start();
+    addTearDown(fake.close);
+    final keys = _pair();
+    var offers = 0;
+    final low = Signaling(
+      relay: _client(fake),
+      keys: keys.low,
+      code: _code,
+      makeOffer: (_) async {
+        offers++;
+        return 'offer $offers';
+      },
+      announceEvery: const Duration(milliseconds: 60),
+    );
+    final high = Signaling(
+      relay: _client(fake),
+      keys: keys.high,
+      code: _code,
+      makeOffer: (_) async => 'never',
+      announceEvery: const Duration(milliseconds: 60),
+    );
+    addTearDown(low.close);
+    addTearDown(high.close);
+    low.signals.listen((_) {});
+    high.signals.listen((_) {});
+    await low.join();
+    await high.join();
+    await _eventually(() => offers == 1, 'the first offer');
+
+    // Three more announcements from high change nothing.
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(offers, 1, reason: 'a repeat announcement is not a new peer');
+
+    low.forget(high.me);
+    await _eventually(() => offers == 2, 'an offer after forgetting');
+    expect(low.peers, contains(high.me),
+        reason: 'the peer is known again, from its own announcement');
+  });
+
+  test('two sessions under one key in one second are two announcements',
+      () async {
+    // A Nostr id hashes pubkey, kind, tags, content and created_at in whole
+    // seconds. A session that restarted its counter at zero and announced
+    // within a second of the last one signed the very same event, and every
+    // subscriber dropped it as a duplicate: the peer was never heard again.
+    final fake = await FakeRelay.start();
+    addTearDown(fake.close);
+    final keys = Keys.mint();
+
+    // A plain listener, deduping by id the way every peer does.
+    final ear = _client(fake);
+    final heard = ear.subscribe(
+      const Filter(kinds: [handshakeKind], tags: {'d': [_code]}),
+    );
+    final ids = <String>{};
+    heard.events.listen((e) => ids.add(e.id));
+    await heard.established;
+
+    for (var i = 0; i < 2; i++) {
+      final session = Signaling(
+        relay: _client(fake),
+        keys: keys,
+        code: _code,
+        makeOffer: (_) async => 'never',
+      );
+      session.signals.listen((_) {});
+      await session.join();
+      await session.close();
+    }
+
+    // Not "two heard": each session announces more than once (on join and
+    // again when its relay reports connected), so a counter restarting at
+    // zero still yields two distinct ids across the pair and a count of two
+    // could not tell. What cannot happen is one id signed twice, and what
+    // the listener must hear is everything the relay took.
+    await _eventually(
+      () => ids.length == fake.accepted.length,
+      'every announcement the relay took, heard once each',
+    );
+    expect(fake.accepted.toSet(), hasLength(fake.accepted.length),
+        reason: 'the same event was signed twice');
+  });
 }
