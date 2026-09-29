@@ -155,6 +155,14 @@ class WebRtcTransport implements Transport {
     // An answer is to an offer this side made, so it belongs to a link that
     // exists. One that arrives after that link failed would otherwise make
     // a new link that can never open, and report a second failure for it.
+    // A candidate for a peer with no link and no announcement is a leftover
+    // from a link that failed: taking it would make a new link that nobody
+    // offers to, which then fails again by the deadline and says so twice.
+    if (signal.kind == SignalKind.ice &&
+        _ends[signal.from] == null &&
+        !_signaling.peers.contains(signal.from)) {
+      return;
+    }
     final end = signal.kind == SignalKind.answer
         ? _ends[signal.from]
         : _end(signal.from);
@@ -225,6 +233,10 @@ class WebRtcTransport implements Transport {
         _step(
           LinkStep(LinkStatus(LinkStage.failed, peer: peer, failure: failure)),
         );
+        // Forgotten, so the peer's next announcement starts a fresh link
+        // rather than being a repeat the signaling ignores.
+        if (_ends[peer] == end) _ends.remove(peer);
+        _signaling.forget(peer);
         return;
       }
       if (_closed || _ends[peer] != end) return;
@@ -235,6 +247,7 @@ class WebRtcTransport implements Transport {
 
     end.closed.then((_) {
       if (_ends[peer] == end) _ends.remove(peer);
+      _signaling.forget(peer);
       if (!_open.remove(peer)) return;
       _step(LinkStep(LinkStatus(LinkStage.closed, peer: peer)));
       _tell(PeerEvent(peer, Presence.left));

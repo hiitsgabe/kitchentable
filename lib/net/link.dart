@@ -89,11 +89,25 @@ enum LinkStage {
 
   /// The link was closed, by either side, after having been open.
   closed,
+
+  /// A state changed underneath, on the way to opening or failing. What
+  /// changed is in [LinkStatus.detail], in the stack's own words.
+  ///
+  /// Here because the first two-phone check ended in one sentence ("the
+  /// connection failed after a route was found") and nothing to say which
+  /// states led to it. A screen that carries the sequence is a screen
+  /// somebody can report from without a debugger.
+  progress,
 }
 
 @immutable
 class LinkStatus {
-  const LinkStatus(this.stage, {required this.peer, this.failure});
+  const LinkStatus(
+    this.stage, {
+    required this.peer,
+    this.failure,
+    this.detail,
+  });
 
   final LinkStage stage;
   final String peer;
@@ -101,19 +115,26 @@ class LinkStatus {
   /// Set on [LinkStage.failed] and on nothing else.
   final LinkFailure? failure;
 
+  /// Set on [LinkStage.progress]: which state changed and to what, such as
+  /// `ice checking` or `connection failed`. Words for a screen, not a value
+  /// for code to branch on.
+  final String? detail;
+
   @override
   bool operator ==(Object other) =>
       other is LinkStatus &&
       other.stage == stage &&
       other.peer == peer &&
-      other.failure == failure;
+      other.failure == failure &&
+      other.detail == detail;
 
   @override
-  int get hashCode => Object.hash(stage, peer, failure);
+  int get hashCode => Object.hash(stage, peer, failure, detail);
 
   @override
   String toString() =>
       'LinkStatus(${stage.name} ${peer.substring(0, 8)}'
+      '${detail == null ? '' : ' $detail'}'
       '${failure == null ? '' : ': ${failure!.reason}'})';
 }
 

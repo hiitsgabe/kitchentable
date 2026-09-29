@@ -585,6 +585,16 @@ void main() {
       expect(_textAt(tester, 'room-seen-ana').toLowerCase(),
           contains('connecting'));
 
+      // And carries the link's last word about itself, so a screenshot of
+      // this line says where it stopped.
+      reach.note(const LinkStep(LinkStatus(
+        LinkStage.progress,
+        peer: 'ana',
+        detail: 'ice checking',
+      )));
+      await tester.pump();
+      expect(_textAt(tester, 'room-seen-ana'), contains('ice checking'));
+
       // Opened: the seen line gives way to the peer line.
       reach.note(const LinkStep(LinkStatus(LinkStage.opened, peer: 'ana')));
       await tester.pump();

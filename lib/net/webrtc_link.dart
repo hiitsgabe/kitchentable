@@ -100,6 +100,13 @@ class WebRtcLink implements PeerLink {
   bool _saidReflexive = false;
   bool _gone = false;
 
+  /// The last ICE and connection states seen, so a failure can say what it
+  /// came after. `connectionState` reaching failed while ICE never did is
+  /// the transport under the route, which is DTLS or the far side closing;
+  /// without these two words the sentence on the screen could not tell.
+  String _lastIce = 'new';
+  String _lastConnection = 'new';
+
   final _incoming = StreamController<String>.broadcast();
   final _status = StreamController<LinkStatus>.broadcast();
   final _candidates = StreamController<String>.broadcast();
@@ -252,6 +259,8 @@ class WebRtcLink implements PeerLink {
   }
 
   void _iceState(RTCIceConnectionState state) {
+    _lastIce = _word(state.name, 'RTCIceConnectionState');
+    _say(LinkStatus(LinkStage.progress, peer: peer, detail: 'ice $_lastIce'));
     switch (state) {
       case RTCIceConnectionState.RTCIceConnectionStateFailed:
         // Every pair of addresses was tried and none connected. Both phones
@@ -282,14 +291,21 @@ class WebRtcLink implements PeerLink {
   }
 
   void _connectionState(RTCPeerConnectionState state) {
+    _lastConnection = _word(state.name, 'RTCPeerConnectionState');
+    _say(LinkStatus(
+      LinkStage.progress,
+      peer: peer,
+      detail: 'connection $_lastConnection',
+    ));
     switch (state) {
       case RTCPeerConnectionState.RTCPeerConnectionStateFailed:
         _closeDown(
           LinkFailure(
             peer: peer,
             reason:
-                'the connection failed after a route was found, which is '
-                'the transport and not the network',
+                'the connection failed with ICE at "$_lastIce": the route '
+                'was found and the secure transport over it did not come up, '
+                'which is DTLS on this side or the other side closing first',
           ),
         );
       case RTCPeerConnectionState.RTCPeerConnectionStateClosed:
@@ -343,4 +359,9 @@ class WebRtcLink implements PeerLink {
   void _say(LinkStatus status) {
     if (!_status.isClosed) _status.add(status);
   }
+
+  /// `RTCIceConnectionStateChecking` as `checking`: the enum's own name with
+  /// its prefix taken off, lowercased, which is the browser's word for it.
+  static String _word(String name, String prefix) =>
+      name.startsWith(prefix) ? name.substring(prefix.length).toLowerCase() : name;
 }
