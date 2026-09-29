@@ -358,3 +358,48 @@ that negotiate and then never open; the probe that removes the deadline
 fails the case on `failures` staying empty for five seconds.
 
 **Still unknown until the next check:** what the phone's own lines said.
+
+## What the second look at the two-phone check found
+
+The host's screenshot, read against the code, said more than it seemed to:
+"Relay: accepted", "STUN: answered", and "Could not connect to somebody: the
+connection failed after a route was found". The STUN line exists only inside
+a link, a link exists only on a word from a peer under the code, and
+`_closeDown` keeps the first reason: so **the host heard the phone, a link
+was made, ICE never reported failed, and `connectionState` did**, which is
+DTLS under the route or the far side closing first. Ruled out, each by
+reading or by a probe: a second offer on the phone's re-announce (`_onHere`
+guards on `_peers.add`, measured one offer for six announcements); the web
+plugin swallowing ICE `failed` (it forwards it); a candidate the link would
+not take (that has its own sentence); the relay holding the handshake (the
+host reached "accepted").
+
+**Three things changed so the next check can be read without a debugger.**
+The link now reports every ICE and connection state as a `progress` step
+and the room's "connecting" line carries the last one, so a screenshot says
+where it stopped. The failure sentence names the ICE state it came after.
+And a failed link is **retried**: `Signaling.forget(peer)` on failure or
+close, because `_onHere` runs the initiator arithmetic once per peer and a
+failure was otherwise final until a reload minted a new key. A stray
+candidate for a peer with no link and no announcement is dropped rather
+than making a second link that nobody offers to.
+
+**The retry case failed for a reason that is a finding of its own.** A
+fresh `Signaling` under the same key restarted its counter at zero; within
+one second of the previous session it signed the identical event, and every
+subscriber's dedupe dropped it, so the peer was never heard again. The
+counter now starts at a random offset. The app mints a key per room and
+would not have met this; a phone that ever reuses a key now cannot.
+
+**And the case that pinned it was wrong once.** It waited for "two heard",
+which the colliding set meets on its own because each session announces
+twice (on join and again when its relay reports connected). It now waits for
+the listener to hear everything the relay took, and asserts no id was ever
+signed twice; the probe that resets the counter fails it.
+
+**A probe of mine was a no-op the first time**: its anchor did not match
+and "All tests passed" was the unmutated tree. Redone with an anchor that
+matched both `forget` sites; the retry case then failed on its wait.
+
+**Still unknown until the next check:** what the phone's own lines said,
+and now, which ICE state the host's failure names.
