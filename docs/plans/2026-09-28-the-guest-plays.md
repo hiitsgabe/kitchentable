@@ -438,3 +438,47 @@ Worth remembering as a shape: a deadline chosen from one observation
 The failure sentence also carries the trail with seconds, the DTLS state
 and the chosen candidate pair read off `getStats` before the connection
 is closed, so the next screenshot from any device is decisive on its own.
+
+## What the fourth look found: the relay said no and we heard yes
+
+The host's line after the idle deadline landed: "the connection failed
+15.3s after the link was made, with ICE at "disconnected". States: ice
+checking 0.2s, connection connecting 0.3s, ice disconnected 15.3s,
+connection failed 15.3s. Route: DTLS "new" and no pair of addresses
+chosen". Fifteen seconds is libwebrtc's write timeout with no pair ever
+working, so this time the route was never found. Which is either the
+network between the two phones (the case for TURN) or the candidates
+never crossing the relay.
+
+**A burst probe at the relays from the VM** (`scratchpad/burst/burst.dart`,
+fifteen signed ephemeral events in one second): damus answered six yes,
+two "rate-limited: you are noting too much" and seven "banned: too many
+rate-limit violations, try again later"; nos.lol and relay.primal.net
+took all fifteen; nostr.wine wants a signup; relay.nostr.band never
+answered at all. And the client's OK handler completed the publish on
+any OK, true or false: **a refusal was a yes.** A phone gathering ten
+candidates and trickling each through the relay hit exactly this, and
+the host's "Relay: accepted" was true of the `here` and false of the
+candidates.
+
+**Four changes.** `Relay.publish` returns `Published`, the relays that
+took the event and the ones that refused it with their words. The
+signaling reports `refused` when every relay said no, and `announced`
+now means a relay took the `here`, not that one was connected. The room
+shows the refusal in the relay's own words until the next message they
+take. And the link waits up to 1.5 s for gathering before handing over
+its offer or answer, so the candidates ride inside the description and
+only late ones go out on their own; the `_found` handler is gated until
+the description has gone out, so nothing is sent twice. A failure now
+counts each side's candidates, so "theirs none" reads as the relay.
+relay.primal.net replaces relay.nostr.band in the defaults.
+
+**Two headless tabs on the VM** open at 21 s with the new build and no
+candidate event at all on the relay. The reported `offerSent` comes
+after `opened` in the console because the report waits for every relay's
+OK and the offer went out on the first; the order is the log's, not the
+wire's.
+
+**Not provable under `flutter test`:** the gathering wait and the
+candidate gate live in `WebRtcLink`, which no test constructs. The two
+tabs are the check.
