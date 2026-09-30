@@ -585,13 +585,71 @@ void main() {
         reason: 'the deadline never turned the stall into a failure');
     final failure = low.failures.single;
     expect(failure.peer, high.me);
-    expect(failure.reason, contains('did not open'));
+    expect(failure.reason, contains('nothing changed'));
     expect(failure.reason, contains('States: ice connected 1.2s'),
         reason: 'a deadline with no state is a deadline nobody can read');
     expect(failure.needsTurn, isFalse,
         reason: 'never finishing is not the same verdict as no pair');
     expect(low.peers, isEmpty);
     expect(low.link.map((s) => s.stage), isNot(contains(LinkStage.opened)));
+  });
+  test('a link that keeps changing is not failed for being slow', () async {
+    // The second two-phone check: every hop crosses a public relay at
+    // seconds each, and one side gave up on a link the other side had just
+    // connected. The deadline counts from the last change, so a link that
+    // is still moving lives, and one that has stopped moving does not.
+    final keys = _pair();
+    final links = FakeLinks(stalled: {keys.high.public});
+    final relay = await _relay();
+    const deadline = Duration(milliseconds: 300);
+    final low = await _phone(relay, links, keys.low, deadline);
+    final high = await _phone(relay, links, keys.high, deadline);
+    await Future.wait([low.transport.join(), high.transport.join()]);
+    await _eventually(
+      () => links.between(low.me, high.me) != null,
+      'the stalled link',
+    );
+    final link = links.between(low.me, high.me)!;
+
+    // Moving: a state every 150 ms for 900 ms, three deadlines' worth.
+    for (var i = 0; i < 6; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      link.progress('ice checking ${i * 0.15}s');
+    }
+    expect(low.failures, isEmpty, reason: 'failed a link that was moving');
+
+    // Still: the deadline runs from the last change.
+    await Future<void>.delayed(deadline * 2);
+    expect(low.failures, hasLength(1));
+    expect(low.failures.single.reason, contains('nothing changed'));
+  });
+  test("a peer's candidate is a change that keeps a link alive", () async {
+    // Candidates trickle in from the other side for as long as it gathers,
+    // each one a hop over the relay; a link taking them is not stuck.
+    final keys = _pair();
+    final links = FakeLinks(stalled: {keys.high.public});
+    final relay = await _relay();
+    const deadline = Duration(milliseconds: 300);
+    final low = await _phone(relay, links, keys.low, deadline);
+    // The other side is the one gathering; it keeps its link long enough
+    // to have something to say, which is not the side under test.
+    final high = await _phone(relay, links, keys.high, deadline * 20);
+    await Future.wait([low.transport.join(), high.transport.join()]);
+    await _eventually(
+      () => links.between(high.me, low.me) != null,
+      'the stalled link',
+    );
+    final theirs = links.between(high.me, low.me)!;
+    for (var i = 0; i < 6; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      theirs.found('candidate $i from high');
+    }
+    final taken = links.between(low.me, high.me)!.candidatesTaken;
+    expect(taken.where((c) => c.startsWith('candidate ')), isNotEmpty,
+        reason: 'the candidates never crossed, so nothing was exercised');
+    expect(low.failures, isEmpty, reason: 'failed a link taking candidates');
+    await Future<void>.delayed(deadline * 2);
+    expect(low.failures, hasLength(1));
   });
   test('a link that failed is tried again when the peer announces again',
       () async {

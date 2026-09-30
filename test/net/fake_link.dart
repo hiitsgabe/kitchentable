@@ -110,6 +110,10 @@ class FakeLink implements PeerLink {
     _status.add(LinkStatus(LinkStage.reflexive, peer: peer));
   }
 
+  /// A candidate found, the way the real link finds them as gathering goes
+  /// on, long after the offer or answer went out.
+  void found(String candidate) => _candidates.add(candidate);
+
   /// Says something about the link's own state, the way the real one does
   /// on every ICE or connection change. A test that wants the screen to
   /// carry a step calls this.
