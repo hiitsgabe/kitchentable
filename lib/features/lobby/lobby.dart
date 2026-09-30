@@ -694,7 +694,8 @@ Transport _reachOut(String code, {TurnServer? turn}) {
     relay: Relay([for (final url in defaultRelays) Uri.parse(url)]),
     keys: Keys.mint(),
     code: code,
-    links: WebRtcLinkFactory(turn: turn),
+    links: const WebRtcLinkFactory(),
+    turn: turn,
   );
   // Not awaited: the room screen has to draw while the relay is being
   // reached, and everything join finds out is reported on `steps`, which

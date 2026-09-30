@@ -35,6 +35,7 @@ class WebRtcTransport implements Transport {
     required this._links,
     Duration announceEvery = const Duration(seconds: 30),
     this.openWithin = const Duration(seconds: 30),
+    this.turn,
   }) : _relay = relay,
        _me = keys.public {
     _signaling = Signaling(
@@ -43,8 +44,14 @@ class WebRtcTransport implements Transport {
       code: code,
       makeOffer: _makeOffer,
       announceEvery: announceEvery,
+      turn: turn,
     );
   }
+
+  /// The relay for connections this phone brought, announced to the room
+  /// and used for every link. Null when it brought none, in which case
+  /// every link goes through whichever one the room announced, if any.
+  final TurnServer? turn;
 
   final Relay _relay;
   final LinkFactory _links;
@@ -229,8 +236,9 @@ class WebRtcTransport implements Transport {
   /// offerer starts gathering the moment it has a description and the
   /// relay keeps no order between two events. So any signal makes the
   /// link, and the link holds what it cannot use yet.
-  PeerLink _end(String peer) =>
-      _ends[peer] ??= _watch(_links.link(me: _me, peer: peer));
+  PeerLink _end(String peer) => _ends[peer] ??= _watch(
+        _links.link(me: _me, peer: peer, turn: turn ?? _signaling.turnHeard),
+      );
 
   PeerLink _watch(PeerLink end) {
     final peer = end.peer;

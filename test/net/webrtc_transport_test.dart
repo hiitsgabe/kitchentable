@@ -39,13 +39,19 @@ Relay _client(FakeRelay relay) {
 /// arrived and everybody who came or went, collected from before it joins,
 /// because a case that subscribes later misses what it is about.
 class _Phone {
-  _Phone(FakeRelay relay, FakeLinks links, this.keys, {Duration? openWithin})
-    : transport = WebRtcTransport(
+  _Phone(
+    FakeRelay relay,
+    FakeLinks links,
+    this.keys, {
+    Duration? openWithin,
+    TurnServer? turn,
+  }) : transport = WebRtcTransport(
         relay: _client(relay),
         keys: keys,
         code: _code,
         links: links,
         openWithin: openWithin ?? const Duration(seconds: 20),
+        turn: turn,
       ) {
     transport.steps.listen(steps.add);
     transport.incoming.listen(got.add);
@@ -630,6 +636,42 @@ void main() {
         reason: 'never finishing is not the same verdict as no pair');
     expect(low.peers, isEmpty);
     expect(low.link.map((s) => s.stage), isNot(contains(LinkStage.opened)));
+  });
+  test("one phone's TURN server is every link's in the room", () async {
+    // The fifth check: a phone on a carrier's network against a home
+    // router, every address exchanged and no pair connecting. A relay for
+    // the connection fixes it, and only one end of a link needs one. So
+    // the phone that has one says so in its here, and every other phone
+    // makes its links through it, including the links between phones
+    // that brought none: in a mesh those are most of them.
+    final relay = await _relay();
+    final links = FakeLinks();
+    const brought = TurnServer(
+      url: 'turn:turn.example.net:3478',
+      username: 'kit',
+      credential: 'hunter2',
+    );
+    final keys = [Keys.mint(), Keys.mint(), Keys.mint()]
+      ..sort((a, b) => a.public.compareTo(b.public));
+    // The one with the server is the last to join, so the other two have
+    // to hear of it before their link to it, and the link between the two
+    // of them, made before it arrived, is the one that must not have it.
+    final a = await _phone(relay, links, keys[0]);
+    final b = await _phone(relay, links, keys[1]);
+    await Future.wait([a.transport.join(), b.transport.join()]);
+    await _eventually(() => a.peers.contains(b.me), 'a to b');
+    expect(links.between(a.me, b.me)!.turn, isNull);
+
+    final c = _Phone(relay, links, keys[2], turn: brought);
+    await c.transport.join();
+    await _eventually(
+      () => a.peers.contains(c.me) && b.peers.contains(c.me),
+      'the room to reach c',
+    );
+    expect(links.between(a.me, c.me)!.turn, brought);
+    expect(links.between(b.me, c.me)!.turn, brought);
+    expect(links.between(c.me, a.me)!.turn, brought, reason: 'its own');
+    expect(c.transport.turn, brought);
   });
   test('a link that keeps changing is not failed for being slow', () async {
     // The second two-phone check: every hop crosses a public relay at

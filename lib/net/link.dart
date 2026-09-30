@@ -70,8 +70,61 @@ abstract class PeerLink {
 
 /// Makes links. One real one, and one fake that pairs links in memory.
 abstract class LinkFactory {
-  /// A link from [me] to [peer], not yet negotiated.
-  PeerLink link({required String me, required String peer});
+  /// A link from [me] to [peer], not yet negotiated, through [turn] if
+  /// there is one to go through.
+  PeerLink link({required String me, required String peer, TurnServer? turn});
+}
+
+/// A relay for the connection itself: what gets two phones together when
+/// the networks between them let no pair of addresses through, which a
+/// phone on a carrier's network against a home router never does.
+///
+/// It is at this seam and not under it because it travels: the phone that
+/// has one announces it under the room code, and every other phone in the
+/// room makes its links through it. One is enough for a room, since a
+/// relayed address on either end of a link is a public one.
+@immutable
+class TurnServer {
+  const TurnServer({
+    required this.url,
+    required this.username,
+    required this.credential,
+  });
+
+  /// Off the wire, or null when what is there is not a server.
+  static TurnServer? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final url = json['url'];
+    if (url is! String || url.isEmpty) return null;
+    return TurnServer(
+      url: url,
+      username: '${json['username'] ?? ''}',
+      credential: '${json['credential'] ?? ''}',
+    );
+  }
+
+  final String url;
+  final String username;
+  final String credential;
+
+  Map<String, String> toJson() => {
+        'url': url,
+        'username': username,
+        'credential': credential,
+      };
+
+  @override
+  bool operator ==(Object other) =>
+      other is TurnServer &&
+      other.url == url &&
+      other.username == username &&
+      other.credential == credential;
+
+  @override
+  int get hashCode => Object.hash(url, username, credential);
+
+  @override
+  String toString() => 'TurnServer($url as $username)';
 }
 
 /// What a link found out on its own.
