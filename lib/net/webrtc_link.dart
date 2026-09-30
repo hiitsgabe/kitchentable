@@ -198,6 +198,7 @@ class WebRtcLink implements PeerLink {
   /// without these two words the sentence on the screen could not tell.
   String _lastIce = 'new';
   String _lastConnection = 'new';
+  bool _everConnected = false;
 
   /// Every state the connection has been in, each with the second it came
   /// at, from the moment the connection was made. This is what a failure
@@ -437,10 +438,11 @@ class WebRtcLink implements PeerLink {
         );
       case RTCIceConnectionState.RTCIceConnectionStateClosed:
         _closeDown(null);
-      case RTCIceConnectionState.RTCIceConnectionStateNew:
-      case RTCIceConnectionState.RTCIceConnectionStateChecking:
       case RTCIceConnectionState.RTCIceConnectionStateConnected:
       case RTCIceConnectionState.RTCIceConnectionStateCompleted:
+        _everConnected = true;
+      case RTCIceConnectionState.RTCIceConnectionStateNew:
+      case RTCIceConnectionState.RTCIceConnectionStateChecking:
       case RTCIceConnectionState.RTCIceConnectionStateCount:
       case RTCIceConnectionState.RTCIceConnectionStateDisconnected:
         // Disconnected is a wobble the stack may recover from on its own;
@@ -454,15 +456,32 @@ class WebRtcLink implements PeerLink {
     _note('connection $_lastConnection');
     switch (state) {
       case RTCPeerConnectionState.RTCPeerConnectionStateFailed:
+        // ICE that never once connected goes "disconnected" at the stack's
+        // write timeout, fifteen seconds, and the connection fails under
+        // it without ICE ever saying failed. With the other side's
+        // addresses in hand that is no route, the same verdict as ICE
+        // failed: the fifth check, a phone on 5G against a home router.
         _closeDown(
-          LinkFailure(
-            peer: peer,
-            reason:
-                'the connection failed ${_seconds()}s after the link was '
-                'made, with ICE at "$_lastIce": the route was found and the '
-                'secure transport over it did not come up, which is DTLS on '
-                'this side or the other side closing first',
-          ),
+          !_everConnected && _theirs.isNotEmpty
+              ? LinkFailure(
+                  peer: peer,
+                  reason:
+                      'no route was found between the two phones in '
+                      '${_seconds()}s: this side had the other side\'s '
+                      'addresses and no pair of them connected, which is '
+                      'the two networks between them. This is the case '
+                      'that needs a TURN server',
+                  needsTurn: true,
+                )
+              : LinkFailure(
+                  peer: peer,
+                  reason:
+                      'the connection failed ${_seconds()}s after the link '
+                      'was made, with ICE at "$_lastIce": the route was '
+                      'found and the secure transport over it did not come '
+                      'up, which is DTLS on this side or the other side '
+                      'closing first',
+                ),
         );
       case RTCPeerConnectionState.RTCPeerConnectionStateClosed:
         _closeDown(null);

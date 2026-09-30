@@ -10,6 +10,7 @@ import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import 'backdrop_screen.dart';
 import 'player_name.dart';
+import 'network.dart';
 
 /// What this device is, as opposed to what any one room is.
 ///
@@ -25,6 +26,10 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _name = TextEditingController();
+  final _turnUrl = TextEditingController();
+  final _turnUsername = TextEditingController();
+  final _turnCredential = TextEditingController();
+  bool _typingTurn = false;
 
   /// Whether the box holds what somebody is typing right now.
   ///
@@ -42,7 +47,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void dispose() {
     _name.dispose();
+    _turnUrl.dispose();
+    _turnUsername.dispose();
+    _turnCredential.dispose();
     super.dispose();
+  }
+
+  void _setTurn() {
+    _typingTurn = true;
+    ref.read(turnProvider.notifier).set(
+          url: _turnUrl.text,
+          username: _turnUsername.text,
+          credential: _turnCredential.text,
+        );
   }
 
   @override
@@ -56,6 +73,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     ref.listen(playerNameProvider, (_, name) {
       if (!_typing && _name.text != name) _name.text = name;
+    });
+    ref.listen(turnProvider, (_, turn) {
+      if (_typingTurn) return;
+      _turnUrl.text = turn?.url ?? '';
+      _turnUsername.text = turn?.username ?? '';
+      _turnCredential.text = turn?.credential ?? '';
     });
 
     return ScreenFrame(
@@ -86,6 +109,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           metrics: m,
           text: 'The people at your table see this, and it is the only thing '
               'here that leaves the device. Left empty you are $namelessPlayer.',
+        ),
+        _Label(metrics: m, text: 'network: a TURN server'),
+        TextFieldBox(
+          key: const Key('turn-url'),
+          metrics: m,
+          controller: _turnUrl,
+          hint: 'turn:host:3478',
+          onChanged: (_) => _setTurn(),
+        ),
+        SizedBox(height: m.scaled(6)),
+        TextFieldBox(
+          key: const Key('turn-username'),
+          metrics: m,
+          controller: _turnUsername,
+          hint: 'username',
+          onChanged: (_) => _setTurn(),
+        ),
+        SizedBox(height: m.scaled(6)),
+        TextFieldBox(
+          key: const Key('turn-credential'),
+          metrics: m,
+          controller: _turnCredential,
+          hint: 'password',
+          onChanged: (_) => _setTurn(),
+        ),
+        _Caption(
+          metrics: m,
+          text: 'Only for when two phones on different networks cannot reach '
+              'each other, which the room says when it happens. A relay for '
+              'the connection itself: a friend running one, or a public one. '
+              'Left empty, none is used.',
         ),
         MenuRow(
           title: 'Background',

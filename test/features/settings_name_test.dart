@@ -59,8 +59,15 @@ void main() {
     addTearDown(container.dispose);
     await _pump(tester, container);
 
+    // By key: the network boxes are TextFields too.
     expect(
-      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      tester
+          .widget<TextField>(find.descendant(
+            of: find.byKey(const Key('player-name')),
+            matching: find.byType(TextField),
+          ))
+          .controller!
+          .text,
       'kit',
     );
   });
