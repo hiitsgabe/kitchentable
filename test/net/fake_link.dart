@@ -37,8 +37,8 @@ class FakeLinks implements LinkFactory {
   FakeLink? between(String me, String peer) => _ends[me]?[peer];
 
   @override
-  PeerLink link({required String me, required String peer}) {
-    final end = FakeLink._(this, me: me, peer: peer);
+  PeerLink link({required String me, required String peer, TurnServer? turn}) {
+    final end = FakeLink._(this, me: me, peer: peer)..turn = turn;
     (_ends[me] ??= {})[peer] = end;
     made.add(end);
     final other = _ends[peer]?[me];
@@ -61,6 +61,9 @@ class FakeLink implements PeerLink {
   final String peer;
 
   FakeLink? _other;
+
+  /// The relay for connections this end was asked to go through.
+  TurnServer? turn;
   bool _offered = false;
   bool _tookOffer = false;
   bool _tookAnswer = false;

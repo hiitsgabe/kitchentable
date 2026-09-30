@@ -193,8 +193,8 @@ class RoomScreen extends ConsumerWidget {
                 '${_peerName(lobby, failure.peer)} could not be reached '
                 'directly: both phones answered STUN and still could not reach '
                 'each other, which only a relay for the connection itself '
-                'fixes. Put a TURN server in Settings, under Network, and try '
-                'again.',
+                'fixes. Put a TURN server in Settings, under Network, on any '
+                'one phone in the room, and try again.',
           ),
         if (lobby != null && !lobby.hosting)
           _Note(

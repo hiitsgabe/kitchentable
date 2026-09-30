@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import 'link.dart';
@@ -18,21 +17,6 @@ const List<String> defaultStunServers = [
   'stun:stun1.l.google.com:19302',
   'stun:stun.cloudflare.com:3478',
 ];
-
-/// A relay for the one link in ten that STUN cannot open, brought by the
-/// player. Empty by default, and empty means none.
-@immutable
-class TurnServer {
-  const TurnServer({
-    required this.url,
-    required this.username,
-    required this.credential,
-  });
-
-  final String url;
-  final String username;
-  final String credential;
-}
 
 /// The configuration a peer connection is made with.
 ///
@@ -151,10 +135,11 @@ class WebRtcLinkFactory implements LinkFactory {
   final TurnServer? turn;
 
   @override
-  PeerLink link({required String me, required String peer}) => WebRtcLink(
-    peer: peer,
-    configuration: iceConfiguration(stun: stun, turn: turn),
-  );
+  PeerLink link({required String me, required String peer, TurnServer? turn}) =>
+      WebRtcLink(
+        peer: peer,
+        configuration: iceConfiguration(stun: stun, turn: turn ?? this.turn),
+      );
 }
 
 /// One `RTCPeerConnection` and one data channel, named `table`, to one peer.

@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import 'link.dart';
 import 'nostr/keys.dart';
 import 'nostr/relay.dart';
 
@@ -143,7 +144,18 @@ class Signaling {
     required this.code,
     required this._makeOffer,
     this.announceEvery = const Duration(seconds: 30),
+    this.turn,
   });
+
+  /// The relay for connections this phone brought, said in every `here`
+  /// so the room has it. Null when it brought none.
+  final TurnServer? turn;
+
+  /// The first relay for connections anybody in the room announced, or
+  /// null. Once heard it stays, since the phone that said it may go quiet
+  /// before the link that needs it is made.
+  TurnServer? get turnHeard => _turnHeard;
+  TurnServer? _turnHeard;
 
   final Relay _relay;
   final Keys _keys;
@@ -243,7 +255,10 @@ class Signaling {
   }
 
   Future<void> _announce() async {
-    final sent = await _send('here');
+    final sent = await _send(
+      'here',
+      body: turn == null ? '' : jsonEncode(turn!.toJson()),
+    );
     if (sent.accepted.isNotEmpty) {
       _report(const SignalingStatus(SignalingStep.announced));
     }
@@ -311,6 +326,15 @@ class Signaling {
       return;
     }
     if (type == 'here') {
+      if (body.isNotEmpty) {
+        Object? said;
+        try {
+          said = jsonDecode(body);
+        } on Object {
+          said = null;
+        }
+        _turnHeard ??= TurnServer.fromJson(said);
+      }
       _onHere(from);
       return;
     }

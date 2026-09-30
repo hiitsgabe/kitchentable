@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/net/link.dart';
 import 'package:kitchentable/net/nostr/keys.dart';
 import 'package:kitchentable/net/nostr/relay.dart';
 import 'package:kitchentable/net/signaling.dart';
@@ -471,6 +472,37 @@ void main() {
         reason: 'nothing was said to anybody');
   });
 
+  test('a here carries the TURN server its phone brought, and the room '
+      'keeps the first it hears', () async {
+    final fake = await FakeRelay.start();
+    addTearDown(fake.close);
+    const brought = TurnServer(
+      url: 'turn:turn.example.net:3478',
+      username: 'kit',
+      credential: 'hunter2',
+    );
+    final speaker = Signaling(
+      relay: Relay([fake.url]),
+      keys: Keys.mint(),
+      code: 'abcd-efg',
+      makeOffer: (_) async => 'offer',
+      turn: brought,
+    );
+    final listener = Signaling(
+      relay: Relay([fake.url]),
+      keys: Keys.mint(),
+      code: 'abcd-efg',
+      makeOffer: (_) async => 'offer',
+    );
+    addTearDown(speaker.close);
+    addTearDown(listener.close);
+    await listener.join();
+    expect(listener.turnHeard, isNull);
+    await speaker.join();
+    await _eventually(() => listener.turnHeard != null, 'the server');
+    expect(listener.turnHeard, brought);
+    expect(speaker.turnHeard, isNull, reason: 'nobody else brought one');
+  });
   test('a message every relay refused is reported in the relay\'s words, and '
       'is not an announcement', () async {
     final fake = await FakeRelay.start();
