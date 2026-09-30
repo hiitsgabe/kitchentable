@@ -55,8 +55,15 @@ enum SignalingStep {
   /// room exists on nobody's relay, and nobody can arrive.
   relayUnreachable,
 
-  /// This peer's `here` went out to at least one relay.
+  /// This peer's `here` went out to at least one relay, which took it.
   announced,
+
+  /// Every relay that answered said no to a message of ours, in its own
+  /// words in [SignalingStatus.reason]. A `here` refused is a room nobody
+  /// can find; an offer, answer or candidate refused is a link that will
+  /// not finish, and the other side never learns why. Public relays
+  /// rate-limit a burst and then ban the key for a while.
+  refused,
 
   /// A peer announced itself under the code.
   peerHere,
@@ -236,8 +243,8 @@ class Signaling {
   }
 
   Future<void> _announce() async {
-    await _send('here');
-    if (_relay.connected.isNotEmpty) {
+    final sent = await _send('here');
+    if (sent.accepted.isNotEmpty) {
       _report(const SignalingStatus(SignalingStep.announced));
     }
   }
@@ -249,8 +256,8 @@ class Signaling {
     _report(SignalingStatus(SignalingStep.offerSent, peer: peer));
   }
 
-  Future<void> _send(String type, {String? to, String body = ''}) async {
-    if (_closed) return;
+  Future<Published> _send(String type, {String? to, String body = ''}) async {
+    if (_closed) return const Published(accepted: {}, refused: {});
     final sent = _relay.publish(NostrEvent.sign(
       _keys,
       kind: handshakeKind,
@@ -261,11 +268,20 @@ class Signaling {
       content: jsonEncode({'type': type, 'body': body, 'n': _seq++}),
     ));
     _inFlight.add(sent);
+    final Published outcome;
     try {
-      await sent;
+      outcome = await sent;
     } finally {
       _inFlight.remove(sent);
     }
+    if (outcome.accepted.isEmpty && outcome.refused.isNotEmpty) {
+      _report(SignalingStatus(
+        SignalingStep.refused,
+        peer: to,
+        reason: '$type: ${outcome.refused.values.first}',
+      ));
+    }
+    return outcome;
   }
 
   void _onRelay(RelayStatus relay) {

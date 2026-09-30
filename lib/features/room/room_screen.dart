@@ -128,6 +128,16 @@ class RoomScreen extends ConsumerWidget {
                   ? 'Relay: accepted this room, so it can be found'
                   : 'Relay: reaching one',
         ),
+        // Said in the relay's own words, since they are the only ones there
+        // are: "rate-limited: you are noting too much" is what damus says
+        // after a burst, and a phone that trickled its candidates hit it.
+        if (reach.refused != null)
+          _Fact(
+            metrics: m,
+            id: 'room-refused',
+            failed: true,
+            text: 'A relay refused this phone\'s message (${reach.refused})',
+          ),
         _Fact(
           metrics: m,
           id: 'room-stun',

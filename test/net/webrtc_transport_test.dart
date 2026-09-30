@@ -541,7 +541,8 @@ void main() {
     expect(
       routeInWords(chosen),
       'DTLS "connecting" over srflx/wifi to prflx (udp), '
-      '1840 bytes sent and 0 received',
+      '1840 bytes sent and 0 received; candidates: ours 1 host, 1 srflx, '
+      'theirs 1 prflx',
     );
     // No selected id on the transport: the nominated pair is the one.
     final nominated = [
@@ -550,14 +551,27 @@ void main() {
     ];
     expect(
       routeInWords(nominated),
-      'DTLS "connected" over host to ?, 0 bytes sent and 0 received',
+      'DTLS "connected" over host to ?, 0 bytes sent and 0 received; '
+      'candidates: ours 1 host, 1 srflx, theirs 1 prflx',
     );
-    // Nothing chosen and nothing nominated: said so, with the DTLS word.
+    // Nothing chosen and nothing nominated: said so, with the DTLS word,
+    // and with the candidates each side had. "theirs none" is the third
+    // check: the phone's candidates never crossed the relay.
     expect(
-      routeInWords([r('T', 'transport', {'dtlsState': 'new'}), chosen[2]]),
-      'DTLS "new" and no pair of addresses chosen',
+      routeInWords([
+        r('T', 'transport', {'dtlsState': 'new'}),
+        chosen[2],
+        chosen[3],
+        chosen[4],
+      ]),
+      'DTLS "new" and no pair of addresses chosen; candidates: '
+      'ours 1 host, 1 srflx, theirs none',
     );
-    expect(routeInWords([]), 'DTLS "unknown" and no pair of addresses chosen');
+    expect(
+      routeInWords([]),
+      'DTLS "unknown" and no pair of addresses chosen; candidates: '
+      'ours none, theirs none',
+    );
   });
   test('a link that never opens is failed by a deadline, in words', () async {
     // ICE that checks forever. The browser reports nothing for half a

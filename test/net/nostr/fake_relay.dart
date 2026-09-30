@@ -39,6 +39,11 @@ class FakeRelay {
   /// How many events went out to subscribers, per subscription id.
   final Map<String, int> forwarded = {};
 
+  /// A reason to say no to a valid event, or null to take it. What a
+  /// public relay does when it rate-limits: the event is well formed and
+  /// signed, and the answer is `["OK", id, false, "rate-limited: ..."]`.
+  String? Function(Map<String, dynamic> event)? refuse;
+
   static Future<FakeRelay> start() async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final relay = FakeRelay._(server);
@@ -97,7 +102,7 @@ class FakeRelay {
       case 'EVENT':
         final event = message[1] as Map<String, dynamic>;
         final id = event['id'] as String;
-        final why = _whyInvalid(event);
+        final why = _whyInvalid(event) ?? refuse?.call(event);
         if (why != null) {
           rejected[id] = why;
           client.send(['OK', id, false, why]);

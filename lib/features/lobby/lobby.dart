@@ -549,6 +549,7 @@ class Reach {
     this.failed = const {},
     this.progress = const {},
     this.needsTurn,
+    this.refused,
   });
 
   /// A relay took this phone's announcement under the code.
@@ -588,13 +589,19 @@ class Reach {
   /// would fix, if one has.
   final LinkFailure? needsTurn;
 
+  /// The last message of ours every relay said no to, in the relay's own
+  /// words, until the next one they took. Null when nothing was refused.
+  final String? refused;
+
   /// This, after one more thing happened.
   Reach after(ConnectionStep step) => switch (step) {
         RendezvousStep(:final status) => switch (status.step) {
             SignalingStep.announced => _copy(
                 relayAnswered: true,
                 relayUnreachable: false,
+                refused: '',
               ),
+            SignalingStep.refused => _copy(refused: status.reason ?? ''),
             SignalingStep.relayUnreachable => _copy(relayUnreachable: true),
             SignalingStep.relayConnected => _copy(relayUnreachable: false),
             SignalingStep.peerHere => status.peer == null
@@ -643,8 +650,10 @@ class Reach {
     Map<String, LinkFailure>? failed,
     Map<String, String>? progress,
     LinkFailure? needsTurn,
+    String? refused,
   }) =>
       Reach(
+        refused: refused == null ? this.refused : (refused == '' ? null : refused),
         relayAnswered: relayAnswered ?? this.relayAnswered,
         relayUnreachable: relayUnreachable ?? this.relayUnreachable,
         stunAnswered: stunAnswered ?? this.stunAnswered,
@@ -664,7 +673,7 @@ class Reach {
 const defaultRelays = [
   'wss://relay.damus.io',
   'wss://nos.lol',
-  'wss://relay.nostr.band',
+  'wss://relay.primal.net',
 ];
 
 /// How this device reaches the others, given the room code.
