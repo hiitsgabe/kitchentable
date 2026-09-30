@@ -482,3 +482,39 @@ wire's.
 **Not provable under `flutter test`:** the gathering wait and the
 candidate gate live in `WebRtcLink`, which no test constructs. The two
 tabs are the check.
+
+## What the fifth check settled: the two networks
+
+Both screens, both builds stamped `caba646`, and the link counting what it
+found and what it was handed rather than what the stats listed:
+
+- laptop at home: ours 1 host mdns, 1 srflx v4; theirs 1 host v4, 1 host
+  v6, 2 srflx v4, 1 srflx v6 (5 in the description, 0 after)
+- phone on 5G: ours 1 host v4, 1 host v6, 2 srflx v4, 1 srflx v6; theirs
+  1 host mdns, 1 srflx v4 (2 in the description, 0 after)
+
+Every candidate crossed, inside the descriptions, and no pair connected
+in fifteen seconds, which is libwebrtc's write timeout showing as ICE
+"disconnected" without ever "failed". That is a carrier's NAT against a
+home router, and nothing on either phone gets through it; the design's
+"one in ten" is most of cellular. The stats' "theirs none" on both sides
+was the instrument, not the fact: Chrome lists a remote candidate only
+once it is in a pair, and a `.local` name the other side cannot resolve
+or a v6 against a v4 never is. Worth keeping: **the stats say what
+paired, the link says what arrived, and only the second answers "did
+the relay carry it".**
+
+**Landed:** the verdict. ICE that never once connected, with the other
+side's addresses in hand, is "no route was found between the two
+phones", `needsTurn`, and the room's TURN line with its pointer at
+Settings. And the TURN half of Task 5: three boxes under Network in
+Settings, kept on the device, empty by default, read by the link
+factory. The relay list stays the default; nostr.band is out of it and
+primal in.
+
+**Not landed, and a decision for the author:** a default TURN. The
+design ships no server of ours. The phones at a real kitchen table are
+on one Wi-Fi and need none; two phones on two carriers need one, and
+the choices are a friend's coturn, a public one (Open Relay answers on
+80 and 443 from the VM), or none and the room saying so, which is what
+it does now.
