@@ -1,0 +1,29 @@
+# coturn for a kitchen table. Copy to turnserver.conf and fill the three
+# lines marked CHANGE.
+
+listening-port=3478
+# CHANGE: the machine's public IPv4. Behind a cloud NAT, "private/public".
+external-ip=203.0.113.10
+# CHANGE: any name; it is only ever shown to the app.
+realm=kitchentable
+
+# The relayed traffic. Open this range on the firewall, UDP.
+min-port=49160
+max-port=49200
+
+# One long-lived user. CHANGE the password; it is what goes in Settings.
+lt-cred-mech
+user=kitchen:CHANGE-ME
+
+# Relay only for the app; no STUN service to the world, no TCP relaying
+# to the local machine, and nothing logged that could name a player.
+no-cli
+no-tlsv1
+no-tlsv1_1
+no-multicast-peers
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=127.0.0.0-127.255.255.255
+fingerprint
+no-stdout-log
