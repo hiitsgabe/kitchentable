@@ -539,6 +539,7 @@ void main() {
       // Nothing has happened yet, so every line says it is waiting and no
       // friend has a line at all.
       expect(_textAt(tester, 'room-relay').toLowerCase(), contains('reaching'));
+      expect(_textAt(tester, 'room-build'), 'build $buildStamp');
       expect(_textAt(tester, 'room-stun').toLowerCase(), contains('waiting'));
       expect(find.byKey(const Key('room-peer-ana')), findsNothing);
 

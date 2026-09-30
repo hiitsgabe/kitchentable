@@ -508,6 +508,30 @@ void main() {
       'credential': 'hunter2',
     });
   });
+  test('candidates are counted by type and family, out of a description or '
+      'one at a time', () {
+    const sdp = 'v=0\r\n'
+        'a=candidate:1 1 udp 2113937151 3f2a9b1c-6d.local 51234 typ host generation 0\r\n'
+        'a=candidate:2 1 udp 1677729535 203.0.113.9 51234 typ srflx raddr 0.0.0.0 rport 0\r\n'
+        'a=candidate:3 1 udp 1677729535 2001:db8::9 51234 typ srflx raddr :: rport 0\r\n'
+        'a=candidate:4 1 udp 2113937151 7c1d.local 51235 typ host generation 0\r\n'
+        'a=end-of-candidates\r\n';
+    final lines = candidateLines(sdp);
+    expect(lines, hasLength(4));
+    expect(lines.first, startsWith('candidate:1 '));
+    expect(
+      candidatesInWords(lines),
+      '2 host mdns, 1 srflx v4, 1 srflx v6',
+    );
+    expect(candidatesInWords([]), 'none');
+    // The third check: a phone on 5G and a laptop at home. Each side's
+    // hosts are mDNS names the other cannot resolve, and their srflx
+    // families need not match. The sentence has to let that be read.
+    expect(
+      candidatesInWords(['candidate:9 1 udp 1 198.51.100.4 5 typ relay']),
+      '1 relay v4',
+    );
+  });
   test('the route in a failure is read off the stats, DTLS word first', () {
     StatsReport r(String id, String type, Map<String, Object> v) =>
         StatsReport(id, type, 0, v);

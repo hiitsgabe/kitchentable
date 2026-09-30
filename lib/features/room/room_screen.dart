@@ -18,6 +18,10 @@ import '../play/play_controller.dart';
 import '../play/play_screen.dart';
 import 'room_controller.dart';
 
+/// The commit this build was made from, handed in as `--dart-define=BUILD=`
+/// by whoever builds; "dev" when nobody did.
+const buildStamp = String.fromEnvironment('BUILD', defaultValue: 'dev');
+
 /// The room, which is a place before it is a game.
 ///
 /// It holds the three ways in, in the order they are useful: the code you read
@@ -205,6 +209,14 @@ class RoomScreen extends ConsumerWidget {
           ),
         if (lobby != null && config != null)
           _Chairs(metrics: m, lobby: lobby, seats: config.seats),
+        // Which build this is, since a browser keeps the last one for hours
+        // and a screenshot of an old sentence reads as the new code failing.
+        _Note(
+          metrics: m,
+          id: 'room-build',
+          colour: Palette.inkMuted,
+          text: 'build $buildStamp',
+        ),
         _Note(
           metrics: m,
           id: 'room-openness',
