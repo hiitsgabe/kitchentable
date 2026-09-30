@@ -22,6 +22,7 @@ import '../../table/setup.dart';
 import '../../table/wire/deck_wire.dart';
 import '../../table/wire/wire.dart';
 import '../room/room_controller.dart';
+import '../settings/network.dart';
 
 /// Somebody with a chair: who they are on the transport, and what to call
 /// them.
@@ -681,15 +682,19 @@ const defaultRelays = [
 /// A provider so tests can hand the room a network in memory; the real one
 /// is Nostr for the introduction and WebRTC for the connection, and it
 /// starts joining the moment it is made.
-final transportFactoryProvider =
-    Provider<Transport Function(String code)>((ref) => _reachOut);
+final transportFactoryProvider = Provider<Transport Function(String code)>(
+  (ref) {
+    final turn = ref.watch(turnProvider);
+    return (code) => _reachOut(code, turn: turn);
+  },
+);
 
-Transport _reachOut(String code) {
+Transport _reachOut(String code, {TurnServer? turn}) {
   final transport = WebRtcTransport(
     relay: Relay([for (final url in defaultRelays) Uri.parse(url)]),
     keys: Keys.mint(),
     code: code,
-    links: const WebRtcLinkFactory(),
+    links: WebRtcLinkFactory(turn: turn),
   );
   // Not awaited: the room screen has to draw while the relay is being
   // reached, and everything join finds out is reported on `steps`, which
