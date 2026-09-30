@@ -518,3 +518,34 @@ on one Wi-Fi and need none; two phones on two carriers need one, and
 the choices are a friend's coturn, a public one (Open Relay answers on
 80 and 443 from the VM), or none and the room saying so, which is what
 it does now.
+
+## The ruling on networks, and what one server does for a room
+
+The author: "nunca podemos depender dos dois estarem na mesma network".
+Read with the design's "no server of ours", the two constraints meet at
+one point: a relay for the connection must exist, and somebody other
+than the code has to run it. Open Relay, the one public TURN the VM
+could reach on 80 and 443, allocates nothing from headless Chromium
+(eight seconds, policy relay, no candidate); the VM itself is behind
+exe.dev's HTTP-only proxy and cannot take UDP. So the server is a
+player's, and the app's job is to make one enough.
+
+**Landed:** `TurnServer` moved to the link seam because it travels. The
+phone that has one says it in every `here`; the signaling keeps the
+first it hears; the transport makes every link through its own or the
+heard one. A relayed address on either end of a link is public, so one
+end suffices per link, and in a mesh the links between two phones that
+brought none are most of them: the case pins a third phone arriving
+with the server and the first two getting it for their links to it,
+while their earlier link to each other, made before it arrived, has
+none. `deploy/coturn/` is a compose file, a config with three lines to
+change, and the words for Settings.
+
+**Open, and the author's:** whether to bundle a default. The design
+says no; a friend's server is the answer given. Whichever way, the
+room now says the true thing when it is needed.
+
+The config was run here first, in Docker on the VM against headless
+Chromium: the first version allocated nothing, because coturn takes an
+inline `# comment` as part of the value and the realm had one; with the
+comment on its own line a `typ relay` candidate came in 0.1 s.
