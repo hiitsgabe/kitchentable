@@ -471,6 +471,36 @@ void main() {
         reason: 'nothing was said to anybody');
   });
 
+  test('a message every relay refused is reported in the relay\'s words, and '
+      'is not an announcement', () async {
+    final fake = await FakeRelay.start();
+    addTearDown(fake.close);
+    fake.refuse = (_) => 'rate-limited: you are noting too much';
+    final relay = Relay([fake.url]);
+    final keys = Keys.mint();
+    final saw = <SignalingStatus>[];
+    final signaling = Signaling(
+      relay: relay,
+      keys: keys,
+      code: 'abcd-efg',
+      makeOffer: (_) async => 'offer',
+    );
+    signaling.status.listen(saw.add);
+    addTearDown(signaling.close);
+
+    await signaling.join();
+    await _eventually(
+      () => saw.any((s) => s.step == SignalingStep.refused),
+      'the refusal',
+    );
+    final refused = saw.firstWhere((s) => s.step == SignalingStep.refused);
+    expect(refused.reason, 'here: rate-limited: you are noting too much');
+    expect(
+      saw.where((s) => s.step == SignalingStep.announced),
+      isEmpty,
+      reason: 'a here every relay refused is a room nobody can find',
+    );
+  });
   test('a forgotten peer is offered to again on its next announcement',
       () async {
     // A failed link is retried only if the peer's next announcement is

@@ -75,7 +75,12 @@ String routeInWords(List<StatsReport> reports) {
   pair ??= reports
       .where((r) => r.type == 'candidate-pair' && r.values['nominated'] == true)
       .firstOrNull;
-  if (pair == null) return 'DTLS "$dtls" and no pair of addresses chosen';
+  final counted = 'ours ${_kinds(reports, 'local-candidate')}, '
+      'theirs ${_kinds(reports, 'remote-candidate')}';
+  if (pair == null) {
+    return 'DTLS "$dtls" and no pair of addresses chosen; candidates: '
+        '$counted';
+  }
   String side(String key) {
     final c = byId[pair!.values[key]];
     if (c == null) return '?';
@@ -90,7 +95,21 @@ String routeInWords(List<StatsReport> reports) {
   return 'DTLS "$dtls" over ${side('localCandidateId')} to '
       '${side('remoteCandidateId')}'
       '${protocol == null ? '' : ' ($protocol)'}, '
-      '$sent bytes sent and $got received';
+      '$sent bytes sent and $got received; candidates: $counted';
+}
+
+/// "2 host, 1 srflx", or "none". Theirs at none is the decisive one: no
+/// candidate of the peer's ever arrived, which is the relay and not the
+/// network between the two phones.
+String _kinds(List<StatsReport> reports, String type) {
+  final counts = <String, int>{};
+  for (final r in reports.where((r) => r.type == type)) {
+    final kind = '${r.values['candidateType'] ?? '?'}';
+    counts[kind] = (counts[kind] ?? 0) + 1;
+  }
+  if (counts.isEmpty) return 'none';
+  final kinds = counts.keys.toList()..sort();
+  return kinds.map((k) => '${counts[k]} $k').join(', ');
 }
 
 /// Makes real links, each over its own `RTCPeerConnection`.
@@ -136,6 +155,10 @@ class WebRtcLink implements PeerLink {
   final List<RTCIceCandidate> _waiting = [];
   bool _remoteSet = false;
   bool _saidReflexive = false;
+
+  /// Whether a candidate found now goes out on its own. Not until the
+  /// description has gone out with the candidates found before it.
+  bool _sendsCandidates = false;
   bool _gone = false;
 
   /// The last ICE and connection states seen, so a failure can say what it
@@ -177,6 +200,17 @@ class WebRtcLink implements PeerLink {
   /// closed before it was ever asked for anything never touches WebRTC.
   Future<RTCPeerConnection> get _connection => _pc ??= _connect();
 
+  /// How long a description waits for gathering to finish before it goes
+  /// out with what has been found so far.
+  ///
+  /// Every candidate that is not in the description crosses the relay on
+  /// its own, at seconds a hop, and public relays rate-limit a burst of
+  /// them and then ban the key: damus said no to nine of fifteen sent in
+  /// one second, and this client read every no as a yes. Gathering on a
+  /// phone is done well inside this; the cap is for a STUN server that
+  /// never answers.
+  static const gatherFor = Duration(milliseconds: 1500);
+
   @override
   Future<String> makeOffer() async {
     final pc = await _connection;
@@ -188,7 +222,7 @@ class WebRtcLink implements PeerLink {
     );
     final offer = await pc.createOffer({});
     await pc.setLocalDescription(offer);
-    return offer.sdp!;
+    return _described(pc, offer);
   }
 
   @override
@@ -207,7 +241,34 @@ class WebRtcLink implements PeerLink {
     await _remoteIsSet(pc);
     final answer = await pc.createAnswer({});
     await pc.setLocalDescription(answer);
-    return answer.sdp!;
+    return _described(pc, answer);
+  }
+
+  /// [description] with the candidates gathered by now inside it, after
+  /// waiting [gatherFor] at most for gathering to finish. From here on a
+  /// candidate found late goes out on its own, as before; the ones found
+  /// while waiting were never sent twice.
+  Future<String> _described(
+    RTCPeerConnection pc,
+    RTCSessionDescription description,
+  ) async {
+    if (pc.iceGatheringState !=
+        RTCIceGatheringState.RTCIceGatheringStateComplete) {
+      final done = Completer<void>();
+      pc.onIceGatheringState = (state) {
+        if (state == RTCIceGatheringState.RTCIceGatheringStateComplete &&
+            !done.isCompleted) {
+          done.complete();
+        }
+      };
+      await done.future.timeout(gatherFor, onTimeout: () {});
+      pc.onIceGatheringState = null;
+    }
+    _sendsCandidates = true;
+    // The browser's copy carries the candidates; the one handed back from
+    // createOffer was made before any were found.
+    final withCandidates = await pc.getLocalDescription();
+    return withCandidates?.sdp ?? description.sdp!;
   }
 
   @override
@@ -301,7 +362,7 @@ class WebRtcLink implements PeerLink {
       _saidReflexive = true;
       _say(LinkStatus(LinkStage.reflexive, peer: peer));
     }
-    _candidates.add(jsonEncode(candidate.toMap()));
+    if (_sendsCandidates) _candidates.add(jsonEncode(candidate.toMap()));
   }
 
   void _iceState(RTCIceConnectionState state) {

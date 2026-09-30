@@ -566,6 +566,28 @@ void main() {
       expect(find.byKey(const Key('room-peer-ana')), findsNothing);
     });
 
+    testWidgets("a relay's refusal shows in its own words until the next "
+        'message it takes', (tester) async {
+      final net = FakeNetwork();
+      final container = _hosting(net);
+      await _pump(tester, container, const RoomScreen());
+      final reach = container.read(reachProvider.notifier);
+
+      expect(find.byKey(const Key('room-refused')), findsNothing);
+      reach.note(const RendezvousStep(SignalingStatus(
+        SignalingStep.refused,
+        reason: 'ice: rate-limited: you are noting too much',
+      )));
+      await tester.pump();
+      expect(
+        _textAt(tester, 'room-refused'),
+        contains('rate-limited: you are noting too much'),
+      );
+
+      reach.note(const RendezvousStep(SignalingStatus(SignalingStep.announced)));
+      await tester.pump();
+      expect(find.byKey(const Key('room-refused')), findsNothing);
+    });
     testWidgets('a peer that was heard shows before it connects, and a failure '
         'shows its reason', (tester) async {
       final net = FakeNetwork();

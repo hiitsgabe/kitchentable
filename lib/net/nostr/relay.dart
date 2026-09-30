@@ -149,6 +149,19 @@ class Filter {
       };
 }
 
+/// What became of one publish: the relays that took the event and the
+/// ones that said no, each with its reason.
+@immutable
+class Published {
+  const Published({required this.accepted, required this.refused});
+
+  final Set<Uri> accepted;
+  final Map<Uri, String> refused;
+
+  @override
+  String toString() => 'Published(accepted: $accepted, refused: $refused)';
+}
+
 /// One relay coming or going.
 @immutable
 class RelayStatus {
@@ -266,11 +279,30 @@ class Relay {
       };
 
   /// Sends [event] to every relay and returns once each has answered or
-  /// timed out. A relay that is down when this is called is skipped; there
-  /// is nowhere to keep the event for it, and by the time it is back the
-  /// event would be stale anyway.
-  Future<void> publish(NostrEvent event) async {
-    await Future.wait([for (final s in _sockets) s._publish(event)]);
+  /// timed out, with which relays took it and which refused it and why. A
+  /// relay that is down when this is called is skipped; there is nowhere
+  /// to keep the event for it, and by the time it is back the event would
+  /// be stale anyway.
+  ///
+  /// A refusal is the relay's own words after `["OK", id, false, ...]`:
+  /// "rate-limited: you are noting too much", "restricted: sign up at".
+  /// Public relays say no more often than they go down, and for a while
+  /// this client read every OK as a yes.
+  Future<Published> publish(NostrEvent event) async {
+    final accepted = <Uri>{};
+    final refused = <Uri, String>{};
+    await Future.wait([
+      for (final s in _sockets)
+        s._publish(event).then((answer) {
+          if (answer == null) return;
+          if (answer.isEmpty) {
+            accepted.add(s.url);
+          } else {
+            refused[s.url] = answer;
+          }
+        }),
+    ]);
+    return Published(accepted: accepted, refused: refused);
   }
 
   /// Asks every relay for events matching [filter], from now on.
@@ -330,7 +362,14 @@ class Relay {
           sub.dropped += 1;
         }
       case 'OK':
-        from._oks.remove(message[1])?.complete();
+        // Yes is ''. No is the relay's reason, or a word when it gave none.
+        from._oks.remove(message[1])?.complete(
+          message.length > 2 && message[2] == true
+              ? ''
+              : message.length > 3 && '${message[3]}'.isNotEmpty
+                  ? '${message[3]}'
+                  : 'refused without a reason',
+        );
       case 'EOSE':
         from._eoses.remove(message[1])?.complete();
     }
@@ -349,7 +388,8 @@ class _Socket {
   /// wait on it so that a client used the moment it is built does not skip
   /// a relay that was a few milliseconds from being up.
   final _first = Completer<void>();
-  final Map<String, Completer<void>> _oks = {};
+  /// Publishes waiting on their OK: '' for yes, the reason for no.
+  final Map<String, Completer<String?>> _oks = {};
   final Map<String, Completer<void>> _eoses = {};
   bool _closing = false;
   bool _timedOut = false;
@@ -390,7 +430,10 @@ class _Socket {
         _relay._status.add(RelayStatus(url, connected: false));
       }
       // Nobody is going to answer on a socket that is gone.
-      for (final waiting in [..._oks.values, ..._eoses.values]) {
+      for (final waiting in _oks.values) {
+        waiting.complete(null);
+      }
+      for (final waiting in _eoses.values) {
         waiting.complete();
       }
       _oks.clear();
@@ -410,13 +453,16 @@ class _Socket {
 
   void _send(List<dynamic> message) => _channel?.sink.add(jsonEncode(message));
 
-  Future<void> _publish(NostrEvent event) async {
+  /// '' when this relay took the event, its reason when it refused, null
+  /// when it was down or never answered.
+  Future<String?> _publish(NostrEvent event) async {
     await _first.future;
-    if (!open) return;
-    final ok = _oks[event.id] = Completer<void>();
+    if (!open) return null;
+    final ok = _oks[event.id] = Completer<String?>();
     _send(['EVENT', event.toJson()]);
-    await ok.future.timeout(_relay.okTimeout, onTimeout: () {
+    return ok.future.timeout(_relay.okTimeout, onTimeout: () {
       _oks.remove(event.id);
+      return null;
     });
   }
 

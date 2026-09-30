@@ -265,6 +265,33 @@ void main() {
     expect(received.single.id, event.id);
   });
 
+  test("a relay's no comes back as a no, with its words", () async {
+    // damus answered nine of fifteen candidates sent in one second with
+    // "rate-limited: you are noting too much" and then "banned", and this
+    // client read every OK as a yes: the candidates never crossed and the
+    // link failed for no route, on a screen that said the relay accepted.
+    final yes = await FakeRelay.start();
+    final no = await FakeRelay.start();
+    no.refuse = (_) => 'rate-limited: you are noting too much';
+    addTearDown(yes.close);
+    addTearDown(no.close);
+    final client = Relay([yes.url, no.url]);
+    addTearDown(client.close);
+    final keys = Keys.mint();
+    final event = NostrEvent.sign(
+      keys,
+      kind: 25000,
+      tags: const [['d', 'abcd-efg']],
+      content: 'ice',
+    );
+    await client.subscribe(Filter(kinds: const [25000])).established;
+
+    final sent = await client.publish(event);
+    expect(sent.accepted, {yes.url});
+    expect(sent.refused, {no.url: 'rate-limited: you are noting too much'});
+    expect(no.accepted, isEmpty);
+    expect(yes.accepted, [event.id]);
+  });
   test('a relay that never answers does not hold the handshake', () async {
     // Accepts the connection and says nothing, forever. `relay.nostr.band`
     // did exactly this from the machine this was written on, and the other
