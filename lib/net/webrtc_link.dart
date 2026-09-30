@@ -55,6 +55,37 @@ Map<String, Object> iceConfiguration({
   'sdpSemantics': 'unified-plan',
 };
 
+/// The `a=candidate:` lines of [sdp], each without the `a=` and the line end.
+List<String> candidateLines(String sdp) => [
+      for (final line in sdp.split(RegExp(r'\r?\n')))
+        if (line.startsWith('a=candidate:')) line.substring(2),
+    ];
+
+/// "4 host mdns, 1 srflx v4, 2 srflx v6", or "none": each candidate by its
+/// `typ` and the family of its address. A `.local` name is what Chrome
+/// hands out for a host address, and only a browser on the same LAN can
+/// resolve it; a v6 address pairs only with another v6. So two sides that
+/// each have candidates and no pair may simply have none in common.
+String candidatesInWords(List<String> candidates) {
+  final counts = <String, int>{};
+  for (final c in candidates) {
+    final words = c.split(' ');
+    final at = words.indexOf('typ');
+    final kind = at >= 0 && at + 1 < words.length ? words[at + 1] : '?';
+    final address = words.length > 4 ? words[4] : '';
+    final family = address.endsWith('.local')
+        ? 'mdns'
+        : address.contains(':')
+            ? 'v6'
+            : 'v4';
+    final key = '$kind $family';
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  if (counts.isEmpty) return 'none';
+  final keys = counts.keys.toList()..sort();
+  return keys.map((k) => '${counts[k]} $k').join(', ');
+}
+
 /// What a connection's stats say about the route, in one clause for a
 /// failure on the screen: the DTLS state, the pair of candidates that was
 /// chosen, and whether anything ever came back over it.
@@ -175,6 +206,15 @@ class WebRtcLink implements PeerLink {
   final Stopwatch _since = Stopwatch();
   final List<String> _trail = [];
 
+  /// Every candidate this side found and every one the peer's side handed
+  /// over, in the description or after it. Kept by the link itself: the
+  /// stats list only candidates that made a pair, so "theirs none" from
+  /// the stats could not tell "never arrived" from "arrived and unusable".
+  final List<String> _ours = [];
+  final List<String> _theirs = [];
+  int _oursInDescription = 0;
+  int _theirsInDescription = 0;
+
   final _incoming = StreamController<String>.broadcast();
   final _status = StreamController<LinkStatus>.broadcast();
   final _candidates = StreamController<String>.broadcast();
@@ -237,6 +277,7 @@ class WebRtcLink implements PeerLink {
       _channel = null;
       await pc.setLocalDescription(RTCSessionDescription('', 'rollback'));
     }
+    _takeTheirs(sdp);
     await pc.setRemoteDescription(RTCSessionDescription(sdp, 'offer'));
     await _remoteIsSet(pc);
     final answer = await pc.createAnswer({});
@@ -268,12 +309,21 @@ class WebRtcLink implements PeerLink {
     // The browser's copy carries the candidates; the one handed back from
     // createOffer was made before any were found.
     final withCandidates = await pc.getLocalDescription();
-    return withCandidates?.sdp ?? description.sdp!;
+    final sdp = withCandidates?.sdp ?? description.sdp!;
+    _oursInDescription = candidateLines(sdp).length;
+    return sdp;
+  }
+
+  void _takeTheirs(String sdp) {
+    final lines = candidateLines(sdp);
+    _theirsInDescription += lines.length;
+    _theirs.addAll(lines);
   }
 
   @override
   Future<void> takeAnswer(String sdp) async {
     final pc = await _connection;
+    _takeTheirs(sdp);
     await pc.setRemoteDescription(RTCSessionDescription(sdp, 'answer'));
     await _remoteIsSet(pc);
   }
@@ -286,6 +336,7 @@ class WebRtcLink implements PeerLink {
       json['sdpMid'] as String?,
       json['sdpMLineIndex'] as int?,
     );
+    _theirs.add(ice.candidate ?? '');
     if (!_remoteSet) {
       _waiting.add(ice);
       return;
@@ -358,6 +409,7 @@ class WebRtcLink implements PeerLink {
     // The end of gathering comes as an empty candidate on some stacks and
     // as nothing on others; either way it is not a candidate.
     if (text == null || text.isEmpty || _candidates.isClosed) return;
+    _ours.add(text);
     if (!_saidReflexive && text.contains(' typ srflx ')) {
       _saidReflexive = true;
       _say(LinkStatus(LinkStage.reflexive, peer: peer));
@@ -495,7 +547,14 @@ class WebRtcLink implements PeerLink {
     }
     return LinkFailure(
       peer: failure.peer,
-      reason: '${failure.reason}. States: ${_trail.join(', ')}. Route: $route',
+      reason: '${failure.reason}. States: ${_trail.join(', ')}. '
+          'Ours: ${candidatesInWords(_ours)} '
+          '($_oursInDescription in the description, '
+          '${_ours.length - _oursInDescription} after). '
+          'Theirs: ${candidatesInWords(_theirs)} '
+          '($_theirsInDescription in the description, '
+          '${_theirs.length - _theirsInDescription} after). '
+          'Paired: $route',
       needsTurn: failure.needsTurn,
     );
   }
