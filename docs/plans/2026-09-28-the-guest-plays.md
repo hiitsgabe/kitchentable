@@ -403,3 +403,38 @@ matched both `forget` sites; the retry case then failed on its wait.
 
 **Still unknown until the next check:** what the phone's own lines said,
 and now, which ICE state the host's failure names.
+
+## What the third look found, with a browser on the VM
+
+The user's answer to "is either device on a VPN" was that it has to work
+regardless: VPN or not, one machine, one network, two networks. That is
+the right answer, and it moved the work from asking for screenshots to
+reproducing on the VM. Playwright's Chromium was put in the scratchpad
+(the installer stalled after the download; the zip was unpacked by hand)
+and a script opens two headless tabs on one room link, each in its own
+context, and prints every `[net]` console line, which the transport now
+writes for every step on web.
+
+**Same machine works, and the numbers explain the phone.** The two tabs
+open a link in about ten seconds after the offer, of which ICE is under
+a second; the rest is the public relay at two to four seconds a hop for
+the offer, the answer and each candidate (and damus answered 503 once,
+nos.lol carried it). The open deadline was twenty seconds from the link
+being made. A phone on a slower path is past that while doing everything
+right, and the host's second screenshot, ICE at "disconnected" when the
+connection failed, is exactly one side closing at its deadline a link the
+other had just connected.
+
+**The deadline now counts from the last change**: an ICE or connection
+state, or a candidate taken from the peer, each puts thirty seconds back
+on it. A link that is moving is not stuck; one that has stopped moving
+still fails, in words, with the last state it reached. Two cases pin the
+two kinds of change and a probe on each `_stir` site goes red.
+
+**The guard built after the first check was the second check's bug.**
+Worth remembering as a shape: a deadline chosen from one observation
+("connecting with no end") and measured from the wrong moment.
+
+The failure sentence also carries the trail with seconds, the DTLS state
+and the chosen candidate pair read off `getStats` before the connection
+is closed, so the next screenshot from any device is decisive on its own.
