@@ -34,7 +34,7 @@ class WebRtcTransport implements Transport {
     required String code,
     required this._links,
     Duration announceEvery = const Duration(seconds: 30),
-    this.openWithin = const Duration(seconds: 20),
+    this.openWithin = const Duration(seconds: 30),
   }) : _relay = relay,
        _me = keys.public {
     _signaling = Signaling(
@@ -50,7 +50,8 @@ class WebRtcTransport implements Transport {
   final LinkFactory _links;
   final String _me;
 
-  /// How long a link gets to open once it exists.
+  /// How long a link that has not opened may go with nothing changing on
+  /// it: no ICE or connection state, no candidate from the peer.
   ///
   /// A link whose ICE never settles reports nothing until the browser
   /// gives up, which is half a minute or never, and on the first two-phone
@@ -58,11 +59,23 @@ class WebRtcTransport implements Transport {
   /// was made, and the screen read "connecting" with no end to it. Past this
   /// the link is failed with a reason and closed, so the screen has a fact
   /// to show and the peer can be tried again on its next announcement.
+  ///
+  /// Counted from the last change and not from the link being made, on
+  /// purpose. Every description and candidate crosses a public relay, at
+  /// seconds a hop, and a phone on a slow network can be twenty seconds
+  /// from its offer to its channel while doing everything right; the second
+  /// check read exactly like one side giving up on a link the other had
+  /// just connected. A link that is still moving is not stuck.
   final Duration openWithin;
 
   /// The last thing each link said about its own state, so a deadline can
   /// say where the link was when it ran out rather than only that it did.
   final Map<String, String> _lastSaid = {};
+
+  /// Per link still opening: what to do when it has gone quiet for
+  /// [openWithin], and the timer counting down to that.
+  final Map<PeerLink, void Function()> _quiet = {};
+  final Map<PeerLink, Timer> _idle = {};
   late final Signaling _signaling;
 
   /// Every link made and not yet gone, open or still negotiating.
@@ -120,6 +133,11 @@ class WebRtcTransport implements Transport {
     _closed = true;
     await _signals?.cancel();
     await _status?.cancel();
+    for (final timer in _idle.values) {
+      timer.cancel();
+    }
+    _idle.clear();
+    _quiet.clear();
     for (final end in List.of(_ends.values)) {
       await end.close();
     }
@@ -183,6 +201,7 @@ class WebRtcTransport implements Transport {
           await end.takeAnswer(signal.body);
         case SignalKind.ice:
           await end.takeCandidate(signal.body);
+          _stir(end);
       }
     } on Object catch (e) {
       // A description or candidate the link would not take. It came over a
@@ -220,23 +239,39 @@ class WebRtcTransport implements Transport {
     });
     end.candidates.listen((candidate) => _signaling.ice(peer, candidate));
     end.status.listen((status) {
-      if (status.detail != null) _lastSaid[peer] = status.detail!;
+      if (status.detail != null) {
+        _lastSaid[peer] = status.detail!;
+        _stir(end);
+      }
       _step(LinkStep(status));
     });
 
-    end.open.timeout(openWithin, onTimeout: () {
+    // Open, failed by the link itself, or failed here for going quiet:
+    // whichever comes first, and the quiet timer is put back on every
+    // change until then.
+    final settled = Completer<LinkFailure?>();
+    end.open.then((failure) {
+      if (!settled.isCompleted) settled.complete(failure);
+    });
+    _quiet[end] = () {
+      if (settled.isCompleted) return;
       // Not needsTurn: that verdict belongs to ICE finishing with no pair.
       // This is ICE never finishing, which the screen says as what it is.
-      final failure = LinkFailure(
-        peer: peer,
-        reason: 'the channel did not open within ${openWithin.inSeconds} '
-            'seconds of the link being made'
-            '${_lastSaid[peer] == null ? '' : '. States: ${_lastSaid[peer]}'}',
-        needsTurn: false,
+      settled.complete(
+        LinkFailure(
+          peer: peer,
+          reason: 'the channel did not open, and nothing changed on the '
+              'link for ${openWithin.inSeconds} seconds'
+              '${_lastSaid[peer] == null ? '' : '. States: ${_lastSaid[peer]}'}',
+          needsTurn: false,
+        ),
       );
       unawaited(end.close());
-      return failure;
-    }).then((failure) {
+    };
+    _stir(end);
+    settled.future.then((failure) {
+      _idle.remove(end)?.cancel();
+      _quiet.remove(end);
       if (failure != null) {
         _step(
           LinkStep(LinkStatus(LinkStage.failed, peer: peer, failure: failure)),
@@ -263,11 +298,22 @@ class WebRtcTransport implements Transport {
     return end;
   }
 
+  /// Something changed on [end], so it gets [openWithin] again from now.
+  void _stir(PeerLink end) {
+    final quiet = _quiet[end];
+    if (quiet == null) return;
+    _idle[end]?.cancel();
+    _idle[end] = Timer(openWithin, quiet);
+  }
+
   void _tell(PeerEvent event) {
     if (!_presence.isClosed) _presence.add(event);
   }
 
   void _step(ConnectionStep step) {
+    // The browser console is the one place a phone's side can be read
+    // off after the fact, so every step goes there as well as to the screen.
+    if (kIsWeb) debugPrint('[net] $step');
     if (!_steps.isClosed) _steps.add(step);
   }
 }
