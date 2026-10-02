@@ -159,7 +159,8 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     final thumb = m.scaled(52);
     // The deck stands at the left of the hand's row, so the hand's room is
     // the width less the deck's thickest pile and the gap.
-    final handRoom = media.size.width -
+    final handRoom =
+        media.size.width -
         media.padding.horizontal -
         m.safeInset * 2 -
         (thumb + LibraryStack.spreadFor(1, 1)) -
@@ -222,9 +223,8 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                     MoveCard(cardId: c.id, toZoneId: battlefield.id),
                   ),
                   onInspect: _inspect,
-                  onSendHome: (c) => play.run(
-                    MoveCard(cardId: c.id, toZoneId: command.id),
-                  ),
+                  onSendHome: (c) =>
+                      play.run(MoveCard(cardId: c.id, toZoneId: command.id)),
                   game: game,
                 ),
         ),
@@ -236,32 +236,33 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     final picked = switch (renderer) {
       TableRenderer.grid => null,
       TableRenderer.focus => watched ?? seat.id,
-      TableRenderer.split => others.any((v) => v.seatId == watched)
-          ? watched
-          : others.firstOrNull?.seatId,
+      TableRenderer.split =>
+        others.any((v) => v.seatId == watched)
+            ? watched
+            : others.firstOrNull?.seatId,
     };
 
     final area = switch (renderer) {
       TableRenderer.grid => TableGrid(
-          metrics: m,
-          seats: views,
-          mineId: seat.id,
-          board: boardFor,
-        ),
+        metrics: m,
+        seats: views,
+        mineId: seat.id,
+        board: boardFor,
+      ),
       TableRenderer.focus => FocusView(
-          seats: views,
-          mineId: seat.id,
-          watchedSeatId: watched,
-          onWatched: (id) => ref.read(watchedSeatProvider.notifier).state = id,
-          board: boardFor,
-        ),
+        seats: views,
+        mineId: seat.id,
+        watchedSeatId: watched,
+        onWatched: (id) => ref.read(watchedSeatProvider.notifier).state = id,
+        board: boardFor,
+      ),
       TableRenderer.split => SplitView(
-          metrics: m,
-          seats: views,
-          mineId: seat.id,
-          watchedSeatId: watched,
-          board: boardFor,
-        ),
+        metrics: m,
+        seats: views,
+        mineId: seat.id,
+        watchedSeatId: watched,
+        board: boardFor,
+      ),
     };
 
     return Scaffold(
@@ -314,52 +315,57 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
               // the seat panel to the bottom of a phone: the deck is the one
               // pile you touch every turn and it never moves, and it costs
               // the board nothing.
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  KeyedSubtree(
-                    key: const Key('deck-bar'),
-                    child: LibraryStack(
-                      metrics: m,
-                      count: library.size,
-                      of: play.deckSizeAt(seat.id),
-                      width: thumb,
-                      game: game,
-                      onDraw: () => play.run(
-                        DrawCards(
-                          fromZoneId: library.id,
-                          toZoneId: hand.id,
-                          count: 1,
+              Container(
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: Palette.rule)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    KeyedSubtree(
+                      key: const Key('deck-bar'),
+                      child: LibraryStack(
+                        metrics: m,
+                        count: library.size,
+                        of: play.deckSizeAt(seat.id),
+                        width: thumb,
+                        game: game,
+                        onDraw: () => play.run(
+                          DrawCards(
+                            fromZoneId: library.id,
+                            toZoneId: hand.id,
+                            count: 1,
+                          ),
                         ),
+                        onWork: _workTheDeck,
                       ),
-                      onWork: _workTheDeck,
                     ),
-                  ),
-                  SizedBox(width: m.scaled(10)),
-                  Expanded(
-                    child: HandSheet(
-                      metrics: m,
-                      cardWidth: handCard,
-                      startsOpen: !handIsExpensive(
-                        media.size,
-                        m,
-                        room: handRoom,
-                        card: handCard,
-                        cards: mine ? hand.cards.length : 0,
+                    SizedBox(width: m.scaled(10)),
+                    Expanded(
+                      child: HandSheet(
+                        metrics: m,
+                        cardWidth: handCard,
+                        startsOpen: !handIsExpensive(
+                          media.size,
+                          m,
+                          room: handRoom,
+                          card: handCard,
+                          cards: mine ? hand.cards.length : 0,
+                        ),
+                        cards: mine ? hand.cards : const [],
+                        printings: _printings,
+                        onPlay: (c) => play.run(
+                          MoveCard(cardId: c.id, toZoneId: battlefield.id),
+                        ),
+                        onInspect: _inspect,
+                        onReorder: (id, to) => play.run(
+                          MoveCard(cardId: id, toZoneId: hand.id, at: to),
+                        ),
+                        game: game,
                       ),
-                      cards: mine ? hand.cards : const [],
-                      printings: _printings,
-                      onPlay: (c) => play.run(
-                        MoveCard(cardId: c.id, toZoneId: battlefield.id),
-                      ),
-                      onInspect: _inspect,
-                      onReorder: (id, to) => play.run(
-                        MoveCard(cardId: id, toZoneId: hand.id, at: to),
-                      ),
-                      game: game,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               // Only where there is a D-pad. These name the buttons on a
               // remote, and on a phone or a desktop they are two rows of
