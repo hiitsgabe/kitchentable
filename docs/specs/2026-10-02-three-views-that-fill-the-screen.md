@@ -91,7 +91,6 @@ only the label on the glass changes.
 
 ## Open, deferred
 
-- Whether the default view per device is Focus (phone) and Grid (tablet), or a
-  remembered last choice. Start with: remembered choice, falling back to Focus
-  on a narrow screen and Grid on a wide one.
+- Default view is Grid, the divided one, on every device. The player's last
+  pick is remembered and wins over that once they choose.
 - Encryption of the relay traffic (a separate track, folded into sealed hands).
