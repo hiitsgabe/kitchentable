@@ -23,7 +23,7 @@ import 'package:kitchentable/features/room/start_screen.dart';
 import 'package:kitchentable/features/settings/player_name.dart';
 import 'package:kitchentable/net/link.dart';
 import 'package:kitchentable/net/signaling.dart';
-import 'package:kitchentable/net/webrtc_transport.dart';
+import 'package:kitchentable/net/connection_report.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 import 'package:kitchentable/table/actions/table_action.dart';
 import 'package:kitchentable/table/model/seat_owner.dart';
@@ -540,7 +540,9 @@ void main() {
       // friend has a line at all.
       expect(_textAt(tester, 'room-relay').toLowerCase(), contains('reaching'));
       expect(_textAt(tester, 'room-build'), 'build $buildStamp');
-      expect(_textAt(tester, 'room-stun').toLowerCase(), contains('waiting'));
+      // The STUN line belongs to the WebRTC path and shows only once a STUN
+      // server has answered; before that, and on the relay path, it is absent.
+      expect(find.byKey(const Key('room-stun')), findsNothing);
       expect(find.byKey(const Key('room-peer-ana')), findsNothing);
 
       final reach = container.read(reachProvider.notifier);

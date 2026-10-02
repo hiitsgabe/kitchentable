@@ -6,14 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/deck.dart';
 import '../../decks/model/deck_format.dart';
-import '../../net/link.dart';
 import '../../net/mesh.dart';
 import '../../net/nostr/keys.dart';
 import '../../net/nostr/relay.dart';
 import '../../net/signaling.dart';
 import '../../net/transport.dart';
-import '../../net/webrtc_link.dart';
-import '../../net/webrtc_transport.dart';
+import '../../net/connection_report.dart';
+import '../../net/link.dart';
+import '../../net/relay_transport.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../table/model/seat_owner.dart';
 import '../../table/model/table_state.dart';
@@ -690,12 +690,16 @@ final transportFactoryProvider = Provider<Transport Function(String code)>(
 );
 
 Transport _reachOut(String code, {TurnServer? turn}) {
-  final transport = WebRtcTransport(
+  // The relay path: the game rides on the relays the room is found on, which
+  // every network reaches with an outbound connection, so two phones that
+  // could never open a direct link to each other still play. A direct
+  // WebRTC link is the faster path and belongs over this as an upgrade; it
+  // is kept in the tree for that and is not what a room uses to connect
+  // today, because this connects everywhere and needs nothing filled in.
+  final transport = RelayTransport(
     relay: Relay([for (final url in defaultRelays) Uri.parse(url)]),
     keys: Keys.mint(),
     code: code,
-    links: const WebRtcLinkFactory(),
-    turn: turn,
   );
   // Not awaited: the room screen has to draw while the relay is being
   // reached, and everything join finds out is reported on `steps`, which
@@ -751,8 +755,8 @@ class ReachHere extends Notifier<Reach> {
   @override
   Reach build() {
     final transport = ref.watch(transportProvider);
-    if (transport is WebRtcTransport) {
-      final steps = transport.steps.listen(note);
+    if (transport is ReportsConnection) {
+      final steps = (transport as ReportsConnection).steps.listen(note);
       ref.onDispose(steps.cancel);
     }
     return const Reach();

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'connection_report.dart';
 import 'link.dart';
 import 'nostr/keys.dart';
 import 'nostr/relay.dart';
@@ -27,7 +28,7 @@ import 'transport.dart';
 /// link that has been introduced and is still negotiating is not a peer
 /// yet, and one that has closed or failed is not a peer any more, in the
 /// same call that reports it on [presence], so the two never disagree.
-class WebRtcTransport implements Transport {
+class WebRtcTransport implements Transport, ReportsConnection {
   WebRtcTransport({
     required Relay relay,
     required Keys keys,
@@ -114,6 +115,7 @@ class WebRtcTransport implements Transport {
   /// did, and what each link did. One stream, in the order it happened, so
   /// a screen can tell the story straight: relay reached, friend here,
   /// offer sent, STUN answered, link open. Or link failed, and why.
+  @override
   Stream<ConnectionStep> get steps => _steps.stream;
 
   /// Subscribes under the code and announces this phone. Links open as
@@ -324,44 +326,4 @@ class WebRtcTransport implements Transport {
     if (kIsWeb) debugPrint('[net] $step');
     if (!_steps.isClosed) _steps.add(step);
   }
-}
-
-/// One thing that happened on the way to a connection, for a screen to
-/// state as a fact. Either the rendezvous said it or a link did.
-@immutable
-sealed class ConnectionStep {
-  const ConnectionStep();
-}
-
-/// The relay side: connected, announced, a peer heard, an offer sent.
-final class RendezvousStep extends ConnectionStep {
-  const RendezvousStep(this.status);
-
-  final SignalingStatus status;
-
-  @override
-  bool operator ==(Object other) =>
-      other is RendezvousStep && other.status == status;
-
-  @override
-  int get hashCode => status.hashCode;
-
-  @override
-  String toString() => 'RendezvousStep($status)';
-}
-
-/// The link side: STUN answered, the channel opened, it failed and why.
-final class LinkStep extends ConnectionStep {
-  const LinkStep(this.status);
-
-  final LinkStatus status;
-
-  @override
-  bool operator ==(Object other) => other is LinkStep && other.status == status;
-
-  @override
-  int get hashCode => status.hashCode;
-
-  @override
-  String toString() => 'LinkStep($status)';
 }

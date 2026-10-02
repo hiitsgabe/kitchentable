@@ -142,14 +142,16 @@ class RoomScreen extends ConsumerWidget {
             failed: true,
             text: 'A relay refused this phone\'s message (${reach.refused})',
           ),
-        _Fact(
-          metrics: m,
-          id: 'room-stun',
-          done: reach.stunAnswered,
-          text: reach.stunAnswered
-              ? 'STUN: answered, so this phone knows its own address'
-              : 'STUN: waiting for an answer',
-        ),
+        // Only on the WebRTC path, which is the only one STUN is part of.
+        // The relay path never asks a STUN server anything, so a line about
+        // one would be a fact about a mechanism that is not in use.
+        if (reach.stunAnswered)
+          _Fact(
+            metrics: m,
+            id: 'room-stun',
+            done: true,
+            text: 'STUN: answered, so this phone knows its own address',
+          ),
         for (final peer in reach.open)
           _Fact(
             metrics: m,
