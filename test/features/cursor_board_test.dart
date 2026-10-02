@@ -304,12 +304,14 @@ void main() {
 
   testWidgets('a card is readable before the board is wide, and grows after',
       (tester) async {
-    // The rule that replaced the fit: a card is 72 points, or a ninth of the
-    // board, whichever is bigger. A phone shows about five across and a
-    // desktop about nine, with no breakpoint between them.
+    // The rule that replaced the fit: a card is 72 points, or a seventh of
+    // the board, whichever is bigger. A phone shows about five across and a
+    // desktop about seven, with no breakpoint between them; 504 is where
+    // the seventh overtakes the floor.
     expect(cardWidthFor(358), readableCard);
-    expect(cardWidthFor(640), readableCard);
-    expect(cardWidthFor(1248), closeTo(1248 / 9, 0.01));
+    expect(cardWidthFor(504), readableCard);
+    expect(cardWidthFor(640), closeTo(640 / 7, 0.01));
+    expect(cardWidthFor(1248), closeTo(1248 / 7, 0.01));
     expect(cardWidthFor(1248), greaterThan(readableCard));
   });
 

@@ -66,7 +66,10 @@ class SeatBoard extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             child: LayoutBuilder(builder: (context, badge) => Row(
               children: [
-                Flexible(
+                // The name takes the row and gives way last: what else is
+                // here is a count and a number, and a name cut to one letter
+                // beside a whole "hand 3" is the wrong thing kept.
+                Expanded(
                   child: Text(
                     label,
                     key: Key('badge-$seatId'),
@@ -91,7 +94,7 @@ class SeatBoard extends StatelessWidget {
                     ),
                   ),
                 ],
-                const Spacer(),
+                SizedBox(width: m.scaled(8)),
                 Text(
                   '$life',
                   style: TextStyle(
