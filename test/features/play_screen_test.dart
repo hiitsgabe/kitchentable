@@ -12,6 +12,7 @@ import 'package:kitchentable/features/lobby/lobby.dart';
 import 'package:kitchentable/features/play/play_controller.dart';
 import 'package:kitchentable/features/menu/menu_controller.dart';
 import 'package:kitchentable/features/play/play_screen.dart';
+import 'package:kitchentable/features/play/renderers/renderer_choice.dart';
 import 'package:kitchentable/features/play/renderers/free_canvas.dart';
 import 'package:kitchentable/features/play/renderers/stacked_seats.dart';
 import 'package:kitchentable/features/play/dice/dice_tray.dart';
@@ -63,6 +64,7 @@ Future<ProviderContainer> _seatedPod(
   Size window = const Size(390, 844),
   bool withCommander = false,
   bool withCatalog = false,
+  TableRenderer? renderer,
 }) async {
   tester.view.physicalSize = window;
   tester.view.devicePixelRatio = 1;
@@ -96,6 +98,12 @@ Future<ProviderContainer> _seatedPod(
         ],
         seed: 'abc',
       );
+
+  // The table opens on the grid now; a case that is about one of the other
+  // views says which, the way a player would pick it.
+  if (renderer != null) {
+    container.read(rendererChoiceProvider.notifier).choose(renderer);
+  }
 
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -230,7 +238,7 @@ void main() {
 
     expect(
       find.descendant(
-        of: find.byKey(const Key('band-s2')),
+        of: find.byKey(const Key('watched-s2')),
         matching: find.text("Ana's Swamp"),
       ),
       findsOneWidget,
@@ -319,17 +327,18 @@ void main() {
     expect(container.read(playProvider)!.seat('s1')!.life, 39);
   });
 
-  testWidgets('a narrow window stacks the bands', (tester) async {
-    await _seatedPod(tester, ['you', 'Carla', 'Diego']);
+  testWidgets('the stacked view draws the others as bands', (tester) async {
+    await _seatedPod(tester, ['you', 'Carla', 'Diego'],
+        renderer: TableRenderer.stackedSeats);
 
     expect(find.byType(StackedSeats), findsOneWidget);
     expect(find.byType(FreeCanvas), findsNothing);
     expect(find.byType(SeatBand), findsNWidgets(2));
   });
 
-  testWidgets('a wide window opens the canvas', (tester) async {
+  testWidgets('the canvas view puts every seat on one surface', (tester) async {
     await _seatedPod(tester, ['you', 'Carla'],
-        window: const Size(1280, 800));
+        window: const Size(1280, 800), renderer: TableRenderer.freeCanvas);
 
     expect(find.byType(FreeCanvas), findsOneWidget);
     expect(find.byType(StackedSeats), findsNothing);
@@ -374,7 +383,8 @@ void main() {
 
   testWidgets('looking out of another local seat swaps whose hand it is',
       (tester) async {
-    final container = await _seatedPod(tester, ['you', 'Carla']);
+    final container = await _seatedPod(tester, ['you', 'Carla'],
+        renderer: TableRenderer.stackedSeats);
 
     await tester.tap(find.byKey(const Key('band-s2')));
     await tester.pump();
@@ -816,7 +826,7 @@ void main() {
     // this the wide window opened the bands and the pile found below was the
     // one in the column beside the board.
     final container = await _seatedPod(tester, ['you'],
-        window: const Size(1280, 800));
+        window: const Size(1280, 800), renderer: TableRenderer.freeCanvas);
     final play = container.read(playProvider.notifier);
     final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
 
@@ -884,7 +894,8 @@ void main() {
 
   testWidgets('the wide view can make a token too', (tester) async {
     await _seatedPod(tester, ['you'],
-        window: const Size(1280, 800), withCatalog: true);
+        window: const Size(1280, 800), withCatalog: true,
+        renderer: TableRenderer.freeCanvas);
 
     // The default renderer above 720 points is the canvas, and the token
     // control lived only in the column the bands draw beside the mat. Copy
@@ -1029,15 +1040,17 @@ void main() {
 
   testWidgets('the token control is on the same side in both views',
       (tester) async {
-    await _seatedPod(tester, ['you'],
-        window: const Size(1280, 800), withCommander: true);
+    final container = await _seatedPod(tester, ['you'],
+        window: const Size(1280, 800), withCommander: true,
+        renderer: TableRenderer.freeCanvas);
     await tester.pumpAndSettle();
 
     final onCanvas =
         tester.getRect(find.byKey(const Key('make-token'))).center.dx;
     final canvasBoard = tester.getRect(find.byType(FreeCanvas)).center.dx;
 
-    await tester.tap(find.byKey(const Key('switch-renderer')));
+    container.read(rendererChoiceProvider.notifier)
+        .choose(TableRenderer.stackedSeats);
     await tester.pumpAndSettle();
 
     final inBands =
@@ -1127,7 +1140,7 @@ void main() {
     // not write. The widgets each have a case proving they pass the game down
     // once they are given it; nothing but this proves they are given it, and
     // with no printings behind these cards the back is what they all draw.
-    for (final where in ['your-board', 'band-s2']) {
+    for (final where in ['your-board', 'watched-s2']) {
       expect(
         find.descendant(
           of: find.byKey(Key(where)),
@@ -1148,7 +1161,8 @@ void main() {
 
     // And the same on the wide view, which reaches a card through a renderer
     // of its own.
-    await tester.tap(find.byKey(const Key('switch-renderer')));
+    container.read(rendererChoiceProvider.notifier)
+        .choose(TableRenderer.freeCanvas);
     await tester.pumpAndSettle();
 
     expect(
