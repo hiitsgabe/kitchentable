@@ -7,6 +7,7 @@ import 'package:kitchentable/net/mesh.dart';
 import 'package:kitchentable/net/nostr/keys.dart';
 import 'package:kitchentable/net/nostr/relay.dart';
 import 'package:kitchentable/net/signaling.dart';
+import 'package:kitchentable/net/connection_report.dart';
 import 'package:kitchentable/net/transport.dart';
 import 'package:kitchentable/net/webrtc_link.dart';
 import 'package:kitchentable/net/webrtc_transport.dart';
