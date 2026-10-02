@@ -1,34 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
+/// The three ways of putting the table on the screen. Each one fills it.
 enum TableRenderer {
-  /// The table divided equally among the seats, each board filling its share.
-  /// The default: no board floats in an empty margin.
+  /// Everyone at once, each board filling its share. The default.
   grid,
 
-  /// Bands down the screen, one seat each, yours pinned at the bottom.
-  stackedSeats,
+  /// One board at a time, the whole area; swipe or pick to change.
+  focus,
 
-  /// Every seat on a surface you pan and pinch.
-  freeCanvas,
+  /// Two boards: yours and one other.
+  split;
+
+  TableRenderer get next => switch (this) {
+        TableRenderer.grid => TableRenderer.focus,
+        TableRenderer.focus => TableRenderer.split,
+        TableRenderer.split => TableRenderer.grid,
+      };
 }
 
-/// What to draw, given the room and whatever the player picked.
-///
-/// Both directions and not the width alone. A phone held sideways is 844 wide
-/// and clears the cut above, and what the canvas would hand it is a seat's
-/// station: two strips of [matAside] either side of the mat, 28 percent of the
-/// width before a card is drawn, and a 380 unit mat to stand in 390 points less
-/// the chrome. The question the width asks on its own is "is this wide", and
-/// the question it means is "is there room".
-///
-/// The choice wins in both directions. Somebody on a phone who wants the whole
-/// table zoomed out is not wrong, and neither is somebody on a desktop who
-/// prefers the bands.
+/// What to draw: the player's pick, or the grid, which fills the screen on
+/// any size and is what a table opens on.
 TableRenderer rendererFor({TableRenderer? chosen}) =>
-    // The divided view fills the screen on any size and is the one the table
-    // opens on; the others are there for a player who switches to them.
     chosen ?? TableRenderer.grid;
 
 const _key = 'tableRenderer';
@@ -44,7 +37,11 @@ class RendererChoice extends Notifier<TableRenderer?> {
   Future<void> _restore() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_key);
-    if (raw == null) return;
+    // Only if nobody has chosen in the meantime. A choice made in the same
+    // frame as the first read used to be overwritten by what the disk said
+    // a moment later, which turned every view a demo link asked for back
+    // into the previous one.
+    if (raw == null || state != null) return;
     state = TableRenderer.values.where((r) => r.name == raw).firstOrNull;
   }
 
@@ -61,3 +58,18 @@ class RendererChoice extends Notifier<TableRenderer?> {
 
 final rendererChoiceProvider =
     NotifierProvider<RendererChoice, TableRenderer?>(RendererChoice.new);
+
+/// Which other seat the player is looking at: the page Focus is on, or the
+/// second board of a Split. Null means the view's own default (yours in
+/// Focus, the first other in Split). Not the viewer seat, which is the one
+/// this device acts for and does not change by looking.
+class WatchedSeat extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  @override
+  set state(String? seatId) => super.state = seatId;
+}
+
+final watchedSeatProvider =
+    NotifierProvider<WatchedSeat, String?>(WatchedSeat.new);

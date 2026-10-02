@@ -120,3 +120,27 @@ six rows of cards; four in quadrants of 625 by 340, three rows each.
 seat shows its player's name, or "Player N" by its chair when they gave
 none. The seat rail, the board badge and the top bar all read this one
 function.
+
+## What building it found
+
+- **The deck is off the battle zone.** The author's rule, given mid-build:
+  only the graveyard and the commander belong on the battlefield; the deck
+  is fixed in the bottom bar beside the hand, always visible, and the dice
+  and token-making sit under the top bar's overflow with the card size.
+  That also hands your board its full width on a phone, where a rail with
+  the deck in it had cost a column of cards.
+- **Tall screens: opponents across the top, you full width below.** The
+  first cut tiled a phone with three and four players as rows and as a two
+  by two, and your board came out one column wide beside the rail. Forge's
+  Rows and MTGO's top half are what works: the others side by side at the
+  smaller card, yours across the width, two to three in height. Wide
+  screens keep the two by two for four.
+- **A `#demo=N&view=V` link** deals a pod of N on one device from sample
+  decks and opens on view V, so the three views can be screenshotted on a
+  desktop and a phone without a room or a second person. Two bugs fell out
+  of it: the app clears the address bar's hash after reading the room
+  code, so anything read later from it is gone, and `RendererChoice`
+  restored the stored view over a choice made in the same frame.
+- **Measured on the screenshots**, 390 by 844: two players give your board
+  two rows of cards with room over; three and four give two rows; the seat
+  rail is one line; nothing is a band.

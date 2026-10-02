@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,9 +7,6 @@ import '../../table/model/card_instance.dart';
 import '../../table/model/zone.dart';
 import '../../table/shuffle.dart';
 import '../../table/view/seat_view.dart';
-import '../settings/player_name.dart';
-import 'renderers/divided_table.dart';
-import 'widgets/watched_board.dart';
 import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/card_viewer.dart';
@@ -24,19 +19,23 @@ import 'card_size.dart';
 import 'dice/dice_tray.dart';
 import 'look_at_top.dart';
 import 'play_controller.dart';
-import 'renderers/free_canvas.dart';
+import 'renderers/focus_view.dart';
+import 'renderers/grid_view.dart';
 import 'renderers/mat_layout.dart';
 import 'renderers/renderer_choice.dart';
-import 'renderers/stacked_seats.dart';
+import 'renderers/split_view.dart';
+import 'seat_label.dart';
 import 'widgets/command_slot.dart';
 import 'widgets/cursor_board.dart';
 import 'widgets/deck_sheet.dart';
 import 'widgets/hand_sheet.dart';
 import 'widgets/library_stack.dart';
 import 'widgets/pile_sheet.dart';
-import 'widgets/radar_strip.dart';
+import 'widgets/seat_board.dart';
+import 'widgets/seat_rail.dart';
 import 'widgets/token_sheet.dart';
-import 'dragging.dart';
+import 'widgets/watched_board.dart';
+import 'widgets/zone_rail.dart';
 import 'widgets/zone_chip.dart';
 
 class PlayScreen extends ConsumerStatefulWidget {
@@ -144,258 +143,126 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     final command = table.zone('command-${seat.id}');
 
     final renderer = rendererFor(chosen: ref.watch(rendererChoiceProvider));
+    final watched = ref.watch(watchedSeatProvider);
+    final game = play.gameAt(seat.id);
+    final others = views.where((v) => v.seatId != seat.id).toList();
 
-    // The battlefield alone. The graveyard is a pile in the strip beside the
-    // board, which is the one you drop a card onto and open, and a second mat
-    // under the battlefield for the same zone was the leftover: two mats share
-    // the board's height, so the column beside them had half the room it
-    // needed and the corner, the deck and the token button ran off the bottom.
-    //
-    // It costs the D-pad the graveyard. BoardCursor walks the piles the board
-    // is given, so a card in there was reachable with a shoulder button and
-    // now is not. The answer is the pile's own sheet, which a D-pad cannot
-    // open either, and that is a job of its own.
+    String labelOf(SeatView v) => seatLabel(v, chair: views.indexOf(v));
+
+    // The battlefield alone; the piles stand in the rail beside it.
     final zones = [
       (id: battlefield.id, label: battlefield.label, cards: battlefield.cards),
     ];
 
-    // What a card in your hand is drawn at: the card the board under it
+    // What a card in your hand is drawn at: the card a board this wide
     // draws, up to the width one line of the hand has always been.
-    //
-    // The hand's card was a flat `m.scaled(64)` and the board's was whatever
-    // the leftover came to, 32.19 on a 390 point phone, so a card in your
-    // hand was exactly twice the same card on the table and nothing related
-    // the two. Nothing but the width here, because that is all the board's
-    // card depends on once the furniture is a row under it, and the hand
-    // stands outside the board's own LayoutBuilder where the number is
-    // worked out. Above the threshold this comes out over the hand's ceiling
-    // and the ceiling is what the hand draws at, which is the size it has
-    // always drawn at.
-    //
-    // Through the same floor the mat goes through, and not the bare fit. The
-    // mat stops shrinking at [matScaleFloor] and the hand has to stop there
-    // too, or the two disagree again in the one direction nothing asserts: a
-    // phone drew 72 on the table against 50.3 in the hand while a phone held
-    // sideways drew 72 against 64, so the two sizes agreed everywhere except
-    // the window this was all for.
-    final handRoom =
-        media.size.width - media.padding.horizontal - m.safeInset * 2;
-    // The same rule the board uses, off the same width, so a card in your hand
-    // and the same card on the table are the same size up to the hand's own
-    // ceiling. It used to solve for the scale a fixed mat would fit at with a
-    // floor under it; there is no mat to fit any more.
+    final thumb = m.scaled(52);
+    // The deck stands at the left of the hand's row, so the hand's room is
+    // the width less the deck's thickest pile and the gap.
+    final handRoom = media.size.width -
+        media.padding.horizontal -
+        m.safeInset * 2 -
+        (thumb + LibraryStack.spreadFor(1, 1)) -
+        m.scaled(10);
     final handCard = cardWidthFor(handRoom) * cardScale;
 
-    final yours = Column(
-      key: const Key('your-seat'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, box) {
-              // The deck and the commander are cards off this table, so
-              // they are drawn at the table's scale rather than at a point
-              // size of their own. The deck was a fixed 46 while a card
-              // beside it was 270, which is the pile you draw from being
-              // nearly six times smaller than the cards in it.
-              //
-              // They stand beside the mat and not over and under it. Stacked
-              // in a column with the board, a bigger deck leaves the board
-              // less height, which makes the mat smaller, which makes the
-              // deck smaller again: sized straight off this box they came
-              // out at 186 points beside a 99 point card, measured on a 1900
-              // by 900 window. Beside it, the only thing they take is width,
-              // and that has an answer rather than a chase.
-              //
-              // How much past the card the pile and the corner reach: the
-              // leaves the pile is drawn with, and the corner's own padding.
-              // Furniture, which does not scale with the card.
-              //
-              // An estimate and not a measurement, because the deck's count
-              // row can be the wider thing when the card is small and that
-              // width belongs to a widget that has not been laid out yet.
-              // Being a few points out costs the board a few points of
-              // width, which makes its cards a percent or so smaller than
-              // the deck. It cannot put the deck back at six times out.
-              final aside = math.max(
-                LibraryStack.spreadFor(library.size, play.deckSizeAt(seat.id)),
-                m.scaled(6),
-              );
-              final gap = m.scaled(10);
-
-              // Whether the furniture stands in a row under the board rather
-              // than in two columns beside it.
-              //
-              // The columns cost `aside * 2 + gap * 2` of the row before
-              // either of them has drawn a card in it. A tenth of the row
-              // spent on furniture that draws nothing is the share this calls
-              // too much, and at handheld metrics it falls out to 584 points
-              // of row, which is a 616 point window.
-              //
-              // A tenth and not an eighth because it is also where the card
-              // this arithmetic budgets for stops coming out under 64, the
-              // width one line of the hand is drawn at: that crossing is at
-              // 577.5 points of row, six below this, so from the threshold up
-              // the hand draws at its own ceiling.
-              //
-              // The card the board then draws is not the card budgeted for
-              // here, and it is the smaller of the two: measured at a 616
-              // point window the budget comes to 65.2 and the mat draws 58.5,
-              // so between there and about 690 the hand is still up to nine
-              // percent the bigger of the two. It was a hundred percent on a
-              // phone, which is what this is for, and closing the rest of it
-              // means the hand reading a number that is only known inside
-              // this builder.
-              //
-              // The thickest a pile is ever drawn and not the pile as it
-              // stands, so the layout is settled when you sit down. A pile's
-              // leaves are the fraction of itself it has left, so a count
-              // equal to what it started at is a full one whatever that size
-              // was. Read `aside` live instead and the threshold walks from a
-              // 616 point window down to a 240 point one as the deck thins,
-              // which moves the furniture from a row to two columns somewhere
-              // around the fourth turn of a game.
-              final widest = math.max(
-                LibraryStack.spreadFor(1, 1),
-                m.scaled(6),
-              );
-              final inARow = (widest * 2 + gap * 2) / box.maxWidth > 0.1;
-
-              // What the board will draw a card at, worked out from the
-              // width it is about to be given.
-              //
-              // The same rule the board itself uses, so the deck and the
-              // corner beside it come out at the size of the cards on it. It
-              // was three paragraphs of arithmetic solving for the scale a 640
-              // by 380 mat would fit at, on both axes, with the card falling
-              // out of that: the mat is the board now, so there is no fit to
-              // solve and the card is simply the card.
-              //
-              // Minus what stands beside it, because the board only gets the
-              // width the columns leave: a card of w takes w plus its own
-              // furniture out of the row on each side.
-              final beside = inARow ? 0.0 : aside * 2 + gap * 2;
-              final room = box.maxWidth - beside;
-              final card = cardWidthFor(room < 0 ? 0 : room) * cardScale;
-
-              // Built once and arranged twice. Two branches each building
-              // their own board is how the two renderers drifted apart, and
-              // the corner and the deck take the card they are handed here
-              // whichever way round they end up standing.
-              final board = CursorBoard(
-                key: const Key('your-board'),
-                metrics: m,
-                cardScale: cardScale,
-                zones: zones,
-                printings: _printings,
-                onActivate: (c) => play.run(RotateCard(c.id)),
-                onInspect: _inspect,
-                onPlace: _place,
-                game: play.gameAt(seat.id),
-              );
-              final corner = command == null
-                  ? null
-                  : CommandSlot(
-                      metrics: m,
-                      cards: command.cards,
-                      printings: _printings,
-                      width: card,
-                      onTap: (c) => play.run(
-                        MoveCard(cardId: c.id, toZoneId: battlefield.id),
-                      ),
-                      onInspect: _inspect,
-                      onSendHome: (c) => play.run(
-                        MoveCard(cardId: c.id, toZoneId: command.id),
-                      ),
-                      game: play.gameAt(seat.id),
-                    );
-              final deck = LibraryStack(
-                metrics: m,
-                count: library.size,
-                of: play.deckSizeAt(seat.id),
-                width: card,
-                game: play.gameAt(seat.id),
-                onDraw: () => play.run(
-                  DrawCards(
-                    fromZoneId: library.id,
-                    toZoneId: hand.id,
-                    count: 1,
-                  ),
-                ),
-                onWork: _workTheDeck,
-              );
-
-              if (inARow) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: board),
-                    SizedBox(height: gap),
-                    _Underneath(
-                      gap: gap,
-                      band: zoneChipHeight,
-                      aiming: ref.watch(draggingProvider)
-                          ? card * 88 / 63
-                          : null,
-                      graveyard: _chip(m, graveyard, width: card),
-                      dice: _diceTray(width: card),
-                      makeToken: _tokenButton(m, width: card),
-                      command: corner,
-                      library: deck,
-                    ),
-                  ],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _Across(
-                    // The pile and not the chip. The chip is what a graveyard
-                    // is worth on a phone, where an empty one was a card
-                    // sized outline of nothing in the most prominent place on
-                    // the screen. This branch is the window that has room, and
-                    // a phone's answer shipped here too: a 36 point chip in an
-                    // acre of empty table, on a 1909 by 989 desktop.
-                    graveyard: _pile(m, graveyard, width: card),
-                    dice: _diceTray(width: card),
-                    // Across from the deck, with the graveyard, because that
-                    // is where the canvas had to put it: three things do not
-                    // fit the right strip of a 380 unit station, measured at
-                    // 395 against 380. Two views that disagree about which
-                    // hand you reach with is worse than either arrangement.
-                    makeToken: _tokenButton(m, width: card),
-                  ),
-                  SizedBox(width: gap),
-                  Expanded(child: board),
-                  SizedBox(width: gap),
-                  _Beside(metrics: m, command: corner, library: deck),
-                ],
-              );
-            },
-          ),
-        ),
-        HandSheet(
+    Widget boardFor(SeatView v) {
+      if (!(mine && v.seatId == seat.id)) {
+        return SeatBoard(
           metrics: m,
-          cardWidth: handCard,
-          startsOpen: !handIsExpensive(
-            media.size,
-            m,
-            room: handRoom,
-            card: handCard,
-            cards: mine ? hand.cards.length : 0,
+          seatId: v.seatId,
+          label: labelOf(v),
+          life: v.life,
+          mine: false,
+          hand: v.pile('hand')?.count ?? 0,
+          onTapBadge: () => _pick(v.seatId),
+          canvas: WatchedCanvas(
+            metrics: m,
+            seat: v,
+            printings: _printings,
+            game: play.gameAt(v.seatId),
+            onTapCard: _inspect,
+            onInspectCard: _inspect,
           ),
-          cards: mine ? hand.cards : const [],
+        );
+      }
+      return SeatBoard(
+        metrics: m,
+        seatId: v.seatId,
+        label: labelOf(v),
+        life: v.life,
+        mine: true,
+        canvas: CursorBoard(
+          key: const Key('your-board'),
+          metrics: m,
+          cardScale: cardScale,
+          zones: zones,
           printings: _printings,
-          onPlay: (c) =>
-              play.run(MoveCard(cardId: c.id, toZoneId: battlefield.id)),
+          onActivate: (c) => play.run(RotateCard(c.id)),
           onInspect: _inspect,
-          onReorder: (id, to) =>
-              play.run(MoveCard(cardId: id, toZoneId: hand.id, at: to)),
-          game: play.gameAt(seat.id),
+          onPlace: _place,
+          game: game,
+          showLabels: false,
         ),
-      ],
-    );
+        zoneRail: ZoneRail(
+          metrics: m,
+          // The corner and the chip each keep a few points beside the card
+          // for their own edge, so the rail is that much wider than the card
+          // it draws them at.
+          width: thumb + m.scaled(8),
+          graveyard: _chip(m, graveyard, width: thumb),
+          command: command == null
+              ? null
+              : CommandSlot(
+                  metrics: m,
+                  cards: command.cards,
+                  printings: _printings,
+                  width: thumb,
+                  onTap: (c) => play.run(
+                    MoveCard(cardId: c.id, toZoneId: battlefield.id),
+                  ),
+                  onInspect: _inspect,
+                  onSendHome: (c) => play.run(
+                    MoveCard(cardId: c.id, toZoneId: command.id),
+                  ),
+                  game: game,
+                ),
+        ),
+      );
+    }
+
+    // Which chip the rail draws as chosen: the page Focus is on, the second
+    // board of a Split, nothing in the grid where every board is on screen.
+    final picked = switch (renderer) {
+      TableRenderer.grid => null,
+      TableRenderer.focus => watched ?? seat.id,
+      TableRenderer.split => others.any((v) => v.seatId == watched)
+          ? watched
+          : others.firstOrNull?.seatId,
+    };
+
+    final area = switch (renderer) {
+      TableRenderer.grid => TableGrid(
+          metrics: m,
+          seats: views,
+          mineId: seat.id,
+          board: boardFor,
+        ),
+      TableRenderer.focus => FocusView(
+          seats: views,
+          mineId: seat.id,
+          watchedSeatId: watched,
+          onWatched: (id) => ref.read(watchedSeatProvider.notifier).state = id,
+          board: boardFor,
+        ),
+      TableRenderer.split => SplitView(
+          metrics: m,
+          seats: views,
+          mineId: seat.id,
+          watchedSeatId: watched,
+          board: boardFor,
+        ),
+    };
 
     return Scaffold(
       body: SafeArea(
@@ -406,161 +273,94 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
             children: [
               _TopBar(
                 metrics: m,
-                seatName: seat.name,
+                seatName: labelOf(views.firstWhere((v) => v.seatId == seat.id)),
                 life: seat.life,
                 canUndo: play.canUndo,
                 renderer: renderer,
                 onSwitchRenderer: () => ref
                     .read(rendererChoiceProvider.notifier)
-                    .choose(switch (renderer) {
-                      TableRenderer.grid => TableRenderer.stackedSeats,
-                      TableRenderer.stackedSeats => TableRenderer.freeCanvas,
-                      TableRenderer.freeCanvas => TableRenderer.grid,
-                    }),
-                onCardSize: (by) =>
-                    ref.read(cardScaleProvider.notifier).nudge(by),
+                    .choose(renderer.next),
                 onLife: (by) => play.run(ChangeLife(seatId: seat.id, by: by)),
                 onUndo: play.undo,
+                onMore: _more,
                 onLeave: () {
                   play.leave();
                   Navigator.of(context).maybePop();
                 },
               ),
               if (views.length > 1) ...[
-                SizedBox(height: m.scaled(10)),
-                RadarStrip(
+                SizedBox(height: m.scaled(6)),
+                SeatRail(
                   metrics: m,
                   seats: [
                     for (final v in views)
-                      (seatId: v.seatId, name: v.name, life: v.life),
+                      (
+                        seatId: v.seatId,
+                        label: labelOf(v),
+                        life: v.life,
+                        hand: v.pile('hand')?.count ?? 0,
+                        mine: v.seatId == seat.id,
+                      ),
                   ],
-                  focusedSeatId: viewerId,
-                  onJump: _look,
+                  pickedSeatId: picked,
+                  onPick: _pick,
                 ),
               ],
-              SizedBox(height: m.scaled(12)),
-              Expanded(
-                child: switch (renderer) {
-                  TableRenderer.grid => DividedTable(
-                    metrics: m,
-                    seats: views,
-                    viewerSeatId: seat.id,
-                    yours: yours,
-                    watched: (other) => WatchedBoard(
+              SizedBox(height: m.scaled(8)),
+              Expanded(child: area),
+              SizedBox(height: m.scaled(6)),
+              // The bottom bar, fixed whichever view is showing: your deck,
+              // always visible, and your hand beside it, tucked until asked
+              // for. Off the battlefield, the way untap pins the game bar and
+              // the seat panel to the bottom of a phone: the deck is the one
+              // pile you touch every turn and it never moves, and it costs
+              // the board nothing.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  KeyedSubtree(
+                    key: const Key('deck-bar'),
+                    child: LibraryStack(
                       metrics: m,
-                      seat: other,
-                      label: seatLabel(other, chair: views.indexOf(other)),
-                      printings: _printings,
-                      onTapCard: _inspect,
-                      onInspectCard: _inspect,
-                      game: play.gameAt(other.seatId),
+                      count: library.size,
+                      of: play.deckSizeAt(seat.id),
+                      width: thumb,
+                      game: game,
+                      onDraw: () => play.run(
+                        DrawCards(
+                          fromZoneId: library.id,
+                          toZoneId: hand.id,
+                          count: 1,
+                        ),
+                      ),
+                      onWork: _workTheDeck,
                     ),
                   ),
-                  TableRenderer.stackedSeats => StackedSeats(
-                    metrics: m,
-                    seats: views,
-                    viewerSeatId: viewerId,
-                    printings: _printings,
-                    onFocusSeat: _look,
-                    gameFor: play.gameAt,
-                    yours: yours,
-                  ),
-                  TableRenderer.freeCanvas => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: KeyedSubtree(
-                          key: const Key('your-board'),
-                          child: FreeCanvas(
-                            metrics: m,
-                            cardScale: cardScale,
-                            seats: views,
-                            viewerSeatId: viewerId,
-                            printings: _printings,
-                            // Your own deck and your own corner, on the mat
-                            // they belong to. The bands drew both and the
-                            // canvas drew neither, so opening the wide view
-                            // was opening a table with no deck on it.
-                            libraryCount: library.size,
-                            libraryOf: play.deckSizeAt(seat.id),
-                            commandCards: command?.cards,
-                            // The same pile the bands draw, at the surface's
-                            // own card size: a mat is in surface units and
-                            // the canvas is the thing that zooms.
-                            graveyard: _pile(
-                              m,
-                              graveyard,
-                              width: cardOnMat.width,
-                            ),
-                            // Built here and not inside the canvas, for the
-                            // same reason the pile is: one control, so the
-                            // two renderers cannot drift apart.
-                            tokenButton: _tokenButton(
-                              m,
-                              width: cardOnMat.width,
-                            ),
-                            // The same three dice, for the same reason.
-                            diceTray: _diceTray(width: cardOnMat.width),
-                            gameFor: play.gameAt,
-                            onDraw: () => play.run(
-                              DrawCards(
-                                fromZoneId: library.id,
-                                toZoneId: hand.id,
-                                count: 1,
-                              ),
-                            ),
-                            onWorkDeck: _workTheDeck,
-                            onPlayCommand: (c) => play.run(
-                              MoveCard(cardId: c.id, toZoneId: battlefield.id),
-                            ),
-                            onSendHome: command == null
-                                ? null
-                                : (c) => play.run(
-                                    MoveCard(
-                                      cardId: c.id,
-                                      toZoneId: command.id,
-                                    ),
-                                  ),
-                            onTapCard: (c) => play.run(RotateCard(c.id)),
-                            onInspectCard: _inspect,
-                            // Only your own mat takes a drop, and yours is
-                            // this battlefield, so the canvas has no pile
-                            // to name that this is not.
-                            onPlace: (id, x, y) =>
-                                _place(battlefield.id, id, x, y),
-                          ),
-                        ),
+                  SizedBox(width: m.scaled(10)),
+                  Expanded(
+                    child: HandSheet(
+                      metrics: m,
+                      cardWidth: handCard,
+                      startsOpen: !handIsExpensive(
+                        media.size,
+                        m,
+                        room: handRoom,
+                        card: handCard,
+                        cards: mine ? hand.cards.length : 0,
                       ),
-                      // The hand stays below the surface in both renderers.
-                      // A hand floating over the canvas is the one thing the
-                      // spec rules out by geometry.
-                      HandSheet(
-                        metrics: m,
-                        // The same question as the bands ask. The peek is
-                        // about the room the screen has, which is not a
-                        // thing either renderer gets to have its own
-                        // opinion about.
-                        startsOpen: !handIsExpensive(
-                          media.size,
-                          m,
-                          room: handRoom,
-                          card: handCard,
-                          cards: mine ? hand.cards.length : 0,
-                        ),
-                        cards: mine ? hand.cards : const [],
-                        printings: _printings,
-                        onPlay: (c) => play.run(
-                          MoveCard(cardId: c.id, toZoneId: battlefield.id),
-                        ),
-                        onInspect: _inspect,
-                        onReorder: (id, to) => play.run(
-                          MoveCard(cardId: id, toZoneId: hand.id, at: to),
-                        ),
-                        game: play.gameAt(seat.id),
+                      cards: mine ? hand.cards : const [],
+                      printings: _printings,
+                      onPlay: (c) => play.run(
+                        MoveCard(cardId: c.id, toZoneId: battlefield.id),
                       ),
-                    ],
+                      onInspect: _inspect,
+                      onReorder: (id, to) => play.run(
+                        MoveCard(cardId: id, toZoneId: hand.id, at: to),
+                      ),
+                      game: game,
+                    ),
                   ),
-                },
+                ],
               ),
               // Only where there is a D-pad. These name the buttons on a
               // remote, and on a phone or a desktop they are two rows of
@@ -609,37 +409,6 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
         );
   }
 
-  /// Your graveyard, as a pile on the table.
-  ///
-  /// Built here and not twice, because both renderers draw the same pile and
-  /// the only thing they disagree about is where it stands.
-  ///
-  /// The top card is the last one thrown in and not the first: `MoveCard`
-  /// hands the card to `Zone.add` with no index and `Zone.add` inserts at
-  /// nought, so the newest is `cards.first`, which is what `Zone.top` already
-  /// means for a pile whose order is part of the game.
-  ///
-  /// A commander thrown in here goes to its own zone instead, which is where
-  /// Magic keeps one and where you would have to fish it back out of by hand
-  /// otherwise. Magic lets its owner choose between the two; a kitchen table
-  /// wants the common case, and the choice is a rule question for the day
-  /// somebody sits in the referee's chair.
-  Widget _pile(Metrics m, Zone graveyard, {required double width}) {
-    final onTop = graveyard.top;
-
-    return LibraryStack(
-      metrics: m,
-      pileName: 'graveyard',
-      label: graveyard.label,
-      count: graveyard.size,
-      width: width,
-      faceUp: true,
-      face: onTop == null ? null : _printings[onTop.oracleId],
-      onDraw: _lookInThePile,
-      onDrop: _throwIn(graveyard),
-    );
-  }
-
   /// Your graveyard as a chip, which is what it is worth on a screen with a
   /// row under the board rather than strips beside a mat.
   ///
@@ -685,65 +454,6 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
       ),
     );
   };
-
-  /// The way to a token that is not a copy of something already on the table.
-  ///
-  /// Beside the deck and the pile, because that is where the furniture of a
-  /// table lives, and no wider than a card: this column's width comes out of
-  /// the board's, so a control that reached past the deck would shrink every
-  /// card on the mat to pay for itself.
-  Widget _tokenButton(Metrics m, {required double width}) => SizedBox(
-    width: width,
-    child: GestureDetector(
-      key: const Key('make-token'),
-      onTap: _makeToken,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: m.scaled(8)),
-        decoration: BoxDecoration(
-          color: Palette.tile,
-          borderRadius: BorderRadius.circular(m.scaled(8)),
-          border: Border.all(color: Palette.tileEdge),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.add_circle_outline_rounded,
-              size: m.scaled(16),
-              color: Palette.inkMuted,
-            ),
-            SizedBox(height: m.scaled(3)),
-            Text(
-              'Token',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: m.scaled(10),
-                fontWeight: FontWeight.w600,
-                color: Palette.inkMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-
-  /// The three dice, standing with the graveyard across the board from the
-  /// deck.
-  ///
-  /// Built here and handed to both renderers, the way the pile and the token
-  /// control are: this is the third control the two views could each build
-  /// their own of, and drifting apart is what happened the first two times.
-  ///
-  /// No wider than a card between the three of them, because that strip's
-  /// width is what the board's scale is read from.
-  Widget _diceTray({required double width}) => DiceTray(
-    showing: ref.watch(playProvider)?.dice ?? const [],
-    width: width,
-    onRoll: (results) => ref.read(playProvider.notifier).run(RollDice(results)),
-  );
 
   /// Making a token out of a card somebody looked up.
   ///
@@ -847,17 +557,94 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     );
   }
 
-  /// Moves the viewer, and says out loud when it will not move.
+  /// A chip on the rail, or a badge on a board, was tapped.
   ///
-  /// A seat somebody else holds is watched and not played, and a tap that does
-  /// nothing silently is the bug this project has already shipped once, on the
-  /// Play row that refused without a word.
-  void _look(String seatId) {
-    if (ref.read(viewerSeatProvider.notifier).look(seatId)) return;
-    Toast.show(
-      context,
-      'That seat is not yours to look out of',
-      icon: Icons.visibility_off_rounded,
+  /// A seat this device holds becomes the one it acts for, which is a pod on
+  /// one tablet passing the phone round; any seat becomes the one looked at,
+  /// which Focus turns to and Split puts in its second half.
+  void _pick(String seatId) {
+    final table = ref.read(playProvider);
+    final me = ref.read(transportProvider)?.me;
+    final actable = table?.seat(seatId)?.owner.actableHere(me: me) ?? false;
+    if (actable && seatId != ref.read(viewerSeatProvider)) {
+      ref.read(viewerSeatProvider.notifier).look(seatId);
+    }
+    ref.read(watchedSeatProvider.notifier).state = seatId;
+  }
+
+  /// The controls that are not piles of cards: a token, and the dice.
+  ///
+  /// Off the board and in a sheet, because every client the benchmark read
+  /// keeps the battlefield for cards and the furniture for counts; the dice
+  /// and the token button stood in a row under the board that cost a phone
+  /// its second row of cards.
+  Future<void> _more() async {
+    final media = MediaQuery.of(context);
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Palette.surface,
+      builder: (sheet) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(m.scaled(16)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ListTile(
+                key: const Key('make-token'),
+                leading: const Icon(Icons.add_circle_outline_rounded),
+                title: const Text('Make a token'),
+                onTap: () {
+                  Navigator.of(sheet).pop();
+                  _makeToken();
+                },
+              ),
+              // The size of the cards on the table, one notch at a time.
+              // Out of the top bar, which on a phone had no room for them
+              // beside the life and the view; this is where every control
+              // that is not a card goes.
+              ListTile(
+                leading: const Icon(Icons.photo_size_select_large_rounded),
+                title: const Text('Card size'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      key: const Key('cards-smaller'),
+                      icon: const Icon(Icons.zoom_out_rounded),
+                      onPressed: () =>
+                          ref.read(cardScaleProvider.notifier).nudge(-1),
+                    ),
+                    IconButton(
+                      key: const Key('cards-bigger'),
+                      icon: const Icon(Icons.zoom_in_rounded),
+                      onPressed: () =>
+                          ref.read(cardScaleProvider.notifier).nudge(1),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: m.scaled(8)),
+              Consumer(
+                builder: (context, ref, _) => Center(
+                  child: DiceTray(
+                    showing: ref.watch(playProvider)?.dice ?? const [],
+                    width: m.scaled(220),
+                    onRoll: (results) =>
+                        ref.read(playProvider.notifier).run(RollDice(results)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -997,288 +784,6 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
   }
 }
 
-/// The graveyard, standing on the far side of the board from the deck.
-///
-/// Its own column and not under the deck. Stacked with the deck the column is
-/// two cards tall before the corner and the token button are in it at all, and
-/// on a phone that is more height than the row has: the corner, the deck and
-/// the token button ran off the bottom of the screen. Across the board is also
-/// where a graveyard sits at a table when the library is by your right hand.
-///
-/// It scrolls rather than overflowing, for the same reason [_Beside] does.
-class _Across extends StatelessWidget {
-  const _Across({
-    required this.graveyard,
-    required this.dice,
-    required this.makeToken,
-  });
-
-  final Widget graveyard;
-
-  /// On this side of the board and not up beside the deck, which is where the
-  /// plan put them and where they do not fit: the wide view's right strip is
-  /// the mat's own 380 units and the corner and the deck stand 333 of it, so
-  /// the tray and its gap want 48.3 of the 46.3 that are left and the column
-  /// overflowed by two points. Rather than shave the dice down to whatever the
-  /// leftover happens to be this week, they come across with the other things
-  /// that are not piles of cards, which is the argument the token button
-  /// already made when it crossed for the same reason.
-  final Widget dice;
-
-  final Widget makeToken;
-
-  @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        graveyard,
-        const SizedBox(height: 12),
-        dice,
-        const SizedBox(height: 12),
-        makeToken,
-      ],
-    ),
-  );
-}
-
-/// The graveyard, the dice, the token control, the corner and the deck, in a
-/// row under your own board.
-///
-/// Two columns beside the board cost `aside * 2 + gap * 2` of the row before
-/// either of them draws a card, and on a 390 point phone that left the board
-/// 59 percent of the screen with a card on it half the size of the same card
-/// in your hand. Under the board what they cost is height, which is the one
-/// thing a phone held upright has to spare.
-///
-/// The graveyard at one end and the deck at the other, the way the columns
-/// had them: a graveyard sits across the table from the library, and the
-/// controls that are not piles of cards stand between them rather than either
-/// side of the board.
-///
-/// It scrolls sideways rather than overflowing, for the same reason [_Beside]
-/// scrolls down. Five pieces of furniture at a card's width each is more than
-/// a phone's row holds, and the answer is not to shave the card down to
-/// whatever a fifth of the row comes to: these are cards off this table and
-/// the size of the cards on it is the whole reason the board says its scale
-/// out loud.
-class _Underneath extends StatelessWidget {
-  const _Underneath({
-    required this.gap,
-    required this.band,
-    required this.aiming,
-    required this.graveyard,
-    required this.dice,
-    required this.makeToken,
-    required this.command,
-    required this.library,
-  });
-
-  final double gap;
-
-  /// How tall the smallest thing in the band beside the deck stands.
-  ///
-  /// The band is not one height. One height made every slot the same size,
-  /// which flattened the ranking the row exists to show: the command zone
-  /// holds a card and deserves to look like it, the dice were unreadable, and
-  /// the token control was already right. So three tiers off this one number,
-  /// all standing on the same baseline.
-  final double band;
-
-  /// The height every slot takes while a card is in the air, or null.
-  ///
-  /// The chips grow into drop targets then, and a band pinned to its resting
-  /// heights scaled them straight back down, which is a target that looks like
-  /// it grew and did not. Aiming, the tiers stop mattering: they are all a
-  /// card, because they are all the same size of thing to hit.
-  final double? aiming;
-
-  final Widget graveyard;
-  final Widget dice;
-  final Widget makeToken;
-
-  /// Null in a format without commanders, which is not an empty corner: an
-  /// empty one is still drawn, for the reason [_Beside] gives.
-  final Widget? command;
-
-  final Widget library;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    // Along the bottom edge and not up the middle of the row. The pieces
-    // are different heights, and a table stands them all on the same
-    // surface.
-    crossAxisAlignment: CrossAxisAlignment.end,
-    children: [
-      // In the order they matter, most first, because left is where the
-      // eye lands and the first slot is the most valuable thing this row
-      // has to give away.
-      //
-      // It used to run token, dice, graveyard, command, deck. That is the
-      // ranking upside down: the two controls a game touches least had the
-      // first two slots, an empty graveyard was the most prominent object
-      // on the screen, and the deck, which is the only one of the five you
-      // touch every single turn, was last and was the thing that scrolled
-      // off the edge.
-      //
-      // Outside the flex as well as first, so it is laid out before
-      // anything else is given a share: no zoom setting and no number of
-      // chips can take room from it.
-      library,
-      SizedBox(width: gap),
-      // Everything that is not the deck, in one band of equal height and
-      // equal share, running to the same right hand gutter the board and
-      // the hand end on.
-      //
-      // It used to be five things 122.9, 36, 77, 21.7 and 51 points tall
-      // sitting on one baseline and stopping 52 points short of that
-      // gutter, which is the whole of "a linha que tem o deck toda
-      // confusa e desalinhada": nothing lined up with anything and the row
-      // did not end where the two bands above it end.
-      // Scaled up to fill the room rather than spread out inside it.
-      //
-      // It used to lay the four out at their tier heights and push the slack
-      // between them, which put three lanes of empty table across a row whose
-      // whole job is to be dense. Fitted, the slack goes into the pieces
-      // instead: the same ranking and the same gaps, all of it bigger until
-      // the row is full.
-      //
-      // Capped at the deck's own height, because the deck is the tall thing
-      // in this row by rank and a band that grew past it would say the
-      // opposite. Below that cap the width is what binds and the band fills
-      // the row exactly.
-      Expanded(child: aiming == null ? _packed() : _targets()),
-    ],
-  );
-
-  /// The band at rest: everything at its tier, scaled up together until the
-  /// row is full.
-  ///
-  /// It used to lay the four out at their tier heights and push the slack
-  /// between them, which put three lanes of empty table across a row whose
-  /// whole job is to be dense. Fitted, the slack goes into the pieces instead:
-  /// the same ranking and the same gaps, all of it bigger.
-  ///
-  /// Capped at the deck's own height, because the deck is the tall thing in
-  /// this row by rank and a band that grew past it would say the opposite.
-  Widget _packed() => SizedBox(
-    height: band * _card,
-    child: FittedBox(
-      fit: BoxFit.contain,
-      alignment: Alignment.bottomCenter,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          // A drop target several times a turn, which is more than the
-          // command zone and far more than the dice.
-          _band(graveyard, _mid),
-          if (command != null) ...[
-            SizedBox(width: gap),
-            _band(command!, _card),
-          ],
-          SizedBox(width: gap),
-          _band(dice, _mid),
-          SizedBox(width: gap),
-          _band(makeToken, 1),
-        ],
-      ),
-    ),
-  );
-
-  /// The band while a card is in the air: every slot a card tall, and none of
-  /// them fitted.
-  ///
-  /// Packing and aiming are different jobs and the packing undid the aiming.
-  /// Four card sized targets and a deck are wider than the row, so the fit
-  /// scaled them straight back down to 53 points and a target that had grown
-  /// on paper had not grown on screen. Here they keep the height and give the
-  /// width back instead.
-  Widget _targets() => Row(
-    crossAxisAlignment: CrossAxisAlignment.end,
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: [
-      Flexible(child: _band(graveyard, _mid)),
-      if (command != null) Flexible(child: _band(command!, _card)),
-      Flexible(flex: 2, child: _band(dice, _mid)),
-      Flexible(child: _band(makeToken, 1)),
-    ],
-  );
-
-  /// One slot in the band beside the deck: a fixed height, and whatever is in
-  /// it scaled down to sit in it.
-  ///
-  /// Scaled whole rather than given a narrower box, because these are pictures
-  /// of objects and a graveyard squeezed into a thinner graveyard is not what
-  /// a crowded table looks like.
-  /// The middle tier, for the graveyard and the dice.
-  ///
-  /// The dice were 21.7 points and read as dropped rather than placed; the
-  /// graveyard is a drop target several times a turn. Both want more than the
-  /// token control, which was already the right size and is the unit here.
-  static const _mid = 1.33;
-
-  /// The command zone, which holds a card and should look like it holds one.
-  static const _card = 1.95;
-
-  Widget _band(Widget child, double tier) => SizedBox(
-    height: aiming ?? band * tier,
-    // Contain and not scaleDown: scaleDown only ever shrinks, which left
-    // the dice at 21.7 points in a 36 point band looking dropped rather
-    // than placed. Contain fills the band in both directions.
-    child: FittedBox(
-      fit: BoxFit.contain,
-      alignment: Alignment.bottomCenter,
-      child: child,
-    ),
-  );
-}
-
-/// The corner, the deck and the token button, standing beside your own mat.
-///
-/// Beside it and not over and under it, because the board's height is what
-/// the whole table's scale is read from and anything stacked with the board
-/// takes that height away from it. Once the mat fits the window rather than
-/// filling it there is room at the sides anyway, which is where a deck and a
-/// commander sit at a real table.
-///
-/// It scrolls rather than overflowing. A phone in a pod leaves this column
-/// less height than two cards need, and that squeeze belongs to the screen's
-/// budget rather than to the pile.
-class _Beside extends StatelessWidget {
-  const _Beside({
-    required this.metrics,
-    required this.command,
-    required this.library,
-  });
-
-  final Metrics metrics;
-
-  /// Null in a format without commanders, which is not the same as an empty
-  /// corner: an empty corner is still drawn, because a corner that comes and
-  /// goes reads as a bug rather than as a rule.
-  final Widget? command;
-
-  final Widget library;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = metrics;
-
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (command != null) ...[command!, SizedBox(height: m.scaled(12))],
-          library,
-        ],
-      ),
-    );
-  }
-}
-
 class _TopBar extends StatelessWidget {
   const _TopBar({
     required this.metrics,
@@ -1287,9 +792,9 @@ class _TopBar extends StatelessWidget {
     required this.canUndo,
     required this.renderer,
     required this.onSwitchRenderer,
-    required this.onCardSize,
     required this.onLife,
     required this.onUndo,
+    required this.onMore,
     required this.onLeave,
   });
 
@@ -1299,11 +804,9 @@ class _TopBar extends StatelessWidget {
   final bool canUndo;
   final TableRenderer renderer;
   final VoidCallback onSwitchRenderer;
-
-  /// One notch bigger or smaller, for the cards on the table.
-  final void Function(int) onCardSize;
   final void Function(int) onLife;
   final VoidCallback onUndo;
+  final VoidCallback onMore;
   final VoidCallback onLeave;
 
   @override
@@ -1361,24 +864,12 @@ class _TopBar extends StatelessWidget {
         _Pill(
           metrics: m,
           key: const Key('switch-renderer'),
-          icon: renderer == TableRenderer.stackedSeats
-              ? Icons.grid_view_rounded
-              : Icons.view_agenda_rounded,
+          icon: switch (renderer) {
+            TableRenderer.grid => Icons.grid_view_rounded,
+            TableRenderer.focus => Icons.fullscreen_rounded,
+            TableRenderer.split => Icons.vertical_split_rounded,
+          },
           onTap: onSwitchRenderer,
-        ),
-        SizedBox(width: m.scaled(12)),
-        _Pill(
-          metrics: m,
-          key: const Key('cards-smaller'),
-          icon: Icons.zoom_out_rounded,
-          onTap: () => onCardSize(-1),
-        ),
-        SizedBox(width: m.scaled(10)),
-        _Pill(
-          metrics: m,
-          key: const Key('cards-bigger'),
-          icon: Icons.zoom_in_rounded,
-          onTap: () => onCardSize(1),
         ),
         SizedBox(width: m.scaled(12)),
         Opacity(
@@ -1389,6 +880,13 @@ class _TopBar extends StatelessWidget {
             icon: Icons.undo_rounded,
             onTap: onUndo,
           ),
+        ),
+        SizedBox(width: m.scaled(10)),
+        _Pill(
+          metrics: m,
+          key: const Key('more'),
+          icon: Icons.more_horiz_rounded,
+          onTap: onMore,
         ),
       ],
     );
@@ -1426,18 +924,4 @@ class _Pill extends StatelessWidget {
       ),
     );
   }
-}
-
-/// What to call a seat on the glass.
-///
-/// "You" for your own, computed and never stored: a nameless player crosses
-/// the wire as the default string, and printed straight that string labels
-/// every empty-named seat "you", your opponents included. Yours is the one
-/// [SeatView.isViewer] marks; any other shows its player's name, or its chair
-/// when that player gave none.
-String seatLabel(SeatView seat, {required int chair}) {
-  if (seat.isViewer) return 'You';
-  final name = seat.name.trim();
-  if (name.isNotEmpty && name != namelessPlayer) return name;
-  return 'Player ${chair + 1}';
 }

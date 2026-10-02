@@ -10,3 +10,8 @@ String? launchRoomCode() => null;
 /// which machine, so its front half is wherever the web build is served, and a
 /// build that is not served anywhere has no front half to offer.
 String? launchOrigin() => null;
+
+/// No address bar, no demo.
+int? launchDemoSeats() => null;
+
+String? launchDemoView() => null;

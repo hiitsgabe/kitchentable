@@ -35,10 +35,16 @@ class CursorBoard extends StatefulWidget {
     required this.onPlace,
     this.cardScale = 1,
     this.game,
+    this.showLabels = true,
   });
 
   final Metrics metrics;
   final List<BoardZone> zones;
+
+  /// Whether each pile is named above its mat. Off when the board stands
+  /// inside something that already says whose it is, where the line costs a
+  /// phone its second row of cards.
+  final bool showLabels;
   final Map<String, CatalogCard> printings;
 
   /// A press of select, on whatever the ring is around.
@@ -78,8 +84,8 @@ class CursorBoard extends StatefulWidget {
   /// the font comes out at, because the mat gets what is left after this and
   /// "what is left" has to be a number that can be worked out before anything
   /// is laid out.
-  static double _chromeFor(Metrics m) =>
-      m.scaled(14) + m.scaled(6) + m.scaled(12);
+  static double _chromeFor(Metrics m, {bool labels = true}) =>
+      labels ? m.scaled(14) + m.scaled(6) + m.scaled(12) : 0;
 
   /// The scale this board will draw its mats at, in a box this size.
   ///
@@ -92,10 +98,11 @@ class CursorBoard extends StatefulWidget {
     required Size box,
     required List<BoardZone> zones,
     required Metrics metrics,
+    bool labels = true,
   }) {
     final piles = _drawn(zones).length;
     final share = piles == 0 ? 0.0 : box.height / piles;
-    final chrome = _chromeFor(metrics);
+    final chrome = _chromeFor(metrics, labels: labels);
 
     // Under its own label a pile has nothing left to draw the mat in and the
     // board scrolls instead, and then the height cannot run out. Infinity
@@ -207,7 +214,7 @@ class _CursorBoardState extends State<CursorBoard> {
           // board 28 points out of 844 and the rest went on the bands, the
           // hand and the bars. Then it scrolls, which is what it did before,
           // and each pile keeps the height the width alone gives it.
-          if (share <= CursorBoard._chromeFor(widget.metrics)) {
+          if (share <= CursorBoard._chromeFor(widget.metrics, labels: widget.showLabels)) {
             return SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -310,6 +317,8 @@ class _CursorBoardState extends State<CursorBoard> {
         return mat;
       },
     );
+
+    if (!widget.showLabels) return mat;
 
     return Padding(
       padding: EdgeInsets.only(bottom: m.scaled(12)),
