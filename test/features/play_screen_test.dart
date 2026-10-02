@@ -12,18 +12,14 @@ import 'package:kitchentable/features/lobby/lobby.dart';
 import 'package:kitchentable/features/play/play_controller.dart';
 import 'package:kitchentable/features/menu/menu_controller.dart';
 import 'package:kitchentable/features/play/play_screen.dart';
+import 'package:kitchentable/features/play/renderers/focus_view.dart';
+import 'package:kitchentable/features/play/renderers/grid_view.dart';
 import 'package:kitchentable/features/play/renderers/renderer_choice.dart';
-import 'package:kitchentable/features/play/renderers/free_canvas.dart';
-import 'package:kitchentable/features/play/renderers/stacked_seats.dart';
-import 'package:kitchentable/features/play/dice/dice_tray.dart';
-import 'package:kitchentable/features/play/widgets/library_stack.dart';
+import 'package:kitchentable/features/play/renderers/split_view.dart';
+import 'package:kitchentable/features/play/widgets/seat_rail.dart';
 import 'package:kitchentable/features/play/widgets/command_slot.dart';
-import 'package:kitchentable/features/play/widgets/cursor_board.dart';
 import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
-import 'package:kitchentable/features/play/widgets/radar_strip.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
-import 'package:kitchentable/features/play/widgets/zone_chip.dart';
-import 'package:kitchentable/features/play/widgets/seat_band.dart';
 import 'package:kitchentable/table/model/seat_owner.dart';
 import 'package:kitchentable/table/room/room.dart';
 import 'package:kitchentable/table/actions/table_action.dart';
@@ -158,6 +154,9 @@ Future<ProviderContainer> _seatedFromRoom(WidgetTester tester) async {
     overrides: [
       catalogDbProvider.overrideWithValue(null),
       lobbyProvider.overrideWith(() => _LobbyOf(host)),
+      // The screen knows which seat is this device's by the transport's
+      // key; without it the host's own seat is watched, not played.
+      transportProvider.overrideWithValue(host.transport),
     ],
   );
   addTearDown(container.dispose);
@@ -258,7 +257,7 @@ void main() {
   testWidgets('a seated table shows life and the pile counts', (tester) async {
     await _seated(tester);
 
-    expect(find.text('40'), findsOneWidget);
+    expect(find.text('40'), findsWidgets);
     expect(find.textContaining('53'), findsWidgets,
         reason: 'the library has 53 left after a hand of seven');
   });
@@ -327,28 +326,76 @@ void main() {
     expect(container.read(playProvider)!.seat('s1')!.life, 39);
   });
 
-  testWidgets('the stacked view draws the others as bands', (tester) async {
+  testWidgets('the grid shows every board, yours with the rail', (tester) async {
+    await _seatedPod(tester, ['you', 'Carla', 'Diego']);
+
+    expect(find.byType(TableGrid), findsOneWidget);
+    for (final id in ['s1', 's2', 's3']) {
+      expect(find.byKey(Key('board-$id')), findsOneWidget);
+    }
+    // Only your board carries the piles; the others are watched.
+    expect(find.byKey(const Key('zone-rail')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('board-s1')),
+        matching: find.byKey(const Key('zone-rail')),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('focus shows one board, yours first, and the rail turns it',
+      (tester) async {
     await _seatedPod(tester, ['you', 'Carla', 'Diego'],
-        renderer: TableRenderer.stackedSeats);
+        renderer: TableRenderer.focus);
 
-    expect(find.byType(StackedSeats), findsOneWidget);
-    expect(find.byType(FreeCanvas), findsNothing);
-    expect(find.byType(SeatBand), findsNWidgets(2));
+    expect(find.byType(FocusView), findsOneWidget);
+    expect(find.byKey(const Key('board-s1')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('rail-s2')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('board-s2')), findsOneWidget);
   });
 
-  testWidgets('the canvas view puts every seat on one surface', (tester) async {
-    await _seatedPod(tester, ['you', 'Carla'],
-        window: const Size(1280, 800), renderer: TableRenderer.freeCanvas);
+  testWidgets('split shows yours and one other, picked on the rail',
+      (tester) async {
+    await _seatedPod(tester, ['you', 'Carla', 'Diego'],
+        renderer: TableRenderer.split);
 
-    expect(find.byType(FreeCanvas), findsOneWidget);
-    expect(find.byType(StackedSeats), findsNothing);
+    expect(find.byType(SplitView), findsOneWidget);
+    expect(find.byKey(const Key('split-mine')), findsOneWidget);
+    expect(find.byKey(const Key('board-s2')), findsOneWidget);
+    expect(find.byKey(const Key('board-s3')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('rail-s3')));
+    await tester.pump();
+    expect(find.byKey(const Key('board-s3')), findsOneWidget);
+    expect(find.byKey(const Key('board-s2')), findsNothing);
   });
 
-  testWidgets('every life total is on screen whichever view it is',
+  testWidgets('every seat is on the rail, with its label and life',
       (tester) async {
     await _seatedPod(tester, ['you', 'Carla', 'Diego']);
 
-    expect(find.byType(RadarStrip), findsOneWidget);
+    expect(find.byType(SeatRail), findsOneWidget);
+    for (final id in ['s1', 's2', 's3']) {
+      expect(find.byKey(Key('rail-$id')), findsOneWidget);
+    }
+    // Yours reads "You" whatever it was named; a named other reads its name.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('rail-s1')),
+        matching: find.text('You'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('rail-s2')),
+        matching: find.text('Carla'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('your hand is yours and theirs is a number', (tester) async {
@@ -383,16 +430,28 @@ void main() {
 
   testWidgets('looking out of another local seat swaps whose hand it is',
       (tester) async {
-    final container = await _seatedPod(tester, ['you', 'Carla'],
-        renderer: TableRenderer.stackedSeats);
+    final container = await _seatedPod(tester, ['you', 'Carla']);
 
-    await tester.tap(find.byKey(const Key('band-s2')));
+    await tester.tap(find.byKey(const Key('rail-s2')));
     await tester.pump();
 
     expect(container.read(viewerSeatProvider), 's2');
-    // The seat you left is now the one drawn as a band.
-    expect(find.byKey(const Key('band-s1')), findsOneWidget);
-    expect(find.byKey(const Key('band-s2')), findsNothing);
+    // The seat you moved to is the one with the piles now; the one you left
+    // is watched.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('board-s2')),
+        matching: find.byKey(const Key('zone-rail')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('board-s1')),
+        matching: find.byKey(const Key('zone-rail')),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('the hand still sits below the board in a pod', (tester) async {
@@ -443,12 +502,15 @@ void main() {
     // Three separate things are being crossed here and nothing else crosses
     // them: the pill has to reach the provider, the provider has to reach the
     // screen's rebuild, and the screen has to hand the scale to the renderer.
+    await tester.tap(find.byKey(const Key('more')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('cards-bigger')));
     await tester.pumpAndSettle();
 
     expect(tester.getSize(find.byType(TableCard).first).width,
         greaterThan(before));
 
+    // The sheet stays up between notches.
     await tester.tap(find.byKey(const Key('cards-smaller')));
     await tester.pumpAndSettle();
 
@@ -537,32 +599,6 @@ void main() {
     expect(library.cards.last.id, top.id);
     expect(library.cards, hasLength(53));
   });
-  testWidgets('nothing can take the deck\'s place in the row',
-      (tester) async {
-    // Five notches of zoom, which is a setting a player can be sitting on and
-    // which scales every piece of furniture in the row. At this size the row
-    // came to 457 points on a 358 point phone and what went past the edge was
-    // the deck, because the deck was last.
-    SharedPreferences.setMockInitialValues({'cardScale': 1.5});
-    await _seatedPod(tester, ['you'], withCommander: true);
-    await tester.pumpAndSettle();
-
-    final screen = tester.getRect(find.byType(PlayScreen));
-    final deck = tester.getRect(find.byKey(const Key('library-stack')));
-    final bin = tester.getRect(find.byKey(const Key('graveyard-stack')));
-
-    // First, and outside the flex, so it is laid out before anything else is
-    // given a share. A deck by your right hand is a rule about a table; this
-    // is a rule about a screen you read left to right, where the first slot is
-    // the most valuable thing the row has to give away and the deck is the
-    // only one of the five you touch every single turn.
-    expect(deck.left, lessThan(bin.left),
-        reason: 'something is ahead of the deck');
-    expect(deck.right, lessThanOrEqualTo(screen.right),
-        reason: 'the deck is off the edge again');
-    expect(deck.left, greaterThanOrEqualTo(screen.left));
-  });
-
   testWidgets('the pile on the table is drawn with the game\'s back',
       (tester) async {
     await _seatedPod(tester, ['you']);
@@ -677,79 +713,6 @@ void main() {
         isEmpty);
   });
 
-  testWidgets('the deck and the commander are the size of the cards',
-      (tester) async {
-    final container = await _seatedPod(tester, ['you'],
-        window: const Size(1900, 900), withCommander: true);
-
-    // A window this wide opens the canvas by itself, and the canvas draws
-    // neither a deck nor a commander, so there would be nothing to measure.
-    // The screenshot this came from was the bands on a wide window, which is
-    // one button away and is where the deck sat at 46 points beside a 270
-    // point card.
-    await tester.tap(find.byKey(const Key('switch-renderer')));
-    await tester.pumpAndSettle();
-
-    final play = container.read(playProvider.notifier);
-    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
-
-    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
-    await tester.pumpAndSettle();
-
-    // Named by the thing that draws it. The commander is a TableCard too and
-    // it is drawn first, so `first` on its own would measure the corner and
-    // then compare the deck against it rather than against the board.
-    final onBoard = tester
-        .getSize(find
-            .descendant(
-              of: find.byType(CursorBoard),
-              matching: find.byType(TableCard),
-            )
-            .first)
-        .width;
-    // The back of the top card, not the box the pile is drawn in: the box is
-    // the card plus a leaf of offset per card in the deck, which is about 19
-    // points of thickness on a full library and is not a card's width at all.
-    // Measured against the box, a deck at 46 points already cleared the bar
-    // below and the case proved nothing.
-    final deck = tester
-        .getSize(find
-            .descendant(
-              of: find.byKey(const Key('library-stack')),
-              matching: find.byType(CardBack),
-            )
-            .first)
-        .width;
-    final commander = tester
-        .getSize(find.descendant(
-          of: find.byType(CommandSlot),
-          matching: find.byType(TableCard),
-        ))
-        .width;
-
-    // The deck was a fixed 46 points while a card on a wide window was 270,
-    // so the pile you draw from was nearly six times smaller than the cards
-    // around it. A deck at a table is the same size as the cards in it.
-    expect(deck, greaterThan(onBoard * 0.6),
-        reason: 'the deck is a pile of these cards, not a thumbnail');
-
-    // And not the other way either. Read off the seat's whole column rather
-    // than off the box the board is given, the deck comes out at 186 points
-    // beside a 99 point card, measured: that clears the line above and is
-    // just as wrong. Too big is the failure this arithmetic can actually
-    // make, so the case has to be able to say it.
-    expect(deck, lessThan(onBoard * 1.4),
-        reason: 'the deck is a pile of these cards, not a monument');
-
-    // And the corner is one of these cards too, at 52 points against 270.
-    // Asserted here and not left to the deck, because they are two separate
-    // sizes in the screen and one can be fixed while the other is missed.
-    expect(commander, greaterThan(onBoard * 0.6),
-        reason: 'the commander is a card, not a stamp');
-    expect(commander, lessThan(onBoard * 1.4),
-        reason: 'the commander is a card, not a poster');
-  });
-
   testWidgets('a card dropped on the graveyard goes there', (tester) async {
     final container = await _seatedPod(tester, ['you']);
     final play = container.read(playProvider.notifier);
@@ -819,30 +782,39 @@ void main() {
     expect(art.card.name, 'General');
   });
 
-  testWidgets('the graveyard is on the mat in the wide view too',
-      (tester) async {
-    // The case above this one taps the renderer button, which writes the
-    // choice to the preferences, and the choice wins over the width. Without
-    // this the wide window opened the bands and the pile found below was the
-    // one in the column beside the board.
-    final container = await _seatedPod(tester, ['you'],
-        window: const Size(1280, 800), renderer: TableRenderer.freeCanvas);
-    final play = container.read(playProvider.notifier);
-    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+  testWidgets('the graveyard and the corner stand in the rail, the deck in '
+      'the bottom bar', (tester) async {
+    await _seatedPod(tester, ['you'], withCommander: true);
 
-    play.run(MoveCard(cardId: card.id, toZoneId: 'graveyard-s1'));
-    await tester.pumpAndSettle();
-
-    // Said out loud, because the whole case rests on it: a window this wide
-    // opens the canvas, so a pile found here is the one on the mat and not
-    // the one in the bands.
-    expect(find.byType(FreeCanvas), findsOneWidget);
     expect(
       find.descendant(
-        of: find.byType(FreeCanvas),
+        of: find.byKey(const Key('zone-rail')),
         matching: find.byKey(const Key('graveyard-stack')),
       ),
       findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('zone-rail')),
+        matching: find.byType(CommandSlot),
+      ),
+      findsOneWidget,
+    );
+    // The deck is off the battle zone, fixed beside the hand and always
+    // there, which is the one pile you touch every turn.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('deck-bar')),
+        matching: find.byKey(const Key('library-stack')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('zone-rail')),
+        matching: find.byKey(const Key('library-stack')),
+      ),
+      findsNothing,
     );
   });
 
@@ -892,16 +864,12 @@ void main() {
         reason: 'a copy is its own card, not the same card twice');
   });
 
-  testWidgets('the wide view can make a token too', (tester) async {
-    await _seatedPod(tester, ['you'],
-        window: const Size(1280, 800), withCatalog: true,
-        renderer: TableRenderer.freeCanvas);
+  testWidgets('a token is offered from the more menu', (tester) async {
+    await _seatedPod(tester, ['you'], withCatalog: true);
 
-    // The default renderer above 720 points is the canvas, and the token
-    // control lived only in the column the bands draw beside the mat. Copy
-    // worked there and finding one did not, which is the half of tokens that
-    // needs a catalog.
-    expect(find.byType(FreeCanvas), findsOneWidget);
+    expect(find.byKey(const Key('make-token')), findsNothing);
+    await tester.tap(find.byKey(const Key('more')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('make-token')), findsOneWidget);
   });
 
@@ -909,6 +877,8 @@ void main() {
       (tester) async {
     final container = await _seatedPod(tester, ['you'], withCatalog: true);
 
+    await tester.tap(find.byKey(const Key('more')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('make-token')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'moun');
@@ -1038,82 +1008,13 @@ void main() {
         reason: 'the row is budgeting for one column and there are two');
   });
 
-  testWidgets('the token control is on the same side in both views',
-      (tester) async {
-    final container = await _seatedPod(tester, ['you'],
-        window: const Size(1280, 800), withCommander: true,
-        renderer: TableRenderer.freeCanvas);
-    await tester.pumpAndSettle();
-
-    final onCanvas =
-        tester.getRect(find.byKey(const Key('make-token'))).center.dx;
-    final canvasBoard = tester.getRect(find.byType(FreeCanvas)).center.dx;
-
-    container.read(rendererChoiceProvider.notifier)
-        .choose(TableRenderer.stackedSeats);
-    await tester.pumpAndSettle();
-
-    final inBands =
-        tester.getRect(find.byKey(const Key('make-token'))).center.dx;
-    final bandsBoard =
-        tester.getRect(find.byKey(const Key('your-board'))).center.dx;
-
-    // The canvas ran out of room in the right strip and put the token across
-    // with the graveyard, so the two views disagreed about which hand you
-    // reach with. Same side in both, whichever side that is.
-    expect(onCanvas < canvasBoard, inBands < bandsBoard,
-        reason: 'the token control swaps sides between the two views');
-  });
-
-  testWidgets('the row under the board is ranked, not just filled',
-      (tester) async {
-    await _seatedPod(tester, ['you'], withCommander: true);
-    await tester.pumpAndSettle();
-
-    final board = tester.getRect(find.byKey(const Key('your-board')));
-    final bin = tester.getRect(find.byKey(const Key('graveyard-stack')));
-    final deck = tester.getRect(find.byKey(const Key('library-stack')));
-
-    final dice = tester.getRect(find.byType(DiceTray));
-    final token = tester.getRect(find.byKey(const Key('make-token')));
-
-    // Ranked, and read left to right. The row used to run token, dice,
-    // graveyard, command, deck, which is this list upside down: the two
-    // controls a game touches least held the first two slots and an empty
-    // graveyard was the most prominent object on the screen.
-    //
-    // Deck every turn, graveyard several times a turn as a drop target, the
-    // command zone a few times a game, dice and tokens hardly ever.
-    expect(bin.top, greaterThanOrEqualTo(board.bottom),
-        reason: 'the furniture is still beside the board, not under it');
-    expect(deck.left, lessThan(bin.left));
-    expect(bin.left, lessThan(dice.left));
-    expect(dice.left, lessThan(token.left));
-  });
-
-  testWidgets('nothing in the aside runs off the bottom', (tester) async {
-    await _seatedPod(tester, ['you'],
-        window: const Size(1280, 800), withCommander: true);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('switch-renderer')));
-    await tester.pumpAndSettle();
-
-    final screen = tester.getRect(find.byType(PlayScreen));
-    for (final key in ['library-stack', 'graveyard-stack', 'make-token']) {
-      final it = tester.getRect(find.byKey(Key(key)));
-      expect(it.bottom, lessThanOrEqualTo(screen.bottom),
-          reason: '$key runs off the bottom');
-      expect(it.right, lessThanOrEqualTo(screen.right),
-          reason: '$key runs off the right');
-    }
-  });
-
   testWidgets('rolling a die puts the number on the table', (tester) async {
     final container = await _seatedPod(tester, ['you']);
 
     expect(container.read(playProvider)!.dice, isEmpty);
 
+    await tester.tap(find.byKey(const Key('more')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('die-20')));
     await tester.pumpAndSettle();
 
@@ -1159,20 +1060,6 @@ void main() {
       reason: 'the hand was handed no game',
     );
 
-    // And the same on the wide view, which reaches a card through a renderer
-    // of its own.
-    container.read(rendererChoiceProvider.notifier)
-        .choose(TableRenderer.freeCanvas);
-    await tester.pumpAndSettle();
-
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('mat-s2')),
-        matching: find.byKey(const Key('card-back-art')),
-      ),
-      findsWidgets,
-      reason: 'the canvas was handed no game',
-    );
   });
 
   testWidgets('a commander thrown in the graveyard goes to its zone',
@@ -1239,8 +1126,10 @@ void main() {
     // A graveyard column on one side and a deck column on the other cost 41
     // percent of a 390 point screen. On a television that is a rounding
     // error; here it is nearly half the table.
-    expect(board.width / screen.width, greaterThan(0.85),
-        reason: 'the furniture is still eating the board');
+    // The rail beside it is a thumbnail and its edge, 60 points of 390, and
+    // nothing else stands between the board and the screen's edges.
+    expect(board.width / screen.width, greaterThan(0.7),
+        reason: 'something besides the rail is eating the board');
   });
 
   testWidgets('a card on the table is not smaller than one in your hand',
@@ -1269,43 +1158,6 @@ void main() {
     // you are choosing between and the battlefield is the thing you are
     // looking at, so the board is the one that sets the size.
     expect(onBoard, greaterThanOrEqualTo(inHand * 0.95));
-  });
-
-  testWidgets('a wide window keeps the furniture beside the board',
-      (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    await _seatedPod(tester, ['you'],
-        window: const Size(1280, 800), withCommander: true);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('switch-renderer')));
-    await tester.pumpAndSettle();
-
-    final board = tester.getRect(find.byKey(const Key('your-board')));
-    final deck = tester.getRect(find.byKey(const Key('library-stack')));
-    final bin = tester.getRect(find.byKey(const Key('graveyard-stack')));
-
-    // The row is for a narrow window. With room at the sides the piles stay
-    // where a table puts them, which is beside you and not in front of you.
-    expect(deck.left, greaterThanOrEqualTo(board.right));
-    expect(bin.right, lessThanOrEqualTo(board.left));
-  });
-
-  testWidgets('an empty graveyard does not take a card of room',
-      (tester) async {
-    await _seatedPod(tester, ['you'], withCommander: true);
-    await tester.pumpAndSettle();
-
-    final bin = tester.getRect(find.byKey(const Key('graveyard-stack')));
-
-    // It was 50 by 70, an outline of a card that is not there, and it was the
-    // leftmost and most prominent object on a 390 point screen.
-    //
-    // Against the card beside it rather than against a number: the band is
-    // packed to fill the row now, so the chip's own height moves with how many
-    // things are standing in the row and what the card size is set to. 44.6
-    // against a 70.3 point card when this was written.
-    final card = tester.getSize(find.byKey(const Key('library-stack'))).height;
-    expect(bin.height, lessThan(card * 0.75));
   });
 
   testWidgets('a zone grows into a target while a card is in the air',
@@ -1513,53 +1365,6 @@ void main() {
     expect(places.last.y, closeTo(places.first.y, 0.01));
   });
 
-  testWidgets('the row under the board is drawn at the board\'s own card',
-      (tester) async {
-    // 600 and not the 390 this was written at. A phone's board is under the
-    // floor `matScaleFor` keeps, where the mat stops shrinking and the row
-    // cannot follow it, so at 390 these two are different numbers on purpose
-    // and the row is sized by the room the row has. 600 is still a window with
-    // the furniture in a row, and the last one where the fit is the bigger
-    // number: 79.9 against the floor's 72.
-    final container = await _seatedPod(
-      tester,
-      ['you'],
-      window: const Size(600, 844),
-    );
-    final play = container.read(playProvider.notifier);
-    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
-
-    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
-    await tester.pumpAndSettle();
-
-    final onBoard = tester
-        .getSize(find.descendant(
-          of: find.byKey(const Key('your-board')),
-          matching: find.byType(TableCard),
-        ))
-        .width;
-    final deck = tester
-        .getSize(find.descendant(
-          of: find.byKey(const Key('library-stack')),
-          matching: find.byType(CardBack),
-        ).first)
-        .width;
-
-    // The row branch's half of `the board is budgeted for both columns, not
-    // one`. That case guards the arithmetic a window with columns uses and it
-    // cannot be run at this width, because below a 616 point window there are
-    // no columns to budget for: with the row's own width arithmetic out by a
-    // third the whole suite stayed green and the deck simply came out at
-    // 0.700 of the card beside it.
-    //
-    // Both ways round, and tight. The board gets the whole row here, so the
-    // width the row budgets for and the width the mat draws at are the same
-    // number arrived at twice rather than an estimate and a measurement.
-    // Measured at 1.0000.
-    expect(deck / onBoard, closeTo(1, 0.05),
-        reason: 'the deck in the row is not the size of the cards on the mat');
-  });
-
   testWidgets('the hand draws the card the board draws, up to its ceiling',
       (tester) async {
     final container = await _seatedPod(tester, ['you']);
@@ -1608,8 +1413,6 @@ void main() {
     // chip in an acre of empty table and the hand was a strip with the top
     // thirty points of seven cards showing, on a window with room for all of
     // it. A phone's answer is not a smaller version of the right answer.
-    expect(find.byType(ZoneChip), findsNothing,
-        reason: 'the graveyard is still a chip on a window with room');
     expect(find.byKey(const Key('graveyard-stack')), findsOneWidget);
 
     final hand = tester.getRect(find.byType(HandSheet));
@@ -1621,78 +1424,6 @@ void main() {
         .height;
     expect(hand.height, greaterThan(card),
         reason: 'the hand is still peeking on a window with room');
-  });
-
-  testWidgets('every band on the phone runs between the same two margins',
-      (tester) async {
-    await _seatedPod(tester, ['you'], withCommander: true);
-    await tester.pumpAndSettle();
-
-    final screen = tester.getRect(find.byType(PlayScreen));
-    const gutter = 16.0;
-
-    // Measured before this existed: the board and the hand ran 16 to 374 and
-    // the row under them stopped at 337.5, so the one band with five objects
-    // in it was also the one that did not end where the others end. The strip
-    // of dead air at its right was most of "toda confusa e desalinhada".
-    for (final band in {
-      'board': find.byKey(const Key('your-board')),
-      'hand': find.byType(HandSheet),
-    }.entries) {
-      final r = tester.getRect(band.value);
-      expect(r.left, gutter, reason: '${band.key} starts off the margin');
-      expect(screen.right - r.right, gutter,
-          reason: '${band.key} ends off the margin');
-    }
-
-    final deck = tester.getRect(find.byKey(const Key('library-stack')));
-    final token = tester.getRect(find.byKey(const Key('make-token')));
-    expect(deck.left, gutter, reason: 'the row starts off the margin');
-    // To a hundredth: the band is scaled to fill the row, so its right edge is
-    // a product rather than a sum and lands 6e-14 past the margin.
-    expect(screen.right - token.right, moreOrLessEquals(gutter, epsilon: 0.01),
-        reason: 'the row ends off the margin');
-
-    // And the four things beside the deck stand in one band rather than at
-    // five different heights. They were 36, 77, 21.7 and 51 points tall on one
-    // baseline, which gave the eye nothing to follow.
-    final chips = [
-      find.byKey(const Key('graveyard-stack')),
-      find.byType(CommandSlot),
-      find.byType(DiceTray),
-      find.byKey(const Key('make-token')),
-    ].map(tester.getRect).toList();
-    for (final chip in chips) {
-      // To a hundredth of a point: a tier is the band times a fraction and
-      // 36 times 1.95 lands a 1e-13 short of the edge it shares.
-      expect(chip.bottom, moreOrLessEquals(chips.first.bottom, epsilon: 0.01),
-          reason: 'the band has more than one baseline');
-    }
-
-    // And their heights fall in the order they matter, which is the same
-    // order they are laid out in. One uniform height was the first attempt
-    // and it flattened exactly what the row is for: a command zone holds a
-    // card and should look like it does, and the dice were unreadable.
-    //
-    // Measured: deck 122.9, command 68.9, dice 47.9, graveyard 40.1, token 36.
-    // The row this replaced ran 122.9, 36, 77, 21.7, 51 in the order token,
-    // dice, graveyard, command, deck, which is neither a ranking nor a band.
-    final deck2 = tester.getRect(find.byType(LibraryStack));
-    final bin = chips[0];
-    final corner = chips[1];
-    final die = chips[2];
-    final make = chips[3];
-
-    // Four ranks, not five: the graveyard and the dice share one, so they are
-    // the same size on purpose and this said they could not be.
-    expect(deck2.height, greaterThan(corner.height),
-        reason: 'the deck does not outrank the command zone');
-    expect(corner.height, greaterThan(die.height),
-        reason: 'the command zone does not outrank the dice');
-    expect(die.height, moreOrLessEquals(bin.height, epsilon: 0.01),
-        reason: 'the dice and the graveyard are meant to share a rank');
-    expect(die.height, greaterThan(make.height),
-        reason: 'the token control does not come last');
   });
 
   testWidgets('the deck\'s count and controls sit above the pile',
@@ -1801,9 +1532,12 @@ void main() {
     // the seats it built, and this is what stops the ring coming back.
     for (final path in [
       'lib/features/play/play_screen.dart',
-      'lib/features/play/renderers/stacked_seats.dart',
-      'lib/features/play/renderers/free_canvas.dart',
-      'lib/features/play/widgets/seat_band.dart',
+      'lib/features/play/renderers/grid_view.dart',
+      'lib/features/play/renderers/focus_view.dart',
+      'lib/features/play/renderers/split_view.dart',
+      'lib/features/play/widgets/seat_board.dart',
+      'lib/features/play/widgets/seat_rail.dart',
+      'lib/features/play/widgets/watched_board.dart',
     ]) {
       final file = File(path);
       expect(
