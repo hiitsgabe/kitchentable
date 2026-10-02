@@ -240,7 +240,13 @@ class _CursorBoardState extends State<CursorBoard> {
         // 512 point mat inside a 358 point board with the rest panned off the
         // edge. Sized on its own, the card no longer has an opinion about the
         // shape of the table, so the table can be the shape of the screen.
-        final size = constraints.biggest;
+        // In the scroll path the height is unbounded, so the mat takes the
+        // height its own width gives it rather than an infinite one: a pile
+        // that does not fit keeps its shape and the column scrolls.
+        final raw = constraints.biggest;
+        final size = raw.height.isFinite
+            ? raw
+            : Size(raw.width, matSize.height * matScaleFor(Size(raw.width, double.infinity)));
 
         final mat = SizedBox(
           width: size.width,

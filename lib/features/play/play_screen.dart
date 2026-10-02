@@ -9,6 +9,9 @@ import '../../table/model/card_instance.dart';
 import '../../table/model/zone.dart';
 import '../../table/shuffle.dart';
 import '../../table/view/seat_view.dart';
+import '../settings/player_name.dart';
+import 'renderers/divided_table.dart';
+import 'widgets/watched_board.dart';
 import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/card_viewer.dart';
@@ -140,11 +143,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     // when the format asks for one.
     final command = table.zone('command-${seat.id}');
 
-    final renderer = rendererFor(
-      width: media.size.width,
-      height: media.size.height,
-      chosen: ref.watch(rendererChoiceProvider),
-    );
+    final renderer = rendererFor(chosen: ref.watch(rendererChoiceProvider));
 
     // The battlefield alone. The graveyard is a pile in the strip beside the
     // board, which is the one you drop a card onto and open, and a second mat
@@ -413,11 +412,11 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                 renderer: renderer,
                 onSwitchRenderer: () => ref
                     .read(rendererChoiceProvider.notifier)
-                    .choose(
-                      renderer == TableRenderer.stackedSeats
-                          ? TableRenderer.freeCanvas
-                          : TableRenderer.stackedSeats,
-                    ),
+                    .choose(switch (renderer) {
+                      TableRenderer.grid => TableRenderer.stackedSeats,
+                      TableRenderer.stackedSeats => TableRenderer.freeCanvas,
+                      TableRenderer.freeCanvas => TableRenderer.grid,
+                    }),
                 onCardSize: (by) =>
                     ref.read(cardScaleProvider.notifier).nudge(by),
                 onLife: (by) => play.run(ChangeLife(seatId: seat.id, by: by)),
@@ -442,6 +441,21 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
               SizedBox(height: m.scaled(12)),
               Expanded(
                 child: switch (renderer) {
+                  TableRenderer.grid => DividedTable(
+                    metrics: m,
+                    seats: views,
+                    viewerSeatId: seat.id,
+                    yours: yours,
+                    watched: (other) => WatchedBoard(
+                      metrics: m,
+                      seat: other,
+                      label: seatLabel(other, chair: views.indexOf(other)),
+                      printings: _printings,
+                      onTapCard: _inspect,
+                      onInspectCard: _inspect,
+                      game: play.gameAt(other.seatId),
+                    ),
+                  ),
                   TableRenderer.stackedSeats => StackedSeats(
                     metrics: m,
                     seats: views,
@@ -1412,4 +1426,18 @@ class _Pill extends StatelessWidget {
       ),
     );
   }
+}
+
+/// What to call a seat on the glass.
+///
+/// "You" for your own, computed and never stored: a nameless player crosses
+/// the wire as the default string, and printed straight that string labels
+/// every empty-named seat "you", your opponents included. Yours is the one
+/// [SeatView.isViewer] marks; any other shows its player's name, or its chair
+/// when that player gave none.
+String seatLabel(SeatView seat, {required int chair}) {
+  if (seat.isViewer) return 'You';
+  final name = seat.name.trim();
+  if (name.isNotEmpty && name != namelessPlayer) return name;
+  return 'Player ${chair + 1}';
 }
