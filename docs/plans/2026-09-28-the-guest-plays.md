@@ -549,3 +549,53 @@ The config was run here first, in Docker on the VM against headless
 Chromium: the first version allocated nothing, because coturn takes an
 inline `# comment` as part of the value and the realm had one; with the
 comment on its own line a `typ relay` candidate came in 0.1 s.
+
+## The sixth look: you were right, and the relay is the data path
+
+The user, after the TURN work: "nao eh possivel que nao tenha como dois
+computadores se comunicarem sem um servidor central... Pesquisa... tem que
+ter como." Correct on both counts, and the research settled where each
+thing stands.
+
+**Direct traversal is possible, and I proved it.** A two-NAT lab on the VM
+(network namespaces: a home router with endpoint-independent mapping, a
+carrier CGNAT with symmetric, random ports in a block, a tiny STUN server
+on the fake internet) reproduced the exact failure first, `checking` to
+`disconnected` at 16s with no pair. Then the birthday / port-prediction
+scheme (the phone opens many sockets sharing one ufrag and certificate, the
+home guesses ports in the carrier's block) opened a direct channel,
+`home:32058 to phone:40312`, no relay. Tailscale does this in production
+and gets ~94% direct. So "it must be possible" was right.
+
+**But the browser will not give us the tool.** The scheme needs raw-socket
+control of the probe rate; browser WebRTC paces its connectivity checks at
+~20/sec and gives up at its own 15s timeout, so the guessing races the
+timer and connects marginally (15s, once) or not at all (three higher-count
+runs timed out). Tailscale uses native UDP sockets; a Flutter web build
+cannot.
+
+**The clean answer was underfoot the whole time.** Both phones already hold
+an outbound connection to the public relays the room is found on, which
+every NAT allows, and the game's messages are tiny. Measured on nos.lol
+and primal: ~200ms a message, 40 of 40 delivered, no rate-limit at 10/sec
+(damus bans a burst, so it stays signaling-only). So the game rides on the
+relay: a message to a seat is an event the relay fans out to it. No
+traversal, no server of ours, no setting. "If they can find each other it
+should connect" becomes exactly true, because finding each other on the
+relay is the connection.
+
+**Landed:** `RelayTransport implements Transport, ReportsConnection`, the
+room uses it, two headless tabs reach `opened` in ~3s across contexts that
+share nothing but the relay. The seam held: the mesh still knows nothing of
+relays; connection reporting moved to `ReportsConnection` so the pure
+`Transport` stayed pure (the mesh boundary test caught the first attempt
+that broke it). WebRTC stays in the tree as the low-latency upgrade for two
+phones that can open a direct link.
+
+**Open:** the relay sees the traffic. It is ciphertext-ready (per-room key
+or per-pair NIP-44), which folds into the sealed-hands task. For now the
+room-openness note already says a room is not private; it should be
+extended to name the relay. And the WebRTC path as an upgrade over the
+relay, with the birthday scheme where a native build can run it, is the
+way to the low-latency direct connection without giving up the universal
+one.
