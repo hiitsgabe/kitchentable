@@ -51,16 +51,24 @@ fills the second half.
 
 This is the view for a duel, or for watching one threat while you play.
 
-## The shared piece: a board that fills its box
+## The shared piece: a seat's free canvas that fills its box
 
-All three views compose one widget: a seat's board that fills whatever
-rectangle it is given, rather than a fixed mat scaled to fit. The battlefield
-(cards sit by a normalised 0..1 position) stretches to the box; the piles
-(graveyard, command, deck), the life, and the seat's label arrange around its
-edges and scale with the box. Yours carries the hand drawer; the others do not.
+Every board in every view is a free canvas, the way the table already works:
+cards sit where they are put, by a normalised 0..1 position, draggable on your
+own board and shown exactly as placed on everyone else's. That does not change
+and is not a view; it is how a board is managed, in all three layouts at once.
 
-This replaces the per-mat fit math with a fill, which is the whole point: a
-board is as big as the room it is given.
+What changes is that one seat's free canvas becomes a widget that fills whatever
+rectangle it is given, rather than a fixed 640x380 mat scaled to fit inside a
+surface you pan. The cards map onto the box by their normalised positions and
+are drawn as a share of the box, so a bigger box means bigger cards and a full
+screen; the piles (graveyard, command, deck), the life, and the seat's label
+arrange around the box edges. Yours takes drops and carries the hand drawer;
+the others are watched, not touched.
+
+The three views only arrange these free canvases: Focus pages one across the
+whole area, Grid tiles them equally, Split stands two side by side. The card
+management inside each is identical in all three.
 
 ## Naming
 
@@ -76,8 +84,10 @@ only the label on the glass changes.
   rendering change.
 - The hand drawer, the top bar, the counters, the deck search, the inspector:
   reused as they are.
-- `freeCanvas` (pan and pinch) is retired; the three views above replace both
-  current renderers. The code stays in git history if the surface is wanted back.
+- The free-canvas card model is kept everywhere, it is the point. What is
+  retired is the single pan-and-pinch surface that held every seat at once and
+  the fixed-mat fit of `stackedSeats`; the three views above, built on the
+  fill-the-box seat canvas, replace both current renderers.
 
 ## Open, deferred
 
