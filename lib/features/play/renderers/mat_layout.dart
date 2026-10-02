@@ -62,13 +62,15 @@ const readableCard = 72.0;
 
 /// How many cards across a board wide enough to afford them shows.
 ///
-/// A phone shows five and a desktop shows nine, and the rule below is what
+/// A phone shows five and a desktop shows seven, and the rule below is what
 /// gets from one to the other without a breakpoint.
-const _acrossWhenRoomy = 9;
+const _acrossWhenRoomy = 7;
 
 /// How wide a card is drawn on a board this wide.
 ///
-/// [readableCard], or a ninth of the board, whichever is bigger.
+/// [readableCard], or a seventh of the board, whichever is bigger. Seven
+/// and not nine: at nine a desktop board stood mostly empty around cards no
+/// bigger than a phone's.
 ///
 /// **Not a fraction of a fixed mat.** The board used to be a 640 by 380 mat
 /// scaled to fit, with the card's size falling out of that scale, and the two

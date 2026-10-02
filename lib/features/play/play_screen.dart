@@ -273,7 +273,6 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
             children: [
               _TopBar(
                 metrics: m,
-                seatName: labelOf(views.firstWhere((v) => v.seatId == seat.id)),
                 life: seat.life,
                 canUndo: play.canUndo,
                 renderer: renderer,
@@ -787,7 +786,6 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
 class _TopBar extends StatelessWidget {
   const _TopBar({
     required this.metrics,
-    required this.seatName,
     required this.life,
     required this.canUndo,
     required this.renderer,
@@ -799,7 +797,6 @@ class _TopBar extends StatelessWidget {
   });
 
   final Metrics metrics;
-  final String seatName;
   final int life;
   final bool canUndo;
   final TableRenderer renderer;
@@ -824,20 +821,9 @@ class _TopBar extends StatelessWidget {
             color: Palette.inkMuted,
           ),
         ),
-        SizedBox(width: m.scaled(12)),
-        Expanded(
-          child: Text(
-            seatName,
-            // One line, cut short if it has to be. With neither of these the
-            // name is handed whatever the nine controls beside it leave over,
-            // which on a 365 point window was a column one letter wide, and
-            // "you" came out stacked as y, o, u down the side of the bar.
-            maxLines: 1,
-            softWrap: false,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: m.scaled(14), color: Palette.inkMuted),
-          ),
-        ),
+        // No name here: the rail says whose table this is, and on a phone
+        // the bar had no room for it anyway.
+        const Spacer(),
         _Pill(
           metrics: m,
           key: const Key('life-down'),
