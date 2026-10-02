@@ -178,11 +178,11 @@ class _HandSheetState extends State<HandSheet> {
   Widget build(BuildContext context) {
     final m = widget.metrics;
 
-    return Container(
+    // No rule of its own: the bar it stands in draws one across the deck
+    // and the hand together. Drawn here it started at the deck's right edge
+    // and the deck stood up past it, two tops in one bar.
+    return Padding(
       padding: EdgeInsets.symmetric(vertical: m.scaled(10)),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Palette.rule)),
-      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
