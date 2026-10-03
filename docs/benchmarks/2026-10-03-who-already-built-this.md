@@ -125,24 +125,74 @@ with real users rather than from a judgement call: ship STUN, let the player
 bring a relay, and say which case you are in. This app already has the field
 for it in Settings, and a README that promises exactly this behaviour.
 
-## The Flutter situation
+## The Flutter situation is better than it looked
 
-- **No Dart Trystero exists.** Nothing on pub.dev does WebRTC matchmaking
-  over Nostr.
-- [**send_z**](https://github.com/semutKecil/send_z) is the closest: a
-  Flutter app that signals over Nostr and moves files over a WebRTC data
-  channel. It proves the shape works in Dart. It is **GPL-3.0**, and this
-  project is MIT, so it can be read and not copied. It is also small and
-  data-channel only, no media.
+There is no Dart Trystero, but there are two Flutter apps doing voice and
+video calls signalled over Nostr, which is nearer still.
+
+[**noscall**](https://github.com/sanah9/noscall) is the one to read. MIT,
+29 stars, last pushed 16 September 2026, Flutter on five platforms, built on
+`flutter_webrtc` and a Nostr library. Its `lib/call/` is laid out almost
+exactly as ours would be:
+
+| File | What it is |
+| --- | --- |
+| `web_rtc_handler.dart` | the peer connection: offer, answer, ICE, tracks |
+| `calling_nostr_signal_sender.dart` | turning WebRTC signalling into Nostr events |
+| `calling_controller.dart` | the state machine: ringing, accept, reject, hang up |
+| `ice_server_manager.dart` | STUN and TURN configuration |
+
+It is one to one, not a group. But it is MIT, it is alive, and it is the
+same two libraries we already have.
+
+[**0xchat**](https://github.com/0xchat-app/0xchat-app-main) is the one with
+real users: a shipping Flutter Nostr messenger, funded, with calls that ring
+like phone calls. The app is MIT but the part worth reading,
+`0xchat-core`, is **LGPL-3.0**, and this project is MIT, so that one is to
+learn from rather than lift.
+
+Also worth knowing:
+
 - [**peerdart**](https://pub.dev/packages/peerdart) is a PeerJS port with
-  data channels and media streams, but PeerJS assumes a broker server.
-- [**flutter_webrtc**](https://pub.dev/packages/flutter_webrtc) 1.6.2 is
-  already a dependency here and already lists audio, video and data on web,
-  Android and iOS. It is the layer everything above would sit on.
+  data and media, but PeerJS assumes a broker server.
+- [**send_z**](https://github.com/semutKecil/send_z) signals over Nostr and
+  moves files. GPL-3.0, data channel only.
+- [**flutter_webrtc**](https://pub.dev/packages/flutter_webrtc) is already a
+  dependency here and already lists audio, video and data on web, Android and
+  iOS. Everything above sits on it.
+- The clearest small group mesh in any language is still JavaScript:
+  [anoek/webrtc-group-chat-example](https://github.com/anoek/webrtc-group-chat-example),
+  one HTML file, a peer connection per other person. Its licence is reported
+  as public domain and I could not confirm that from the API.
+- Picking a draft is unavoidable. **NIP-100** is the older one and what 0xchat
+  speaks; **NIP-AC** is newer, not compatible with it, and what noscall and
+  Amethyst speak. Neither is a settled standard.
 
-So the work, if it is ever done, is: port Trystero's Nostr strategy into the
-transport we already have, and use `flutter_webrtc` for the peer connection.
-Not a rewrite. A reading list.
+So the work, if it is ever done, is: Trystero's Nostr strategy for the relay
+behaviour, noscall's `lib/call/` for the Flutter call mechanics, and
+`flutter_webrtc` underneath. Not a rewrite. A reading list.
+
+## The best Flutter reference also proves the TURN problem
+
+`ice_server_manager.dart` in noscall opens like this:
+
+```dart
+List<ICEServerModel> get defaultICEServers => [
+      url: 'turn:0xchat:Prettyvs511@52.76.210.159:5349',
+      url: 'turn:0xchat:Prettyvs511@13.213.17.140:5349',
+      url: 'turn:0xchat:Prettyvs511@15.222.242.167:5349',
+```
+
+A username, a password and three bare addresses, hardcoded in a public MIT
+repository, pointing at relays somebody else is paying for. It does let the
+player supply their own, and falls back to these.
+
+That is exactly the outcome the rest of this research predicted, found in the
+wild, in the most on-target app there is. The question was never whether
+voice can be built without a server. It is what you do about the one piece
+that needs one, and the honest answers are a credential anybody can read out
+of your source, or asking the player to bring their own. This app already has
+the field for the second.
 
 ## What to actually do with this
 
