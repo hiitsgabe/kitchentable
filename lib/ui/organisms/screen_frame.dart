@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../atoms/kitchentable_mark.dart';
 import '../atoms/slab.dart';
 import '../atoms/tray.dart';
 import '../tokens/app_palette.dart';
@@ -195,25 +196,36 @@ class _Heading extends StatelessWidget {
       );
     }
 
+    // The mark over the name, which is the logo. The word alone was the
+    // whole of it, and a word is not a thing anybody recognises across a
+    // room or in a list of tabs.
+    //
     // Split so the second half carries the accent. One word, two weights of
-    // attention, which is the whole logo.
-    return Text.rich(
-      TextSpan(
-        children: [
-          const TextSpan(text: 'kitchen'),
+    // attention, and the mark above it in the same colour.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        KitchentableMark(size: m.scaled(96)),
+        SizedBox(height: m.scaled(12)),
+        Text.rich(
           TextSpan(
-            text: 'table',
-            style: TextStyle(color: context.palette.accent),
+            children: [
+              const TextSpan(text: 'kitchen'),
+              TextSpan(
+                text: 'table',
+                style: TextStyle(color: context.palette.accent),
+              ),
+            ],
           ),
-        ],
-      ),
-      textAlign: TextAlign.center,
-      style: pixel(
-        size: m.scaled(34),
-        weight: 700,
-        color: Palette.ink,
-        outlined: true,
-      ),
+          textAlign: TextAlign.center,
+          style: pixel(
+            size: m.scaled(34),
+            weight: 700,
+            color: Palette.ink,
+            outlined: true,
+          ),
+        ),
+      ],
     );
   }
 }
