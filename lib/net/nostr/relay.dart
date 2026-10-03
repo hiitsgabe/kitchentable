@@ -103,30 +103,31 @@ class NostrEvent {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'pubkey': pubkey,
-        'created_at': createdAt,
-        'kind': kind,
-        'tags': tags,
-        'content': content,
-        'sig': sig,
-      };
+    'id': id,
+    'pubkey': pubkey,
+    'created_at': createdAt,
+    'kind': kind,
+    'tags': tags,
+    'content': content,
+    'sig': sig,
+  };
 
   factory NostrEvent.fromJson(Map<String, dynamic> json) => NostrEvent(
-        id: json['id'] as String,
-        pubkey: json['pubkey'] as String,
-        createdAt: json['created_at'] as int,
-        kind: json['kind'] as int,
-        tags: [
-          for (final t in json['tags'] as List<dynamic>)
-            (t as List<dynamic>).cast<String>(),
-        ],
-        content: json['content'] as String,
-        sig: json['sig'] as String,
-      );
+    id: json['id'] as String,
+    pubkey: json['pubkey'] as String,
+    createdAt: json['created_at'] as int,
+    kind: json['kind'] as int,
+    tags: [
+      for (final t in json['tags'] as List<dynamic>)
+        (t as List<dynamic>).cast<String>(),
+    ],
+    content: json['content'] as String,
+    sig: json['sig'] as String,
+  );
 
   @override
-  String toString() => 'NostrEvent($kind ${id.substring(0, 8)} from '
+  String toString() =>
+      'NostrEvent($kind ${id.substring(0, 8)} from '
       '${pubkey.substring(0, 8)})';
 }
 
@@ -144,9 +145,9 @@ class Filter {
   final Map<String, List<String>> tags;
 
   Map<String, dynamic> toJson() => {
-        if (kinds != null) 'kinds': kinds,
-        for (final entry in tags.entries) '#${entry.key}': entry.value,
-      };
+    if (kinds != null) 'kinds': kinds,
+    for (final entry in tags.entries) '#${entry.key}': entry.value,
+  };
 }
 
 /// What became of one publish: the relays that took the event and the
@@ -172,9 +173,7 @@ class RelayStatus {
 
   @override
   bool operator ==(Object other) =>
-      other is RelayStatus &&
-      other.url == url &&
-      other.connected == connected;
+      other is RelayStatus && other.url == url && other.connected == connected;
 
   @override
   int get hashCode => Object.hash(url, connected);
@@ -274,9 +273,9 @@ class Relay {
 
   /// Which relays are up right now.
   Set<Uri> get connected => {
-        for (final s in _sockets)
-          if (s.open) s.url,
-      };
+    for (final s in _sockets)
+      if (s.open) s.url,
+  };
 
   /// Sends [event] to every relay and returns once each has answered or
   /// timed out, with which relays took it and which refused it and why. A
@@ -363,13 +362,15 @@ class Relay {
         }
       case 'OK':
         // Yes is ''. No is the relay's reason, or a word when it gave none.
-        from._oks.remove(message[1])?.complete(
-          message.length > 2 && message[2] == true
-              ? ''
-              : message.length > 3 && '${message[3]}'.isNotEmpty
+        from._oks
+            .remove(message[1])
+            ?.complete(
+              message.length > 2 && message[2] == true
+                  ? ''
+                  : message.length > 3 && '${message[3]}'.isNotEmpty
                   ? '${message[3]}'
                   : 'refused without a reason',
-        );
+            );
       case 'EOSE':
         from._eoses.remove(message[1])?.complete();
     }
@@ -388,6 +389,7 @@ class _Socket {
   /// wait on it so that a client used the moment it is built does not skip
   /// a relay that was a few milliseconds from being up.
   final _first = Completer<void>();
+
   /// Publishes waiting on their OK: '' for yes, the reason for no.
   final Map<String, Completer<String?>> _oks = {};
   final Map<String, Completer<void>> _eoses = {};
@@ -460,10 +462,13 @@ class _Socket {
     if (!open) return null;
     final ok = _oks[event.id] = Completer<String?>();
     _send(['EVENT', event.toJson()]);
-    return ok.future.timeout(_relay.okTimeout, onTimeout: () {
-      _oks.remove(event.id);
-      return null;
-    });
+    return ok.future.timeout(
+      _relay.okTimeout,
+      onTimeout: () {
+        _oks.remove(event.id);
+        return null;
+      },
+    );
   }
 
   Future<void> _request(Subscription sub) async {

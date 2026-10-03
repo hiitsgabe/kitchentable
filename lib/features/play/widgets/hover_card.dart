@@ -72,8 +72,10 @@ class _HoverCardState extends State<HoverCard> {
         final left = at.dx + widget.width + big > screen.width
             ? at.dx - big - 12
             : at.dx + widget.width + 12;
-        final top = (at.dy - big * 0.3)
-            .clamp(12.0, (screen.height - big * 88 / 63 - 12).clamp(12.0, 1e5));
+        final top = (at.dy - big * 0.3).clamp(
+          12.0,
+          (screen.height - big * 88 / 63 - 12).clamp(12.0, 1e5),
+        );
 
         return Positioned(
           key: const Key('hover-preview'),
@@ -97,8 +99,8 @@ class _HoverCardState extends State<HoverCard> {
 
   @override
   Widget build(BuildContext context) => MouseRegion(
-        onEnter: (_) => _show(),
-        onExit: (_) => _remove(),
-        child: widget.child ?? const SizedBox.shrink(),
-      );
+    onEnter: (_) => _show(),
+    onExit: (_) => _remove(),
+    child: widget.child ?? const SizedBox.shrink(),
+  );
 }

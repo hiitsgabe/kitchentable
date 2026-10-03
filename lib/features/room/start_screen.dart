@@ -6,9 +6,11 @@ import '../../decks/model/game.dart';
 import '../../table/room/room.dart';
 import '../../table/room/room_names.dart';
 import '../../ui/atoms/menu_row.dart';
+import '../../ui/atoms/slab.dart';
+import '../../ui/atoms/tray.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
-import '../../ui/tokens/app_palette.dart';
+import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../settings/player_name.dart';
@@ -134,6 +136,10 @@ class _StartScreenState extends ConsumerState<StartScreen> {
               ? 'starting life has to be a number'
               : 'and get a code to hand out',
           icon: Icons.meeting_room_rounded,
+          // The one dominant action on this screen, the way Play is on the
+          // menu. Everything above it is a choice about the room; this is the
+          // room.
+          tone: SlabTone.choice,
           enabled: life != null,
           metrics: m,
           onActivate: _open,
@@ -279,17 +285,20 @@ class _Chairs extends StatelessWidget {
               atEnd: at <= 0,
               onTap: () => onMove(-1),
             ),
-            SizedBox(width: m.scaled(16)),
-            Text(
-              '$seats',
-              key: const Key('seats-count'),
-              style: TextStyle(
-                fontSize: m.scaled(24),
-                fontWeight: FontWeight.w700,
-                color: Palette.ink,
+            SizedBox(width: m.scaled(10)),
+            Well(
+              metrics: m,
+              padding: EdgeInsets.symmetric(
+                horizontal: m.scaled(22),
+                vertical: m.scaled(7),
+              ),
+              child: Text(
+                '$seats',
+                key: const Key('seats-count'),
+                style: pixel(size: m.scaled(24), weight: 700),
               ),
             ),
-            SizedBox(width: m.scaled(16)),
+            SizedBox(width: m.scaled(10)),
             _Step(
               key: const Key('seats-up'),
               metrics: m,
@@ -303,8 +312,9 @@ class _Chairs extends StatelessWidget {
         Text(
           _note,
           key: const Key('seats-note'),
-          style: TextStyle(
-            fontSize: m.scaled(11),
+          style: pixel(
+            size: m.scaled(11),
+            weight: 500,
             height: 1.45,
             color: Palette.inkFaint,
           ),
@@ -331,21 +341,15 @@ class _Chairs extends StatelessWidget {
   }
 }
 
-/// Minus or plus. Dimmed the same way a dead row is, rather than missing, so
-/// the control keeps its shape when one end of it has nothing left to do.
+/// Minus or plus, as a small square slab.
 ///
 /// The press is **not** gated on [atEnd], and that is deliberate. The stepper's
 /// own clamp is the one thing that decides what a press does, and a button that
 /// refused to call it as well would double guard it: a probe that made the
 /// clamp wrap left every case green, because the dead button meant the wrapping
-/// line was never reached. [atEnd] draws the end. The clamp is the end.
-///
-/// Focusable, because this app is a D-pad before it is a touchscreen and the
-/// hint bar promises the pad moves. MaterialApp maps the pad's A button to
-/// ActivateIntent and WidgetsApp has no handler for it, so without the action
-/// below the pill would take focus and do nothing when pressed, which is the
-/// same trap MenuRow documents.
-class _Step extends StatefulWidget {
+/// line was never reached. [atEnd] draws the end, which is what Slab's dimmed
+/// flag is for. The clamp is the end.
+class _Step extends StatelessWidget {
   const _Step({
     super.key,
     required this.metrics,
@@ -360,55 +364,20 @@ class _Step extends StatefulWidget {
   final VoidCallback onTap;
 
   @override
-  State<_Step> createState() => _StepState();
-}
-
-class _StepState extends State<_Step> {
-  bool _focused = false;
-
-  @override
   Widget build(BuildContext context) {
-    final m = widget.metrics;
+    final m = metrics;
 
-    return FocusableActionDetector(
-      onFocusChange: (v) => setState(() => _focused = v),
-      actions: <Type, Action<Intent>>{
-        ActivateIntent: CallbackAction<ActivateIntent>(
-          onInvoke: (_) {
-            widget.onTap();
-            return null;
-          },
-        ),
-      },
-      child: Semantics(
-        button: true,
-        // Says it does nothing now, which is true: the clamp makes it a no-op.
-        enabled: !widget.atEnd,
-        child: GestureDetector(
-          onTap: widget.onTap,
-          behavior: HitTestBehavior.opaque,
-          child: Opacity(
-            opacity: widget.atEnd ? 0.42 : 1,
-            child: Container(
-              width: m.scaled(40),
-              height: m.scaled(40),
-              decoration: BoxDecoration(
-                color: _focused ? context.palette.tileFocused : Palette.tile,
-                borderRadius: BorderRadius.circular(m.scaled(10)),
-                border: Border.all(
-                  color: _focused ? context.palette.accent : Palette.tileEdge,
-                  width: _focused ? m.focusRing : 1,
-                ),
-              ),
-              child: Icon(
-                widget.icon,
-                size: m.scaled(20),
-                color: _focused ? context.palette.accent : Palette.inkMuted,
-              ),
-            ),
-          ),
-        ),
-      ),
+    return Slab(
+      metrics: m,
+      tone: SlabTone.plain,
+      dimmed: atEnd,
+      depth: m.scaled(4),
+      onActivate: onTap,
+      semanticLabel: icon == Icons.remove_rounded
+          ? 'Fewer chairs'
+          : 'More chairs',
+      padding: EdgeInsets.all(m.scaled(8)),
+      child: Icon(icon, size: m.scaled(20), color: Palette.slabInk),
     );
   }
 }
@@ -437,10 +406,11 @@ class _Field extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: TextStyle(
-              fontSize: m.scaled(10),
+            style: pixel(
+              size: m.scaled(10),
+              weight: 500,
               letterSpacing: 1.2,
-              fontWeight: FontWeight.w500,
+
               color: Palette.inkFaint,
             ),
           ),

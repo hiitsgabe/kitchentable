@@ -85,7 +85,8 @@ class CardArt extends StatelessWidget {
     final url = artFor(
       card,
       width: width,
-      pixelRatio: (MediaQuery.maybeDevicePixelRatioOf(context) ?? 1) *
+      pixelRatio:
+          (MediaQuery.maybeDevicePixelRatioOf(context) ?? 1) *
           ArtScale.around(context),
     );
 
@@ -121,14 +122,14 @@ const _magicBack =
 /// Null for a game the app has no back for, and for no game at all, which is
 /// a token or a card the table knows nothing about.
 String? backFor(Game? game) => switch (game) {
-      Game.magic => _magicBack,
-      // Nothing the app imports serves a Pokemon back, there is no Pokemon
-      // catalog to ask, and a fan site is not a source. It arrives with the
-      // catalog that serves it. Until then the pile draws the plain box,
-      // which is already what the table draws when it knows nothing.
-      Game.pokemon => null,
-      null => null,
-    };
+  Game.magic => _magicBack,
+  // Nothing the app imports serves a Pokemon back, there is no Pokemon
+  // catalog to ask, and a fan site is not a source. It arrives with the
+  // catalog that serves it. Until then the pile draws the plain box,
+  // which is already what the table draws when it knows nothing.
+  Game.pokemon => null,
+  null => null,
+};
 
 /// The back of a card.
 ///
@@ -184,19 +185,19 @@ class _Fallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        color: Palette.tile,
-        alignment: Alignment.center,
-        padding: EdgeInsets.all(metrics.scaled(6)),
-        child: Text(
-          card.name,
-          textAlign: TextAlign.center,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: metrics.scaled(10),
-            height: 1.25,
-            color: Palette.inkMuted,
-          ),
-        ),
-      );
+    color: Palette.tile,
+    alignment: Alignment.center,
+    padding: EdgeInsets.all(metrics.scaled(6)),
+    child: Text(
+      card.name,
+      textAlign: TextAlign.center,
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: metrics.scaled(10),
+        height: 1.25,
+        color: Palette.inkMuted,
+      ),
+    ),
+  );
 }

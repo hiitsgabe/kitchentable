@@ -148,150 +148,144 @@ class _DeckSheetState extends State<DeckSheet> {
   }
 
   List<Widget> _choices(Metrics m) => [
-        SheetHeading(
-          metrics: m,
-          text: 'Your deck',
-          note: '${widget.count} cards',
-        ),
-        SizedBox(height: m.scaled(14)),
-        if (widget.count == 0)
-          Text(
-            'Nothing left to shuffle or look at.',
-            style: TextStyle(fontSize: m.scaled(13), color: Palette.inkFaint),
-          )
-        else ...[
-          SheetChoice(
-            metrics: m,
-            key: const Key('deck-search'),
-            icon: Icons.search_rounded,
-            label: 'Search for a card',
-            onTap: _search,
+    SheetHeading(metrics: m, text: 'Your deck', note: '${widget.count} cards'),
+    SizedBox(height: m.scaled(14)),
+    if (widget.count == 0)
+      Text(
+        'Nothing left to shuffle or look at.',
+        style: TextStyle(fontSize: m.scaled(13), color: Palette.inkFaint),
+      )
+    else ...[
+      SheetChoice(
+        metrics: m,
+        key: const Key('deck-search'),
+        icon: Icons.search_rounded,
+        label: 'Search for a card',
+        onTap: _search,
+      ),
+      SizedBox(height: m.scaled(10)),
+      SheetChoice(
+        metrics: m,
+        key: const Key('deck-shuffle'),
+        icon: Icons.shuffle_rounded,
+        label: 'Shuffle',
+        onTap: () => setState(() => _stage = _Stage.confirm),
+      ),
+      SizedBox(height: m.scaled(10)),
+      Row(
+        children: [
+          Expanded(
+            child: SheetChoice(
+              metrics: m,
+              key: const Key('deck-look'),
+              icon: Icons.visibility_rounded,
+              label: 'Look at $_aFewCards',
+              onTap: () => _look(_aFewCards),
+            ),
           ),
-          SizedBox(height: m.scaled(10)),
-          SheetChoice(
-            metrics: m,
-            key: const Key('deck-shuffle'),
-            icon: Icons.shuffle_rounded,
-            label: 'Shuffle',
-            onTap: () => setState(() => _stage = _Stage.confirm),
-          ),
-          SizedBox(height: m.scaled(10)),
-          Row(
-            children: [
-              Expanded(
-                child: SheetChoice(
-                  metrics: m,
-                  key: const Key('deck-look'),
-                  icon: Icons.visibility_rounded,
-                  label: 'Look at $_aFewCards',
-                  onTap: () => _look(_aFewCards),
-                ),
-              ),
-              SizedBox(width: m.scaled(10)),
-              Expanded(
-                child: SheetChoice(
-                  metrics: m,
-                  key: const Key('look-5'),
-                  icon: Icons.visibility_rounded,
-                  label: 'Look at $_severalCards',
-                  onTap: () => _look(_severalCards),
-                ),
-              ),
-            ],
+          SizedBox(width: m.scaled(10)),
+          Expanded(
+            child: SheetChoice(
+              metrics: m,
+              key: const Key('look-5'),
+              icon: Icons.visibility_rounded,
+              label: 'Look at $_severalCards',
+              onTap: () => _look(_severalCards),
+            ),
           ),
         ],
-      ];
+      ),
+    ],
+  ];
 
   List<Widget> _confirm(Metrics m) => [
-        SheetHeading(metrics: m, text: 'Shuffle the deck?'),
-        SizedBox(height: m.scaled(8)),
-        Text(
-          'Whatever you have set up on top goes with it. This is the one '
-          'thing here that looking cannot undo.',
-          style: TextStyle(
-            fontSize: m.scaled(13),
-            height: 1.35,
-            color: Palette.inkMuted,
+    SheetHeading(metrics: m, text: 'Shuffle the deck?'),
+    SizedBox(height: m.scaled(8)),
+    Text(
+      'Whatever you have set up on top goes with it. This is the one '
+      'thing here that looking cannot undo.',
+      style: TextStyle(
+        fontSize: m.scaled(13),
+        height: 1.35,
+        color: Palette.inkMuted,
+      ),
+    ),
+    SizedBox(height: m.scaled(16)),
+    Row(
+      children: [
+        Expanded(
+          child: SheetChoice(
+            metrics: m,
+            key: const Key('cancel-shuffle'),
+            icon: Icons.close_rounded,
+            label: 'Not yet',
+            onTap: () => setState(() => _stage = _Stage.choices),
           ),
         ),
-        SizedBox(height: m.scaled(16)),
-        Row(
-          children: [
-            Expanded(
-              child: SheetChoice(
-                metrics: m,
-                key: const Key('cancel-shuffle'),
-                icon: Icons.close_rounded,
-                label: 'Not yet',
-                onTap: () => setState(() => _stage = _Stage.choices),
-              ),
-            ),
-            SizedBox(width: m.scaled(10)),
-            Expanded(
-              child: SheetChoice(
-                metrics: m,
-                key: const Key('confirm-shuffle'),
-                icon: Icons.shuffle_rounded,
-                label: 'Shuffle',
-                loud: true,
-                onTap: widget.onShuffle,
-              ),
-            ),
-          ],
+        SizedBox(width: m.scaled(10)),
+        Expanded(
+          child: SheetChoice(
+            metrics: m,
+            key: const Key('confirm-shuffle'),
+            icon: Icons.shuffle_rounded,
+            label: 'Shuffle',
+            loud: true,
+            onTap: widget.onShuffle,
+          ),
         ),
-      ];
+      ],
+    ),
+  ];
 
   List<Widget> _looking(Metrics m) => [
-        SheetHeading(
-          metrics: m,
-          text: _searching
-              ? 'Search your deck'
-              : _looked.length == 1
-                  ? 'The top card'
-                  : 'The top ${_looked.length}',
-          note: _searching
-              ? 'the whole deck, and it shuffles when you are done'
-              : 'in the order they came off',
+    SheetHeading(
+      metrics: m,
+      text: _searching
+          ? 'Search your deck'
+          : _looked.length == 1
+          ? 'The top card'
+          : 'The top ${_looked.length}',
+      note: _searching
+          ? 'the whole deck, and it shuffles when you are done'
+          : 'in the order they came off',
+    ),
+    if (_searching) ...[
+      SizedBox(height: m.scaled(12)),
+      TextFieldBox(
+        key: const Key('deck-filter'),
+        metrics: m,
+        controller: _filter,
+        hint: 'Card name',
+        autofocus: true,
+        onChanged: (_) => setState(() {}),
+      ),
+    ],
+    SizedBox(height: m.scaled(12)),
+    Flexible(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [for (final card in _shown) _row(m, card)],
         ),
-        if (_searching) ...[
-          SizedBox(height: m.scaled(12)),
-          TextFieldBox(
-            key: const Key('deck-filter'),
-            metrics: m,
-            controller: _filter,
-            hint: 'Card name',
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-          ),
-        ],
-        SizedBox(height: m.scaled(12)),
-        Flexible(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final card in _shown) _row(m, card),
-              ],
-            ),
-          ),
-        ),
-        SizedBox(height: m.scaled(4)),
-        SheetChoice(
-          metrics: m,
-          key: const Key('deck-done'),
-          icon: Icons.check_rounded,
-          label: 'Done',
-          loud: true,
-          onTap: () {
-            widget.onArrange(_placements());
-            // A tutor shuffles. It is the rule on every card that says
-            // "search your library", and it is also the only thing that stops
-            // a search being a free look at the whole deck in order.
-            if (_searching) widget.onShuffle();
-          },
-        ),
-      ];
+      ),
+    ),
+    SizedBox(height: m.scaled(4)),
+    SheetChoice(
+      metrics: m,
+      key: const Key('deck-done'),
+      icon: Icons.check_rounded,
+      label: 'Done',
+      loud: true,
+      onTap: () {
+        widget.onArrange(_placements());
+        // A tutor shuffles. It is the rule on every card that says
+        // "search your library", and it is also the only thing that stops
+        // a search being a free look at the whole deck in order.
+        if (_searching) widget.onShuffle();
+      },
+    ),
+  ];
 
   /// What Done sends out.
   ///
@@ -322,20 +316,19 @@ class _DeckSheetState extends State<DeckSheet> {
   }
 
   Widget _row(Metrics m, CardInstance card) => CardRow(
-        key: Key('peeked-${card.id}'),
-        metrics: m,
-        cardId: card.id,
-        printing: widget.printings[card.oracleId],
-        destinations: Landing.values,
-        // Looking at the top few, a card nobody touched is going back on top,
-        // so the row opens with the top already lit.
-        //
-        // Searching, nothing is lit. You are pulling one card out of ninety
-        // three and the other ninety two are not going anywhere: lighting
-        // `top` on all of them said the whole deck was about to be rearranged,
-        // and it was, because every one of them was reported as a placement.
-        chosen: _searching ? _going[card.id] : _going[card.id] ?? Landing.top,
-        onChoose: (to) => setState(() => _going[card.id] = to),
-      );
+    key: Key('peeked-${card.id}'),
+    metrics: m,
+    cardId: card.id,
+    printing: widget.printings[card.oracleId],
+    destinations: Landing.values,
+    // Looking at the top few, a card nobody touched is going back on top,
+    // so the row opens with the top already lit.
+    //
+    // Searching, nothing is lit. You are pulling one card out of ninety
+    // three and the other ninety two are not going anywhere: lighting
+    // `top` on all of them said the whole deck was about to be rearranged,
+    // and it was, because every one of them was reported as a placement.
+    chosen: _searching ? _going[card.id] : _going[card.id] ?? Landing.top,
+    onChoose: (to) => setState(() => _going[card.id] = to),
+  );
 }
-

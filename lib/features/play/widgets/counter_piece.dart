@@ -130,41 +130,41 @@ class CounterPieceView extends StatelessWidget {
   /// on a pale piece over pale art the ink was landing on whatever the card
   /// happened to have there.
   Widget _print(Color ink) => FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(
-          piece.label,
-          maxLines: 1,
-          style: TextStyle(
-            fontSize: width * 0.2,
-            fontWeight: FontWeight.w800,
-            letterSpacing: width * 0.006,
-            height: 1,
-            color: ink,
-            shadows: [
-              Shadow(
-                color: ink.computeLuminance() > 0.5
-                    ? const Color(0x99000000)
-                    : const Color(0x55FFFFFF),
-                blurRadius: width * 0.03,
-              ),
-            ],
+    fit: BoxFit.scaleDown,
+    child: Text(
+      piece.label,
+      maxLines: 1,
+      style: TextStyle(
+        fontSize: width * 0.2,
+        fontWeight: FontWeight.w800,
+        letterSpacing: width * 0.006,
+        height: 1,
+        color: ink,
+        shadows: [
+          Shadow(
+            color: ink.computeLuminance() > 0.5
+                ? const Color(0x99000000)
+                : const Color(0x55FFFFFF),
+            blurRadius: width * 0.03,
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 
   Widget _count(Color ink) => FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(
-          '$count',
-          maxLines: 1,
-          style: TextStyle(
-            fontSize: width * 0.26,
-            fontWeight: FontWeight.w900,
-            height: 1,
-            color: ink,
-          ),
-        ),
-      );
+    fit: BoxFit.scaleDown,
+    child: Text(
+      '$count',
+      maxLines: 1,
+      style: TextStyle(
+        fontSize: width * 0.26,
+        fontWeight: FontWeight.w900,
+        height: 1,
+        color: ink,
+      ),
+    ),
+  );
 }
 
 /// Every counter a card is wearing, in a row along its bottom edge.
@@ -366,14 +366,14 @@ class CounterPlastic extends CustomPainter {
     canvas.drawPath(
       path.shift(Offset(0, deep)),
       Paint()
-        ..color = Color.lerp(colour, const Color(0xFF000000), 0.45)!
-            .withValues(alpha: 0.92),
+        ..color = Color.lerp(
+          colour,
+          const Color(0xFF000000),
+          0.45,
+        )!.withValues(alpha: 0.92),
     );
 
-    canvas.drawPath(
-      path,
-      Paint()..color = colour.withValues(alpha: bodyAlpha),
-    );
+    canvas.drawPath(path, Paint()..color = colour.withValues(alpha: bodyAlpha));
 
     // Lit from above. The light stop along the top edge and the dark one along
     // the bottom are the other half of the illusion: a flat fill reads as ink
@@ -423,11 +423,10 @@ class CounterPlastic extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = size.height * rimWidth
-        ..shader = ui.Gradient.linear(
-          box.topCenter,
-          box.bottomCenter,
-          const [edgeLit, edgeShade],
-        ),
+        ..shader = ui.Gradient.linear(box.topCenter, box.bottomCenter, const [
+          edgeLit,
+          edgeShade,
+        ]),
     );
   }
 

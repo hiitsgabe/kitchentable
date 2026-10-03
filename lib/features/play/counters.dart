@@ -66,9 +66,17 @@ const _white = Color(0xFFEDE9E4);
 const counterPieces = <CounterPiece>[
   CounterPiece(name: '+1/+1', colour: _black, power: 1, toughness: 1),
   CounterPiece(
-      name: '+2/+2', colour: Color(0xFF1F9D4D), power: 2, toughness: 2),
+    name: '+2/+2',
+    colour: Color(0xFF1F9D4D),
+    power: 2,
+    toughness: 2,
+  ),
   CounterPiece(
-      name: '+4/+4', colour: Color(0xFF2D6BD8), power: 4, toughness: 4),
+    name: '+4/+4',
+    colour: Color(0xFF2D6BD8),
+    power: 4,
+    toughness: 4,
+  ),
   CounterPiece(name: '-1/-1', colour: _white, power: -1, toughness: -1),
   CounterPiece(name: '+1/+0', colour: Color(0xFFD22B2B), power: 1),
   CounterPiece(name: '+2/+0', colour: Color(0xFF19B7C8), power: 2),
@@ -85,11 +93,20 @@ const counterPieces = <CounterPiece>[
   CounterPiece(name: 'lifelink', colour: Color(0xFFE87FA8), isKeyword: true),
   CounterPiece(name: 'hexproof', colour: Color(0xFF3FBF8F), isKeyword: true),
   CounterPiece(
-      name: 'first strike', colour: Color(0xFFB0B6C0), isKeyword: true),
+    name: 'first strike',
+    colour: Color(0xFFB0B6C0),
+    isKeyword: true,
+  ),
   CounterPiece(
-      name: 'double strike', colour: Color(0xFF6E7684), isKeyword: true),
+    name: 'double strike',
+    colour: Color(0xFF6E7684),
+    isKeyword: true,
+  ),
   CounterPiece(
-      name: 'indestructible', colour: Color(0xFF4A4038), isKeyword: true),
+    name: 'indestructible',
+    colour: Color(0xFF4A4038),
+    isKeyword: true,
+  ),
   CounterPiece(name: 'reach', colour: Color(0xFF6FA83A), isKeyword: true),
 ];
 
@@ -152,8 +169,7 @@ String _signed(int n) => n < 0 ? '$n' : '+$n';
 /// white, because those two are what the player already reads as more and
 /// less.
 CounterPiece? netPiece(Map<String, int> counters) {
-  final any = counters.entries
-      .any((e) => e.value != 0 && isNumberKind(e.key));
+  final any = counters.entries.any((e) => e.value != 0 && isNumberKind(e.key));
   if (!any) return null;
 
   final power = powerFrom(counters);

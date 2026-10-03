@@ -20,7 +20,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('NO SOURCES CONFIGURED'), findsOneWidget);
-    expect(find.text('Play'), findsOneWidget);
+    // Shouted, because it is a slab and slabs carry one word in capitals.
+    expect(find.text('PLAY'), findsOneWidget);
     // One shut door, not three. Decks is the only row that cannot do its job
     // without cards; a room can be made and joined whatever is on the device.
     expect(find.text('needs a source'), findsOneWidget);
@@ -62,7 +63,7 @@ void main() {
     expect(find.byKey(const Key('menu-play')), findsOneWidget);
     expect(
       find.ancestor(
-        of: find.text('Play'),
+        of: find.text('PLAY'),
         matching: find.byType(MenuRow),
       ),
       findsNothing,

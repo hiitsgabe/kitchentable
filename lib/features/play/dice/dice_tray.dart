@@ -193,12 +193,7 @@ class _Die extends StatelessWidget {
               showing: face,
               turn: turning == null
                   ? solid.settle(face)
-                  : tumble(
-                      die: solid,
-                      face: face,
-                      spin: _spin,
-                      at: turning!,
-                    ),
+                  : tumble(die: solid, face: face, spin: _spin, at: turning!),
               size: side,
             ),
             Text(

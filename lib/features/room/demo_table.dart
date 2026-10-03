@@ -40,19 +40,19 @@ class _DemoTableState extends ConsumerState<DemoTable> {
   void _deal() {
     final view = widget.view;
     if (view != null) {
-      ref.read(rendererChoiceProvider.notifier).choose(
-        TableRenderer.values.where((r) => r.name == view).firstOrNull,
-      );
+      ref
+          .read(rendererChoiceProvider.notifier)
+          .choose(
+            TableRenderer.values.where((r) => r.name == view).firstOrNull,
+          );
     }
     final names = ['', 'Carla', 'Diego', 'Bea', 'Ana', 'Rui'];
-    ref.read(playProvider.notifier).startPod(
+    ref
+        .read(playProvider.notifier)
+        .startPod(
           players: [
             for (var i = 0; i < widget.seats.clamp(1, 6); i++)
-              (
-                deck: _deck(i),
-                name: names[i],
-                owner: const SeatOwner.here(),
-              ),
+              (deck: _deck(i), name: names[i], owner: const SeatOwner.here()),
           ],
           seed: 'demo',
         );
@@ -75,17 +75,29 @@ class _DemoTableState extends ConsumerState<DemoTable> {
 }
 
 CatalogCard _card(String name, {String type = 'Creature', int cmc = 2}) =>
-    CatalogCard(oracleId: name, name: name, typeLine: type, cmc: cmc.toDouble());
+    CatalogCard(
+      oracleId: name,
+      name: name,
+      typeLine: type,
+      cmc: cmc.toDouble(),
+    );
 
 Deck _deck(int seat) => Deck(
-      id: 'demo-$seat',
-      name: 'demo deck $seat',
-      format: DeckFormat.commander,
-      slots: [
-        DeckSlot(card: _card('Mountain', type: 'Basic Land'), quantity: 30),
-        DeckSlot(card: _card('Goblin Guide'), quantity: 10),
-        DeckSlot(card: _card('Lightning Bolt', type: 'Instant', cmc: 1), quantity: 10),
-        DeckSlot(card: _card('Hobgoblin Bandit Lord'), quantity: 10),
-        DeckSlot(card: _card('Goblin Trashmaster', cmc: 4), quantity: 1, commander: true),
-      ],
-    );
+  id: 'demo-$seat',
+  name: 'demo deck $seat',
+  format: DeckFormat.commander,
+  slots: [
+    DeckSlot(card: _card('Mountain', type: 'Basic Land'), quantity: 30),
+    DeckSlot(card: _card('Goblin Guide'), quantity: 10),
+    DeckSlot(
+      card: _card('Lightning Bolt', type: 'Instant', cmc: 1),
+      quantity: 10,
+    ),
+    DeckSlot(card: _card('Hobgoblin Bandit Lord'), quantity: 10),
+    DeckSlot(
+      card: _card('Goblin Trashmaster', cmc: 4),
+      quantity: 1,
+      commander: true,
+    ),
+  ],
+);

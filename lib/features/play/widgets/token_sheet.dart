@@ -100,9 +100,9 @@ class _TokenSheetState extends State<TokenSheet> {
   /// come back in whichever order the sort happened to leave them, and the
   /// catalog's own order is the one the deck builder's search already shows.
   List<CatalogCard> get _tokensFirst => [
-        ..._results.where(_isToken),
-        ..._results.where((c) => !_isToken(c)),
-      ];
+    ..._results.where(_isToken),
+    ..._results.where((c) => !_isToken(c)),
+  ];
 
   @override
   Widget build(BuildContext context) {

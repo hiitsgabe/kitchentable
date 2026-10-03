@@ -6,9 +6,12 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../table/room/room.dart';
 import '../../table/shuffle.dart';
 import '../../ui/atoms/menu_row.dart';
+import '../../ui/atoms/slab.dart';
 import '../../ui/atoms/toast.dart';
+import '../../ui/atoms/tray.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/app_palette.dart';
+import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../decks/play_decks_screen.dart';
@@ -114,6 +117,7 @@ class RoomScreen extends ConsumerWidget {
             title: 'Send the link',
             subtitle: 'copies it, to paste into any chat',
             icon: Icons.ios_share_rounded,
+            tone: SlabTone.cool,
             metrics: m,
             onActivate: () => _copy(context, link),
           ),
@@ -147,6 +151,9 @@ class RoomScreen extends ConsumerWidget {
               : 'everybody brings their own. Yours takes a chair, and the '
                     'game starts once every chair has one',
           icon: Icons.style_rounded,
+          // The one thing the host has to do before anything else can happen,
+          // so it carries the colour the way Play does on the menu.
+          tone: SlabTone.choice,
           metrics: m,
           autofocus: true,
           onActivate: () => Navigator.of(context).push(
@@ -162,6 +169,7 @@ class RoomScreen extends ConsumerWidget {
             // rather than why a button is grey.
             subtitle: lobby.dealt ? 'the table is dealt' : startWords(empty),
             icon: Icons.play_arrow_rounded,
+            tone: SlabTone.cool,
             enabled: lobby.canStart,
             metrics: m,
             onActivate: () => _start(context, ref, lobby, config),
@@ -379,40 +387,21 @@ class _Seats extends StatelessWidget {
     return Padding(
       key: const Key('room-chairs'),
       padding: EdgeInsets.only(bottom: m.scaled(14)),
-      child: Container(
-        padding: EdgeInsets.all(m.scaled(14)),
-        decoration: BoxDecoration(
-          color: Palette.tile,
-          borderRadius: BorderRadius.circular(m.scaled(14)),
-          border: Border.all(color: Palette.tileEdge),
+      child: Well(
+        metrics: m,
+        label: 'Chairs',
+        trailing: Text(
+          '$taken of $seats',
+          key: const Key('room-chairs-count'),
+          style: pixel(
+            size: m.scaled(12),
+            weight: 700,
+            color: taken == seats ? context.palette.accent : Palette.inkMuted,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(
-                  'CHAIRS',
-                  style: TextStyle(
-                    fontSize: m.scaled(10),
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.w500,
-                    color: Palette.inkFaint,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '$taken of $seats',
-                  key: const Key('room-chairs-count'),
-                  style: TextStyle(
-                    fontSize: m.scaled(11),
-                    fontWeight: FontWeight.w600,
-                    color: taken == seats ? context.palette.accent : Palette.inkMuted,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: m.scaled(10)),
             for (var chair = 1; chair <= seats; chair++) ...[
               if (chair > 1) SizedBox(height: m.scaled(8)),
               _Chair(
@@ -505,9 +494,10 @@ class _Chair extends StatelessWidget {
           width: m.scaled(18),
           child: Text(
             chair == null ? '' : '$chair',
-            style: TextStyle(
-              fontSize: m.scaled(12),
-              fontWeight: FontWeight.w700,
+            style: pixel(
+              size: m.scaled(12),
+              weight: 700,
+
               color: here ? Palette.inkMuted : Palette.inkFaint,
             ),
           ),
@@ -518,9 +508,9 @@ class _Chair extends StatelessWidget {
             name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: m.scaled(14),
-              fontWeight: mine ? FontWeight.w700 : FontWeight.w500,
+            style: pixel(
+              size: m.scaled(14),
+              weight: mine ? 700 : 500,
               color: here
                   ? (mine ? context.palette.accent : Palette.ink)
                   : Palette.inkFaint,
@@ -531,8 +521,9 @@ class _Chair extends StatelessWidget {
         Text(
           status,
           maxLines: 1,
-          style: TextStyle(
-            fontSize: m.scaled(11),
+          style: pixel(
+            size: m.scaled(11),
+            weight: 500,
             color: here ? context.palette.accent : Palette.inkFaint,
           ),
         ),
@@ -568,17 +559,30 @@ class _Fact extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.only(bottom: m.scaled(10)),
-      child: Text(
-        text,
-        key: Key(id),
-        style: TextStyle(
-          fontSize: m.scaled(12),
-          height: 1.4,
-          color: failed
-              ? Palette.attention
-              : done
-              ? Palette.inkMuted
-              : Palette.inkFaint,
+      child: Well(
+        metrics: m,
+        edge: failed
+            ? Palette.attention
+            : done
+            ? context.palette.accent
+            : null,
+        padding: EdgeInsets.symmetric(
+          horizontal: m.scaled(12),
+          vertical: m.scaled(10),
+        ),
+        child: Text(
+          text,
+          key: Key(id),
+          style: pixel(
+            size: m.scaled(12),
+            weight: 500,
+            height: 1.4,
+            color: failed
+                ? Palette.attention
+                : done
+                ? Palette.inkMuted
+                : Palette.inkFaint,
+          ),
         ),
       ),
     );
@@ -603,22 +607,24 @@ class _Invite extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.only(bottom: m.scaled(14)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          RoomQr(key: const Key('room-qr'), metrics: m, link: link),
-          SizedBox(width: m.scaled(14)),
-          Expanded(
-            child: Text(
+      child: Well(
+        metrics: m,
+        child: Column(
+          children: [
+            RoomQr(key: const Key('room-qr'), metrics: m, link: link),
+            SizedBox(height: m.scaled(10)),
+            Text(
               'or let somebody at the table scan this',
-              style: TextStyle(
-                fontSize: m.scaled(12),
+              textAlign: TextAlign.center,
+              style: pixel(
+                size: m.scaled(12),
+                weight: 500,
                 height: 1.4,
                 color: Palette.inkFaint,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -650,15 +656,20 @@ class _CodeLine extends StatelessWidget {
           children: [
             Text(
               'or read out the code',
-              style: TextStyle(fontSize: m.scaled(12), color: Palette.inkFaint),
+              style: pixel(
+                size: m.scaled(12),
+                weight: 500,
+                color: Palette.inkFaint,
+              ),
             ),
             SizedBox(width: m.scaled(8)),
             Text(
               code,
               key: const Key('room-code'),
-              style: TextStyle(
-                fontSize: m.scaled(15),
-                fontWeight: FontWeight.w700,
+              style: pixel(
+                size: m.scaled(15),
+                weight: 700,
+
                 letterSpacing: m.scaled(1.5),
                 color: context.palette.accent,
               ),
@@ -686,20 +697,17 @@ class RoomQr extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = metrics;
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: EdgeInsets.all(m.scaled(8)),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(m.scaled(10)),
-        ),
-        child: QrImageView(
-          data: link,
-          size: m.scaled(116),
-          backgroundColor: Colors.white,
-          semanticsLabel: 'A QR code of the link to this room',
-        ),
+    return Container(
+      padding: EdgeInsets.all(m.scaled(8)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(m.scaled(8)),
+      ),
+      child: QrImageView(
+        data: link,
+        size: m.scaled(116),
+        backgroundColor: Colors.white,
+        semanticsLabel: 'A QR code of the link to this room',
       ),
     );
   }
@@ -732,12 +740,15 @@ class _Aside extends StatelessWidget {
         child: Text(
           text,
           key: Key(id),
-          style: TextStyle(
-            fontSize: m.scaled(11),
-            color: Palette.inkFaint.withValues(alpha: 0.65),
-            decoration: TextDecoration.underline,
-            decorationColor: Palette.inkFaint.withValues(alpha: 0.4),
-          ),
+          style:
+              pixel(
+                size: m.scaled(12),
+                weight: 500,
+                color: Palette.inkFaint.withValues(alpha: 0.8),
+              ).copyWith(
+                decoration: TextDecoration.underline,
+                decorationColor: Palette.inkFaint.withValues(alpha: 0.4),
+              ),
         ),
       ),
     );
@@ -764,20 +775,15 @@ class _Note extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.only(bottom: m.scaled(14)),
-      child: Container(
-        padding: EdgeInsets.all(m.scaled(12)),
-        decoration: BoxDecoration(
-          color: Palette.surface,
-          borderRadius: BorderRadius.circular(m.scaled(10)),
-          border: Border(
-            left: BorderSide(color: colour, width: m.scaled(3)),
-          ),
-        ),
+      child: Well(
+        metrics: m,
+        edge: colour,
         child: Text(
           text,
           key: Key(id),
-          style: TextStyle(
-            fontSize: m.scaled(12),
+          style: pixel(
+            size: m.scaled(12),
+            weight: 500,
             height: 1.5,
             color: Palette.inkMuted,
           ),

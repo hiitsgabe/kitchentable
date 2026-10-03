@@ -52,10 +52,12 @@ class DeckEditor extends Notifier<Deck?> {
     ref.invalidate(decksProvider);
   }
 
-  int _indexOf(List<DeckSlot> slots, DeckSlot like) => slots.indexWhere((s) =>
-      s.card.oracleId == like.card.oracleId &&
-      s.sideboard == like.sideboard &&
-      s.commander == like.commander);
+  int _indexOf(List<DeckSlot> slots, DeckSlot like) => slots.indexWhere(
+    (s) =>
+        s.card.oracleId == like.card.oracleId &&
+        s.sideboard == like.sideboard &&
+        s.commander == like.commander,
+  );
 
   Future<void> add(DeckSlot slot) async {
     final deck = state;
@@ -169,5 +171,4 @@ class DeckEditor extends Notifier<Deck?> {
   }
 }
 
-final deckEditorProvider =
-    NotifierProvider<DeckEditor, Deck?>(DeckEditor.new);
+final deckEditorProvider = NotifierProvider<DeckEditor, Deck?>(DeckEditor.new);

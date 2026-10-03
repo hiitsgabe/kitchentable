@@ -15,8 +15,9 @@ const roomCodeAlphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
 
 /// Four, a dash, three. Derived from the alphabet rather than typed out again,
 /// so a character added there cannot be a character this refuses.
-final roomCodePattern =
-    RegExp('^[$roomCodeAlphabet]{4}-[$roomCodeAlphabet]{3}\$');
+final roomCodePattern = RegExp(
+  '^[$roomCodeAlphabet]{4}-[$roomCodeAlphabet]{3}\$',
+);
 
 /// How many chairs a room may have. The screen reads this rather than typing
 /// out 2 and 4, and a fifth chair is a decision about the layout and not a
@@ -37,9 +38,9 @@ final _random = Random.secure();
 /// A code for a room nobody has made yet.
 String freshRoomCode() {
   String run(int length) => [
-        for (var i = 0; i < length; i++)
-          roomCodeAlphabet[_random.nextInt(roomCodeAlphabet.length)],
-      ].join();
+    for (var i = 0; i < length; i++)
+      roomCodeAlphabet[_random.nextInt(roomCodeAlphabet.length)],
+  ].join();
 
   return '${run(4)}-${run(3)}';
 }
@@ -54,8 +55,9 @@ String freshRoomCode() {
 /// server that hands over the page, so the only copy of it is in the hands of
 /// the people at the table.
 String linkFor(String code, {required String origin}) {
-  final base =
-      origin.endsWith('/') ? origin.substring(0, origin.length - 1) : origin;
+  final base = origin.endsWith('/')
+      ? origin.substring(0, origin.length - 1)
+      : origin;
   return '$base/$_roomMarker${code.toLowerCase()}';
 }
 
@@ -90,11 +92,11 @@ class RoomConfig {
     required this.hostName,
     required this.roomName,
     int? life,
-  })  : life = life ?? format.startingLife,
-        assert(
-          roomSeatChoices.contains(seats),
-          'a room seats one of $roomSeatChoices, not $seats',
-        );
+  }) : life = life ?? format.startingLife,
+       assert(
+         roomSeatChoices.contains(seats),
+         'a room seats one of $roomSeatChoices, not $seats',
+       );
 
   final DeckFormat format;
 
@@ -121,14 +123,13 @@ class RoomConfig {
     int? life,
     String? hostName,
     String? roomName,
-  }) =>
-      RoomConfig(
-        format: format ?? this.format,
-        seats: seats ?? this.seats,
-        life: life ?? this.life,
-        hostName: hostName ?? this.hostName,
-        roomName: roomName ?? this.roomName,
-      );
+  }) => RoomConfig(
+    format: format ?? this.format,
+    seats: seats ?? this.seats,
+    life: life ?? this.life,
+    hostName: hostName ?? this.hostName,
+    roomName: roomName ?? this.roomName,
+  );
 
   @override
   bool operator ==(Object other) =>

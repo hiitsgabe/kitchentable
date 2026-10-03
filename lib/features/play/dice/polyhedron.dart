@@ -140,9 +140,7 @@ Polyhedron _icosahedron() {
 }
 
 Polyhedron _dual(Polyhedron solid) {
-  final corners = [
-    for (final face in solid.faces) solid.centreOf(face),
-  ];
+  final corners = [for (final face in solid.faces) solid.centreOf(face)];
   final faces = <List<int>>[];
   for (var corner = 0; corner < solid.vertices.length; corner++) {
     final around = [
@@ -158,8 +156,9 @@ Polyhedron _dual(Polyhedron solid) {
 ///
 /// Every solid here is corner transitive, so this is one scale applied to all
 /// of them: it moves no corner off its face's plane and turns no face round.
-List<Vector3> _onUnitSphere(List<Vector3> corners) =>
-    [for (final c in corners) c.normalized()];
+List<Vector3> _onUnitSphere(List<Vector3> corners) => [
+  for (final c in corners) c.normalized(),
+];
 
 /// [ids] in order round [axis], anticlockwise seen from outside.
 ///
@@ -170,8 +169,7 @@ List<int> _round(List<int> ids, List<Vector3> points, Vector3 axis) {
   final off = w.x.abs() < 0.5 ? Vector3(1, 0, 0) : Vector3(0, 1, 0);
   final u = w.cross(off).normalized();
   final v = w.cross(u);
-  double angle(int id) =>
-      math.atan2(points[id].dot(v), points[id].dot(u));
+  double angle(int id) => math.atan2(points[id].dot(v), points[id].dot(u));
   return [...ids]..sort((a, b) => angle(a).compareTo(angle(b)));
 }
 

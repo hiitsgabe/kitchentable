@@ -215,7 +215,11 @@ class _CursorBoardState extends State<CursorBoard> {
           // board 28 points out of 844 and the rest went on the bands, the
           // hand and the bars. Then it scrolls, which is what it did before,
           // and each pile keeps the height the width alone gives it.
-          if (share <= CursorBoard._chromeFor(widget.metrics, labels: widget.showLabels)) {
+          if (share <=
+              CursorBoard._chromeFor(
+                widget.metrics,
+                labels: widget.showLabels,
+              )) {
             return SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -254,7 +258,10 @@ class _CursorBoardState extends State<CursorBoard> {
         final raw = constraints.biggest;
         final size = raw.height.isFinite
             ? raw
-            : Size(raw.width, matSize.height * matScaleFor(Size(raw.width, double.infinity)));
+            : Size(
+                raw.width,
+                matSize.height * matScaleFor(Size(raw.width, double.infinity)),
+              );
 
         final mat = SizedBox(
           width: size.width,
@@ -287,7 +294,9 @@ class _CursorBoardState extends State<CursorBoard> {
                     // is asking that with both hands empty.
                     border: aiming
                         ? Border.all(
-                            color: context.palette.accent.withValues(alpha: 0.55),
+                            color: context.palette.accent.withValues(
+                              alpha: 0.55,
+                            ),
                             width: m.scaled(2),
                           )
                         : null,

@@ -50,18 +50,18 @@ class TableGrid extends StatelessWidget {
           return switch (others.length) {
             1 => _side([board(others[0]), me], gap),
             2 => _rows([
-                _side([board(others[0]), board(others[1])], gap),
-                me,
-              ], gap),
+              _side([board(others[0]), board(others[1])], gap),
+              me,
+            ], gap),
             3 => _rows([
-                _side([board(others[0]), board(others[1])], gap),
-                _side([me, board(others[2])], gap),
-              ], gap),
+              _side([board(others[0]), board(others[1])], gap),
+              _side([me, board(others[2])], gap),
+            ], gap),
             _ => _scrolling(
-                [for (final s in others) board(s), me],
-                gap,
-                cellHeight: (box.maxHeight - gap) / 2,
-              ),
+              [for (final s in others) board(s), me],
+              gap,
+              cellHeight: (box.maxHeight - gap) / 2,
+            ),
           };
         }
         // Tall: the others side by side across the top, yours full width
@@ -99,33 +99,39 @@ class TableGrid extends StatelessWidget {
   }
 
   Widget _rows(List<Widget> cells, double gap, {List<int>? flex}) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final (i, cell) in cells.indexed) ...[
-            if (i > 0) SizedBox(height: gap),
-            Expanded(flex: flex?[i] ?? 1, child: cell),
-          ],
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (final (i, cell) in cells.indexed) ...[
+        if (i > 0) SizedBox(height: gap),
+        Expanded(flex: flex?[i] ?? 1, child: cell),
+      ],
+    ],
+  );
 
   Widget _side(List<Widget> cells, double gap) => Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final (i, cell) in cells.indexed) ...[
-            if (i > 0) SizedBox(width: gap),
-            Expanded(child: cell),
-          ],
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (final (i, cell) in cells.indexed) ...[
+        if (i > 0) SizedBox(width: gap),
+        Expanded(child: cell),
+      ],
+    ],
+  );
 
   /// Two by two, as many rows as it takes, each row half the viewport.
-  Widget _scrolling(List<Widget> cells, double gap, {required double cellHeight}) {
+  Widget _scrolling(
+    List<Widget> cells,
+    double gap, {
+    required double cellHeight,
+  }) {
     final rows = <Widget>[];
     for (var i = 0; i < cells.length; i += 2) {
-      rows.add(SizedBox(
-        height: cellHeight,
-        child: _side(cells.sublist(i, (i + 2).clamp(0, cells.length)), gap),
-      ));
+      rows.add(
+        SizedBox(
+          height: cellHeight,
+          child: _side(cells.sublist(i, (i + 2).clamp(0, cells.length)), gap),
+        ),
+      );
     }
     return SingleChildScrollView(
       child: Column(

@@ -46,15 +46,14 @@ class ImportState {
     int? indexed,
     int? estimatedRecords,
     String? error,
-  }) =>
-      ImportState(
-        phase: phase ?? this.phase,
-        received: received ?? this.received,
-        total: total ?? this.total,
-        indexed: indexed ?? this.indexed,
-        estimatedRecords: estimatedRecords ?? this.estimatedRecords,
-        error: error ?? this.error,
-      );
+  }) => ImportState(
+    phase: phase ?? this.phase,
+    received: received ?? this.received,
+    total: total ?? this.total,
+    indexed: indexed ?? this.indexed,
+    estimatedRecords: estimatedRecords ?? this.estimatedRecords,
+    error: error ?? this.error,
+  );
 }
 
 class ImportNotifier extends Notifier<ImportState> {
@@ -69,7 +68,8 @@ class ImportNotifier extends Notifier<ImportState> {
     if (db == null) {
       state = const ImportState(
         phase: ImportPhase.failed,
-        error: 'There is no local catalog on this build, so nothing can be '
+        error:
+            'There is no local catalog on this build, so nothing can be '
             'imported here. Use the Android build.',
       );
       return;
@@ -117,5 +117,6 @@ final betterPicturesProvider = FutureProvider<bool>((ref) async {
   return db.needsBetterPictures();
 });
 
-final importProvider =
-    NotifierProvider<ImportNotifier, ImportState>(ImportNotifier.new);
+final importProvider = NotifierProvider<ImportNotifier, ImportState>(
+  ImportNotifier.new,
+);

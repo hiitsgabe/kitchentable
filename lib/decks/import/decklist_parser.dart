@@ -113,12 +113,14 @@ DecklistParseResult parseDecklist(String input) {
       continue;
     }
 
-    entries.add(DecklistEntry(
-      quantity: quantity,
-      name: name,
-      sideboard: sideboard,
-      setCode: match.group(3),
-    ));
+    entries.add(
+      DecklistEntry(
+        quantity: quantity,
+        name: name,
+        sideboard: sideboard,
+        setCode: match.group(3),
+      ),
+    );
   }
 
   return DecklistParseResult(entries: entries, ignored: ignored);

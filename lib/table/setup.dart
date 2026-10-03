@@ -56,10 +56,7 @@ TableState sitDown({
 
   var table = TableState(seats: [seat]);
 
-  table = apply(
-    table,
-    ShuffleZone(zoneId: 'library-$seatId', seed: seed),
-  );
+  table = apply(table, ShuffleZone(zoneId: 'library-$seatId', seed: seed));
 
   return apply(
     table,

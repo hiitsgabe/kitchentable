@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../sources/source_registry.dart';
 import '../../ui/atoms/menu_row.dart';
+import '../../ui/atoms/slab.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
+import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../decks/games_screen.dart';
@@ -53,9 +55,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   Future<void> _finish() async {
     await ref.read(setupDoneProvider.notifier).finish();
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: widget.then),
-    );
+    Navigator.of(context)
+        .pushReplacement(MaterialPageRoute<void>(builder: widget.then));
   }
 
   @override
@@ -91,7 +92,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   List<Widget> _name_(Metrics m) => [
     _Said(
       metrics: m,
-      text: 'What should the others call you? It goes on your chair at the '
+      text:
+          'What should the others call you? It goes on your chair at the '
           'table, and it is the only thing here that ever leaves this device.',
     ),
     TextFieldBox(
@@ -109,6 +111,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       title: 'Next',
       subtitle: 'cards come next',
       icon: Icons.arrow_forward_rounded,
+      tone: SlabTone.choice,
       metrics: m,
       onActivate: _next,
     ),
@@ -130,6 +133,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         title: source.name,
         subtitle: source.available ? source.subtitle : 'not ready yet',
         icon: Icons.download_rounded,
+        tone: source.available ? SlabTone.cool : SlabTone.plain,
         enabled: source.available,
         metrics: m,
         autofocus: source.id == knownSources.first.id && cards == 0,
@@ -168,15 +172,15 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         icon: Icons.style_rounded,
         metrics: m,
         autofocus: true,
-        onActivate: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const GamesScreen()),
-        ),
+        onActivate: () => Navigator.of(context)
+            .push(MaterialPageRoute<void>(builder: (_) => const GamesScreen())),
       ),
     SizedBox(height: m.scaled(14)),
     MenuRow(
       key: const Key('setup-done'),
       title: 'Done',
       icon: Icons.check_rounded,
+      tone: SlabTone.choice,
       metrics: m,
       autofocus: cards == 0,
       onActivate: _finish,
@@ -199,8 +203,9 @@ class _Said extends StatelessWidget {
       padding: EdgeInsets.only(bottom: m.scaled(16)),
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: m.scaled(13),
+        style: pixel(
+          size: m.scaled(13),
+          weight: 500,
           height: 1.5,
           color: Palette.inkMuted,
         ),

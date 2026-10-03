@@ -15,11 +15,7 @@ import '../tokens/palette.dart';
 /// widget, while cards either side of them loaded fine. The browser already
 /// has an HTTP cache and it is better at this than we are.
 class CardImage extends StatelessWidget {
-  const CardImage({
-    super.key,
-    required this.url,
-    required this.fallback,
-  });
+  const CardImage({super.key, required this.url, required this.fallback});
 
   final String url;
 
@@ -56,6 +52,5 @@ class CardPlaceholder extends StatelessWidget {
   const CardPlaceholder({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      const ColoredBox(color: Palette.tile);
+  Widget build(BuildContext context) => const ColoredBox(color: Palette.tile);
 }

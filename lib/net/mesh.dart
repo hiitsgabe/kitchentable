@@ -26,12 +26,9 @@ const _firstStamp = 0;
 /// It speaks to a [Transport] and has never heard of Nostr or WebRTC. That is
 /// the seam: the next slice writes a real one and this file does not change.
 class Mesh {
-  Mesh({
-    required Transport transport,
-    TableState? table,
-    bool creator = false,
-  })  : _transport = transport,
-        _creator = creator {
+  Mesh({required Transport transport, TableState? table, bool creator = false})
+    : _transport = transport,
+      _creator = creator {
     // In the body and not the initializer list, because the field is not final
     // and `prefer_initializing_formals` then asks for `this._table`, which a
     // named parameter may not be called.

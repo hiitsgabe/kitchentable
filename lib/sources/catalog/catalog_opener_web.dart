@@ -14,20 +14,20 @@ bool get catalogIsAvailable => true;
 /// drawn, which is how the browser build first died: fifty three tests green
 /// behind a screen that never appeared.
 QueryExecutor openCatalog() => driftDatabase(
-      name: 'catalog',
-      web: DriftWebOptions(
-        sqlite3Wasm: Uri.parse('sqlite3.wasm'),
-        driftWorker: Uri.parse('drift_worker.js'),
-        // Says which storage the browser actually gave us. drift falls back
-        // when OPFS and IndexedDB are both unavailable, and the fallback keeps
-        // everything in memory: the app works perfectly for one session and
-        // forgets it all on reload. That failure is indistinguishable from
-        // saving being broken, so it gets printed rather than guessed at.
-        onResult: (result) {
-          debugPrint(
-            'catalog storage: ${result.chosenImplementation}, '
-            'missing features: ${result.missingFeatures}',
-          );
-        },
-      ),
-    );
+  name: 'catalog',
+  web: DriftWebOptions(
+    sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+    driftWorker: Uri.parse('drift_worker.js'),
+    // Says which storage the browser actually gave us. drift falls back
+    // when OPFS and IndexedDB are both unavailable, and the fallback keeps
+    // everything in memory: the app works perfectly for one session and
+    // forgets it all on reload. That failure is indistinguishable from
+    // saving being broken, so it gets printed rather than guessed at.
+    onResult: (result) {
+      debugPrint(
+        'catalog storage: ${result.chosenImplementation}, '
+        'missing features: ${result.missingFeatures}',
+      );
+    },
+  ),
+);

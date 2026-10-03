@@ -239,8 +239,8 @@ class WebRtcTransport implements Transport, ReportsConnection {
   /// relay keeps no order between two events. So any signal makes the
   /// link, and the link holds what it cannot use yet.
   PeerLink _end(String peer) => _ends[peer] ??= _watch(
-        _links.link(me: _me, peer: peer, turn: turn ?? _signaling.turnHeard),
-      );
+    _links.link(me: _me, peer: peer, turn: turn ?? _signaling.turnHeard),
+  );
 
   PeerLink _watch(PeerLink end) {
     final peer = end.peer;
@@ -270,7 +270,8 @@ class WebRtcTransport implements Transport, ReportsConnection {
       settled.complete(
         LinkFailure(
           peer: peer,
-          reason: 'the channel did not open, and nothing changed on the '
+          reason:
+              'the channel did not open, and nothing changed on the '
               'link for ${openWithin.inSeconds} seconds'
               '${_lastSaid[peer] == null ? '' : '. States: ${_lastSaid[peer]}'}',
           needsTurn: false,

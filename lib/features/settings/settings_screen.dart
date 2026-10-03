@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ui/atoms/menu_row.dart';
+import '../../ui/atoms/slab.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/background/backdrop_controller.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -53,10 +54,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final backdrop = ref.watch(backdropProvider);
     final turn = ref.watch(turnProvider);
 
@@ -85,7 +88,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         SettingsCaption(
           metrics: m,
-          text: 'The people at your table see this, and it is the only thing '
+          text:
+              'The people at your table see this, and it is the only thing '
               'here that leaves the device. Left empty you are $namelessPlayer.',
         ),
 
@@ -97,6 +101,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: 'Look',
           subtitle: '${backdrop.kind.label}, and the colour it is drawn in',
           icon: Icons.palette_rounded,
+          tone: SlabTone.choice,
           metrics: m,
           autofocus: true,
           onActivate: () => Navigator.of(context).push(
@@ -108,6 +113,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: 'Sources',
           subtitle: 'where the cards come from',
           icon: Icons.download_rounded,
+          tone: SlabTone.cool,
           metrics: m,
           onActivate: () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const SourcesScreen()),

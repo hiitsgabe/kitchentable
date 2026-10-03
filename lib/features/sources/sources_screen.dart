@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sources/model/source_def.dart';
 import '../../sources/source_registry.dart';
 import '../../ui/atoms/menu_row.dart';
+import '../../ui/atoms/slab.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
@@ -14,11 +15,11 @@ String formatMegabytes(int bytes) =>
     '${(bytes / 1048576).toStringAsFixed(1)} MB';
 
 IconData _iconFor(SourceKind kind) => switch (kind) {
-      SourceKind.catalog => Icons.grid_view_rounded,
-      SourceKind.draftSets => Icons.inventory_2_rounded,
-      SourceKind.localFile => Icons.folder_rounded,
-      SourceKind.url => Icons.link_rounded,
-    };
+  SourceKind.catalog => Icons.grid_view_rounded,
+  SourceKind.draftSets => Icons.inventory_2_rounded,
+  SourceKind.localFile => Icons.folder_rounded,
+  SourceKind.url => Icons.link_rounded,
+};
 
 class SourcesScreen extends ConsumerWidget {
   const SourcesScreen({super.key});
@@ -26,10 +27,12 @@ class SourcesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final dim = ref.watch(betterPicturesProvider).value ?? false;
 
     return ScreenFrame(
@@ -43,6 +46,9 @@ class SourcesScreen extends ConsumerWidget {
             title: source.name,
             subtitle: _subtitleFor(source),
             icon: _iconFor(source.kind),
+            // The ones that work carry a colour and the ones that do not stay
+            // grey, so the list says which is which before the subtitle does.
+            tone: source.available ? SlabTone.cool : SlabTone.plain,
             enabled: source.available,
             metrics: m,
             autofocus: source.id == knownSources.first.id,

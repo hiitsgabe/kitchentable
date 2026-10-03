@@ -65,14 +65,12 @@ class SeatView {
   ZoneView? pile(String kind) => zone('$kind-$seatId');
 
   static SeatView of(Seat seat, {required String viewer}) => SeatView(
-        seatId: seat.id,
-        name: seat.name,
-        life: seat.life,
-        isViewer: seat.id == viewer,
-        zones: [
-          for (final zone in seat.zones) _viewOf(zone, viewer),
-        ],
-      );
+    seatId: seat.id,
+    name: seat.name,
+    life: seat.life,
+    isViewer: seat.id == viewer,
+    zones: [for (final zone in seat.zones) _viewOf(zone, viewer)],
+  );
 
   static ZoneView _viewOf(Zone zone, String viewer) {
     final readable = zone.visibility.seenBy(viewer, owner: zone.seatId);

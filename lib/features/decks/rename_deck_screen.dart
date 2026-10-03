@@ -19,8 +19,9 @@ class RenameDeckScreen extends ConsumerStatefulWidget {
 }
 
 class _RenameDeckScreenState extends ConsumerState<RenameDeckScreen> {
-  late final TextEditingController _controller =
-      TextEditingController(text: ref.read(deckEditorProvider)?.name ?? '');
+  late final TextEditingController _controller = TextEditingController(
+    text: ref.read(deckEditorProvider)?.name ?? '',
+  );
 
   @override
   void dispose() {
@@ -41,10 +42,12 @@ class _RenameDeckScreenState extends ConsumerState<RenameDeckScreen> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
 
     return ScreenFrame(
       metrics: m,

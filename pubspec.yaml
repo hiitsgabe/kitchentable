@@ -94,6 +94,14 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Pixelify Sans by Eifetx, SIL Open Font License, licence text alongside it
+  # in fonts/. One file, because it is a variable font: see lib/ui/tokens/
+  # lettering.dart for why the weight is an axis rather than four assets.
+  fonts:
+    - family: Pixelify
+      fonts:
+        - asset: fonts/PixelifySans.ttf
+
   # The swirling paint backdrop. Flutter compiles these to the platform's own
   # shader language at build time; no package is needed for one fragment
   # shader, and the one the app needs is written in this repository.

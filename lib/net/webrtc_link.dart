@@ -41,9 +41,9 @@ Map<String, Object> iceConfiguration({
 
 /// The `a=candidate:` lines of [sdp], each without the `a=` and the line end.
 List<String> candidateLines(String sdp) => [
-      for (final line in sdp.split(RegExp(r'\r?\n')))
-        if (line.startsWith('a=candidate:')) line.substring(2),
-    ];
+  for (final line in sdp.split(RegExp(r'\r?\n')))
+    if (line.startsWith('a=candidate:')) line.substring(2),
+];
 
 /// "4 host mdns, 1 srflx v4, 2 srflx v6", or "none": each candidate by its
 /// `typ` and the family of its address. A `.local` name is what Chrome
@@ -60,8 +60,8 @@ String candidatesInWords(List<String> candidates) {
     final family = address.endsWith('.local')
         ? 'mdns'
         : address.contains(':')
-            ? 'v6'
-            : 'v4';
+        ? 'v6'
+        : 'v4';
     final key = '$kind $family';
     counts[key] = (counts[key] ?? 0) + 1;
   }
@@ -90,7 +90,8 @@ String routeInWords(List<StatsReport> reports) {
   pair ??= reports
       .where((r) => r.type == 'candidate-pair' && r.values['nominated'] == true)
       .firstOrNull;
-  final counted = 'ours ${_kinds(reports, 'local-candidate')}, '
+  final counted =
+      'ours ${_kinds(reports, 'local-candidate')}, '
       'theirs ${_kinds(reports, 'remote-candidate')}';
   if (pair == null) {
     return 'DTLS "$dtls" and no pair of addresses chosen; candidates: '
@@ -551,7 +552,8 @@ class WebRtcLink implements PeerLink {
     }
     return LinkFailure(
       peer: failure.peer,
-      reason: '${failure.reason}. States: ${_trail.join(', ')}. '
+      reason:
+          '${failure.reason}. States: ${_trail.join(', ')}. '
           'Ours: ${candidatesInWords(_ours)} '
           '($_oursInDescription in the description, '
           '${_ours.length - _oursInDescription} after). '
@@ -565,6 +567,7 @@ class WebRtcLink implements PeerLink {
 
   /// `RTCIceConnectionStateChecking` as `checking`: the enum's own name with
   /// its prefix taken off, lowercased, which is the browser's word for it.
-  static String _word(String name, String prefix) =>
-      name.startsWith(prefix) ? name.substring(prefix.length).toLowerCase() : name;
+  static String _word(String name, String prefix) => name.startsWith(prefix)
+      ? name.substring(prefix.length).toLowerCase()
+      : name;
 }

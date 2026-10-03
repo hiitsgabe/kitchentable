@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../ui/atoms/tray.dart';
+import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 
@@ -16,20 +18,12 @@ class SettingsLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(
-          top: metrics.scaled(6),
-          bottom: metrics.scaled(8),
-        ),
-        child: Text(
-          text.toUpperCase(),
-          style: TextStyle(
-            fontSize: metrics.scaled(10),
-            letterSpacing: 1.2,
-            fontWeight: FontWeight.w500,
-            color: Palette.inkFaint,
-          ),
-        ),
-      );
+    padding: EdgeInsets.only(
+      top: metrics.scaled(10),
+      bottom: metrics.scaled(8),
+    ),
+    child: TrayLabel(metrics: metrics, text: text),
+  );
 }
 
 /// A sentence under a field or a group saying what it is for.
@@ -41,17 +35,18 @@ class SettingsCaption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(
-          top: metrics.scaled(6),
-          bottom: metrics.scaled(18),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: metrics.scaled(11),
-            height: 1.45,
-            color: Palette.inkFaint,
-          ),
-        ),
-      );
+    padding: EdgeInsets.only(
+      top: metrics.scaled(6),
+      bottom: metrics.scaled(18),
+    ),
+    child: Text(
+      text,
+      style: pixel(
+        size: metrics.scaled(12),
+        weight: 500,
+        height: 1.45,
+        color: Palette.inkFaint,
+      ),
+    ),
+  );
 }

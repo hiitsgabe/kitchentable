@@ -18,10 +18,12 @@ class DecksScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final all = ref.watch(decksProvider);
     final decks = all.whenData(
       (list) => list.where((d) => d.game == game).toList(),
@@ -46,7 +48,9 @@ class DecksScreen extends ConsumerWidget {
           autofocus: true,
           onActivate: () async {
             await Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => NewDeckScreen(game: game)),
+              MaterialPageRoute<void>(
+                builder: (_) => NewDeckScreen(game: game),
+              ),
             );
           },
         ),
@@ -67,9 +71,9 @@ class DecksScreen extends ConsumerWidget {
         onActivate: () async {
           await ref.read(deckEditorProvider.notifier).open(deck.id);
           if (!context.mounted) return;
-          await Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const DeckScreen()),
-          );
+          await Navigator.of(
+            context,
+          ).push(MaterialPageRoute<void>(builder: (_) => const DeckScreen()));
         },
       );
 }

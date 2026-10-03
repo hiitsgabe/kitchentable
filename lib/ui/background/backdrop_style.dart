@@ -23,20 +23,20 @@ enum BackdropKind {
   image;
 
   String get label => switch (this) {
-        BackdropKind.paint => 'Paint',
-        BackdropKind.aurora => 'Aurora',
-        BackdropKind.drift => 'Drift',
-        BackdropKind.flat => 'Flat',
-        BackdropKind.image => 'Your own picture',
-      };
+    BackdropKind.paint => 'Paint',
+    BackdropKind.aurora => 'Aurora',
+    BackdropKind.drift => 'Drift',
+    BackdropKind.flat => 'Flat',
+    BackdropKind.image => 'Your own picture',
+  };
 
   String get describe => switch (this) {
-        BackdropKind.paint => 'swirling paint, the default',
-        BackdropKind.aurora => 'slow fluid colour, needs a shader',
-        BackdropKind.drift => 'soft blobs, drawn without a shader',
-        BackdropKind.flat => 'two colours, still, cheapest of all',
-        BackdropKind.image => 'point it at a file on this device',
-      };
+    BackdropKind.paint => 'swirling paint, the default',
+    BackdropKind.aurora => 'slow fluid colour, needs a shader',
+    BackdropKind.drift => 'soft blobs, drawn without a shader',
+    BackdropKind.flat => 'two colours, still, cheapest of all',
+    BackdropKind.image => 'point it at a file on this device',
+  };
 
   bool get animated =>
       this == BackdropKind.paint ||
@@ -76,33 +76,32 @@ class BackdropStyle {
     String? imagePath,
     String? imageData,
     bool clearImage = false,
-  }) =>
-      BackdropStyle(
-        kind: kind ?? this.kind,
-        top: top ?? this.top,
-        bottom: bottom ?? this.bottom,
-        imagePath: clearImage ? null : (imagePath ?? this.imagePath),
-        imageData: clearImage ? null : (imageData ?? this.imageData),
-      );
+  }) => BackdropStyle(
+    kind: kind ?? this.kind,
+    top: top ?? this.top,
+    bottom: bottom ?? this.bottom,
+    imagePath: clearImage ? null : (imagePath ?? this.imagePath),
+    imageData: clearImage ? null : (imageData ?? this.imageData),
+  );
 
   Map<String, Object?> toJson() => {
-        'kind': kind.name,
-        'top': top.toARGB32(),
-        'bottom': bottom.toARGB32(),
-        'imagePath': imagePath,
-        'imageData': imageData,
-      };
+    'kind': kind.name,
+    'top': top.toARGB32(),
+    'bottom': bottom.toARGB32(),
+    'imagePath': imagePath,
+    'imageData': imageData,
+  };
 
   static BackdropStyle fromJson(Map<String, Object?> json) => BackdropStyle(
-        kind: BackdropKind.values.firstWhere(
-          (k) => k.name == json['kind'],
-          orElse: () => BackdropKind.paint,
-        ),
-        top: Color((json['top'] as int?) ?? 0xFFFF2E88),
-        bottom: Color((json['bottom'] as int?) ?? 0xFF07060A),
-        imagePath: json['imagePath'] as String?,
-        imageData: json['imageData'] as String?,
-      );
+    kind: BackdropKind.values.firstWhere(
+      (k) => k.name == json['kind'],
+      orElse: () => BackdropKind.paint,
+    ),
+    top: Color((json['top'] as int?) ?? 0xFFFF2E88),
+    bottom: Color((json['bottom'] as int?) ?? 0xFF07060A),
+    imagePath: json['imagePath'] as String?,
+    imageData: json['imageData'] as String?,
+  );
 }
 
 /// The colours offered in settings. Kept short on purpose: a colour picker is a

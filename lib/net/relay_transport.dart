@@ -45,7 +45,6 @@ class RelayTransport implements Transport, ReportsConnection {
     this.announceEvery = const Duration(seconds: 20),
   });
 
-
   final Relay _relay;
   final Keys _keys;
 
@@ -99,7 +98,12 @@ class RelayTransport implements Transport, ReportsConnection {
     if (_sub != null) return;
     _relayStatus = _relay.status.listen(_onRelay);
     final sub = _sub = _relay.subscribe(
-      Filter(kinds: const [roomDataKind], tags: {'d': [_code]}),
+      Filter(
+        kinds: const [roomDataKind],
+        tags: {
+          'd': [_code],
+        },
+      ),
     );
     _events = sub.events.listen(_onEvent);
     await sub.established;
@@ -145,7 +149,11 @@ class RelayTransport implements Transport, ReportsConnection {
     return sent;
   }
 
-  Future<Published> _publish({String? to, required String type, String body = ''}) {
+  Future<Published> _publish({
+    String? to,
+    required String type,
+    String body = '',
+  }) {
     if (_closed && type != 'bye') {
       return Future.value(const Published(accepted: {}, refused: {}));
     }
@@ -213,10 +221,11 @@ class RelayTransport implements Transport, ReportsConnection {
   /// without a goodbye, or whose network went away.
   void _sweep() {
     final stale = DateTime.now().subtract(announceEvery * 3);
-    for (final peer in _lastSeen.entries
-        .where((e) => e.value.isBefore(stale))
-        .map((e) => e.key)
-        .toList()) {
+    for (final peer
+        in _lastSeen.entries
+            .where((e) => e.value.isBefore(stale))
+            .map((e) => e.key)
+            .toList()) {
       _part(peer);
     }
   }

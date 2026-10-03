@@ -57,42 +57,42 @@ class CommandSlot extends StatelessWidget {
   }
 
   Widget _corner(Metrics m) => Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Command',
-            style: TextStyle(fontSize: m.scaled(10), color: Palette.inkFaint),
+    crossAxisAlignment: CrossAxisAlignment.end,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        'Command',
+        style: TextStyle(fontSize: m.scaled(10), color: Palette.inkFaint),
+      ),
+      SizedBox(height: m.scaled(4)),
+      if (cards.isEmpty)
+        Container(
+          width: width,
+          height: width * 88 / 63,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(width * 0.05),
+            border: Border.all(color: Palette.tileEdge),
           ),
-          SizedBox(height: m.scaled(4)),
-          if (cards.isEmpty)
-            Container(
-              width: width,
-              height: width * 88 / 63,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(width * 0.05),
-                border: Border.all(color: Palette.tileEdge),
+        )
+      else
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final card in cards)
+              Padding(
+                padding: EdgeInsets.only(left: m.scaled(6)),
+                child: TableCard(
+                  metrics: m,
+                  instance: card,
+                  printing: printings[card.oracleId],
+                  width: width,
+                  game: game,
+                  onTap: () => onTap(card),
+                  onLongPress: () => onInspect(card),
+                ),
               ),
-            )
-          else
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final card in cards)
-                  Padding(
-                    padding: EdgeInsets.only(left: m.scaled(6)),
-                    child: TableCard(
-                      metrics: m,
-                      instance: card,
-                      printing: printings[card.oracleId],
-                      width: width,
-                      game: game,
-                      onTap: () => onTap(card),
-                      onLongPress: () => onInspect(card),
-                    ),
-                  ),
-              ],
-            ),
-        ],
-      );
+          ],
+        ),
+    ],
+  );
 }

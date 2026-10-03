@@ -37,7 +37,8 @@ class Signal {
   final bool replacesOwnOffer;
 
   @override
-  String toString() => 'Signal(${kind.name} from ${from.substring(0, 8)}'
+  String toString() =>
+      'Signal(${kind.name} from ${from.substring(0, 8)}'
       '${replacesOwnOffer ? ', replacing ours' : ''})';
 }
 
@@ -104,7 +105,8 @@ class SignalingStatus {
   int get hashCode => Object.hash(step, peer, relay, reason);
 
   @override
-  String toString() => 'SignalingStatus(${step.name}'
+  String toString() =>
+      'SignalingStatus(${step.name}'
       '${peer == null ? '' : ' ${peer!.substring(0, 8)}'}'
       '${relay == null ? '' : ' $relay'}'
       '${reason == null ? '' : ': $reason'})';
@@ -217,7 +219,12 @@ class Signaling {
     if (_sub != null) return;
     _relayStatus = _relay.status.listen(_onRelay);
     final sub = _sub = _relay.subscribe(
-      Filter(kinds: const [handshakeKind], tags: {'d': [code]}),
+      Filter(
+        kinds: const [handshakeKind],
+        tags: {
+          'd': [code],
+        },
+      ),
     );
     sub.events.listen(_onEvent);
     await sub.established;
@@ -273,15 +280,17 @@ class Signaling {
 
   Future<Published> _send(String type, {String? to, String body = ''}) async {
     if (_closed) return const Published(accepted: {}, refused: {});
-    final sent = _relay.publish(NostrEvent.sign(
-      _keys,
-      kind: handshakeKind,
-      tags: [
-        ['d', code],
-        if (to != null) ['p', to],
-      ],
-      content: jsonEncode({'type': type, 'body': body, 'n': _seq++}),
-    ));
+    final sent = _relay.publish(
+      NostrEvent.sign(
+        _keys,
+        kind: handshakeKind,
+        tags: [
+          ['d', code],
+          if (to != null) ['p', to],
+        ],
+        content: jsonEncode({'type': type, 'body': body, 'n': _seq++}),
+      ),
+    );
     _inFlight.add(sent);
     final Published outcome;
     try {
@@ -290,11 +299,13 @@ class Signaling {
       _inFlight.remove(sent);
     }
     if (outcome.accepted.isEmpty && outcome.refused.isNotEmpty) {
-      _report(SignalingStatus(
-        SignalingStep.refused,
-        peer: to,
-        reason: '$type: ${outcome.refused.values.first}',
-      ));
+      _report(
+        SignalingStatus(
+          SignalingStep.refused,
+          peer: to,
+          reason: '$type: ${outcome.refused.values.first}',
+        ),
+      );
     }
     return outcome;
   }
@@ -349,12 +360,14 @@ class Signaling {
           _report(SignalingStatus(SignalingStep.ownOfferDropped, peer: from));
         }
         _report(SignalingStatus(SignalingStep.offerReceived, peer: from));
-        _surface(Signal(
-          kind: SignalKind.offer,
-          from: from,
-          body: body,
-          replacesOwnOffer: crossed,
-        ));
+        _surface(
+          Signal(
+            kind: SignalKind.offer,
+            from: from,
+            body: body,
+            replacesOwnOffer: crossed,
+          ),
+        );
       case 'answer':
         if (!_offered.remove(from)) {
           _drop(from, 'an answer to no offer');

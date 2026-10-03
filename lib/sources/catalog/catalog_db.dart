@@ -69,45 +69,45 @@ class CatalogDb extends _$CatalogDb {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onUpgrade: (m, from, to) async {
-          // A catalog is 36000 rows that took minutes to fetch and index, so a
-          // schema bump adds tables and never drops one.
-          //
-          // Every step here is idempotent, and that is not belt and braces.
-          // A browser reported `duplicate column name: image_large` on a
-          // database that had already been through this: the column was
-          // written and the version was not, so the next open replayed the
-          // whole upgrade onto a schema that already had it. Whatever lost
-          // the version, a migration that cannot be run twice turns that into
-          // a database nobody can open, and on the web the storage is the
-          // least reliable part of the stack. Skipping what is already there
-          // is the repair as well as the guard: the next open gets through
-          // and records the version.
-          if (from < 2) {
-            // No guard needed: drift 2.35.0 writes CREATE TABLE IF NOT EXISTS
-            // (migration.dart:319). SQLite has no ADD COLUMN IF NOT EXISTS,
-            // which is why the columns below do need one.
-            await m.createTable(decks);
-            await m.createTable(deckCards);
-          }
-          if (from < 3) {
-            // Every deck that existed before this column was a Magic deck,
-            // which is what the default says, so nothing needs rewriting.
-            await _addColumnOnce(m, decks, decks.game);
-          }
-          if (from < 4) {
-            // Null on every existing row. Those cards turn over onto the
-            // generic back, which is what they did before this column existed.
-            // A reimport fills it in.
-            await _addColumnOnce(m, cards, cards.imageBack);
-          }
-          if (from < 5) {
-            // Null on every existing row, which falls back to the normal file
-            // the way those cards already drew. A reimport fills it in.
-            await _addColumnOnce(m, cards, cards.imageLarge);
-          }
-        },
-      );
+    onUpgrade: (m, from, to) async {
+      // A catalog is 36000 rows that took minutes to fetch and index, so a
+      // schema bump adds tables and never drops one.
+      //
+      // Every step here is idempotent, and that is not belt and braces.
+      // A browser reported `duplicate column name: image_large` on a
+      // database that had already been through this: the column was
+      // written and the version was not, so the next open replayed the
+      // whole upgrade onto a schema that already had it. Whatever lost
+      // the version, a migration that cannot be run twice turns that into
+      // a database nobody can open, and on the web the storage is the
+      // least reliable part of the stack. Skipping what is already there
+      // is the repair as well as the guard: the next open gets through
+      // and records the version.
+      if (from < 2) {
+        // No guard needed: drift 2.35.0 writes CREATE TABLE IF NOT EXISTS
+        // (migration.dart:319). SQLite has no ADD COLUMN IF NOT EXISTS,
+        // which is why the columns below do need one.
+        await m.createTable(decks);
+        await m.createTable(deckCards);
+      }
+      if (from < 3) {
+        // Every deck that existed before this column was a Magic deck,
+        // which is what the default says, so nothing needs rewriting.
+        await _addColumnOnce(m, decks, decks.game);
+      }
+      if (from < 4) {
+        // Null on every existing row. Those cards turn over onto the
+        // generic back, which is what they did before this column existed.
+        // A reimport fills it in.
+        await _addColumnOnce(m, cards, cards.imageBack);
+      }
+      if (from < 5) {
+        // Null on every existing row, which falls back to the normal file
+        // the way those cards already drew. A reimport fills it in.
+        await _addColumnOnce(m, cards, cards.imageLarge);
+      }
+    },
+  );
 
   /// Adds a column unless the table already has it.
   Future<void> _addColumnOnce(
@@ -118,8 +118,7 @@ class CatalogDb extends _$CatalogDb {
     final rows = await customSelect(
       'PRAGMA table_info(${table.actualTableName})',
     ).get();
-    final already =
-        rows.any((row) => row.read<String>('name') == column.name);
+    final already = rows.any((row) => row.read<String>('name') == column.name);
     if (!already) await m.addColumn(table, column);
   }
 
@@ -141,20 +140,18 @@ class CatalogDb extends _$CatalogDb {
   /// a time takes minutes, batched it takes seconds.
   Future<void> insertAll(List<CatalogCard> incoming) async {
     await batch((b) {
-      b.insertAllOnConflictUpdate(
-        cards,
-        incoming.map(_toRow).toList(),
-      );
+      b.insertAllOnConflictUpdate(cards, incoming.map(_toRow).toList());
     });
   }
 
   Future<List<CatalogCard>> searchByName(String term) async {
     final needle = '%${term.toLowerCase()}%';
-    final rows = await (select(cards)
-          ..where((c) => c.nameFolded.like(needle))
-          ..orderBy([(c) => OrderingTerm(expression: c.name)])
-          ..limit(100))
-        .get();
+    final rows =
+        await (select(cards)
+              ..where((c) => c.nameFolded.like(needle))
+              ..orderBy([(c) => OrderingTerm(expression: c.name)])
+              ..limit(100))
+            .get();
     return rows.map(_fromRow).toList();
   }
 
@@ -162,8 +159,9 @@ class CatalogDb extends _$CatalogDb {
 
   Future<List<CatalogCard>> cardsByOracleIds(List<String> ids) async {
     if (ids.isEmpty) return const [];
-    final rows =
-        await (select(cards)..where((c) => c.oracleId.isIn(ids))).get();
+    final rows = await (select(
+      cards,
+    )..where((c) => c.oracleId.isIn(ids))).get();
     return rows.map(_fromRow).toList();
   }
 
@@ -176,52 +174,54 @@ class CatalogDb extends _$CatalogDb {
     final wanted = names.map((n) => n.toLowerCase()).toSet();
     if (wanted.isEmpty) return const {};
 
-    final rows = await (select(cards)
-          ..where((c) => c.nameFolded.isIn(wanted.toList())))
-        .get();
+    final rows = await (select(
+      cards,
+    )..where((c) => c.nameFolded.isIn(wanted.toList()))).get();
 
-    return {
-      for (final row in rows) row.nameFolded: _fromRow(row),
-    };
+    return {for (final row in rows) row.nameFolded: _fromRow(row)};
   }
 
   CardsCompanion _toRow(CatalogCard c) => CardsCompanion.insert(
-        oracleId: c.oracleId,
-        name: c.name,
-        nameFolded: c.name.toLowerCase(),
-        typeLine: c.typeLine,
-        cmc: c.cmc,
-        manaCost: Value(c.manaCost),
-        oracleText: Value(c.oracleText),
-        power: Value(c.power),
-        toughness: Value(c.toughness),
-        colorIdentity: c.colorIdentity.join(''),
-        rarity: Value(c.rarity),
-        setCode: Value(c.setCode),
-        legalities: jsonEncode(c.legalities),
-        imageSmall: Value(c.imageSmall),
-        imageNormal: Value(c.imageNormal),
-        imageLarge: Value(c.imageLarge),
-        imageBack: Value(c.imageBack),
-      );
+    oracleId: c.oracleId,
+    name: c.name,
+    nameFolded: c.name.toLowerCase(),
+    typeLine: c.typeLine,
+    cmc: c.cmc,
+    manaCost: Value(c.manaCost),
+    oracleText: Value(c.oracleText),
+    power: Value(c.power),
+    toughness: Value(c.toughness),
+    colorIdentity: c.colorIdentity.join(''),
+    rarity: Value(c.rarity),
+    setCode: Value(c.setCode),
+    legalities: jsonEncode(c.legalities),
+    imageSmall: Value(c.imageSmall),
+    imageNormal: Value(c.imageNormal),
+    imageLarge: Value(c.imageLarge),
+    imageBack: Value(c.imageBack),
+  );
 
   CatalogCard _fromRow(Card row) => CatalogCard(
-        oracleId: row.oracleId,
-        name: row.name,
-        typeLine: row.typeLine,
-        cmc: row.cmc,
-        manaCost: row.manaCost,
-        oracleText: row.oracleText,
-        power: row.power,
-        toughness: row.toughness,
-        colorIdentity: row.colorIdentity.split('').where((s) => s.isNotEmpty).toList(),
-        rarity: row.rarity,
-        setCode: row.setCode,
-        legalities: (jsonDecode(row.legalities) as Map<String, dynamic>)
-            .map((k, v) => MapEntry(k, v as String)),
-        imageSmall: row.imageSmall,
-        imageNormal: row.imageNormal,
-        imageLarge: row.imageLarge,
-        imageBack: row.imageBack,
-      );
+    oracleId: row.oracleId,
+    name: row.name,
+    typeLine: row.typeLine,
+    cmc: row.cmc,
+    manaCost: row.manaCost,
+    oracleText: row.oracleText,
+    power: row.power,
+    toughness: row.toughness,
+    colorIdentity: row.colorIdentity
+        .split('')
+        .where((s) => s.isNotEmpty)
+        .toList(),
+    rarity: row.rarity,
+    setCode: row.setCode,
+    legalities: (jsonDecode(row.legalities) as Map<String, dynamic>).map(
+      (k, v) => MapEntry(k, v as String),
+    ),
+    imageSmall: row.imageSmall,
+    imageNormal: row.imageNormal,
+    imageLarge: row.imageLarge,
+    imageBack: row.imageBack,
+  );
 }

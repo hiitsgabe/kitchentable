@@ -102,14 +102,13 @@ class TableCard extends StatelessWidget {
   /// half percent by having a size of their own.
 
   /// The card, under a preview or not.
-  Widget _maybeHover(Metrics m, CatalogCard? card, Widget child) =>
-      hoverPreview
-          ? HoverCard(
-              metrics: m,
-              instance: instance,
-              printing: card,
-              width: width,
-              child: child,
-            )
-          : child;
+  Widget _maybeHover(Metrics m, CatalogCard? card, Widget child) => hoverPreview
+      ? HoverCard(
+          metrics: m,
+          instance: instance,
+          printing: card,
+          width: width,
+          child: child,
+        )
+      : child;
 }

@@ -82,26 +82,22 @@ class DraggableCard extends ConsumerWidget {
 /// a sum of deltas, which is why the `kTouchSlop` that the old pan based drag
 /// had to compensate for cannot come back here.
 class CardDropTarget extends StatelessWidget {
-  const CardDropTarget({
-    super.key,
-    required this.onDrop,
-    required this.child,
-  });
+  const CardDropTarget({super.key, required this.onDrop, required this.child});
 
   final void Function(CardInstance card, Offset at) onDrop;
   final Widget child;
 
   @override
   Widget build(BuildContext context) => DragTarget<CardInstance>(
-        onAcceptWithDetails: (details) {
-          final box = context.findRenderObject() as RenderBox?;
-          if (box == null) return;
-          // `details.offset` is the top left of the feedback, not the
-          // pointer. They are the same point here only because the drag is
-          // anchored at the pointer above; with the default anchor this
-          // arrives half a card up and to the left of the finger.
-          onDrop(details.data, box.globalToLocal(details.offset));
-        },
-        builder: (context, _, _) => child,
-      );
+    onAcceptWithDetails: (details) {
+      final box = context.findRenderObject() as RenderBox?;
+      if (box == null) return;
+      // `details.offset` is the top left of the feedback, not the
+      // pointer. They are the same point here only because the drag is
+      // anchored at the pointer above; with the default anchor this
+      // arrives half a card up and to the left of the finger.
+      onDrop(details.data, box.globalToLocal(details.offset));
+    },
+    builder: (context, _, _) => child,
+  );
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
+import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import 'network.dart';
@@ -45,7 +46,9 @@ class _NetworkScreenState extends ConsumerState<NetworkScreen> {
 
   void _set() {
     _typing = true;
-    ref.read(turnProvider.notifier).set(
+    ref
+        .read(turnProvider.notifier)
+        .set(
           url: _url.text,
           username: _username.text,
           credential: _credential.text,
@@ -55,10 +58,12 @@ class _NetworkScreenState extends ConsumerState<NetworkScreen> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
 
     ref.listen(turnProvider, (_, turn) {
       if (_typing) return;
@@ -75,7 +80,8 @@ class _NetworkScreenState extends ConsumerState<NetworkScreen> {
       children: [
         SettingsCaption(
           metrics: m,
-          text: 'Only for when two phones on different networks cannot reach '
+          text:
+              'Only for when two phones on different networks cannot reach '
               'each other, which the room says when it happens. A relay for '
               'the connection itself: a friend running one, or a public one. '
               'Left empty, none is used.',
@@ -108,8 +114,9 @@ class _NetworkScreenState extends ConsumerState<NetworkScreen> {
         Text(
           'deploy/coturn in the repository runs one, if nobody at the table '
           'has one already.',
-          style: TextStyle(
-            fontSize: m.scaled(11),
+          style: pixel(
+            size: m.scaled(11),
+            weight: 500,
             height: 1.45,
             color: Palette.inkFaint,
           ),
