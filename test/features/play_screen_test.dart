@@ -1126,24 +1126,20 @@ void main() {
     final container = await _seatedPod(tester, ['you', 'Carla']);
     final play = container.read(playProvider.notifier);
     final table = container.read(playProvider)!;
-    play.run(
-      MoveCard(
-        cardId: table.zone('hand-s1')!.cards.first.id,
-        toZoneId: 'battlefield-s1',
-      ),
-    );
-    play.run(
-      MoveCard(
-        cardId: table.zone('hand-s2')!.cards.first.id,
-        toZoneId: 'battlefield-s2',
-      ),
-    );
+    for (final seat in ['s1', 's2']) {
+      final card = table.zone('hand-$seat')!.cards.first;
+      play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-$seat'));
+      // Face down, which is the real reason a card shows its back. This case
+      // used to lean on there being no printing behind any of these cards,
+      // which stopped being true the day a table dealt here started
+      // remembering what it was dealt from.
+      play.run(FlipCard(card.id));
+    }
     await tester.pumpAndSettle();
 
     // Three hand offs, and each of them is one argument the screen can simply
     // not write. The widgets each have a case proving they pass the game down
-    // once they are given it; nothing but this proves they are given it, and
-    // with no printings behind these cards the back is what they all draw.
+    // once they are given it; nothing but this proves they are given it.
     for (final where in ['your-board', 'watched-s2']) {
       expect(
         find.descendant(
@@ -1154,6 +1150,12 @@ void main() {
         reason: '$where was handed no game',
       );
     }
+    // A card in your own hand is yours to look at, so the hand draws faces.
+    // Turning one over is the only thing that makes the hand draw a back at
+    // all, which is what this is about: whether the hand knows whose back.
+    play.run(FlipCard(table.zone('hand-s1')!.cards.last.id));
+    await tester.pumpAndSettle();
+
     expect(
       find.descendant(
         of: find.byType(HandSheet),
@@ -1855,10 +1857,16 @@ void main() {
   ) async {
     final container = await _seatedPod(tester, ['you']);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('hand-handle')).first);
-    await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('mulligan')), findsOneWidget);
+    // Under the deck, which is on screen whatever else is. It used to be
+    // inside the hand, where half the table would never have found it.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('deck-bar')),
+        matching: find.byKey(const Key('mulligan')),
+      ),
+      findsOneWidget,
+    );
     // Nothing owed on the first hand, which is what makes it free.
     expect(find.byKey(const Key('mulligan-owed')), findsNothing);
 
@@ -1867,7 +1875,7 @@ void main() {
 
     expect(container.read(playProvider)!.seat('s1')!.mulligans, 1);
     expect(find.byKey(const Key('mulligan')), findsOneWidget);
-    expect(find.text('put 1 card on the bottom'), findsOneWidget);
+    expect(find.text('bottom 1'), findsOneWidget);
 
     // And it takes itself away the moment the game is on. Nobody presses
     // anything to end it, which is the only way an offer like this is safe to
@@ -1876,8 +1884,6 @@ void main() {
     container
         .read(playProvider.notifier)
         .run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('hand-handle')).first);
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('mulligan')), findsNothing);
@@ -1893,8 +1899,6 @@ void main() {
     // pod on one tablet, so the offer follows the seat being looked out of
     // rather than following the first seat at the table.
     expect(container.read(viewerSeatProvider), 's1');
-    await tester.tap(find.byKey(const Key('hand-handle')).first);
-    await tester.pumpAndSettle();
     expect(find.byKey(const Key('mulligan')), findsOneWidget);
   });
 

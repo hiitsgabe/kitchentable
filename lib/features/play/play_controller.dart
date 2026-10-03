@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/deck.dart';
 import '../../decks/model/game.dart';
+import '../../sources/model/catalog_card.dart';
 import '../../net/mesh.dart';
 import '../../table/actions/table_action.dart';
 import '../../table/model/seat.dart';
@@ -121,6 +122,19 @@ class PlayController extends Notifier<TableState?> {
   /// a different verb, and the chair is still empty.
   Map<String, Set<String>> _commanders = const {};
 
+  /// The printing of every card the decks at this table were dealt from.
+  ///
+  /// The fourth of the same shape, for the same reason: the decklist is in
+  /// reach exactly once. The screen looks a card up in the catalog, which is
+  /// the right answer for a token and the wrong one for a table dealt from a
+  /// deck the catalog no longer carries, or from no catalog at all. A guest
+  /// gets this from the lobby, which carries every printing over the wire;
+  /// a table dealt here had nowhere to get it and drew its own cards as
+  /// blanks.
+  Map<String, CatalogCard> _dealtFrom = const {};
+
+  Map<String, CatalogCard> get printingsDealt => _dealtFrom;
+
   bool isCommander(String cardId) =>
       _commanders.values.any((ids) => ids.contains(cardId));
 
@@ -181,6 +195,10 @@ class PlayController extends Notifier<TableState?> {
         ),
     };
     _commanders = _commandersOf(table);
+    _dealtFrom = {
+      for (final player in players)
+        for (final slot in player.deck.slots) slot.card.oracleId: slot.card,
+    };
     _session = TableSession(table);
     _clearRefusal();
     state = table;
