@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../table/model/card_instance.dart';
+import '../../../ui/tokens/app_palette.dart';
 import '../dragging.dart';
 
 /// A card you can pick up and drop somewhere else.
@@ -81,6 +82,16 @@ class DraggableCard extends ConsumerWidget {
 /// on the screen it is. The position comes from the pointer rather than from
 /// a sum of deltas, which is why the `kTouchSlop` that the old pan based drag
 /// had to compensate for cannot come back here.
+///
+/// **It says when it is the one.** The card being dragged is drawn centred on
+/// the finger at full size, so it covers whatever it is over: the player is
+/// aiming at something they cannot see, from memory of where it was before
+/// the drag started, at zones that move and grow the moment one does. The
+/// graveyard and the command zone stand one above the other in the same
+/// narrow rail, and dropping into the wrong one of those was reported from a
+/// real table. A ring around the target under the pointer is the answer to
+/// all of that at once, and it belongs here rather than in each zone,
+/// because every target in the app has the same problem.
 class CardDropTarget extends StatelessWidget {
   const CardDropTarget({super.key, required this.onDrop, required this.child});
 
@@ -98,6 +109,43 @@ class CardDropTarget extends StatelessWidget {
       // arrives half a card up and to the left of the finger.
       onDrop(details.data, box.globalToLocal(details.offset));
     },
-    builder: (context, _, _) => child,
+    // Built only while it is the one, so its presence in the tree is the
+    // claim. A widget that is always there and draws nothing is a thing a
+    // test can find and be wrong about.
+    builder: (context, candidate, _) =>
+        candidate.isEmpty ? child : AimedAt(child: child),
   );
+}
+
+/// The ring that says a card let go now lands here.
+///
+/// Painted over the target rather than around it, so nothing moves when it
+/// appears: a target that grew by two points the moment the pointer crossed
+/// it would shift everything under it in a column, which is the thing that
+/// makes a drop land somewhere the player did not aim.
+class AimedAt extends StatelessWidget {
+  const AimedAt({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.passthrough,
+      children: [
+        child,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: context.palette.accent.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: context.palette.accent, width: 2.5),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
