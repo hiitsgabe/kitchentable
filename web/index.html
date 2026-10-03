@@ -20,17 +20,29 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A card table you bring your own cards to.">
 
+  <!-- The pink the app is drawn in, so the browser chrome and the task
+       switcher match it rather than Flutter's blue. -->
+  <meta name="theme-color" content="#FF2E88">
+
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="kitchentable">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <!-- Favicon. The .ico carries 16, 32 and 48 for the places that still ask
+       for one; the png is for everywhere that would rather have a png. -->
+  <link rel="icon" type="image/x-icon" href="favicon.ico" sizes="any"/>
+  <link rel="icon" type="image/png" href="favicon.png" sizes="32x32"/>
 
   <title>kitchentable</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- The page is black before Flutter paints anything. Without this the app
+       opens on a flash of white, which on a phone looks like a failure. -->
+  <style>
+    html, body { margin: 0; padding: 0; background: #07060A; }
+  </style>
 </head>
 <body>
   <!--
