@@ -88,15 +88,17 @@ Future<ProviderContainer> _listed(WidgetTester tester, {int? chairs}) async {
 /// rather than pressing a switch. That there is a door to it, and that the
 /// ordinary picker has no such switch, is room_flow_test.dart's job.
 void main() {
-  test('nothing opens until there is a source', () {
+  test('a deck is the one thing that needs a source', () {
     const state = MenuState(cardCount: 0, enabledSources: 0);
-    final start = state.entries.firstWhere((e) => e.id == MenuEntryId.start);
-    final join = state.entries.firstWhere((e) => e.id == MenuEntryId.join);
+    final play = state.entries.firstWhere((e) => e.id == MenuEntryId.play);
+    final decks = state.entries.firstWhere((e) => e.id == MenuEntryId.decks);
 
-    expect(start.enabled, isFalse);
-    expect(start.subtitle, 'needs a source');
-    expect(join.enabled, isFalse,
-        reason: 'a room you cannot bring a deck to is a room you stand in');
+    // The first run puts a source in before the menu is reached, and
+    // somebody who skipped it can still make a room and pick a deck inside
+    // it. Only the deck editor has nothing to show without cards.
+    expect(play.enabled, isTrue);
+    expect(decks.enabled, isFalse);
+    expect(decks.subtitle, 'needs a source');
   });
 
   testWidgets('tapping a deck still deals straight away', (tester) async {

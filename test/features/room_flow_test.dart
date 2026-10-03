@@ -11,6 +11,8 @@ import 'package:kitchentable/features/decks/play_decks_screen.dart';
 import 'package:kitchentable/features/lobby/lobby.dart';
 import 'package:kitchentable/features/menu/menu_controller.dart';
 import 'package:kitchentable/features/menu/menu_screen.dart';
+import 'package:kitchentable/features/setup/setup_controller.dart';
+import 'package:kitchentable/features/setup/setup_screen.dart';
 import 'package:kitchentable/features/play/play_controller.dart';
 import 'package:kitchentable/features/play/play_screen.dart';
 import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
@@ -202,21 +204,24 @@ String _textAt(WidgetTester tester, String key) {
 
 void main() {
   // The name lives on the device now, so any screen reading it reads a store.
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  // A configured app, which is what every case below but the first run ones
+  // is about. Left out, the wizard stands in front of the screen under test,
+  // which is the wizard working rather than the case failing.
+  setUp(() => SharedPreferences.setMockInitialValues({'setupDone': true}));
 
   group('the menu', () {
-    test('offers starting a table and joining one rather than playing', () {
+    test('offers playing and joining rather than dealing', () {
       const state = MenuState(cardCount: 36079, enabledSources: 1);
       final ids = state.entries.map((e) => e.id).toList();
 
-      expect(ids, contains(MenuEntryId.start));
+      expect(ids, contains(MenuEntryId.play));
       expect(ids, contains(MenuEntryId.join));
-      expect(state.initialFocus, MenuEntryId.start,
+      expect(state.initialFocus, MenuEntryId.play,
           reason: 'the first thing to do is make a place to play in');
 
-      final start = state.entries.firstWhere((e) => e.id == MenuEntryId.start);
+      final play = state.entries.firstWhere((e) => e.id == MenuEntryId.play);
       final join = state.entries.firstWhere((e) => e.id == MenuEntryId.join);
-      expect(start.subtitle, contains('invite'));
+      expect(play.subtitle, contains('invite'));
       expect(join.subtitle, contains('link'));
     });
 
@@ -241,7 +246,7 @@ void main() {
     testWidgets('starting a table opens the room settings', (tester) async {
       await _pump(tester, _container(), const MenuScreen());
 
-      await tester.tap(find.byKey(const Key('menu-start')));
+      await tester.tap(find.byKey(const Key('menu-play')));
       await tester.pumpAndSettle();
 
       expect(find.byType(StartScreen), findsOneWidget);
@@ -1100,6 +1105,58 @@ void main() {
       expect(container.read(roomProvider)!.code, 'aaaa-aaa');
       expect(_textAt(tester, 'room-answer').toLowerCase(),
           contains('waiting for the host'));
+    });
+
+    testWidgets('the first run is a wizard, not the menu', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+
+      await _pump(tester, _container(), const Entry());
+
+      expect(find.byType(SetupScreen), findsOneWidget);
+      expect(find.byType(MenuScreen), findsNothing);
+      expect(find.byKey(const Key('setup-name')), findsOneWidget);
+    });
+
+    testWidgets('a room link on the first run runs the wizard and then lands '
+        'in the room', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final code = freshRoomCode();
+      final container = _container(launchCode: code);
+
+      await _pump(tester, container, const Entry());
+
+      // The link is the intent, so the wizard comes first and the room is
+      // parked rather than dropped: a link that opens the menu after five
+      // minutes of setup is worse than one that opens the menu.
+      expect(find.byType(SetupScreen), findsOneWidget);
+      expect(find.byType(RoomScreen), findsNothing);
+
+      await tester.tap(find.byKey(const Key('setup-next')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('setup-next')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('setup-done')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RoomScreen), findsOneWidget);
+      expect(container.read(roomProvider)!.code, code);
+    });
+
+    testWidgets('the wizard is run once, and the menu after that',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final container = _container();
+      await _pump(tester, container, const Entry());
+
+      await tester.tap(find.byKey(const Key('setup-next')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('setup-next')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('setup-done')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MenuScreen), findsOneWidget);
+      expect(container.read(setupDoneProvider), isTrue);
     });
 
     testWidgets('and an ordinary launch still opens the menu', (tester) async {

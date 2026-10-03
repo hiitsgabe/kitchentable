@@ -30,15 +30,19 @@ void main() {
     expect(state.headline, 'NO SOURCES CONFIGURED');
   });
 
-  test('without a catalog the menu points at Sources, it does not crash',
-      () async {
+  test('without a catalog the menu still opens, and Decks is the one shut '
+      'door', () async {
     final container = _containerWithoutCatalog();
 
     final state = await container.read(menuStateProvider.future);
 
-    expect(state.initialFocus, MenuEntryId.sources);
+    expect(state.initialFocus, MenuEntryId.play);
     expect(
-      state.entries.firstWhere((e) => e.id == MenuEntryId.start).enabled,
+      state.entries.firstWhere((e) => e.id == MenuEntryId.play).enabled,
+      isTrue,
+    );
+    expect(
+      state.entries.firstWhere((e) => e.id == MenuEntryId.decks).enabled,
       isFalse,
     );
   });

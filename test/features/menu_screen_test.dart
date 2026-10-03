@@ -13,18 +13,17 @@ Widget _host(MenuState state) => ProviderScope(
     );
 
 void main() {
-  testWidgets('an empty app points at Sources', (tester) async {
+  testWidgets('an empty app still offers the way in', (tester) async {
     await tester.pumpWidget(_host(
       const MenuState(cardCount: 0, enabledSources: 0),
     ));
     await tester.pumpAndSettle();
 
     expect(find.text('NO SOURCES CONFIGURED'), findsOneWidget);
-    expect(find.text('start here'), findsOneWidget);
-    // Three shut doors and not two: starting a table, joining one, and Decks.
-    // Joining is shut for the same reason as the other two, because a room you
-    // cannot bring a deck to is a room you stand in.
-    expect(find.text('needs a source'), findsNWidgets(3));
+    expect(find.text('Play'), findsOneWidget);
+    // One shut door, not three. Decks is the only row that cannot do its job
+    // without cards; a room can be made and joined whatever is on the device.
+    expect(find.text('needs a source'), findsOneWidget);
   });
 
   testWidgets('a loaded catalog shows the real count', (tester) async {
@@ -34,13 +33,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('36079 CARDS'), findsOneWidget);
-    expect(find.text('make a room and invite people'), findsOneWidget);
+    expect(find.text('make a table and invite people'), findsOneWidget);
   });
-
-  // The two tests above only read text, and MenuState computes those strings
-  // whether or not the screen passes anything down. So they stay green even if
-  // the screen hands every row `enabled: true` and `autofocus: false`. The two
-  // below pin the wiring itself, which is where the product decision lives.
 
   MenuRow rowFor(WidgetTester tester, String title) => tester.widget<MenuRow>(
         find.ancestor(of: find.text(title), matching: find.byType(MenuRow)),
@@ -52,39 +46,29 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(rowFor(tester, 'Start a table').enabled, isFalse);
-    expect(rowFor(tester, 'Join a table').enabled, isFalse);
     expect(rowFor(tester, 'Decks').enabled, isFalse);
-    expect(rowFor(tester, 'Sources').enabled, isTrue);
+    expect(rowFor(tester, 'Join').enabled, isTrue);
     expect(rowFor(tester, 'Settings').enabled, isTrue);
   });
 
-  // One state per test, never two pumps in one. Swapping the override on a
-  // mounted ProviderScope looks like it should work and silently does not:
-  // ProviderElement.update is an empty method (riverpod 3.4.3 element.dart:610)
-  // and the only class overriding it is the one behind overrideWithValue. A
-  // builder override, which this provider needs because it returns a Future,
-  // goes through the empty one, so the element keeps serving the first result
-  // forever and pumpAndSettle has nothing to wait for.
-  testWidgets('focus starts on Sources when there is nothing else to do',
-      (tester) async {
-    await tester.pumpWidget(_host(
-      const MenuState(cardCount: 0, enabledSources: 0),
-    ));
-    await tester.pumpAndSettle();
-
-    expect(rowFor(tester, 'Sources').autofocus, isTrue);
-    expect(rowFor(tester, 'Start a table').autofocus, isFalse);
-  });
-
-  testWidgets('focus moves to starting a table once there are cards',
-      (tester) async {
+  testWidgets('Play is not one of the rows, it is the way in', (tester) async {
     await tester.pumpWidget(_host(
       const MenuState(cardCount: 36079, enabledSources: 1),
     ));
     await tester.pumpAndSettle();
 
-    expect(rowFor(tester, 'Start a table').autofocus, isTrue);
-    expect(rowFor(tester, 'Sources').autofocus, isFalse);
+    // Drawn apart from the list and bigger than it: one dominant action is
+    // what every menu in the benchmark has and this one did not.
+    expect(find.byKey(const Key('menu-play')), findsOneWidget);
+    expect(
+      find.ancestor(
+        of: find.text('Play'),
+        matching: find.byType(MenuRow),
+      ),
+      findsNothing,
+    );
+    final play = tester.getSize(find.byKey(const Key('menu-play')));
+    final join = tester.getSize(find.byKey(const Key('menu-join')));
+    expect(play.height, greaterThan(join.height));
   });
 }
