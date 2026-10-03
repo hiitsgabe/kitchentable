@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/background/backdrop_controller.dart';
 import '../../ui/background/backdrop_style.dart';
@@ -27,11 +26,6 @@ class BackdropScreen extends ConsumerWidget {
       title: 'Background',
       label: '${style.kind.label} · it changes as you pick',
       onBack: () => Navigator.of(context).maybePop(),
-      hints: const [
-        Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: 'pick'),
-        Hint(button: 'B', label: 'back'),
-      ],
       children: [
         _Label(metrics: m, text: 'effect'),
         for (final kind in BackdropKind.values)

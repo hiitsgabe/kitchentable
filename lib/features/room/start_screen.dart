@@ -5,7 +5,6 @@ import '../../decks/model/deck_format.dart';
 import '../../decks/model/game.dart';
 import '../../table/room/room.dart';
 import '../../table/room/room_names.dart';
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -81,11 +80,6 @@ class _StartScreenState extends ConsumerState<StartScreen> {
       title: 'Start a table',
       label: 'the room comes first',
       onBack: () => Navigator.of(context).maybePop(),
-      hints: const [
-        Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: 'change'),
-        Hint(button: 'B', label: 'back'),
-      ],
       children: [
         _Field(
           metrics: m,

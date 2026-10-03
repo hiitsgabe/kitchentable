@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -51,11 +50,6 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
       title: 'Join a table',
       label: 'a link, or the code somebody read out',
       onBack: () => Navigator.of(context).maybePop(),
-      hints: const [
-        Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: 'join'),
-        Hint(button: 'B', label: 'back'),
-      ],
       children: [
         TextFieldBox(
           key: const Key('join-input'),

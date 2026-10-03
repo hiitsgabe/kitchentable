@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../sources/source_registry.dart';
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -81,10 +80,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         _ => 'A deck to play with',
       },
       label: 'STEP ${_step + 1} OF 3',
-      hints: const [
-        Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: 'open'),
-      ],
       children: switch (_step) {
         0 => _name_(m),
         1 => _source(m, cards),

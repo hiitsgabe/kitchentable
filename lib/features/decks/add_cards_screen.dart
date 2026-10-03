@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../decks/model/deck.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../ui/atoms/card_art.dart';
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/card_viewer.dart';
 import '../../ui/atoms/text_field_box.dart';
@@ -68,11 +67,6 @@ class _AddCardsScreenState extends ConsumerState<AddCardsScreen> {
           ? 'no deck open'
           : '${deck.format.label} · ${deck.mainCount} of ${deck.format.deckSize}',
       onBack: () => Navigator.of(context).maybePop(),
-      hints: const [
-        Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: 'add one'),
-        Hint(button: 'B', label: 'back'),
-      ],
       children: [
         TextFieldBox(
           metrics: m,

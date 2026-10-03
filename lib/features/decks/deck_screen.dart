@@ -7,7 +7,6 @@ import '../../ui/atoms/card_art.dart';
 import '../../ui/atoms/count_pill.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/card_viewer.dart';
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
@@ -38,7 +37,6 @@ class DeckScreen extends ConsumerWidget {
         title: 'Deck',
         label: 'nothing open',
         onBack: () => Navigator.of(context).maybePop(),
-        hints: const [Hint(button: 'B', label: 'back')],
         children: const [],
       );
     }
@@ -48,11 +46,6 @@ class DeckScreen extends ConsumerWidget {
       title: deck.name,
       label: deck.format.label,
       onBack: () => Navigator.of(context).maybePop(),
-      hints: const [
-        Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: 'open'),
-        Hint(button: 'B', label: 'back'),
-      ],
       children: [
         _Counts(metrics: m, deck: deck),
         SizedBox(height: m.scaled(18)),

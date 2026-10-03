@@ -7,7 +7,6 @@ import '../../table/model/card_instance.dart';
 import '../../table/model/zone.dart';
 import '../../table/shuffle.dart';
 import '../../table/view/seat_view.dart';
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/card_viewer.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -115,7 +114,6 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
         title: 'Play',
         label: 'no table',
         onBack: () => Navigator.of(context).maybePop(),
-        hints: const [Hint(button: 'B', label: 'back')],
         children: [
           Text(
             'No table open. Start one from a deck.',
@@ -367,18 +365,6 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                   ],
                 ),
               ),
-              // Only where there is a D-pad. These name the buttons on a
-              // remote, and on a phone or a desktop they are two rows of
-              // nothing at the bottom of the screen naming controls the device
-              // does not have.
-              if (device == DeviceClass.tv)
-                HintBar(
-                  metrics: m,
-                  hints: const [
-                    Hint(button: 'A', label: 'tap to turn'),
-                    Hint(button: 'B', label: 'back'),
-                  ],
-                ),
             ],
           ),
         ),

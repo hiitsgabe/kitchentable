@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
@@ -65,10 +64,6 @@ class _Menu extends StatelessWidget {
       wordmark: true,
       title: 'kitchentable',
       label: state.headline,
-      hints: const [
-        Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: 'open'),
-      ],
       children: [
         for (final entry in state.entries)
           if (entry.id == MenuEntryId.play)

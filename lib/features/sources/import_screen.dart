@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../sources/model/source_def.dart';
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/progress_track.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
@@ -42,7 +41,6 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       title: widget.source.name,
       label: _labelFor(s),
       onBack: () => Navigator.of(context).maybePop(),
-      hints: const [Hint(button: 'B', label: 'back')],
       children: [
         ProgressTrack(
           metrics: m,

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../sources/model/source_def.dart';
 import '../../sources/source_registry.dart';
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
@@ -38,11 +37,6 @@ class SourcesScreen extends ConsumerWidget {
       title: 'Sources',
       label: 'nothing has left this device yet',
       onBack: () => Navigator.of(context).maybePop(),
-      hints: const [
-        Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: 'switch on'),
-        Hint(button: 'B', label: 'back'),
-      ],
       children: [
         for (final source in knownSources)
           MenuRow(

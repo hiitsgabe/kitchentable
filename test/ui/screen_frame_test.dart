@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kitchentable/ui/atoms/hint_bar.dart';
 import 'package:kitchentable/ui/organisms/screen_frame.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
@@ -11,7 +10,6 @@ Widget _host({VoidCallback? onBack}) => MaterialApp(
         title: 'Sources',
         label: 'nothing has left this device yet',
         onBack: onBack,
-        hints: const [Hint(button: 'B', label: 'back')],
         children: const [Text('a row')],
       ),
     );
@@ -71,5 +69,16 @@ void main() {
     await tester.pump();
 
     expect(popped, 1);
+  });
+
+  testWidgets('there is no hint footer on a screen', (tester) async {
+    // It named D-pad buttons along the bottom of every menu in the app, on a
+    // phone and a desktop, neither of which has a D-pad.
+    await tester.pumpWidget(_host());
+    await tester.pumpAndSettle();
+
+    expect(find.text('move'), findsNothing);
+    expect(find.text('open'), findsNothing);
+    expect(find.text('back'), findsNothing);
   });
 }
