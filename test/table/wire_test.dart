@@ -30,6 +30,7 @@ const _oneOfEach = <TableAction>[
   CreateToken(zoneId: 'battlefield-s1', oracleId: 'goblin', cardId: 'c7'),
   ChangeLife(seatId: 's1', by: -3),
   RollDice([6, 1, 20], die: 1),
+  TakeMulligan(seatId: 's1', seed: 'again/s1'),
 ];
 
 /// The shapes where an optional field is absent and the absence is the verb: a
@@ -193,9 +194,12 @@ void main() {
       _declaredVerbs(),
     );
 
-    // Ten, and the file says why the number is closed. An eleventh has to be
-    // argued for, and arguing for it includes coming back here.
-    expect(_declaredVerbs(), hasLength(10));
+    // Eleven, and the file says why the number is closed. A twelfth has to be
+    // argued for, and arguing for it includes coming back here. The eleventh
+    // is the mulligan, which is three verbs in one on purpose: a hand put
+    // back, a shuffle and a fresh hand, as three separate verbs, would let a
+    // peer see the hand sitting on top of the library in between.
+    expect(_declaredVerbs(), hasLength(11));
   });
 
   test('an unknown verb is an error that names it', () {

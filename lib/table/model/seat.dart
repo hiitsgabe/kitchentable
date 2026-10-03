@@ -12,6 +12,7 @@ class Seat {
     required this.life,
     required this.zones,
     this.owner = const SeatOwner.empty(),
+    this.mulligans = 0,
   });
 
   final String id;
@@ -26,6 +27,15 @@ class Seat {
   /// Who is holding this chair. Empty until somebody sits.
   final SeatOwner owner;
 
+  /// How many times this seat has put its opening hand back and drawn again.
+  ///
+  /// Kept because it cannot be derived: a hand that went back and came out
+  /// again leaves the library exactly as it was, so the table after a
+  /// mulligan and the table before it are the same table. It is also the
+  /// number of cards that have to go to the bottom, which is the whole of the
+  /// London rule.
+  final int mulligans;
+
   Zone? zone(String zoneId) => zones.where((z) => z.id == zoneId).firstOrNull;
 
   Seat copyWith({
@@ -33,11 +43,13 @@ class Seat {
     int? life,
     List<Zone>? zones,
     SeatOwner? owner,
+    int? mulligans,
   }) => Seat(
     id: id,
     name: name ?? this.name,
     life: life ?? this.life,
     zones: zones ?? this.zones,
     owner: owner ?? this.owner,
+    mulligans: mulligans ?? this.mulligans,
   );
 }

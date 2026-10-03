@@ -5,6 +5,7 @@ import '../../sources/model/catalog_card.dart';
 import '../../table/actions/table_action.dart';
 import '../../table/model/card_instance.dart';
 import '../../table/model/zone.dart';
+import '../../table/opening.dart';
 import '../../table/shuffle.dart';
 import '../../table/view/seat_view.dart';
 import '../../ui/atoms/toast.dart';
@@ -372,6 +373,27 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                         onReorder: (id, to) => play.run(
                           MoveCard(cardId: id, toZoneId: hand.id, at: to),
                         ),
+                        // Offered only while this is still the opening hand,
+                        // and only for a seat this device may act for. It is
+                        // taken away by the cards rather than by a button,
+                        // which is why nothing here has to remember to.
+                        mulligan:
+                            mine &&
+                                stillChoosingAHand(
+                                  table,
+                                  seat.id,
+                                  deckSize: play.deckSizeAt(seat.id),
+                                )
+                            ? (
+                                putBack: cardsToPutBack(table, seat.id),
+                                take: () => play.run(
+                                  TakeMulligan(
+                                    seatId: seat.id,
+                                    seed: freshSeed(),
+                                  ),
+                                ),
+                              )
+                            : null,
                         game: game,
                       ),
                     ),

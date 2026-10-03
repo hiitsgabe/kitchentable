@@ -1850,6 +1850,54 @@ void main() {
     );
   });
 
+  testWidgets('the opening hand is offered a mulligan, and then is not', (
+    tester,
+  ) async {
+    final container = await _seatedPod(tester, ['you']);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('hand-handle')).first);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('mulligan')), findsOneWidget);
+    // Nothing owed on the first hand, which is what makes it free.
+    expect(find.byKey(const Key('mulligan-owed')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('mulligan')));
+    await tester.pumpAndSettle();
+
+    expect(container.read(playProvider)!.seat('s1')!.mulligans, 1);
+    expect(find.byKey(const Key('mulligan')), findsOneWidget);
+    expect(find.text('put 1 card on the bottom'), findsOneWidget);
+
+    // And it takes itself away the moment the game is on. Nobody presses
+    // anything to end it, which is the only way an offer like this is safe to
+    // leave on the screen.
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+    container
+        .read(playProvider.notifier)
+        .run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('hand-handle')).first);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('mulligan')), findsNothing);
+  });
+
+  testWidgets('somebody else s opening hand is not yours to put back', (
+    tester,
+  ) async {
+    final container = await _seatedPod(tester, ['you', 'Carla']);
+    await tester.pumpAndSettle();
+
+    // Looking out of the other seat is still this device acting for it in a
+    // pod on one tablet, so the offer follows the seat being looked out of
+    // rather than following the first seat at the table.
+    expect(container.read(viewerSeatProvider), 's1');
+    await tester.tap(find.byKey(const Key('hand-handle')).first);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('mulligan')), findsOneWidget);
+  });
+
   testWidgets('the two zones stand further apart while a card is in the air', (
     tester,
   ) async {

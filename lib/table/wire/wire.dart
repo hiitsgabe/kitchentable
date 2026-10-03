@@ -92,13 +92,17 @@ TableAction fromWire(String wire) {
     // `die` is read leniently rather than with `_int`: a peer built before
     // it existed sends a roll without one, and a roll nobody can animate is
     // still a roll everybody has to agree about.
+    'TakeMulligan' => TakeMulligan(
+      seatId: _string(json, 'seatId'),
+      seed: _string(json, 'seed'),
+    ),
     'RollDice' => RollDice(
       _ints(json, 'results'),
       die: json['die'] is int ? json['die']! as int : null,
     ),
     _ => throw WireError(
-      'unknown verb "$type". This build speaks ten and that is not one of '
-      'them, so the peer that sent it is running something newer.',
+      'unknown verb "$type". This build speaks eleven and that is not one '
+      'of them, so the peer that sent it is running something newer.',
     ),
   };
 }
@@ -151,6 +155,11 @@ Map<String, Object?> _verbToJson(TableAction action) => switch (action) {
     'seatId': action.seatId,
     'by': action.by,
   },
+  TakeMulligan() => {
+    'type': 'TakeMulligan',
+    'seatId': action.seatId,
+    'seed': action.seed,
+  },
   RollDice() => {
     'type': 'RollDice',
     'results': action.results,
@@ -197,6 +206,7 @@ Map<String, Object?> _seatToJson(Seat seat) => {
   'name': seat.name,
   'life': seat.life,
   'owner': _ownerToJson(seat.owner),
+  'mulligans': seat.mulligans,
   'zones': [for (final zone in seat.zones) _zoneToJson(zone)],
 };
 
@@ -205,6 +215,10 @@ Seat _seatFrom(Map<String, Object?> json) => Seat(
   name: _string(json, 'name'),
   life: _int(json, 'life'),
   owner: _ownerFrom(_string(json, 'owner')),
+  // Lenient, unlike every other field here, because a peer built before the
+  // mulligan existed sends a seat without one and a table nobody can join is
+  // worse than a seat that has forgotten it took a mulligan.
+  mulligans: json['mulligans'] is int ? json['mulligans']! as int : 0,
   zones: [
     for (final zone in _list(json, 'zones')) _zoneFrom(_object(zone, 'zone')),
   ],

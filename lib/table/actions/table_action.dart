@@ -222,3 +222,30 @@ class RollDice extends TableAction {
   @override
   int get hashCode => Object.hash(Object.hashAll(results), die);
 }
+
+/// Puts an opening hand back, shuffles, and draws a fresh one.
+///
+/// One verb and not three, because the three together are the thing a player
+/// means and because a hand that went back has to be shuffled in by a seed
+/// everybody has: three separate verbs would let a peer see the hand sitting
+/// on top of the library between them.
+///
+/// The London rule is the other half and it is not in here. After the nth
+/// mulligan the player puts n cards on the bottom themselves, which is a
+/// choice nobody else can make for them and is an ordinary move.
+class TakeMulligan extends TableAction {
+  const TakeMulligan({required this.seatId, required this.seed});
+
+  final String seatId;
+
+  /// Carried for the same reason ShuffleZone carries one: the reducer has to
+  /// be a function, or replaying a game gives a different game.
+  final String seed;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TakeMulligan && other.seatId == seatId && other.seed == seed;
+
+  @override
+  int get hashCode => Object.hash(seatId, seed);
+}
