@@ -15,6 +15,7 @@ import '../../table/setup.dart';
 import '../../table/shuffle.dart';
 import '../../table/table_session.dart';
 import '../lobby/lobby.dart';
+import 'chat.dart';
 import 'table_news.dart';
 
 /// The table currently being played, or null when nobody is at one.
@@ -84,6 +85,7 @@ class PlayController extends Notifier<TableState?> {
   Mesh? _mesh;
   StreamSubscription<TableState>? _following;
   StreamSubscription<Played>? _listening;
+  StreamSubscription<Said>? _hearing;
   Referee _referee = const PermissiveReferee();
 
   /// Which game each seat's deck came from.
@@ -143,6 +145,7 @@ class PlayController extends Notifier<TableState?> {
     ref.onDispose(() {
       _following?.cancel();
       _listening?.cancel();
+      _hearing?.cancel();
     });
     return null;
   }
@@ -252,6 +255,7 @@ class PlayController extends Notifier<TableState?> {
   void follow(Mesh mesh) {
     _following?.cancel();
     _listening?.cancel();
+    _hearing?.cancel();
     _mesh = mesh;
     _session = null;
     _following = mesh.tables.listen((table) => state = table);
@@ -264,7 +268,22 @@ class PlayController extends Notifier<TableState?> {
           .read(tableNewsProvider.notifier)
           .say(by: played.by, action: played.action, table: _table),
     );
+    _hearing = mesh.chatter.listen(
+      (said) => ref
+          .read(chatProvider.notifier)
+          .heard(by: said.by, text: said.text, table: _table, me: _meOf(ref)),
+    );
   }
+
+  /// Whether there is anybody else here to talk to.
+  ///
+  /// A table on one device is a pod on one tablet or a game alone, and
+  /// there is nobody at the other end of a chat box in either.
+  bool get atATableWithOthers => _mesh != null;
+
+  /// Says something to the table. Nothing happens on a table this phone is
+  /// holding alone, because there is nobody to say it to.
+  void say(String text) => _mesh?.say(text);
 
   /// Read off the zone rather than off the decklist, so a card that reached
   /// the command zone by any other road is counted the same way. Empty in a

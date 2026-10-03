@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../table/actions/table_action.dart';
 import '../../table/model/table_state.dart';
+import 'chat.dart';
 
 /// Something somebody did, with a name on it.
 ///
@@ -31,18 +32,7 @@ class TableNewsDesk extends Notifier<TableNews?> {
     required TableAction action,
     required TableState? table,
   }) {
-    state = (by: by, name: _nameOf(by, table), action: action, turn: ++_turn);
-  }
-
-  /// Whoever is sitting in the chair that key holds.
-  ///
-  /// The key itself is never shown: it is sixty four characters of hex and
-  /// means nothing to anybody at the table. A key with no chair is somebody
-  /// who has not sat down, which is still worth naming as somebody.
-  static String _nameOf(String by, TableState? table) {
-    final seat = table?.seats.where((s) => s.owner.peerId == by).firstOrNull;
-    final name = seat?.name.trim() ?? '';
-    return name.isEmpty ? 'Somebody' : name;
+    state = (by: by, name: nameOf(by, table), action: action, turn: ++_turn);
   }
 }
 

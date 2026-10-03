@@ -11,6 +11,8 @@ import '../../table/view/seat_view.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/card_viewer.dart';
 import '../../ui/organisms/screen_frame.dart';
+import '../../ui/tokens/app_palette.dart';
+import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../lobby/lobby.dart';
@@ -19,6 +21,8 @@ import 'card_size.dart';
 import 'dice/dice_tray.dart';
 import 'look_at_top.dart';
 import 'play_controller.dart';
+import 'widgets/chat_sheet.dart';
+import 'chat.dart';
 import 'said_out_loud.dart';
 import 'table_news.dart';
 import 'renderers/focus_view.dart';
@@ -301,6 +305,12 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                     .choose(renderer.next),
                 onLife: (by) => play.run(ChangeLife(seatId: seat.id, by: by)),
                 onUndo: play.undo,
+                // Nobody to talk to on a table this phone holds alone, so
+                // the button is not there rather than there and dead.
+                unread: play.atATableWithOthers
+                    ? ref.watch(chatProvider).unread
+                    : null,
+                onTalk: () => _talk(m),
                 onMore: _more,
                 onLeave: () {
                   play.leave();
@@ -418,6 +428,30 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
         ),
       ),
     );
+  }
+
+  /// Opens the chat. Reading it is what marks it read.
+  Future<void> _talk(Metrics m) async {
+    ref.read(chatProvider.notifier).seen();
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Palette.tray,
+      isScrollControlled: true,
+      // A quarter of the screen, which is the cap Board Game Arena puts on
+      // its own four player chat for the same reason: the table is what
+      // people came for.
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.42,
+      ),
+      builder: (sheet) => Consumer(
+        builder: (context, ref, _) => ChatSheet(
+          metrics: m,
+          room: ref.watch(chatProvider),
+          onSay: (text) => ref.read(playProvider.notifier).say(text),
+        ),
+      ),
+    );
+    if (mounted) ref.read(chatProvider.notifier).seen();
   }
 
   /// Puts a card down where it was dropped, in whichever renderer dropped it.
@@ -835,6 +869,8 @@ class _TopBar extends StatelessWidget {
     required this.canUndo,
     required this.renderer,
     required this.onSwitchRenderer,
+    required this.unread,
+    required this.onTalk,
     required this.onLife,
     required this.onUndo,
     required this.onMore,
@@ -846,6 +882,12 @@ class _TopBar extends StatelessWidget {
   final bool canUndo;
   final TableRenderer renderer;
   final VoidCallback onSwitchRenderer;
+
+  /// How many lines have arrived unseen, or null when there is nobody to
+  /// talk to.
+  final int? unread;
+
+  final VoidCallback onTalk;
   final void Function(int) onLife;
   final VoidCallback onUndo;
   final VoidCallback onMore;
@@ -912,6 +954,16 @@ class _TopBar extends StatelessWidget {
             onTap: onUndo,
           ),
         ),
+        if (unread != null) ...[
+          SizedBox(width: m.scaled(10)),
+          _Pill(
+            metrics: m,
+            key: const Key('talk'),
+            icon: Icons.chat_bubble_outline_rounded,
+            onTap: onTalk,
+            badge: unread,
+          ),
+        ],
         SizedBox(width: m.scaled(10)),
         _Pill(
           metrics: m,
@@ -930,28 +982,69 @@ class _Pill extends StatelessWidget {
     required this.metrics,
     required this.icon,
     required this.onTap,
+    this.badge,
   });
 
   final Metrics metrics;
   final IconData icon;
   final VoidCallback onTap;
 
+  /// A count to draw on the corner. Zero and null draw nothing: an empty
+  /// badge is a mark saying there is nothing to see.
+  final int? badge;
+
   @override
   Widget build(BuildContext context) {
     final m = metrics;
+    final count = badge ?? 0;
 
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: m.scaled(34),
-        height: m.scaled(34),
-        decoration: BoxDecoration(
-          color: Palette.tile,
-          borderRadius: BorderRadius.circular(m.scaled(8)),
-          border: Border.all(color: Palette.tileEdge),
-        ),
-        child: Icon(icon, size: m.scaled(17), color: Palette.inkMuted),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: m.scaled(34),
+            height: m.scaled(34),
+            decoration: BoxDecoration(
+              color: Palette.tile,
+              borderRadius: BorderRadius.circular(m.scaled(8)),
+              border: Border.all(color: Palette.tileEdge),
+            ),
+            child: Icon(icon, size: m.scaled(17), color: Palette.inkMuted),
+          ),
+          if (count > 0)
+            Positioned(
+              top: -m.scaled(5),
+              right: -m.scaled(5),
+              child: Container(
+                key: const Key('unread'),
+                padding: EdgeInsets.symmetric(
+                  horizontal: m.scaled(5),
+                  vertical: m.scaled(1),
+                ),
+                constraints: BoxConstraints(minWidth: m.scaled(17)),
+                decoration: BoxDecoration(
+                  color: context.palette.accent,
+                  borderRadius: BorderRadius.circular(m.scaled(9)),
+                  border: Border.all(
+                    color: Palette.outline,
+                    width: m.scaled(1.5),
+                  ),
+                ),
+                child: Text(
+                  count > 9 ? '9+' : '$count',
+                  textAlign: TextAlign.center,
+                  style: pixel(
+                    size: m.scaled(10),
+                    weight: 700,
+                    color: Palette.slabInk,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
