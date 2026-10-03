@@ -29,7 +29,7 @@ const _oneOfEach = <TableAction>[
   DrawCards(fromZoneId: 'library-s1', toZoneId: 'hand-s1', count: 7),
   CreateToken(zoneId: 'battlefield-s1', oracleId: 'goblin', cardId: 'c7'),
   ChangeLife(seatId: 's1', by: -3),
-  RollDice([6, 1, 20]),
+  RollDice([6, 1, 20], die: 1),
 ];
 
 /// The shapes where an optional field is absent and the absence is the verb: a
@@ -40,6 +40,10 @@ const _theNullShapes = <TableAction>[
   RotateCard('c2'),
   AttachCard(cardId: 'c5', toCardId: null),
   RollDice([]),
+  // A roll from a build that did not say which die. The numbers are agreed
+  // either way; there is just nothing for a watching phone to animate, and
+  // writing a default here would make every such roll turn the d20.
+  RollDice([6, 1, 20]),
 ];
 
 /// Every verb the sealed set declares, read off the source rather than typed

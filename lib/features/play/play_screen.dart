@@ -18,6 +18,8 @@ import 'card_size.dart';
 import 'dice/dice_tray.dart';
 import 'look_at_top.dart';
 import 'play_controller.dart';
+import 'said_out_loud.dart';
+import 'table_news.dart';
 import 'renderers/focus_view.dart';
 import 'renderers/grid_view.dart';
 import 'renderers/mat_layout.dart';
@@ -105,6 +107,17 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     ref.listen(playRefusalProvider, (_, refusal) {
       if (refusal != null) {
         Toast.show(context, refusal.reason, icon: Icons.block_rounded);
+      }
+    });
+
+    // What somebody else did, said out loud. A table on four phones is four
+    // people watching a state change with nobody named: a die rolled at the
+    // other end of a call used to be a number that quietly read differently.
+    ref.listen(tableNewsProvider, (_, news) {
+      if (news == null) return;
+      final line = saidOutLoud(news, me: ref.read(transportProvider)?.me);
+      if (line != null) {
+        Toast.show(context, line, icon: Icons.casino_rounded);
       }
     });
 
@@ -627,8 +640,13 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                   child: DiceTray(
                     showing: ref.watch(playProvider)?.dice ?? const [],
                     width: m.scaled(220),
-                    onRoll: (results) =>
-                        ref.read(playProvider.notifier).run(RollDice(results)),
+                    announced: announcedRoll(
+                      ref.watch(tableNewsProvider),
+                      me: ref.read(transportProvider)?.me,
+                    ),
+                    onRoll: (die, results) => ref
+                        .read(playProvider.notifier)
+                        .run(RollDice(results, die: die)),
                   ),
                 ),
               ),

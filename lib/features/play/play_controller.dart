@@ -14,6 +14,7 @@ import '../../table/setup.dart';
 import '../../table/shuffle.dart';
 import '../../table/table_session.dart';
 import '../lobby/lobby.dart';
+import 'table_news.dart';
 
 /// The table currently being played, or null when nobody is at one.
 /// Why the last action was turned down.
@@ -81,6 +82,7 @@ class PlayController extends Notifier<TableState?> {
   /// whatever the mesh holds and never a step ahead of it.
   Mesh? _mesh;
   StreamSubscription<TableState>? _following;
+  StreamSubscription<Played>? _listening;
   Referee _referee = const PermissiveReferee();
 
   /// Which game each seat's deck came from.
@@ -124,7 +126,10 @@ class PlayController extends Notifier<TableState?> {
 
   @override
   TableState? build() {
-    ref.onDispose(() => _following?.cancel());
+    ref.onDispose(() {
+      _following?.cancel();
+      _listening?.cancel();
+    });
     return null;
   }
 
@@ -228,9 +233,19 @@ class PlayController extends Notifier<TableState?> {
   /// reaches is one that undo would rewind to.
   void follow(Mesh mesh) {
     _following?.cancel();
+    _listening?.cancel();
     _mesh = mesh;
     _session = null;
     _following = mesh.tables.listen((table) => state = table);
+    // The second half of the mesh: the table says what is true and this says
+    // what somebody did. A screen cannot tell a die that was thrown from a
+    // die that happens to read differently, and it cannot name the thrower
+    // from a state at all.
+    _listening = mesh.verbs.listen(
+      (played) => ref
+          .read(tableNewsProvider.notifier)
+          .say(by: played.by, action: played.action, table: _table),
+    );
   }
 
   /// Read off the zone rather than off the decklist, so a card that reached

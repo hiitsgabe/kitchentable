@@ -41,8 +41,17 @@ class DiceTray extends StatefulWidget {
     required this.showing,
     required this.width,
     required this.onRoll,
+    this.announced,
     super.key,
   });
+
+  /// A throw somebody else made, which this tray has to act out.
+  ///
+  /// Without it a die rolled at the other end of a call is a number that
+  /// quietly reads differently, and a die that lands on the number it was
+  /// already on is nothing at all. [turn] rises with every announcement, so
+  /// the same number twice is still two throws.
+  final ({int die, int value, int turn})? announced;
 
   /// What each die last landed on, in tray order.
   ///
@@ -54,10 +63,12 @@ class DiceTray extends StatefulWidget {
   /// The width of the whole tray, which the three dice divide between them.
   final double width;
 
-  /// Handed all three numbers and not just the one that moved, because the
-  /// table's `dice` is the tray rather than a log of throws, and a replay has
-  /// to be able to put every die back where it was.
-  final void Function(List<int>) onRoll;
+  /// Handed all three numbers **and** which one moved. The table's `dice` is
+  /// the tray rather than a log of throws, so a replay has to be able to put
+  /// every die back where it was; but a phone watching cannot tell which die
+  /// was thrown from three numbers, and a die that lands on the number it was
+  /// already on changes none of them.
+  final void Function(int die, List<int> results) onRoll;
 
   @override
   State<DiceTray> createState() => _DiceTrayState();
@@ -84,10 +95,45 @@ class _DiceTrayState extends State<DiceTray>
   int? _airborne;
   int _landing = 1;
 
+  /// The last announcement acted out, so one is never performed twice.
+  int _acted = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _acted = widget.announced?.turn ?? 0;
+  }
+
+  @override
+  void didUpdateWidget(DiceTray old) {
+    super.didUpdateWidget(old);
+    final said = widget.announced;
+    if (said == null || said.turn == _acted) return;
+    _acted = said.turn;
+    _tumble(said.die, said.value);
+  }
+
   @override
   void dispose() {
     _roll.dispose();
     super.dispose();
+  }
+
+  /// Turns one die over to a number somebody has already agreed on.
+  ///
+  /// The number is given rather than rolled: this is the throw being acted
+  /// out, not a second throw. Whoever threw it put it on the wire and every
+  /// phone has it; a tray that rolled its own would show four tables four
+  /// different numbers.
+  void _tumble(int i, int to) {
+    if (i < 0 || i >= _dice.length) return;
+    setState(() {
+      _airborne = i;
+      _landing = to;
+    });
+    _roll.forward(from: 0).whenComplete(() {
+      if (mounted) setState(() => _airborne = null);
+    });
   }
 
   /// What die `i` is resting on: its own result, or its highest face on a
@@ -97,16 +143,9 @@ class _DiceTrayState extends State<DiceTray>
 
   void _throwIt(int i) {
     final rolled = rollOne(_dice[i].solid, _random);
+    _tumble(i, rolled);
 
-    setState(() {
-      _airborne = i;
-      _landing = rolled;
-    });
-    _roll.forward(from: 0).whenComplete(() {
-      if (mounted) setState(() => _airborne = null);
-    });
-
-    widget.onRoll([
+    widget.onRoll(i, [
       for (var at = 0; at < _dice.length; at++)
         at == i ? rolled : _numberOn(at),
     ]);
