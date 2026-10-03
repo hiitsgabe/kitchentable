@@ -1,0 +1,42 @@
+import 'dart:math';
+
+/// Names a player is given before they are asked for one.
+///
+/// Everybody was "you". It is the right word for an empty box and the wrong
+/// one on four chairs at once: a table of four read "you", "you", "you",
+/// "you", and the only way out was for every person to think of a name before
+/// they could play.
+///
+/// Short, so they fit on a chair and on a rail chip. Nobody's real name, and
+/// nothing that reads as an insult when it lands on a stranger: these go in
+/// front of people who did not choose them.
+const playerNames = <String>[
+  'Ace', 'Acorn', 'Amber', 'Anchor', 'Arrow',
+  'Aspen', 'Badger', 'Bandit', 'Basil', 'Beacon',
+  'Bishop', 'Bramble', 'Breeze', 'Briar', 'Button',
+  'Cedar', 'Chalk', 'Cinder', 'Clover', 'Comet',
+  'Compass', 'Copper', 'Cricket', 'Crumpet', 'Dagger',
+  'Daisy', 'Domino', 'Drifter', 'Dusty', 'Echo',
+  'Ember', 'Fable', 'Falcon', 'Fennel', 'Fern',
+  'Finch', 'Flint', 'Fox', 'Ginger', 'Gizmo',
+  'Glint', 'Gopher', 'Grove', 'Hazel', 'Heron',
+  'Hickory', 'Hopper', 'Indigo', 'Ivy', 'Jasper',
+  'Jigsaw', 'Juniper', 'Kettle', 'Kite', 'Lantern',
+  'Lark', 'Lemon', 'Lichen', 'Lucky', 'Magpie',
+  'Mallow', 'Maple', 'Marble', 'Meadow', 'Mitten',
+  'Moss', 'Nickel', 'Nimbus', 'Nutmeg', 'Olive',
+  'Onyx', 'Otter', 'Parsley', 'Pebble', 'Pepper',
+  'Pewter', 'Pilot', 'Pine', 'Pocket', 'Poppy',
+  'Quill', 'Rambler', 'Raven', 'Robin', 'Rook',
+  'Rosemary', 'Rusty', 'Saffron', 'Sage', 'Sailor',
+  'Scout', 'Shadow', 'Sorrel', 'Sparrow', 'Spruce',
+  'Sundial', 'Tangent', 'Thimble', 'Thistle', 'Tinder',
+  'Topaz', 'Trapper', 'Tulip', 'Walnut', 'Willow',
+  'Wren', 'Zephyr',
+];
+
+final _random = Random();
+
+/// One of [playerNames], at random. What the name box opens holding on a
+/// device that has never been given one.
+String freshPlayerName() => playerNames[_random.nextInt(playerNames.length)];

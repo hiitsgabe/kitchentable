@@ -94,6 +94,12 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # The swirling paint backdrop. Flutter compiles these to the platform's own
+  # shader language at build time; no package is needed for one fragment
+  # shader, and the one the app needs is written in this repository.
+  shaders:
+    - shaders/paint_swirl.frag
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

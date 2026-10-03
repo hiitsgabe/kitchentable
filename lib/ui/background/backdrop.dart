@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:mesh_gradient/mesh_gradient.dart';
 
 import 'backdrop_style.dart';
+import 'paint_swirl.dart';
 
 /// What sits behind every screen.
 ///
@@ -30,6 +31,12 @@ class Backdrop extends StatelessWidget {
   }
 
   Widget _paint() => switch (style.kind) {
+        // The drift is the fallback on purpose: it is the one that needs no
+        // shader, so a platform without them still has a moving backdrop.
+        BackdropKind.paint => PaintSwirl(
+          style: style,
+          fallback: _Drift(style: style),
+        ),
         BackdropKind.aurora => _Aurora(style: style),
         BackdropKind.drift => _Drift(style: style),
         BackdropKind.flat => _Flat(style: style),

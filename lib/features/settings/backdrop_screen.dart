@@ -145,6 +145,7 @@ class _BackdropScreenState extends ConsumerState<BackdropScreen> {
   }
 
   IconData _iconFor(BackdropKind k) => switch (k) {
+        BackdropKind.paint => Icons.brush_rounded,
         BackdropKind.aurora => Icons.blur_on_rounded,
         BackdropKind.drift => Icons.bubble_chart_rounded,
         BackdropKind.flat => Icons.gradient_rounded,
