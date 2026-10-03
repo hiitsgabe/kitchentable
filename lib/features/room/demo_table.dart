@@ -18,9 +18,22 @@ import '../play/renderers/renderer_choice.dart';
 /// catalog or a second person. The cards are named and have no printing, so
 /// they draw as named backs; the layout is what this is for.
 class DemoTable extends ConsumerStatefulWidget {
-  const DemoTable({super.key, required this.seats, this.view});
+  const DemoTable({
+    super.key,
+    required this.seats,
+    this.view,
+    this.fresh = false,
+  });
 
   final int seats;
+
+  /// Stops at the opening hand, with nothing on any battlefield.
+  ///
+  /// The four cards this normally puts out are there so a layout can be
+  /// looked at, and they are also exactly what tells the table that the
+  /// opening is over: with them there, nothing a game starts with can be
+  /// seen at all.
+  final bool fresh;
 
   /// grid, focus or split, read with the seats before the address bar is
   /// cleared; null is the default.
@@ -56,6 +69,8 @@ class _DemoTableState extends ConsumerState<DemoTable> {
           ],
           seed: 'demo',
         );
+    if (widget.fresh) return;
+
     // A few cards out on every battlefield, so the boards are not empty.
     final play = ref.read(playProvider.notifier);
     final table = ref.read(playProvider);

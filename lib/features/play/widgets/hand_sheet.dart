@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../decks/model/game.dart';
 import '../../../sources/model/catalog_card.dart';
 import '../../../table/model/card_instance.dart';
-import '../../../ui/atoms/slab.dart';
-import '../../../ui/tokens/lettering.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import 'card_drag.dart';
@@ -123,7 +121,6 @@ class HandSheet extends StatefulWidget {
     this.cardWidth,
     this.game,
     this.startsOpen = false,
-    this.mulligan,
   });
 
   final Metrics metrics;
@@ -151,17 +148,6 @@ class HandSheet extends StatefulWidget {
   /// Whose cards these are, so a card held face down is held face down onto
   /// the right back.
   final Game? game;
-
-  /// The offer to put this hand back, while it is still the opening hand.
-  ///
-  /// Null once the game is on, which is the one thing that makes a mulligan
-  /// safe to leave on the screen: nobody has to remember to take it away, and
-  /// there is no moment where a player could put a hand back that they have
-  /// already played out of.
-  ///
-  /// [putBack] is how many cards go to the bottom if this hand is kept, which
-  /// is the London rule and is the whole cost of having taken one.
-  final ({int putBack, VoidCallback take})? mulligan;
 
   /// Whether it starts open rather than peeking.
   ///
@@ -263,10 +249,6 @@ class _HandSheetState extends State<HandSheet>
         children: _open
             ? [
                 _handle(m),
-                if (widget.mulligan case final offer?) ...[
-                  _Mulligan(metrics: m, offer: offer),
-                  SizedBox(height: m.scaled(6)),
-                ],
                 SizedBox(height: m.scaled(6)),
                 _hand(m, m.scaled(_lineHeight)),
               ]
@@ -289,17 +271,23 @@ class _HandSheetState extends State<HandSheet>
       key: const Key('hand-handle'),
       onTap: _toggle,
       behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        height: peek,
-        child: widget.cards.isEmpty
-            ? _nothingInHand(m, peek)
-            : ClipRect(
-                child: OverflowBox(
-                  alignment: Alignment.topCenter,
-                  maxHeight: double.infinity,
-                  child: IgnorePointer(child: _cards(m)),
+      child: Semantics(
+        button: true,
+        label: widget.cards.isEmpty
+            ? 'Your hand, empty'
+            : 'Your hand, ${widget.cards.length} cards. Tap to open',
+        child: SizedBox(
+          height: peek,
+          child: widget.cards.isEmpty
+              ? _nothingInHand(m, peek)
+              : ClipRect(
+                  child: OverflowBox(
+                    alignment: Alignment.topCenter,
+                    maxHeight: double.infinity,
+                    child: IgnorePointer(child: _cards(m)),
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }
@@ -310,12 +298,16 @@ class _HandSheetState extends State<HandSheet>
     key: const Key('hand-handle'),
     onTap: _toggle,
     behavior: HitTestBehavior.opaque,
-    child: SizedBox(
-      height: m.scaled(_handleHeight),
-      child: Icon(
-        Icons.keyboard_arrow_down_rounded,
-        size: m.scaled(20),
-        color: Palette.inkMuted,
+    child: Semantics(
+      button: true,
+      label: 'Put your hand down',
+      child: SizedBox(
+        height: m.scaled(_handleHeight),
+        child: Icon(
+          Icons.keyboard_arrow_down_rounded,
+          size: m.scaled(20),
+          color: Palette.inkMuted,
+        ),
       ),
     ),
   );
@@ -437,60 +429,6 @@ class _HandSheetState extends State<HandSheet>
     final to = line * perLine + column;
     if (to == from) return;
     widget.onReorder(card.id, to);
-  }
-}
-
-/// The offer to put this hand back, and the count the London rule owes.
-///
-/// In the hand and not in a menu, because it is a decision about the cards in
-/// front of you and it is over in the first thirty seconds of a game. It
-/// takes itself away: see [HandSheet.mulligan].
-class _Mulligan extends StatelessWidget {
-  const _Mulligan({required this.metrics, required this.offer});
-
-  final Metrics metrics;
-  final ({int putBack, VoidCallback take}) offer;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = metrics;
-    final owed = offer.putBack;
-
-    // A Wrap and not a Row. The sentence beside it is longer than a phone is
-    // wide once the count reaches two figures, and a hand is the last place
-    // in the app that can afford to lose a point of width.
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: m.scaled(10),
-      runSpacing: m.scaled(6),
-      children: [
-        Slab(
-          key: const Key('mulligan'),
-          metrics: m,
-          tone: SlabTone.warm,
-          onActivate: offer.take,
-          semanticLabel: 'Mulligan',
-          padding: EdgeInsets.symmetric(
-            horizontal: m.scaled(14),
-            vertical: m.scaled(8),
-          ),
-          child: Text('Mulligan', style: slabText(m.scaled(13))),
-        ),
-        if (owed > 0)
-          Text(
-            owed == 1
-                ? 'put 1 card on the bottom'
-                : 'put $owed cards on the bottom',
-            key: const Key('mulligan-owed'),
-            style: pixel(
-              size: m.scaled(12),
-              weight: 500,
-              color: Palette.inkMuted,
-            ),
-          ),
-      ],
-    );
   }
 }
 

@@ -31,6 +31,7 @@ import 'widgets/command_slot.dart';
 import 'widgets/cursor_board.dart';
 import 'widgets/deck_sheet.dart';
 import 'widgets/hand_sheet.dart';
+import 'widgets/mulligan_button.dart';
 import 'widgets/library_stack.dart';
 import 'widgets/pile_sheet.dart';
 import 'widgets/seat_board.dart';
@@ -69,7 +70,13 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     final table = ref.read(playProvider);
     if (table == null) return;
 
-    final dealt = ref.read(lobbyProvider)?.printings ?? const {};
+    // From the lobby on a guest, and from the decks this phone dealt with
+    // otherwise. Either way it is the decklist, which is the only thing that
+    // knows a card the catalog has never heard of.
+    final dealt = {
+      ...ref.read(playProvider.notifier).printingsDealt,
+      ...?ref.read(lobbyProvider)?.printings,
+    };
     final ids = table.allZones
         .expand((z) => z.cards)
         .map((c) => c.oracleId)
@@ -336,20 +343,47 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                   children: [
                     KeyedSubtree(
                       key: const Key('deck-bar'),
-                      child: LibraryStack(
-                        metrics: m,
-                        count: library.size,
-                        of: play.deckSizeAt(seat.id),
-                        width: thumb,
-                        game: game,
-                        onDraw: () => play.run(
-                          DrawCards(
-                            fromZoneId: library.id,
-                            toZoneId: hand.id,
-                            count: 1,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          LibraryStack(
+                            metrics: m,
+                            count: library.size,
+                            of: play.deckSizeAt(seat.id),
+                            width: thumb,
+                            game: game,
+                            onDraw: () => play.run(
+                              DrawCards(
+                                fromZoneId: library.id,
+                                toZoneId: hand.id,
+                                count: 1,
+                              ),
+                            ),
+                            onWork: _workTheDeck,
                           ),
-                        ),
-                        onWork: _workTheDeck,
+                          // Offered only while this is still the opening
+                          // hand, and only for a seat this device may act
+                          // for. It is taken away by the cards rather than
+                          // by a button, which is why nothing here has to
+                          // remember to.
+                          if (mine &&
+                              stillChoosingAHand(
+                                table,
+                                seat.id,
+                                deckSize: play.deckSizeAt(seat.id),
+                              ))
+                            MulliganButton(
+                              metrics: m,
+                              width: thumb,
+                              putBack: cardsToPutBack(table, seat.id),
+                              onTake: () => play.run(
+                                TakeMulligan(
+                                  seatId: seat.id,
+                                  seed: freshSeed(),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     SizedBox(width: m.scaled(10)),
@@ -373,27 +407,6 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                         onReorder: (id, to) => play.run(
                           MoveCard(cardId: id, toZoneId: hand.id, at: to),
                         ),
-                        // Offered only while this is still the opening hand,
-                        // and only for a seat this device may act for. It is
-                        // taken away by the cards rather than by a button,
-                        // which is why nothing here has to remember to.
-                        mulligan:
-                            mine &&
-                                stillChoosingAHand(
-                                  table,
-                                  seat.id,
-                                  deckSize: play.deckSizeAt(seat.id),
-                                )
-                            ? (
-                                putBack: cardsToPutBack(table, seat.id),
-                                take: () => play.run(
-                                  TakeMulligan(
-                                    seatId: seat.id,
-                                    seed: freshSeed(),
-                                  ),
-                                ),
-                              )
-                            : null,
                         game: game,
                       ),
                     ),

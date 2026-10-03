@@ -26,7 +26,13 @@ class Entry extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final demo = launchDemoSeats();
-    if (demo != null) return DemoTable(seats: demo, view: launchDemoView());
+    if (demo != null) {
+      return DemoTable(
+        seats: demo,
+        view: launchDemoView(),
+        fresh: launchDemoFresh(),
+      );
+    }
     final waiting = launchDemoRoomSeats();
     if (waiting != null) return DemoRoom(seats: waiting);
 

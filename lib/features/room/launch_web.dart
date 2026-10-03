@@ -35,6 +35,14 @@ int? launchDemoSeats() {
 String? launchDemoView() =>
     RegExp(r'view=(\w+)').firstMatch(web.window.location.href)?.group(1);
 
+/// Whether a `#demo=N` launch should stop at the opening hand.
+///
+/// The demo puts four cards out on every battlefield so the boards are not
+/// empty, which is right for looking at a layout and wrong for looking at
+/// everything a game starts with: a card on the battlefield is exactly what
+/// tells the table the opening is over.
+bool launchDemoFresh() => RegExp(r'fresh=1').hasMatch(web.window.location.href);
+
 /// How many chairs a `#demoroom=N` launch sets up, or null. The host's
 /// waiting room, opened without a card source, so the screen people wait on
 /// can be looked at and screenshotted the way `#demo=N` does the table.

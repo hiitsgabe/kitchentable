@@ -16,5 +16,7 @@ int? launchDemoSeats() => null;
 
 String? launchDemoView() => null;
 
+bool launchDemoFresh() => false;
+
 /// No address bar, no demo.
 int? launchDemoRoomSeats() => null;
