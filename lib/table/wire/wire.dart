@@ -89,7 +89,13 @@ TableAction fromWire(String wire) {
       seatId: _string(json, 'seatId'),
       by: _int(json, 'by'),
     ),
-    'RollDice' => RollDice(_ints(json, 'results')),
+    // `die` is read leniently rather than with `_int`: a peer built before
+    // it existed sends a roll without one, and a roll nobody can animate is
+    // still a roll everybody has to agree about.
+    'RollDice' => RollDice(
+      _ints(json, 'results'),
+      die: json['die'] is int ? json['die']! as int : null,
+    ),
     _ => throw WireError(
       'unknown verb "$type". This build speaks ten and that is not one of '
       'them, so the peer that sent it is running something newer.',
@@ -145,7 +151,11 @@ Map<String, Object?> _verbToJson(TableAction action) => switch (action) {
     'seatId': action.seatId,
     'by': action.by,
   },
-  RollDice() => {'type': 'RollDice', 'results': action.results},
+  RollDice() => {
+    'type': 'RollDice',
+    'results': action.results,
+    'die': ?action.die,
+  },
 };
 
 /// The whole table, for a peer arriving late.

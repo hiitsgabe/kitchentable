@@ -196,16 +196,29 @@ class ChangeLife extends TableAction {
 }
 
 class RollDice extends TableAction {
-  const RollDice(this.results);
+  const RollDice(this.results, {this.die});
 
   /// Rolled by the caller for the same reason a token's id is: the reducer has
   /// to be a function, or replaying a game gives a different game.
   final List<int> results;
 
-  @override
-  bool operator ==(Object other) =>
-      other is RollDice && listEquals(other.results, results);
+  /// Which of them was thrown, as an index into [results].
+  ///
+  /// The table only keeps where the three dice are resting, so a peer reading
+  /// a new set of numbers cannot tell which one moved, and a die that lands on
+  /// the number it was already on did not move at all as far as the numbers
+  /// are concerned. Somebody watching has to see the die that was thrown turn
+  /// over, so the thrower says which.
+  ///
+  /// Null from a peer built before this existed, and from a replay of one.
+  final int? die;
 
   @override
-  int get hashCode => Object.hashAll(results);
+  bool operator ==(Object other) =>
+      other is RollDice &&
+      listEquals(other.results, results) &&
+      other.die == die;
+
+  @override
+  int get hashCode => Object.hash(Object.hashAll(results), die);
 }

@@ -16,66 +16,66 @@ import 'fake_transport.dart';
 /// A small table with something in every kind of pile, so a verb has a card to
 /// move and a failure is short enough to read.
 TableState _aTable() => const TableState(
-      seats: [
-        Seat(
-          id: 's1',
-          name: 'you',
-          life: 40,
-          owner: SeatOwner.peer('host'),
-          zones: [
-            Zone(
-              id: 'library-s1',
-              seatId: 's1',
-              label: 'Library',
-              visibility: ZoneVisibility.hidden,
-              ordered: true,
-              cards: [
-                CardInstance(id: 'l1', oracleId: 'sol ring'),
-                CardInstance(id: 'l2', oracleId: 'mountain'),
-              ],
-            ),
-            Zone(
-              id: 'hand-s1',
-              seatId: 's1',
-              label: 'Hand',
-              visibility: ZoneVisibility.owner,
-              ordered: false,
-              cards: [CardInstance(id: 'h1', oracleId: 'brainstorm')],
-            ),
-            Zone(
-              id: 'battlefield-s1',
-              seatId: 's1',
-              label: 'Battlefield',
-              visibility: ZoneVisibility.public,
-              ordered: false,
-              cards: [CardInstance(id: 'b1', oracleId: 'llanowar elves')],
-            ),
+  seats: [
+    Seat(
+      id: 's1',
+      name: 'you',
+      life: 40,
+      owner: SeatOwner.peer('host'),
+      zones: [
+        Zone(
+          id: 'library-s1',
+          seatId: 's1',
+          label: 'Library',
+          visibility: ZoneVisibility.hidden,
+          ordered: true,
+          cards: [
+            CardInstance(id: 'l1', oracleId: 'sol ring'),
+            CardInstance(id: 'l2', oracleId: 'mountain'),
           ],
         ),
-        Seat(
-          id: 's2',
-          name: 'kit',
-          life: 40,
-          owner: SeatOwner.peer('a'),
-          zones: [
-            Zone(
-              id: 'hand-s2',
-              seatId: 's2',
-              label: 'Hand',
-              visibility: ZoneVisibility.owner,
-              ordered: false,
-            ),
-            Zone(
-              id: 'battlefield-s2',
-              seatId: 's2',
-              label: 'Battlefield',
-              visibility: ZoneVisibility.public,
-              ordered: false,
-            ),
-          ],
+        Zone(
+          id: 'hand-s1',
+          seatId: 's1',
+          label: 'Hand',
+          visibility: ZoneVisibility.owner,
+          ordered: false,
+          cards: [CardInstance(id: 'h1', oracleId: 'brainstorm')],
+        ),
+        Zone(
+          id: 'battlefield-s1',
+          seatId: 's1',
+          label: 'Battlefield',
+          visibility: ZoneVisibility.public,
+          ordered: false,
+          cards: [CardInstance(id: 'b1', oracleId: 'llanowar elves')],
         ),
       ],
-    );
+    ),
+    Seat(
+      id: 's2',
+      name: 'kit',
+      life: 40,
+      owner: SeatOwner.peer('a'),
+      zones: [
+        Zone(
+          id: 'hand-s2',
+          seatId: 's2',
+          label: 'Hand',
+          visibility: ZoneVisibility.owner,
+          ordered: false,
+        ),
+        Zone(
+          id: 'battlefield-s2',
+          seatId: 's2',
+          label: 'Battlefield',
+          visibility: ZoneVisibility.public,
+          ordered: false,
+        ),
+      ],
+    ),
+  ],
+);
 
 /// The people at the table, their transports, and everything any of their
 /// meshes refused.
@@ -88,6 +88,9 @@ class _Seats {
   /// mesh is built, because a case that subscribes later misses the refusal it
   /// is about.
   final refused = <String, List<String>>{};
+
+  /// Every verb each mesh applied, and whose key played it.
+  final played = <String, List<Played>>{};
 
   /// Who each peer was told is hosting, in order, and how many times it was told
   /// the table had changed. Both streams exist for a screen to rebuild off, so
@@ -121,19 +124,18 @@ class _Seats {
     return _start(line);
   }
 
-  Mesh _start(
-    FakeTransport line, {
-    TableState? table,
-    bool creator = false,
-  }) {
+  Mesh _start(FakeTransport line, {TableState? table, bool creator = false}) {
     final mesh = Mesh(transport: line, table: table, creator: creator);
     refused[line.me] = [];
     toldTheHostIs[line.me] = [];
     toldTheTableChanged[line.me] = 0;
     mesh.refusals.listen(refused[line.me]!.add);
     mesh.hosts.listen(toldTheHostIs[line.me]!.add);
-    mesh.tables.listen((_) => toldTheTableChanged[line.me] =
-        toldTheTableChanged[line.me]! + 1);
+    mesh.tables.listen(
+      (_) => toldTheTableChanged[line.me] = toldTheTableChanged[line.me]! + 1,
+    );
+    played[line.me] = [];
+    mesh.verbs.listen(played[line.me]!.add);
     mesh.start();
     addTearDown(mesh.close);
     addTearDown(line.close);
@@ -145,10 +147,9 @@ class _Seats {
   /// What one peer put on the wire for another, by kind, from a mark taken
   /// earlier. What is not in here is the point of several of these cases.
   List<String> kindsSent(String from, {required String to, int since = 0}) => [
-        for (final message in line(from).sent.skip(since))
-          if (message.to == to)
-            jsonDecode(message.body)['kind']! as String,
-      ];
+    for (final message in line(from).sent.skip(since))
+      if (message.to == to) jsonDecode(message.body)['kind']! as String,
+  ];
 }
 
 /// Three phones, the first one having made the room, settled into a table.
@@ -191,8 +192,7 @@ void main() {
     expect(seats.toldTheTableChanged['b'], 3);
   });
 
-  test('a verb naming a card nobody has changes nothing and says nothing',
-      () async {
+  test('a verb naming a card nobody has changes nothing and says nothing', () async {
     // `apply` makes a verb naming something that is not there a no op, on the
     // grounds that at a real table you do not get an exception for reaching for
     // a card somebody already moved. It still travels, because the peer that
@@ -222,7 +222,9 @@ void main() {
 
     seats.mesh('host').run(const ChangeLife(seatId: 's1', by: -8));
     seats.mesh('host').run(const FlipCard('b1'));
-    seats.mesh('host').run(
+    seats
+        .mesh('host')
+        .run(
           const DrawCards(
             fromZoneId: 'library-s1',
             toZoneId: 'hand-s1',
@@ -240,8 +242,10 @@ void main() {
     expect(seats.mesh('b').table, isNotNull);
     expect(seats.mesh('b').table!.seat('s1')!.life, 32);
     expect(seats.mesh('b').table!.zone('hand-s1')!.cards.length, 2);
-    expect(seats.mesh('b').table!.zone('battlefield-s1')!.cards.single.faceDown,
-        isTrue);
+    expect(
+      seats.mesh('b').table!.zone('battlefield-s1')!.cards.single.faceDown,
+      isTrue,
+    );
 
     // The whole table and not the three fields above, through the wire, which
     // is the only deep comparison of a `TableState` there is.
@@ -258,8 +262,7 @@ void main() {
     expect(seats.kindsSent('a', to: 'b'), isEmpty);
   });
 
-  test('the host stamps each peer as it joins, and the peer sends no number',
-      () async {
+  test('the host stamps each peer as it joins, and the peer sends no number', () async {
     final seats = await _threeSeats();
 
     const asJoined = {'host': 0, 'a': 1, 'b': 2};
@@ -295,8 +298,7 @@ void main() {
     }
   });
 
-  test('when the host goes, the lowest stamp takes over and the others agree',
-      () async {
+  test('when the host goes, the lowest stamp takes over and the others agree', () async {
     final seats = await _threeSeats();
     expect(seats.mesh('a').hostId, 'host');
 
@@ -322,8 +324,7 @@ void main() {
     expect(seats.mesh('a').table!.seat('s2')!.life, 39);
   });
 
-  test('when the peer that made the room comes back, it takes the role again',
-      () async {
+  test('when the peer that made the room comes back, it takes the role again', () async {
     final seats = await _threeSeats();
 
     seats.net.drop('host');
@@ -375,7 +376,11 @@ void main() {
     seats.net.drop('host');
     await seats.net.settle();
 
-    expect(seats.mesh('a').hostId, 'a', reason: 'b claimed to have joined first');
+    expect(
+      seats.mesh('a').hostId,
+      'a',
+      reason: 'b claimed to have joined first',
+    );
     expect(seats.mesh('b').hostId, 'a', reason: 'and the others have to agree');
     expect(seats.mesh('b').hosting, isFalse);
   });
@@ -411,8 +416,7 @@ void main() {
     expect(seats.mesh('a').hostId, 'a');
   });
 
-  test('a table nobody asked for is refused, even from the peer taking over',
-      () async {
+  test('a table nobody asked for is refused, even from the peer taking over', () async {
     // The second half of the same attack, in the design's own words: pushing
     // whatever state it likes the moment it takes over. So the attacker here is
     // the peer that has just legitimately become the host, which is the only
@@ -444,8 +448,7 @@ void main() {
     );
   });
 
-  test('a peer that missed ten verbs is handed the table, not the ten verbs',
-      () async {
+  test('a peer that missed ten verbs is handed the table, not the ten verbs', () async {
     final seats = await _threeSeats();
 
     seats.net.drop('b');
@@ -456,9 +459,16 @@ void main() {
     }
     await seats.net.settle();
 
-    expect(seats.mesh('b').table, isNotNull, reason: 'b sat down before the drop');
-    expect(seats.mesh('b').table!.seat('s1')!.life, 40,
-        reason: 'b was in a tunnel for all ten');
+    expect(
+      seats.mesh('b').table,
+      isNotNull,
+      reason: 'b sat down before the drop',
+    );
+    expect(
+      seats.mesh('b').table!.seat('s1')!.life,
+      40,
+      reason: 'b was in a tunnel for all ten',
+    );
     expect(seats.mesh('host').table!.seat('s1')!.life, 30);
 
     final mark = seats.line('host').sent.length;
@@ -479,42 +489,44 @@ void main() {
     expect(seats.kindsSent('host', to: 'b', since: mark), ['welcome']);
   });
 
-  test('two verbs at the same instant can leave two peers disagreeing',
-      () async {
-    // Nothing orders the mesh. This case is here to say so in numbers rather
-    // than in a comment, because the alternative is one peer ordering
-    // everything, which is the star the design rejected, and the cost of not
-    // doing it has to be visible somewhere.
-    //
-    // Each peer applies verbs as they arrive, so its own comes first and the
-    // other one lands after it. For a verb that sets rather than adds, that
-    // decides the value, and the two of them disagree. `ChangeLife` carries a
-    // delta and commutes; `RollDice` and `RotateCard(to:)` do not.
-    final seats = await _threeSeats();
+  test(
+    'two verbs at the same instant can leave two peers disagreeing',
+    () async {
+      // Nothing orders the mesh. This case is here to say so in numbers rather
+      // than in a comment, because the alternative is one peer ordering
+      // everything, which is the star the design rejected, and the cost of not
+      // doing it has to be visible somewhere.
+      //
+      // Each peer applies verbs as they arrive, so its own comes first and the
+      // other one lands after it. For a verb that sets rather than adds, that
+      // decides the value, and the two of them disagree. `ChangeLife` carries a
+      // delta and commutes; `RollDice` and `RotateCard(to:)` do not.
+      final seats = await _threeSeats();
 
-    seats.mesh('a').run(const RollDice([6]));
-    seats.mesh('b').run(const RollDice([1]));
-    await seats.net.settle();
+      seats.mesh('a').run(const RollDice([6]));
+      seats.mesh('b').run(const RollDice([1]));
+      await seats.net.settle();
 
-    expect(seats.mesh('a').table!.dice, [1], reason: 'its own, then b\'s');
-    expect(seats.mesh('b').table!.dice, [6], reason: 'its own, then a\'s');
-    expect(seats.mesh('host').table!.dice, [1], reason: 'a\'s, then b\'s');
-    expect(
-      seats.mesh('a').table!.dice,
-      isNot(seats.mesh('b').table!.dice),
-      reason: 'and this is the cost, until a verb carries an order',
-    );
+      expect(seats.mesh('a').table!.dice, [1], reason: 'its own, then b\'s');
+      expect(seats.mesh('b').table!.dice, [6], reason: 'its own, then a\'s');
+      expect(seats.mesh('host').table!.dice, [1], reason: 'a\'s, then b\'s');
+      expect(
+        seats.mesh('a').table!.dice,
+        isNot(seats.mesh('b').table!.dice),
+        reason: 'and this is the cost, until a verb carries an order',
+      );
 
-    // A delta is the case that does not care, which is why this is a property
-    // of the verb and not of the mesh.
-    seats.mesh('a').run(const ChangeLife(seatId: 's1', by: -1));
-    seats.mesh('b').run(const ChangeLife(seatId: 's1', by: -2));
-    await seats.net.settle();
+      // A delta is the case that does not care, which is why this is a property
+      // of the verb and not of the mesh.
+      seats.mesh('a').run(const ChangeLife(seatId: 's1', by: -1));
+      seats.mesh('b').run(const ChangeLife(seatId: 's1', by: -2));
+      await seats.net.settle();
 
-    for (final id in ['host', 'a', 'b']) {
-      expect(seats.mesh(id).table!.seat('s1')!.life, 37, reason: id);
-    }
-  });
+      for (final id in ['host', 'a', 'b']) {
+        expect(seats.mesh(id).table!.seat('s1')!.life, 37, reason: id);
+      }
+    },
+  );
 
   test('a verb is applied where it lands and never passed on', () async {
     final seats = await _threeSeats();
@@ -525,8 +537,10 @@ void main() {
     seats.mesh('host').run(const RotateCard('b1', to: 90));
     await seats.net.settle();
 
-    expect(seats.mesh('a').table!.zone('battlefield-s1')!.cards.single.rotation,
-        90);
+    expect(
+      seats.mesh('a').table!.zone('battlefield-s1')!.cards.single.rotation,
+      90,
+    );
 
     // Two sends and no more, and nothing sent on by the two that received it.
     // In a full mesh the sender already reached everybody, so a peer that
@@ -543,39 +557,41 @@ void main() {
     }
   });
 
-  test('a message this build cannot read is refused in words that name it',
-      () async {
-    final seats = await _threeSeats();
+  test(
+    'a message this build cannot read is refused in words that name it',
+    () async {
+      final seats = await _threeSeats();
 
-    seats.net.forge(
-      from: 'b',
-      to: 'a',
-      body: jsonEncode({'v': wireVersion, 'kind': 'coup'}),
-    );
-    seats.net.forge(
-      from: 'b',
-      to: 'a',
-      body: jsonEncode({
-        'v': wireVersion + 1,
-        'kind': 'action',
-        'body': toWire(const RollDice([6])),
-      }),
-    );
-    seats.net.forge(from: 'b', to: 'a', body: 'this is not json');
-    await seats.net.settle();
+      seats.net.forge(
+        from: 'b',
+        to: 'a',
+        body: jsonEncode({'v': wireVersion, 'kind': 'coup'}),
+      );
+      seats.net.forge(
+        from: 'b',
+        to: 'a',
+        body: jsonEncode({
+          'v': wireVersion + 1,
+          'kind': 'action',
+          'body': toWire(const RollDice([6])),
+        }),
+      );
+      seats.net.forge(from: 'b', to: 'a', body: 'this is not json');
+      await seats.net.settle();
 
-    expect(seats.refused['a'], hasLength(3));
-    expect(seats.refused['a'], anyElement(contains('coup')));
-    expect(
-      seats.refused['a'],
-      anyElement(allOf(contains('version'), contains('${wireVersion + 1}'))),
-    );
-    expect(seats.refused['a'], anyElement(contains('JSON')));
+      expect(seats.refused['a'], hasLength(3));
+      expect(seats.refused['a'], anyElement(contains('coup')));
+      expect(
+        seats.refused['a'],
+        anyElement(allOf(contains('version'), contains('${wireVersion + 1}'))),
+      );
+      expect(seats.refused['a'], anyElement(contains('JSON')));
 
-    // And none of it moved the table: the roll behind the wrong version was
-    // never applied.
-    expect(seats.mesh('a').table!.dice, isEmpty);
-  });
+      // And none of it moved the table: the roll behind the wrong version was
+      // never applied.
+      expect(seats.mesh('a').table!.dice, isEmpty);
+    },
+  );
 
   test('neither the mesh nor its transport knows what a relay is', () async {
     // The seam. The next slice writes a real transport over Nostr and WebRTC
@@ -594,22 +610,20 @@ void main() {
       'transport.dart',
     };
 
-    for (final path in [
-      'lib/net/transport.dart',
-      'lib/net/mesh.dart',
-    ]) {
+    for (final path in ['lib/net/transport.dart', 'lib/net/mesh.dart']) {
       final file = File(path);
       expect(
         file.existsSync(),
         isTrue,
-        reason: 'this reads the source, so it has to run from the package '
+        reason:
+            'this reads the source, so it has to run from the package '
             'root. cwd is ${Directory.current.path}',
       );
 
-      final imports = RegExp(r"^import '([^']+)'", multiLine: true)
-          .allMatches(file.readAsStringSync())
-          .map((m) => m.group(1)!)
-          .toSet();
+      final imports = RegExp(
+        r"^import '([^']+)'",
+        multiLine: true,
+      ).allMatches(file.readAsStringSync()).map((m) => m.group(1)!).toSet();
 
       // A broken regex reads as a clean file, so the population has to be
       // non empty before the difference below means anything.
@@ -626,5 +640,39 @@ void main() {
     final mesh = File('lib/net/mesh.dart').readAsStringSync();
     expect(mesh, isNot(contains('Random')));
     expect(mesh, isNot(contains('DateTime')));
+  });
+
+  test('a verb says who played it, at both ends', () async {
+    // The table is a state and not a log, so nothing in it can say that a die
+    // was thrown rather than that three numbers read differently, and nothing
+    // in it can name the thrower. Both ends hear the same verb under the same
+    // key: a screen listening here needs no second path for its own doing.
+    final seats = _Seats()
+      ..sit('host', table: _aTable(), creator: true)
+      ..sit('guest');
+    await seats.net.settle();
+
+    seats.mesh('host').run(const RollDice([17, 12, 6], die: 0));
+    await seats.net.settle();
+
+    const thrown = RollDice([17, 12, 6], die: 0);
+    expect(seats.played['host'], [(by: 'host', action: thrown)]);
+    expect(seats.played['guest'], [(by: 'host', action: thrown)]);
+  });
+
+  test('which die was thrown survives the wire', () async {
+    // Three numbers cannot say which one moved, and a die landing on the
+    // number it was already on moves none of them.
+    final seats = _Seats()
+      ..sit('host', table: _aTable(), creator: true)
+      ..sit('guest');
+    await seats.net.settle();
+
+    seats.mesh('host').run(const RollDice([20, 12, 4], die: 2));
+    await seats.net.settle();
+
+    final heard = seats.played['guest']!.single.action as RollDice;
+    expect(heard.die, 2);
+    expect(heard.results, [20, 12, 4]);
   });
 }

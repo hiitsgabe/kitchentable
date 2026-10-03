@@ -7,6 +7,9 @@ import '../table/model/table_state.dart';
 import '../table/wire/wire.dart';
 import 'transport.dart';
 
+/// A verb the table applied, and whose key played it.
+typedef Played = ({String by, TableAction action});
+
 /// The number the peer that made the room holds, and the lowest there is, so it
 /// hosts until it goes.
 const _firstStamp = 0;
@@ -77,6 +80,7 @@ class Mesh {
   final _tables = StreamController<TableState>.broadcast();
   final _hosts = StreamController<String?>.broadcast();
   final _refusals = StreamController<String>.broadcast();
+  final _verbs = StreamController<Played>.broadcast();
 
   String? _saidTheHostWas;
   var _started = false;
@@ -119,6 +123,19 @@ class Mesh {
   /// of the outcomes.
   Stream<String> get refusals => _refusals.stream;
 
+  /// Every verb this table applied, and who played it.
+  ///
+  /// The table is a state and not a log, which is what makes undo a list and
+  /// a late arrival a snapshot. But a state cannot say what just happened:
+  /// somebody at the other end of a call rolls a die and the number on this
+  /// phone changes with nothing to watch and nobody named. Two different
+  /// numbers are not two different events either, so a diff of states cannot
+  /// stand in for this.
+  ///
+  /// Carries this phone's own verbs too, under its own key, so a screen
+  /// listening here does not need a second path for the things it did itself.
+  Stream<Played> get verbs => _verbs.stream;
+
   /// Starts listening, and asks for the table if this peer does not have one.
   void start() {
     if (_started) return;
@@ -147,6 +164,7 @@ class Mesh {
     }
 
     _holds(apply(table, action));
+    _played(me, action);
 
     final body = _say('action', {'body': toWire(action)});
     for (final peer in _transport.peers) {
@@ -160,6 +178,7 @@ class Mesh {
     await _tables.close();
     await _hosts.close();
     await _refusals.close();
+    await _verbs.close();
   }
 
   // Asking, and being asked.
@@ -358,7 +377,9 @@ class Mesh {
     // Applied and not passed on. In a full mesh the sender reached everybody
     // itself, so a peer that relayed what it received would deliver every verb
     // once per peer and the copies would move the card again.
-    _holds(apply(table, fromWire(body)));
+    final verb = fromWire(body);
+    _holds(apply(table, verb));
+    _played(from, verb);
   }
 
   // Who is hosting, which is arithmetic rather than a message.
@@ -400,6 +421,10 @@ class Mesh {
     if (identical(next, _table)) return;
     _table = next;
     if (!_tables.isClosed) _tables.add(next);
+  }
+
+  void _played(String by, TableAction action) {
+    if (!_verbs.isClosed) _verbs.add((by: by, action: action));
   }
 
   void _refuse(String why) {

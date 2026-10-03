@@ -6,17 +6,18 @@ import 'package:kitchentable/features/play/dice/dice_tray.dart';
 
 Widget _host({
   List<int> showing = const [20, 12, 6],
-  void Function(List<int>)? onRoll,
-}) =>
-    MaterialApp(
-      home: Scaffold(
-        body: DiceTray(
-          showing: showing,
-          width: 120,
-          onRoll: onRoll ?? (_) {},
-        ),
-      ),
-    );
+  void Function(int, List<int>)? onRoll,
+  ({int die, int value, int turn})? announced,
+}) => MaterialApp(
+  home: Scaffold(
+    body: DiceTray(
+      showing: showing,
+      width: 120,
+      onRoll: onRoll ?? (_, _) {},
+      announced: announced,
+    ),
+  ),
+);
 
 void main() {
   testWidgets('there are three of them', (tester) async {
@@ -37,11 +38,12 @@ void main() {
     expect(find.text('5'), findsWidgets);
   });
 
-  testWidgets('tapping one rolls that one and leaves the others',
-      (tester) async {
+  testWidgets('tapping one rolls that one and leaves the others', (
+    tester,
+  ) async {
     List<int>? rolled;
     await tester.pumpWidget(
-      _host(showing: const [17, 3, 5], onRoll: (r) => rolled = r),
+      _host(showing: const [17, 3, 5], onRoll: (_, r) => rolled = r),
     );
     await tester.pump();
 
@@ -57,7 +59,7 @@ void main() {
   testWidgets('the d12 rolls a number no d6 has', (tester) async {
     List<int>? rolled;
     await tester.pumpWidget(
-      _host(showing: const [17, 3, 5], onRoll: (r) => rolled = r),
+      _host(showing: const [17, 3, 5], onRoll: (_, r) => rolled = r),
     );
     await tester.pump();
 
@@ -78,12 +80,14 @@ void main() {
     // And the other neighbour, which the single tap above catches only two
     // times in five: forty taps of a d20 that never clear a twelve is one
     // chance in a thousand million.
-    expect(best, lessThanOrEqualTo(12),
-        reason: 'the d12 is rolling something bigger');
+    expect(
+      best,
+      lessThanOrEqualTo(12),
+      reason: 'the d12 is rolling something bigger',
+    );
   });
 
-  testWidgets('a die that has not been rolled yet still draws',
-      (tester) async {
+  testWidgets('a die that has not been rolled yet still draws', (tester) async {
     await tester.pumpWidget(_host(showing: const []));
     await tester.pump();
 
@@ -91,4 +95,69 @@ void main() {
     expect(find.byKey(const Key('die-20')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('a throw somebody else made is acted out here', (tester) async {
+    // The whole point. Before this a die rolled at the other end of a call
+    // was a number on this phone that quietly read differently, with nothing
+    // to watch and nobody named.
+    await tester.pumpWidget(_host(showing: const [20, 12, 6]));
+    await tester.pump();
+
+    await tester.pumpWidget(
+      _host(showing: const [20, 12, 2], announced: (die: 2, value: 2, turn: 1)),
+    );
+    await tester.pump();
+
+    expect(
+      _turning(tester, 6),
+      isNotNull,
+      reason: 'the d6 did not start turning',
+    );
+
+    await tester.pumpAndSettle();
+    expect(_turning(tester, 6), isNull, reason: 'it never came to rest');
+    expect(find.text('2'), findsWidgets);
+  });
+
+  testWidgets('the same number twice is still two throws', (tester) async {
+    // A die that lands on the number it was already on changes nothing about
+    // the table, so the numbers alone cannot carry this.
+    await tester.pumpWidget(
+      _host(showing: const [20, 12, 4], announced: (die: 2, value: 4, turn: 1)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(
+      _host(showing: const [20, 12, 4], announced: (die: 2, value: 4, turn: 2)),
+    );
+    await tester.pump();
+
+    expect(_turning(tester, 6), isNotNull);
+  });
+
+  testWidgets('an announcement already acted out is not acted again', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(showing: const [20, 12, 4], announced: (die: 2, value: 4, turn: 7)),
+    );
+    await tester.pumpAndSettle();
+
+    // Same turn, rebuilt for some other reason: a tray that started over
+    // every time its parent rebuilt would never stop turning.
+    await tester.pumpWidget(
+      _host(showing: const [20, 12, 4], announced: (die: 2, value: 4, turn: 7)),
+    );
+    await tester.pump();
+
+    expect(_turning(tester, 6), isNull);
+  });
+}
+
+/// How far through its throw the die with [sides] sides is, or null when it is
+/// at rest.
+double? _turning(WidgetTester tester, int sides) {
+  final die = find.byKey(Key('die-$sides'));
+  final widget = tester.widget(die);
+  return (widget as dynamic).turning as double?;
 }
