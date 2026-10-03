@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -52,7 +51,6 @@ class _RenameDeckScreenState extends ConsumerState<RenameDeckScreen> {
       title: 'Name',
       label: 'what this deck is called',
       onBack: () => Navigator.of(context).maybePop(),
-      hints: const [Hint(button: 'B', label: 'back')],
       children: [
         TextFieldBox(
           metrics: m,

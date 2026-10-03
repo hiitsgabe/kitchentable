@@ -5,7 +5,6 @@ import '../../decks/model/basic_lands.dart';
 import '../../decks/model/deck.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../ui/atoms/card_art.dart';
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/card_viewer.dart';
@@ -61,7 +60,6 @@ class _AddLandsScreenState extends ConsumerState<AddLandsScreen> {
         title: 'Lands',
         label: 'no deck open',
         onBack: () => Navigator.of(context).maybePop(),
-        hints: const [Hint(button: 'B', label: 'back')],
         children: const [],
       );
     }
@@ -77,11 +75,6 @@ class _AddLandsScreenState extends ConsumerState<AddLandsScreen> {
           ? '$missing still to fill'
           : 'the deck is already full',
       onBack: () => Navigator.of(context).maybePop(),
-      hints: const [
-        Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: 'add'),
-        Hint(button: 'B', label: 'back'),
-      ],
       children: [
         if (split.isNotEmpty)
           MenuRow(

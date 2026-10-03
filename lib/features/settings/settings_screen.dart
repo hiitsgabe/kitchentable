@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/background/backdrop_controller.dart';
@@ -89,11 +88,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       // untrue: it is the one thing on this screen the other players see.
       label: 'who you are, and how it looks',
       onBack: () => Navigator.of(context).maybePop(),
-      hints: const [
-        Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: 'open'),
-        Hint(button: 'B', label: 'back'),
-      ],
       children: [
         _Label(metrics: m, text: 'your name'),
         TextFieldBox(

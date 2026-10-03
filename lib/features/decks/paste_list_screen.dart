@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/import/decklist_parser.dart';
 import '../../decks/import/decklist_resolver.dart';
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -75,7 +74,6 @@ class _PasteListScreenState extends ConsumerState<PasteListScreen> {
               ? 'one card per line'
               : '${preview.resolvedCount} cards found',
       onBack: () => Navigator.of(context).maybePop(),
-      hints: const [Hint(button: 'B', label: 'back')],
       children: [
         TextFieldBox(
           metrics: m,

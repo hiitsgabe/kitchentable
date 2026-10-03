@@ -5,7 +5,6 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../table/room/room.dart';
 import '../../table/shuffle.dart';
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -59,7 +58,6 @@ class RoomScreen extends ConsumerWidget {
         title: 'No room',
         label: 'nothing to show',
         onBack: () => Navigator.of(context).maybePop(),
-        hints: const [Hint(button: 'B', label: 'back')],
         children: const [],
       );
     }
@@ -86,11 +84,6 @@ class RoomScreen extends ConsumerWidget {
                 '${_chairsLabel(config.seats, lobby == null ? null : empty)}'
                 ' · ${config.life} life',
       onBack: () => _leave(context, ref),
-      hints: const [
-        Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: 'open'),
-        Hint(button: 'B', label: 'leave'),
-      ],
       children: [
         // Who is here. A lobby is the people in it, which is what every
         // client the benchmark read puts first and this screen had thirteen

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../decks/model/deck.dart';
 import '../../decks/model/deck_format.dart';
 import '../../decks/model/game.dart';
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
@@ -33,11 +32,6 @@ class NewDeckScreen extends ConsumerWidget {
       title: 'New ${game.label} deck',
       label: 'the format decides the rules',
       onBack: () => Navigator.of(context).maybePop(),
-      hints: const [
-        Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: 'choose'),
-        Hint(button: 'B', label: 'back'),
-      ],
       children: [
         for (final format in game.formats)
           MenuRow(

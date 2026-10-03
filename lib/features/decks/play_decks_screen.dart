@@ -6,7 +6,6 @@ import '../../decks/model/game.dart';
 import '../../table/model/seat_owner.dart';
 import '../../table/setup.dart';
 import '../../table/shuffle.dart';
-import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -80,11 +79,6 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
         _ => 'reading',
       },
       onBack: () => Navigator.of(context).maybePop(),
-      hints: [
-        const Hint(button: HintBar.dpad, label: 'move'),
-        Hint(button: 'A', label: _filling ? 'add' : 'deal'),
-        const Hint(button: 'B', label: 'back'),
-      ],
       children: [
         ...switch (decks) {
           AsyncData(:final value) => [

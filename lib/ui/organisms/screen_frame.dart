@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../atoms/hint_bar.dart';
 import '../tokens/metrics.dart';
 import '../tokens/palette.dart';
 
 /// Every screen in this app is the same shape: a wordmark or a title, a small
-/// uppercase line under it saying what is true right now, a list, and a hint
-/// bar along the bottom.
+/// uppercase line under it saying what is true right now, and a list.
+///
+/// No footer. It carried a row naming the D-pad buttons on every screen, on
+/// devices that have no D-pad: a phone and a desktop both drew "move" and "A
+/// open" along the bottom of every menu in the app.
 ///
 /// It lives in one place because the first version did not, and three screens
 /// each grew their own Column with their own padding and their own idea of
@@ -19,7 +21,6 @@ class ScreenFrame extends StatelessWidget {
     required this.title,
     required this.label,
     required this.children,
-    required this.hints,
     this.wordmark = false,
     this.onBack,
   });
@@ -34,8 +35,9 @@ class ScreenFrame extends StatelessWidget {
   /// the screen is called.
   final String label;
 
+  /// The list the screen is made of.
   final List<Widget> children;
-  final List<Hint> hints;
+
   final bool wordmark;
 
   /// Drawn as a back affordance when given, and bound to Escape and the gamepad
@@ -90,8 +92,6 @@ class ScreenFrame extends StatelessWidget {
                           children: children,
                         ),
                       ),
-                      SizedBox(height: m.scaled(20)),
-                      HintBar(metrics: m, hints: hints),
                     ],
                   ),
                 ),
