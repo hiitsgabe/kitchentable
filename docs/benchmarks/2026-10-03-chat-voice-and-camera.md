@@ -117,16 +117,36 @@ wall the data path hit.
 and one five-tuple under BUNDLE, so whatever fraction fails, fails for both.
 Audio is only cheaper once connected.
 
-The bandwidth is genuinely small: four people on voice for two hours is about
-0.35 GB of media, 0.7 GB if every stream is relayed, which fits inside
-[Metered's 20 GB free tier](https://www.metered.ca/tools/openrelay/) and
-nowhere near [Cloudflare's 1 TB](https://developers.cloudflare.com/realtime/sfu/platform/pricing/).
-But a free tier is an account, and an account means credentials shipped inside
-the app where anybody can take them. That is not a server the author runs, and
-it is not nothing either.
+The bandwidth is genuinely small. Four people on voice for two hours is about
+0.35 GB of media, 0.7 GB if every stream is relayed. The relays that would
+carry it:
 
-The app already has a TURN field in Settings. A user who has one gets voice
-that works; everybody else gets voice that works about four times in five.
+| | Free | Then | Account needed |
+| --- | --- | --- | --- |
+| [Cloudflare Realtime](https://developers.cloudflare.com/realtime/sfu/platform/pricing/) | 1 TB a month | $0.05/GB | yes, with API issued short-lived credentials |
+| [Metered Open Relay](https://www.metered.ca/tools/openrelay/) | 20 GB a month, 0.5 GB without a card | $0.40 down to $0.10/GB | yes |
+| [Xirsys](https://xirsys.com/pricing) | 500 MB a month | paid tiers | yes |
+| [Twilio](https://www.twilio.com/en-us/stun-turn/pricing) | none | $0.40/GB | yes |
+
+So the money is not the problem: a whole evening of voice is half a gigabyte
+and every one of these would carry it for nothing. **The account is the
+problem.** Every one of them needs the author to hold one and to ship
+credentials inside the app, where anybody can take them. That is not a server
+the author runs, and it is not nothing either.
+
+The app already has a TURN field in Settings, and that is the honest shape:
+a user who has one gets voice that works, everybody else gets voice that
+works about four times in five. The
+[NIP-AC drafts](https://github.com/nostr-protocol/nips/pull/2301) for voice
+over Nostr propose exactly this, that the user picks the relay rather than
+the app shipping one.
+
+The client side is ready, for what it is worth. The app already depends on
+[flutter_webrtc 1.6.2](https://pub.dev/packages/flutter_webrtc), which lists
+audio, video and data channels on web, Android and iOS, and on the web it is
+a thin wrapper over the browser's own WebRTC, so capture genuinely works
+where the browser supports it. Safari is the weak spot, as usual. Nothing in
+the package is the obstacle.
 
 ## Push to talk, which is the interesting middle
 
@@ -216,6 +236,10 @@ search turns up first:
   [flutter_pear](https://pub.dev/packages/flutter_pear), is unofficial, below
   1.0, and runs its logic in a native JavaScript runtime that does not exist
   in a browser, so there is no web story at all.
+- **Session**, which onion routes its messages, does not onion route its
+  calls: [they are plain WebRTC through a foundation-operated STUN and TURN](https://getsession.org/faq),
+  which also means the call hands your address to the other side. Calls are
+  beta and off by default.
 - **Briar** is the honest one: it is text only and has no voice or video.
 
 None of these is a counterexample. They are all the same arrangement this app
