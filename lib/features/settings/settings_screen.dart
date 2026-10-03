@@ -8,6 +8,7 @@ import '../../ui/background/backdrop_controller.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
+import '../sources/sources_screen.dart';
 import 'backdrop_screen.dart';
 import 'player_name.dart';
 import 'network.dart';
@@ -140,6 +141,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               'each other, which the room says when it happens. A relay for '
               'the connection itself: a friend running one, or a public one. '
               'Left empty, none is used.',
+        ),
+        MenuRow(
+          key: const Key('settings-sources'),
+          title: 'Sources',
+          subtitle: 'where the cards come from',
+          icon: Icons.download_rounded,
+          metrics: m,
+          onActivate: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const SourcesScreen()),
+          ),
         ),
         MenuRow(
           title: 'Background',

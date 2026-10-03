@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../menu/menu_screen.dart';
+import '../setup/setup_controller.dart';
+import '../setup/setup_screen.dart';
 import 'demo_room.dart';
 import 'demo_table.dart';
 import 'launch.dart';
@@ -27,7 +29,26 @@ class Entry extends ConsumerWidget {
     if (demo != null) return DemoTable(seats: demo, view: launchDemoView());
     final waiting = launchDemoRoomSeats();
     if (waiting != null) return DemoRoom(seats: waiting);
+
     final arriving = ref.watch(launchRoomCodeProvider);
+    final done = ref.watch(setupDoneProvider);
+    // Null while the flag is being read off the disk, which is a frame or
+    // two. Nothing, rather than the menu: opening the menu and replacing it a
+    // frame later is a flash of the wrong screen, and on a room link it is a
+    // flash of the wrong screen in front of somebody who followed an
+    // invitation.
+    if (done == null) return const SizedBox.shrink();
+
+    // The link is the intent and the first run is a detour, so the
+    // destination is parked here and handed to the wizard to replay when it
+    // ends. A link that opens the menu is a link that did not work, and a
+    // link that opens the menu after five minutes of setup is worse.
+    if (!done) {
+      return SetupScreen(
+        then: (_) => arriving == null ? const MenuScreen() : const RoomScreen(),
+      );
+    }
+
     return arriving == null ? const MenuScreen() : const RoomScreen();
   }
 }

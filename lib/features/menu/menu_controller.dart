@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sources/catalog/catalog_db.dart';
 import '../../sources/catalog/catalog_opener.dart';
 
-enum MenuEntryId { start, join, decks, sources, settings }
+enum MenuEntryId { play, join, decks, settings }
 
 class MenuEntry {
   const MenuEntry({
@@ -33,33 +33,25 @@ class MenuState {
   String get headline =>
       hasCatalog ? '$cardCount CARDS' : 'NO SOURCES CONFIGURED';
 
-  MenuEntryId get initialFocus =>
-      hasCatalog ? MenuEntryId.start : MenuEntryId.sources;
+  /// Always Play. It was the first thing you could not press on a fresh
+  /// install, which is why the first run is a wizard now and not a wall.
+  MenuEntryId get initialFocus => MenuEntryId.play;
 
+  /// Play is the way in and the rest are the furniture around it. Every
+  /// client in the benchmark says the same thing: one dominant action, and
+  /// a menu of five equal rows has none.
   List<MenuEntry> get entries => [
-        // Two doors where there used to be one called Play, and neither of
-        // them is a deck. A room is a place: it is made, it is shared, and the
-        // cards come out once people are in it. The old Play row went straight
-        // to a deck picker, so a table was created by choosing a deck and there
-        // was never a moment where a room existed and nobody was playing yet,
-        // which is to say there was never anything to invite anybody to.
         MenuEntry(
-          id: MenuEntryId.start,
-          title: 'Start a table',
-          subtitle:
-              hasCatalog ? 'make a room and invite people' : 'needs a source',
-          enabled: hasCatalog,
+          id: MenuEntryId.play,
+          title: 'Play',
+          subtitle: 'make a table and invite people',
+          enabled: true,
         ),
         MenuEntry(
           id: MenuEntryId.join,
-          title: 'Join a table',
-          // Shut without a catalog for the same reason starting is: joining a
-          // room you cannot bring a deck to leaves you standing in it. The
-          // subtitle says which of the two things is missing.
-          subtitle: hasCatalog
-              ? 'paste a link, or type the code'
-              : 'needs a source',
-          enabled: hasCatalog,
+          title: 'Join',
+          subtitle: 'paste a link, or type the code',
+          enabled: true,
         ),
         MenuEntry(
           id: MenuEntryId.decks,
@@ -67,18 +59,10 @@ class MenuState {
           subtitle: hasCatalog ? 'build one, or change one' : 'needs a source',
           enabled: hasCatalog,
         ),
-        MenuEntry(
-          id: MenuEntryId.sources,
-          title: 'Sources',
-          subtitle: enabledSources == 0
-              ? 'start here'
-              : '$enabledSources on',
-          enabled: true,
-        ),
         const MenuEntry(
           id: MenuEntryId.settings,
           title: 'Settings',
-          subtitle: 'appearance, network, D-pad',
+          subtitle: 'your name, sources, network',
           enabled: true,
         ),
       ];
