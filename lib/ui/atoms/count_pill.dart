@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../tokens/app_palette.dart';
 import '../tokens/metrics.dart';
 import '../tokens/palette.dart';
 
@@ -31,7 +32,7 @@ class CountPill extends StatelessWidget {
     if (t == null) {
       colour = Palette.inkMuted;
     } else if (count == t) {
-      colour = Palette.accent;
+      colour = context.palette.accent;
     } else if (exact && count > t) {
       colour = Palette.attention;
     } else {

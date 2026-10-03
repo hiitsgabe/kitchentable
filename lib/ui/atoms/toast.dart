@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../tokens/app_palette.dart';
 import '../tokens/metrics.dart';
 import '../tokens/palette.dart';
 
@@ -90,7 +91,7 @@ class _ToastState extends State<_Toast> with SingleTickerProviderStateMixin {
                 decoration: BoxDecoration(
                   color: Palette.surface,
                   borderRadius: BorderRadius.circular(m.scaled(99)),
-                  border: Border.all(color: Palette.accent),
+                  border: Border.all(color: context.palette.accent),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.5),
@@ -105,7 +106,7 @@ class _ToastState extends State<_Toast> with SingleTickerProviderStateMixin {
                       Icon(
                         widget.icon,
                         size: m.scaled(16),
-                        color: Palette.accent,
+                        color: context.palette.accent,
                       ),
                       SizedBox(width: m.scaled(8)),
                     ],

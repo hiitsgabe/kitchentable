@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../tokens/app_palette.dart';
 import '../tokens/metrics.dart';
 import '../tokens/palette.dart';
 
@@ -166,7 +167,7 @@ class _Heading extends StatelessWidget {
       TextSpan(
         children: [
           const TextSpan(text: 'kitchen'),
-          TextSpan(text: 'table', style: const TextStyle(color: Palette.accent)),
+          TextSpan(text: 'table', style: TextStyle(color: context.palette.accent)),
         ],
       ),
       style: TextStyle(
@@ -222,10 +223,10 @@ class _BackRowState extends State<_BackRow> {
               vertical: m.scaled(10),
             ),
             decoration: BoxDecoration(
-              color: _focused ? Palette.focusWash : Colors.transparent,
+              color: _focused ? context.palette.focusWash : Colors.transparent,
               borderRadius: BorderRadius.circular(m.scaled(10)),
               border: Border.all(
-                color: _focused ? Palette.accent : Colors.transparent,
+                color: _focused ? context.palette.accent : Colors.transparent,
                 width: m.focusRing,
               ),
             ),
@@ -235,7 +236,7 @@ class _BackRowState extends State<_BackRow> {
                 Icon(
                   Icons.arrow_back_rounded,
                   size: m.scaled(18),
-                  color: _focused ? Palette.accent : Palette.inkMuted,
+                  color: _focused ? context.palette.accent : Palette.inkMuted,
                 ),
                 SizedBox(width: m.scaled(8)),
                 Text(

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../../decks/model/game.dart';
 import '../../../sources/model/catalog_card.dart';
 import '../../../table/model/card_instance.dart';
+import '../../../ui/tokens/app_palette.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import '../board_cursor.dart';
@@ -286,7 +287,7 @@ class _CursorBoardState extends State<CursorBoard> {
                     // is asking that with both hands empty.
                     border: aiming
                         ? Border.all(
-                            color: Palette.accent.withValues(alpha: 0.55),
+                            color: context.palette.accent.withValues(alpha: 0.55),
                             width: m.scaled(2),
                           )
                         : null,
@@ -374,7 +375,7 @@ class _CursorBoardState extends State<CursorBoard> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(m.scaled(8)),
             border: Border.all(
-              color: ringed ? Palette.accent : Colors.transparent,
+              color: ringed ? context.palette.accent : Colors.transparent,
               width: m.focusRing,
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../ui/tokens/app_palette.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 
@@ -50,10 +51,10 @@ class SeatBoard extends StatelessWidget {
     return Container(
       key: Key('board-$seatId'),
       decoration: BoxDecoration(
-        color: mine ? Palette.tileFocused : Palette.tile,
+        color: mine ? context.palette.tileFocused : Palette.tile,
         borderRadius: BorderRadius.circular(m.scaled(12)),
         border: Border.all(
-          color: mine ? Palette.accent.withValues(alpha: 0.7) : Palette.tileEdge,
+          color: mine ? context.palette.accent.withValues(alpha: 0.7) : Palette.tileEdge,
           width: mine ? m.scaled(1.5) : 1,
         ),
       ),
@@ -78,7 +79,7 @@ class SeatBoard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: m.scaled(12),
                       fontWeight: FontWeight.w700,
-                      color: mine ? Palette.accent : Palette.ink,
+                      color: mine ? context.palette.accent : Palette.ink,
                     ),
                   ),
                 ),

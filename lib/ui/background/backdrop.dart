@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io' show File;
 import 'dart:math' as math;
 
@@ -160,19 +161,33 @@ class _Picture extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Dimmed, because the app has to stay readable on top of whatever
+    // somebody picked, and people pick bright pictures.
+    const dim = BlendMode.darken;
+    final shade = Colors.black.withValues(alpha: 0.45);
+
+    // The bytes first: that is what a browser can give and what survives a
+    // reload. A path is the phone's way and means nothing in a browser.
+    final data = style.imageData;
+    if (data != null) {
+      return Image.memory(
+        base64Decode(data),
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _Flat(style: style),
+        color: shade,
+        colorBlendMode: dim,
+      );
+    }
+
     final path = style.imagePath;
-    // A path is meaningless in a browser, where there is no file system to
-    // point at, so the web build falls back rather than showing a broken box.
     if (path == null || kIsWeb) return _Flat(style: style);
 
     return Image.file(
       File(path),
       fit: BoxFit.cover,
       errorBuilder: (_, _, _) => _Flat(style: style),
-      // Dimmed, because the app has to stay readable on top of whatever
-      // somebody picked, and people pick bright pictures.
-      color: Colors.black.withValues(alpha: 0.45),
-      colorBlendMode: BlendMode.darken,
+      color: shade,
+      colorBlendMode: dim,
     );
   }
 }

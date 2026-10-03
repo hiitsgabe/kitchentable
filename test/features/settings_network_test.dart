@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/features/settings/network.dart';
-import 'package:kitchentable/features/settings/settings_screen.dart';
+import 'package:kitchentable/features/settings/network_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: SettingsScreen()),
+      child: const MaterialApp(home: NetworkScreen()),
     ),
   );
   await tester.pumpAndSettle();
@@ -40,7 +40,7 @@ void main() {
     expect(server.credential, 'hunter2');
   });
 
-  testWidgets('the three boxes in settings set it', (tester) async {
+  testWidgets('the three boxes on the network screen set it', (tester) async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     await _pump(tester, container);

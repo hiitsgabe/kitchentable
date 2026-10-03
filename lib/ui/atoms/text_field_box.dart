@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../tokens/app_palette.dart';
 import '../tokens/metrics.dart';
 import '../tokens/palette.dart';
 
@@ -45,7 +46,7 @@ class TextFieldBox extends StatelessWidget {
         maxLines: lines,
         onChanged: onChanged,
         onSubmitted: onSubmitted,
-        cursorColor: Palette.accent,
+        cursorColor: context.palette.accent,
         style: TextStyle(
           fontSize: m.scaled(14),
           height: 1.4,

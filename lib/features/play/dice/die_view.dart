@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math_64.dart';
 
+import '../../../ui/tokens/app_palette.dart';
 import '../../../ui/tokens/palette.dart';
 import 'polyhedron.dart';
 
@@ -62,18 +63,29 @@ class DieView extends StatelessWidget {
         width: size,
         height: size,
         child: CustomPaint(
-          painter: _Solid(die: die, showing: showing, turn: turn, size: size),
+          painter: _Solid(
+            accent: context.palette.accent,
+            die: die,
+            showing: showing,
+            turn: turn,
+            size: size,
+          ),
         ),
       );
 }
 
 class _Solid extends CustomPainter {
   _Solid({
+    required this.accent,
     required this.die,
     required this.showing,
     required this.turn,
     required this.size,
   });
+
+  /// Handed in rather than read from a theme: a painter has no context, and
+  /// the face that is up is drawn in the colour the player picked.
+  final Color accent;
 
   final Polyhedron die;
   final int showing;
@@ -105,7 +117,7 @@ class _Solid extends CustomPainter {
       }
       outline.close();
 
-      final base = face == showing ? Palette.accent : Palette.tile;
+      final base = face == showing ? accent : Palette.tile;
       canvas.drawPath(
         outline,
         Paint()..color = Color.lerp(Palette.felt, base, 0.25 + 0.75 * lit)!,
@@ -137,6 +149,7 @@ class _Solid extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _Solid old) =>
+      old.accent != accent ||
       old.die != die ||
       old.showing != showing ||
       old.turn != turn ||

@@ -10,6 +10,7 @@ import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/card_viewer.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
+import '../../ui/tokens/app_palette.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../menu/menu_controller.dart';
@@ -156,7 +157,7 @@ class _CardRow extends ConsumerWidget {
                             vertical: m.scaled(1),
                           ),
                           decoration: BoxDecoration(
-                            color: Palette.accent,
+                            color: context.palette.accent,
                             borderRadius: BorderRadius.only(
                               topLeft: Radius.circular(m.scaled(3)),
                               bottomRight: Radius.circular(m.scaled(6)),

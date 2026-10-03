@@ -8,6 +8,7 @@ import '../../table/room/room_names.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
+import '../../ui/tokens/app_palette.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../settings/player_name.dart';
@@ -392,17 +393,17 @@ class _StepState extends State<_Step> {
               width: m.scaled(40),
               height: m.scaled(40),
               decoration: BoxDecoration(
-                color: _focused ? Palette.tileFocused : Palette.tile,
+                color: _focused ? context.palette.tileFocused : Palette.tile,
                 borderRadius: BorderRadius.circular(m.scaled(10)),
                 border: Border.all(
-                  color: _focused ? Palette.accent : Palette.tileEdge,
+                  color: _focused ? context.palette.accent : Palette.tileEdge,
                   width: _focused ? m.focusRing : 1,
                 ),
               ),
               child: Icon(
                 widget.icon,
                 size: m.scaled(20),
-                color: _focused ? Palette.accent : Palette.inkMuted,
+                color: _focused ? context.palette.accent : Palette.inkMuted,
               ),
             ),
           ),

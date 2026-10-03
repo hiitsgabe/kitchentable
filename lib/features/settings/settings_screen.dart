@@ -6,11 +6,15 @@ import '../../ui/atoms/text_field_box.dart';
 import '../../ui/background/backdrop_controller.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
-import '../../ui/tokens/palette.dart';
 import '../sources/sources_screen.dart';
+import '../menu/menu_screen.dart';
+import '../setup/setup_controller.dart';
+import '../setup/setup_screen.dart';
 import 'backdrop_screen.dart';
 import 'player_name.dart';
 import 'network.dart';
+import 'network_screen.dart';
+import 'settings_parts.dart';
 
 /// What this device is, as opposed to what any one room is.
 ///
@@ -26,10 +30,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _name = TextEditingController();
-  final _turnUrl = TextEditingController();
-  final _turnUsername = TextEditingController();
-  final _turnCredential = TextEditingController();
-  bool _typingTurn = false;
 
   /// Whether the box holds what somebody is typing right now.
   ///
@@ -47,19 +47,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void dispose() {
     _name.dispose();
-    _turnUrl.dispose();
-    _turnUsername.dispose();
-    _turnCredential.dispose();
     super.dispose();
-  }
-
-  void _setTurn() {
-    _typingTurn = true;
-    ref.read(turnProvider.notifier).set(
-          url: _turnUrl.text,
-          username: _turnUsername.text,
-          credential: _turnCredential.text,
-        );
   }
 
   @override
@@ -70,15 +58,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       hasTouch: media.navigationMode == NavigationMode.traditional,
     ));
     final backdrop = ref.watch(backdropProvider);
+    final turn = ref.watch(turnProvider);
 
     ref.listen(playerNameProvider, (_, name) {
       if (!_typing && _name.text != name) _name.text = name;
-    });
-    ref.listen(turnProvider, (_, turn) {
-      if (_typingTurn) return;
-      _turnUrl.text = turn?.url ?? '';
-      _turnUsername.text = turn?.username ?? '';
-      _turnCredential.text = turn?.credential ?? '';
     });
 
     return ScreenFrame(
@@ -86,10 +69,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       title: 'Settings',
       // The old line said nothing here leaves the device, which a name makes
       // untrue: it is the one thing on this screen the other players see.
-      label: 'who you are, and how it looks',
+      label: 'this device',
       onBack: () => Navigator.of(context).maybePop(),
       children: [
-        _Label(metrics: m, text: 'your name'),
+        SettingsLabel(metrics: m, text: 'you'),
         TextFieldBox(
           key: const Key('player-name'),
           metrics: m,
@@ -100,41 +83,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ref.read(playerNameProvider.notifier).set(name);
           },
         ),
-        _Caption(
+        SettingsCaption(
           metrics: m,
           text: 'The people at your table see this, and it is the only thing '
               'here that leaves the device. Left empty you are $namelessPlayer.',
         ),
-        _Label(metrics: m, text: 'network: a TURN server'),
-        TextFieldBox(
-          key: const Key('turn-url'),
+
+        // Four groups, which is the benchmark's number, each a subscreen of
+        // its own rather than another slab of fields on this one.
+        SettingsLabel(metrics: m, text: 'the app'),
+        MenuRow(
+          key: const Key('settings-look'),
+          title: 'Look',
+          subtitle: '${backdrop.kind.label}, and the colour it is drawn in',
+          icon: Icons.palette_rounded,
           metrics: m,
-          controller: _turnUrl,
-          hint: 'turn:host:3478',
-          onChanged: (_) => _setTurn(),
-        ),
-        SizedBox(height: m.scaled(6)),
-        TextFieldBox(
-          key: const Key('turn-username'),
-          metrics: m,
-          controller: _turnUsername,
-          hint: 'username',
-          onChanged: (_) => _setTurn(),
-        ),
-        SizedBox(height: m.scaled(6)),
-        TextFieldBox(
-          key: const Key('turn-credential'),
-          metrics: m,
-          controller: _turnCredential,
-          hint: 'password',
-          onChanged: (_) => _setTurn(),
-        ),
-        _Caption(
-          metrics: m,
-          text: 'Only for when two phones on different networks cannot reach '
-              'each other, which the room says when it happens. A relay for '
-              'the connection itself: a friend running one, or a public one. '
-              'Left empty, none is used.',
+          autofocus: true,
+          onActivate: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const BackdropScreen()),
+          ),
         ),
         MenuRow(
           key: const Key('settings-sources'),
@@ -147,63 +114,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         MenuRow(
-          title: 'Background',
-          subtitle: '${backdrop.kind.label}, and the colours',
-          icon: Icons.blur_on_rounded,
+          key: const Key('settings-network'),
+          title: 'Network',
+          subtitle: turn == null
+              ? 'a relay, for two phones that cannot reach each other'
+              : 'a relay is set',
+          icon: Icons.lan_rounded,
           metrics: m,
-          autofocus: true,
           onActivate: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const BackdropScreen()),
+            MaterialPageRoute<void>(builder: (_) => const NetworkScreen()),
           ),
+        ),
+        MenuRow(
+          key: const Key('settings-setup'),
+          title: 'Run the first-run setup again',
+          subtitle: 'your name, a source, a deck',
+          icon: Icons.restart_alt_rounded,
+          metrics: m,
+          onActivate: () async {
+            await ref.read(setupDoneProvider.notifier).again();
+            if (!context.mounted) return;
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute<void>(
+                builder: (_) => SetupScreen(then: (_) => const MenuScreen()),
+              ),
+              (route) => false,
+            );
+          },
         ),
       ],
     );
   }
-}
-
-/// The small uppercase line over a field, the same one the backdrop screen puts
-/// over its two groups.
-class _Label extends StatelessWidget {
-  const _Label({required this.metrics, required this.text});
-
-  final Metrics metrics;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: metrics.scaled(6)),
-        child: Text(
-          text.toUpperCase(),
-          style: TextStyle(
-            fontSize: metrics.scaled(10),
-            letterSpacing: 1.2,
-            fontWeight: FontWeight.w500,
-            color: Palette.inkFaint,
-          ),
-        ),
-      );
-}
-
-/// A sentence under a field saying what filling it in does.
-class _Caption extends StatelessWidget {
-  const _Caption({required this.metrics, required this.text});
-
-  final Metrics metrics;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(
-          top: metrics.scaled(6),
-          bottom: metrics.scaled(18),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: metrics.scaled(11),
-            height: 1.45,
-            color: Palette.inkFaint,
-          ),
-        ),
-      );
 }

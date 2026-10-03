@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../sources/model/catalog_card.dart';
 import '../../../ui/atoms/card_art.dart';
+import '../../../ui/tokens/app_palette.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import '../look_at_top.dart';
@@ -98,10 +99,10 @@ class SheetChoice extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: m.scaled(12)),
         decoration: BoxDecoration(
-          color: loud ? Palette.accent : Palette.tile,
+          color: loud ? context.palette.accent : Palette.tile,
           borderRadius: BorderRadius.circular(m.scaled(10)),
           border: Border.all(
-            color: loud ? Palette.accent : Palette.tileEdge,
+            color: loud ? context.palette.accent : Palette.tileEdge,
           ),
         ),
         child: Row(
@@ -254,10 +255,10 @@ class _Where extends StatelessWidget {
           vertical: m.scaled(6),
         ),
         decoration: BoxDecoration(
-          color: chosen ? Palette.tileFocused : Palette.surface,
+          color: chosen ? context.palette.tileFocused : Palette.surface,
           borderRadius: BorderRadius.circular(m.scaled(8)),
           border: Border.all(
-            color: chosen ? Palette.accent : Palette.surfaceEdge,
+            color: chosen ? context.palette.accent : Palette.surfaceEdge,
           ),
         ),
         alignment: Alignment.center,

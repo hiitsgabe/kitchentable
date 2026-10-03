@@ -12,6 +12,7 @@ import '../../features/play/widgets/counter_piece.dart';
 import '../tokens/metrics.dart';
 import '../atoms/card_art.dart';
 import '../atoms/card_image.dart';
+import '../tokens/app_palette.dart';
 import '../tokens/palette.dart';
 import 'card_shading.dart';
 
@@ -436,9 +437,9 @@ class _CardViewerState extends State<CardViewer>
           // Lit when the card is wearing one, and nothing at all around the
           // rest. A tile behind every piece would be a second object under the
           // object, and twenty two of them is a wall of chrome.
-          color: on ? Palette.tileFocused : Colors.transparent,
+          color: on ? context.palette.tileFocused : Colors.transparent,
           borderRadius: BorderRadius.circular(m.scaled(9)),
-          border: Border.all(color: on ? Palette.accent : Colors.transparent),
+          border: Border.all(color: on ? context.palette.accent : Colors.transparent),
         ),
         child: CounterPieceView(
           piece: piece,

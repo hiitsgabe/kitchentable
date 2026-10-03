@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/organisms/screen_frame.dart';
+import '../../ui/tokens/app_palette.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../decks/games_screen.dart';
@@ -154,10 +155,10 @@ class _PlayRowState extends State<_PlayRow> {
             vertical: m.scaled(20),
           ),
           decoration: BoxDecoration(
-            color: Palette.focusWash,
+            color: context.palette.focusWash,
             borderRadius: BorderRadius.circular(m.scaled(16)),
             border: Border.all(
-              color: Palette.accent,
+              color: context.palette.accent,
               width: m.scaled(_focused ? 2.5 : 1.5),
             ),
           ),
@@ -166,7 +167,7 @@ class _PlayRowState extends State<_PlayRow> {
               Icon(
                 Icons.play_arrow_rounded,
                 size: m.scaled(30),
-                color: Palette.accent,
+                color: context.palette.accent,
               ),
               SizedBox(width: m.scaled(14)),
               Expanded(
@@ -195,7 +196,7 @@ class _PlayRowState extends State<_PlayRow> {
               Icon(
                 Icons.chevron_right_rounded,
                 size: m.scaled(20),
-                color: Palette.accent,
+                color: context.palette.accent,
               ),
             ],
           ),
