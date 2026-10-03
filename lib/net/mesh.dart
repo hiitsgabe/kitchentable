@@ -10,6 +10,14 @@ import 'transport.dart';
 /// A verb the table applied, and whose key played it.
 typedef Played = ({String by, TableAction action});
 
+/// Something somebody typed, and whose key typed it.
+///
+/// Deliberately not a [TableAction]. A line of chat is not a thing that
+/// happened to the cards: it must not be undone by undo, it must not arrive
+/// in the snapshot a late guest is handed, and the referee has no opinion
+/// about it. It rides the same wire and nothing else.
+typedef Said = ({String by, String text});
+
 /// The number the peer that made the room holds, and the lowest there is, so it
 /// hosts until it goes.
 const _firstStamp = 0;
@@ -81,6 +89,7 @@ class Mesh {
   final _hosts = StreamController<String?>.broadcast();
   final _refusals = StreamController<String>.broadcast();
   final _verbs = StreamController<Played>.broadcast();
+  final _chatter = StreamController<Said>.broadcast();
 
   String? _saidTheHostWas;
   var _started = false;
@@ -136,6 +145,24 @@ class Mesh {
   /// listening here does not need a second path for the things it did itself.
   Stream<Played> get verbs => _verbs.stream;
 
+  /// Everything anybody at this table has typed, this phone included.
+  Stream<Said> get chatter => _chatter.stream;
+
+  /// Says something to everybody at the table.
+  ///
+  /// Not applied to anything and not acknowledged. A line that does not
+  /// arrive is a line that did not arrive, which is how talking works, and
+  /// is a far better failure than a table that disagrees about its cards.
+  void say(String text) {
+    final said = text.trim();
+    if (said.isEmpty) return;
+    _heardSaid(me, said);
+    final body = _say('chat', {'text': said});
+    for (final peer in _transport.peers) {
+      _transport.send(peer, body);
+    }
+  }
+
   /// Starts listening, and asks for the table if this peer does not have one.
   void start() {
     if (_started) return;
@@ -179,6 +206,7 @@ class Mesh {
     await _hosts.close();
     await _refusals.close();
     await _verbs.close();
+    await _chatter.close();
   }
 
   // Asking, and being asked.
@@ -232,10 +260,13 @@ class Mesh {
           _takeTheRoster(message.from, json);
         case 'action':
           _takeAVerb(message.from, json);
+        case 'chat':
+          final text = json['text'];
+          if (text is String) _heardSaid(message.from, text);
         default:
           _refuse(
             '${message.from} sent "${json['kind']}", which is not one of the '
-            'four kinds this build speaks',
+            'five kinds this build speaks',
           );
       }
     } on WireError catch (e) {
@@ -427,13 +458,18 @@ class Mesh {
     if (!_verbs.isClosed) _verbs.add((by: by, action: action));
   }
 
+  void _heardSaid(String by, String text) {
+    if (!_chatter.isClosed) _chatter.add((by: by, text: text));
+  }
+
   void _refuse(String why) {
     if (!_refusals.isClosed) _refusals.add(why);
   }
 
-  // The envelope. Four kinds, a version, and a verb carried as the string the
-  // wire already makes rather than unpacked and repacked here: the mesh moves
-  // verbs and has no business knowing what is in one.
+  // The envelope. Five kinds, a version, and a verb carried as the string
+  // the wire already makes rather than unpacked and repacked here: the mesh
+  // moves verbs and has no business knowing what is in one. The fifth kind
+  // is chat, which is not a verb and never touches the table.
 
   String _say(String kind, [Map<String, Object?> more = const {}]) =>
       jsonEncode({'v': wireVersion, 'kind': kind, ...more});

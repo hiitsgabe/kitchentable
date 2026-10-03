@@ -92,6 +92,9 @@ class _Seats {
   /// Every verb each mesh applied, and whose key played it.
   final played = <String, List<Played>>{};
 
+  /// Everything anybody heard said at this table.
+  final said = <String, List<Said>>{};
+
   /// Who each peer was told is hosting, in order, and how many times it was told
   /// the table had changed. Both streams exist for a screen to rebuild off, so
   /// both are read here rather than only the getters, which a mesh that never
@@ -136,6 +139,8 @@ class _Seats {
     );
     played[line.me] = [];
     mesh.verbs.listen(played[line.me]!.add);
+    said[line.me] = [];
+    mesh.chatter.listen(said[line.me]!.add);
     mesh.start();
     addTearDown(mesh.close);
     addTearDown(line.close);
@@ -674,5 +679,65 @@ void main() {
     final heard = seats.played['guest']!.single.action as RollDice;
     expect(heard.die, 2);
     expect(heard.results, [20, 12, 4]);
+  });
+
+  test('a line of chat reaches the table and never the cards', () async {
+    // Chat rides the same wire as a verb and is not one. Undo must not take
+    // it back, the snapshot a late guest is handed must not carry it, and
+    // the referee has no opinion about it.
+    final seats = _Seats()
+      ..sit('host', table: _aTable(), creator: true)
+      ..sit('guest');
+    await seats.net.settle();
+
+    final before = seats.mesh('host').table;
+    seats.mesh('host').say('your turn');
+    await seats.net.settle();
+
+    expect(seats.said['guest'], [(by: 'host', text: 'your turn')]);
+    // And the speaker hears their own, so a screen listening here needs no
+    // second path for the things it said itself.
+    expect(seats.said['host'], [(by: 'host', text: 'your turn')]);
+
+    expect(
+      identical(seats.mesh('host').table, before),
+      isTrue,
+      reason: 'talking moved a card',
+    );
+    expect(seats.played['host'], isEmpty, reason: 'chat is not a verb');
+  });
+
+  test('saying nothing says nothing', () async {
+    final seats = _Seats()
+      ..sit('host', table: _aTable(), creator: true)
+      ..sit('guest');
+    await seats.net.settle();
+
+    seats.mesh('host').say('   ');
+    await seats.net.settle();
+
+    expect(seats.said['guest'], isEmpty);
+    expect(seats.said['host'], isEmpty);
+  });
+
+  test('a kind this build does not speak is refused by name', () async {
+    // The envelope grew a fifth kind. The refusal has to keep naming what
+    // arrived rather than counting to the old number.
+    final seats = _Seats()
+      ..sit('host', table: _aTable(), creator: true)
+      ..sit('guest');
+    await seats.net.settle();
+
+    seats.net.forge(
+      from: 'guest',
+      to: 'host',
+      body: jsonEncode({'v': wireVersion, 'kind': 'singing'}),
+    );
+    await seats.net.settle();
+
+    expect(
+      seats.refused['host']!.join(' '),
+      contains('singing'),
+    );
   });
 }
