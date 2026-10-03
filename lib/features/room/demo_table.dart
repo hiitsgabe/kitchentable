@@ -6,6 +6,7 @@ import '../../decks/model/deck_format.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../table/actions/table_action.dart';
 import '../../table/model/seat_owner.dart';
+import '../play/chat.dart';
 import '../play/play_controller.dart';
 import '../play/play_screen.dart';
 import '../play/renderers/renderer_choice.dart';
@@ -23,6 +24,7 @@ class DemoTable extends ConsumerStatefulWidget {
     required this.seats,
     this.view,
     this.fresh = false,
+    this.chat = false,
   });
 
   final int seats;
@@ -34,6 +36,11 @@ class DemoTable extends ConsumerStatefulWidget {
   /// opening is over: with them there, nothing a game starts with can be
   /// seen at all.
   final bool fresh;
+
+  /// Puts a few lines in the chat. It only appears when there is somebody
+  /// to talk to, and a demo table is several seats on one device with
+  /// nobody at the other end of anything.
+  final bool chat;
 
   /// grid, focus or split, read with the seats before the address bar is
   /// cleared; null is the default.
@@ -65,10 +72,22 @@ class _DemoTableState extends ConsumerState<DemoTable> {
         .startPod(
           players: [
             for (var i = 0; i < widget.seats.clamp(1, 6); i++)
-              (deck: _deck(i), name: names[i], owner: const SeatOwner.here()),
+              (
+                deck: _deck(i),
+                name: names[i],
+                // The first chair is this device's and the rest belong to
+                // keys, which is what a real table looks like. They were all
+                // `here`, a pod passed round one tablet, and that is a
+                // different thing: it left everybody nameless to the chat,
+                // because a name is found by the key holding the chair.
+                owner: i == 0
+                    ? const SeatOwner.here()
+                    : SeatOwner.peer('demo-$i'),
+              ),
           ],
           seed: 'demo',
         );
+    if (widget.chat) _talk();
     if (widget.fresh) return;
 
     // A few cards out on every battlefield, so the boards are not empty.
@@ -81,6 +100,27 @@ class _DemoTableState extends ConsumerState<DemoTable> {
       for (final card in hand.cards.take(4)) {
         play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-${seat.id}'));
       }
+    }
+  }
+
+  /// A conversation to look at, in the voice of the table.
+  void _talk() {
+    final table = ref.read(playProvider);
+    final desk = ref.read(chatProvider.notifier);
+    const talk = [
+      ('s2', 'anybody got removal for that?'),
+      ('s1', 'not a thing. it resolves'),
+      ('s2', 'ok go on then'),
+      ('s1', 'attacking with everything'),
+      ('s2', 'blocking the big one, taking the rest'),
+    ];
+    for (final (seat, line) in talk) {
+      desk.heard(
+        by: table?.seat(seat)?.owner.peerId ?? seat,
+        text: line,
+        table: table,
+        me: table?.seat('s1')?.owner.peerId ?? 's1',
+      );
     }
   }
 
