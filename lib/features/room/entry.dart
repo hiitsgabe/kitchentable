@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../menu/menu_screen.dart';
+import 'demo_room.dart';
 import 'demo_table.dart';
 import 'launch.dart';
 import 'room_controller.dart';
@@ -24,6 +25,8 @@ class Entry extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final demo = launchDemoSeats();
     if (demo != null) return DemoTable(seats: demo, view: launchDemoView());
+    final waiting = launchDemoRoomSeats();
+    if (waiting != null) return DemoRoom(seats: waiting);
     final arriving = ref.watch(launchRoomCodeProvider);
     return arriving == null ? const MenuScreen() : const RoomScreen();
   }

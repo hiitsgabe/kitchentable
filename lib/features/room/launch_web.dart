@@ -34,3 +34,11 @@ int? launchDemoSeats() {
 /// The `view=` of a demo link: grid, focus or split. Null for the default.
 String? launchDemoView() =>
     RegExp(r'view=(\w+)').firstMatch(web.window.location.href)?.group(1);
+
+/// How many chairs a `#demoroom=N` launch sets up, or null. The host's
+/// waiting room, opened without a card source, so the screen people wait on
+/// can be looked at and screenshotted the way `#demo=N` does the table.
+int? launchDemoRoomSeats() {
+  final match = RegExp(r'demoroom=(\d)').firstMatch(web.window.location.href);
+  return match == null ? null : int.tryParse(match.group(1)!);
+}
