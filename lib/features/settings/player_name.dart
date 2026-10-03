@@ -1,12 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'player_names.dart';
+
 const _key = 'playerName';
 
-/// What somebody who has not said is called.
+/// The last resort, for a seat whose name never arrived.
 ///
-/// The room used to ask on the way in and fall back to this when the box was
-/// left empty, and the fallback is the half of that worth keeping.
+/// It used to be what everybody was called, which on four chairs reads "you",
+/// "you", "you", "you". A device is given a name of its own the first time it
+/// is opened now, so this shows for a peer whose name has not crossed yet.
 const namelessPlayer = 'you';
 
 /// The name the player put in settings, kept on the device.
@@ -15,9 +18,10 @@ const namelessPlayer = 'you';
 /// room they ever join, so asking again each time is asking somebody to repeat
 /// themselves, and it makes two places where it can disagree.
 ///
-/// Empty until they say otherwise, which is not the same as [namelessPlayer]:
-/// the box shows a hint rather than a word somebody has to delete before typing
-/// their own name.
+/// A device that has never been given one mints itself a name rather than
+/// opening an empty box: nobody should have to think of a name before they
+/// can play, and "you" on every chair is what the alternative looked like.
+/// Minted once and stored, so it is the same name tomorrow.
 class PlayerName extends Notifier<String> {
   @override
   String build() {
@@ -28,7 +32,15 @@ class PlayerName extends Notifier<String> {
   Future<void> _restore() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_key);
-    if (saved != null) state = saved;
+    if (saved != null && saved.isNotEmpty) {
+      state = saved;
+      return;
+    }
+    // Never named, so it names itself. Stored straight away: a name that
+    // changed on every launch would be a different person each evening.
+    final fresh = freshPlayerName();
+    state = fresh;
+    await prefs.setString(_key, fresh);
   }
 
   Future<void> set(String name) async {

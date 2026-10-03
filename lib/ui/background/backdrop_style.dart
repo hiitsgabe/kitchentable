@@ -5,8 +5,12 @@ import 'package:flutter/material.dart';
 /// A list rather than a single choice, because the point is that the player
 /// picks. The default is the animated one in black and pink.
 enum BackdropKind {
-  /// Soft drifting blobs, the default. Painted by hand rather than by a
-  /// shader, so it survives anywhere the shader does not.
+  /// Swirling paint, the default: polar spin, folded coordinates, three
+  /// colours out of the two that were picked.
+  paint,
+
+  /// Soft drifting blobs. Painted by hand rather than by a shader, so it
+  /// survives anywhere the shader does not.
   drift,
 
   /// Slow fluid mesh. Black with pink bleeding through.
@@ -19,6 +23,7 @@ enum BackdropKind {
   image;
 
   String get label => switch (this) {
+        BackdropKind.paint => 'Paint',
         BackdropKind.aurora => 'Aurora',
         BackdropKind.drift => 'Drift',
         BackdropKind.flat => 'Flat',
@@ -26,18 +31,22 @@ enum BackdropKind {
       };
 
   String get describe => switch (this) {
+        BackdropKind.paint => 'swirling paint, the default',
         BackdropKind.aurora => 'slow fluid colour, needs a shader',
-        BackdropKind.drift => 'soft blobs, the default',
+        BackdropKind.drift => 'soft blobs, drawn without a shader',
         BackdropKind.flat => 'two colours, still, cheapest of all',
         BackdropKind.image => 'point it at a file on this device',
       };
 
-  bool get animated => this == BackdropKind.aurora || this == BackdropKind.drift;
+  bool get animated =>
+      this == BackdropKind.paint ||
+      this == BackdropKind.aurora ||
+      this == BackdropKind.drift;
 }
 
 class BackdropStyle {
   const BackdropStyle({
-    this.kind = BackdropKind.drift,
+    this.kind = BackdropKind.paint,
     this.top = const Color(0xFFFF2E88),
     this.bottom = const Color(0xFF07060A),
     this.imagePath,
@@ -87,7 +96,7 @@ class BackdropStyle {
   static BackdropStyle fromJson(Map<String, Object?> json) => BackdropStyle(
         kind: BackdropKind.values.firstWhere(
           (k) => k.name == json['kind'],
-          orElse: () => BackdropKind.drift,
+          orElse: () => BackdropKind.paint,
         ),
         top: Color((json['top'] as int?) ?? 0xFFFF2E88),
         bottom: Color((json['bottom'] as int?) ?? 0xFF07060A),
