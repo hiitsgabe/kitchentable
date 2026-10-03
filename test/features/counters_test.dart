@@ -46,12 +46,33 @@ void main() {
   });
 
   test('a kind nobody printed is still a counter', () {
-    // `ChangeCounter` has taken any name since plan 2 and a card can arrive
-    // carrying `charge` or `loyalty`. Those are not in the box and still have
-    // to draw.
-    expect(pieceNamed('loyalty'), isNull);
-    expect(unknownPiece('loyalty').name, 'loyalty');
-    expect(unknownPiece('loyalty').power, 0);
+    // `ChangeCounter` has taken any name since plan 2, so a card can arrive
+    // carrying anything at all. The box has grown loyalty and charge since
+    // this was written; `rust` stands for whatever it has not grown.
+    expect(pieceNamed('rust'), isNull);
+    expect(unknownPiece('rust').name, 'rust');
+    expect(unknownPiece('rust').power, 0);
+
+    // A tally, because counting is the only thing anybody knows about a kind
+    // nobody described.
+    expect(unknownPiece('rust').kind, CounterKind.tally);
+  });
+
+  test('loyalty is a tally and never a creature s power', () {
+    // Jace was being offered `+1/+1` as though loyalty were power, and the
+    // only counter a planeswalker ever wears was drawn as a grey unknown with
+    // a word on it.
+    final loyalty = pieceNamed('loyalty');
+    expect(loyalty, isNotNull);
+    expect(loyalty!.kind, CounterKind.tally);
+    expect(loyalty.power, 0);
+    expect(loyalty.toughness, 0);
+
+    // And it must not join the marker, which is the arithmetic a creature's
+    // numbers go into.
+    expect(isNumberKind('loyalty'), isFalse);
+    expect(netPiece({'loyalty': 4}), isNull);
+    expect(powerFrom({'loyalty': 4}), 0);
   });
 
   test('what a pile of pieces does to a creature', () {

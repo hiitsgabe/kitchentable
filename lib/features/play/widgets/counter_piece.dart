@@ -107,13 +107,23 @@ class CounterPieceView extends StatelessWidget {
           // count stays the big one.
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Flexible(flex: 20, child: _print(ink)),
-              if (count > 1) ...[
-                SizedBox(width: width * 0.05),
-                Flexible(flex: 12, child: _count(ink)),
-              ],
-            ],
+            children: _tallying
+                // A tally prints its count, because the count is the whole of
+                // what it says: a planeswalker wears a four, not LOYALTY four.
+                // The word rides along after it, small, so two tallies on one
+                // board can still be told apart by more than their colour.
+                ? [
+                    Flexible(flex: 13, child: _count(ink, big: true)),
+                    SizedBox(width: width * 0.05),
+                    Flexible(flex: 19, child: _print(ink, quiet: true)),
+                  ]
+                : [
+                    Flexible(flex: 20, child: _print(ink)),
+                    if (count > 1) ...[
+                      SizedBox(width: width * 0.05),
+                      Flexible(flex: 12, child: _count(ink)),
+                    ],
+                  ],
           ),
         ),
       ),
@@ -129,13 +139,20 @@ class CounterPieceView extends StatelessWidget {
   /// A shadow under the letters because the body under them is see through:
   /// on a pale piece over pale art the ink was landing on whatever the card
   /// happened to have there.
-  Widget _print(Color ink) => FittedBox(
+  /// Whether this is a counted thing wearing its own number.
+  ///
+  /// Not every tally: a tally in the picker has none on the card yet, and a
+  /// piece printed `0` says nothing. There it keeps its word, which is how
+  /// you know what you are about to put on.
+  bool get _tallying => piece.isTally && count > 0;
+
+  Widget _print(Color ink, {bool quiet = false}) => FittedBox(
     fit: BoxFit.scaleDown,
     child: Text(
       piece.label,
       maxLines: 1,
       style: TextStyle(
-        fontSize: width * 0.2,
+        fontSize: width * (quiet ? 0.15 : 0.2),
         fontWeight: FontWeight.w800,
         letterSpacing: width * 0.006,
         height: 1,
@@ -152,13 +169,13 @@ class CounterPieceView extends StatelessWidget {
     ),
   );
 
-  Widget _count(Color ink) => FittedBox(
+  Widget _count(Color ink, {bool big = false}) => FittedBox(
     fit: BoxFit.scaleDown,
     child: Text(
       '$count',
       maxLines: 1,
       style: TextStyle(
-        fontSize: width * 0.26,
+        fontSize: width * (big ? 0.36 : 0.26),
         fontWeight: FontWeight.w900,
         height: 1,
         color: ink,

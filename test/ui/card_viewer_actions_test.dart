@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/counters.dart';
 import 'package:kitchentable/features/play/widgets/counter_piece.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 import 'package:kitchentable/table/model/card_instance.dart';
@@ -17,18 +18,17 @@ Widget _host({
   void Function(CardAction)? onAct,
   void Function(String, int)? onCount,
   bool hasCommandZone = false,
-}) =>
-    MaterialApp(
-      home: Scaffold(
-        body: CardViewer(
-          card: _printing,
-          instance: instance,
-          onAct: onAct,
-          onCount: onCount,
-          hasCommandZone: hasCommandZone,
-        ),
-      ),
-    );
+}) => MaterialApp(
+  home: Scaffold(
+    body: CardViewer(
+      card: _printing,
+      instance: instance,
+      onAct: onAct,
+      onCount: onCount,
+      hasCommandZone: hasCommandZone,
+    ),
+  ),
+);
 
 void main() {
   testWidgets('the action bar never lands on the caption', (tester) async {
@@ -36,14 +36,16 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(_host(
-      instance: const CardInstance(
-        id: 'a',
-        oracleId: 'o',
-        counters: {'charge': 1, 'energy': 2},
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(
+          id: 'a',
+          oracleId: 'o',
+          counters: {'charge': 1, 'energy': 2},
+        ),
+        hasCommandZone: true,
       ),
-      hasCommandZone: true,
-    ));
+    );
     await tester.pumpAndSettle();
 
     final hint = tester.getRect(find.textContaining('drag to turn it over'));
@@ -56,8 +58,11 @@ void main() {
     // measured at a 32 point overlap once the kinds row arrived. Two counters
     // the fixed list does not carry are here to push the kinds onto an extra
     // line, which is the state that first collided.
-    expect(bar.top, greaterThanOrEqualTo(hint.bottom),
-        reason: 'the controls are sitting on the words');
+    expect(
+      bar.top,
+      greaterThanOrEqualTo(hint.bottom),
+      reason: 'the controls are sitting on the words',
+    );
   });
 
   testWidgets('the action bar fits a phone', (tester) async {
@@ -65,10 +70,12 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(_host(
-      instance: const CardInstance(id: 'a', oracleId: 'o'),
-      hasCommandZone: true,
-    ));
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(id: 'a', oracleId: 'o'),
+        hasCommandZone: true,
+      ),
+    );
     await tester.pump();
 
     // Every other case in this file runs at the default 800 wide, where the
@@ -90,7 +97,9 @@ void main() {
 
   testWidgets('a card on the table gets its controls', (tester) async {
     await tester.pumpWidget(
-      _host(instance: const CardInstance(id: 'a', oracleId: 'o')),
+      _host(
+        instance: const CardInstance(id: 'a', oracleId: 'o'),
+      ),
     );
     await tester.pump();
 
@@ -103,10 +112,12 @@ void main() {
 
   testWidgets('turning it upside down is reported', (tester) async {
     CardAction? acted;
-    await tester.pumpWidget(_host(
-      instance: const CardInstance(id: 'a', oracleId: 'o'),
-      onAct: (a) => acted = a,
-    ));
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(id: 'a', oracleId: 'o'),
+        onAct: (a) => acted = a,
+      ),
+    );
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('act-upside-down')));
@@ -115,11 +126,14 @@ void main() {
     expect(acted, CardAction.upsideDown);
   });
 
-  testWidgets('a card already upside down offers to be straightened',
-      (tester) async {
-    await tester.pumpWidget(_host(
-      instance: const CardInstance(id: 'a', oracleId: 'o', rotation: 180),
-    ));
+  testWidgets('a card already upside down offers to be straightened', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(id: 'a', oracleId: 'o', rotation: 180),
+      ),
+    );
     await tester.pump();
 
     expect(find.byKey(const Key('act-straighten')), findsOneWidget);
@@ -127,27 +141,32 @@ void main() {
   });
 
   testWidgets('counters read back off the card', (tester) async {
-    await tester.pumpWidget(_host(
-      instance: const CardInstance(
-        id: 'a',
-        oracleId: 'o',
-        counters: {'+1/+1': 3},
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(
+          id: 'a',
+          oracleId: 'o',
+          counters: {'+1/+1': 3},
+        ),
       ),
-    ));
+    );
     await tester.pump();
 
     expect(find.text('3'), findsOneWidget);
   });
 
-  testWidgets('tapping a piece puts one on, holding it takes one off',
-      (tester) async {
+  testWidgets('tapping a piece puts one on, holding it takes one off', (
+    tester,
+  ) async {
     final counted = <(String, int)>[];
     final acted = <CardAction>[];
-    await tester.pumpWidget(_host(
-      instance: const CardInstance(id: 'a', oracleId: 'o'),
-      onAct: acted.add,
-      onCount: (kind, by) => counted.add((kind, by)),
-    ));
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(id: 'a', oracleId: 'o'),
+        onAct: acted.add,
+        onCount: (kind, by) => counted.add((kind, by)),
+      ),
+    );
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('kind-+1/+1')));
@@ -165,14 +184,16 @@ void main() {
 
   testWidgets('a keyword toggles rather than counting up', (tester) async {
     final counted = <(String, int)>[];
-    await tester.pumpWidget(_host(
-      instance: const CardInstance(
-        id: 'a',
-        oracleId: 'o',
-        counters: {'flying': 1},
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(
+          id: 'a',
+          oracleId: 'o',
+          counters: {'flying': 1},
+        ),
+        onCount: (kind, by) => counted.add((kind, by)),
       ),
-      onCount: (kind, by) => counted.add((kind, by)),
-    ));
+    );
     await tester.pump();
 
     // Two FLYING is not a thing a card can be wearing, so the word comes off
@@ -183,14 +204,17 @@ void main() {
     expect(counted, [('flying', -1)]);
   });
 
-  testWidgets('a card can be sent to the command zone from the big view',
-      (tester) async {
+  testWidgets('a card can be sent to the command zone from the big view', (
+    tester,
+  ) async {
     CardAction? acted;
-    await tester.pumpWidget(_host(
-      instance: const CardInstance(id: 'a', oracleId: 'o'),
-      onAct: (a) => acted = a,
-      hasCommandZone: true,
-    ));
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(id: 'a', oracleId: 'o'),
+        onAct: (a) => acted = a,
+        hasCommandZone: true,
+      ),
+    );
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('act-command')));
@@ -199,10 +223,11 @@ void main() {
     expect(acted, CardAction.commandZone);
   });
 
-  testWidgets('a table with no command zone does not offer it',
-      (tester) async {
+  testWidgets('a table with no command zone does not offer it', (tester) async {
     await tester.pumpWidget(
-      _host(instance: const CardInstance(id: 'a', oracleId: 'o')),
+      _host(
+        instance: const CardInstance(id: 'a', oracleId: 'o'),
+      ),
     );
     await tester.pump();
 
@@ -213,10 +238,12 @@ void main() {
 
   testWidgets('a card on the table can be copied', (tester) async {
     CardAction? acted;
-    await tester.pumpWidget(_host(
-      instance: const CardInstance(id: 'a', oracleId: 'o'),
-      onAct: (a) => acted = a,
-    ));
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(id: 'a', oracleId: 'o'),
+        onAct: (a) => acted = a,
+      ),
+    );
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('act-copy')));
@@ -225,8 +252,9 @@ void main() {
     expect(acted, CardAction.copy);
   });
 
-  testWidgets('a printing with no card behind it cannot be copied',
-      (tester) async {
+  testWidgets('a printing with no card behind it cannot be copied', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host());
     await tester.pump();
 
@@ -237,10 +265,12 @@ void main() {
 
   testWidgets('the piece tapped is the kind counted', (tester) async {
     final counted = <(String, int)>[];
-    await tester.pumpWidget(_host(
-      instance: const CardInstance(id: 'a', oracleId: 'o'),
-      onCount: (kind, by) => counted.add((kind, by)),
-    ));
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(id: 'a', oracleId: 'o'),
+        onCount: (kind, by) => counted.add((kind, by)),
+      ),
+    );
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('kind-loyalty')));
@@ -251,15 +281,18 @@ void main() {
     expect(counted, [('loyalty', 1)]);
   });
 
-  testWidgets('a card already carrying a kind offers that kind',
-      (tester) async {
-    await tester.pumpWidget(_host(
-      instance: const CardInstance(
-        id: 'a',
-        oracleId: 'o',
-        counters: {'charge': 4},
+  testWidgets('a card already carrying a kind offers that kind', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(
+          id: 'a',
+          oracleId: 'o',
+          counters: {'charge': 4},
+        ),
       ),
-    ));
+    );
     await tester.pump();
 
     // Not in the fixed list, because it came off a card somebody played.
@@ -276,13 +309,15 @@ void main() {
   });
 
   testWidgets('a kind nobody put on the list is offered too', (tester) async {
-    await tester.pumpWidget(_host(
-      instance: const CardInstance(
-        id: 'a',
-        oracleId: 'o',
-        counters: {'energy': 2},
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(
+          id: 'a',
+          oracleId: 'o',
+          counters: {'energy': 2},
+        ),
       ),
-    ));
+    );
     await tester.pump();
 
     // Not in the plan. The case above names `charge`, which counterKinds
@@ -292,13 +327,15 @@ void main() {
   });
 
   testWidgets('a piece counts up under your finger', (tester) async {
-    await tester.pumpWidget(_host(
-      instance: const CardInstance(
-        id: 'a',
-        oracleId: 'o',
-        counters: {'+1/+1': 2, 'damage': 7},
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(
+          id: 'a',
+          oracleId: 'o',
+          counters: {'+1/+1': 2, 'damage': 7},
+        ),
       ),
-    ));
+    );
     await tester.pump();
 
     // Twice: once on the card it is sitting on and once in the picker.
@@ -317,7 +354,9 @@ void main() {
 
   testWidgets('the picker draws each kind as its own piece', (tester) async {
     await tester.pumpWidget(
-      _host(instance: const CardInstance(id: 'a', oracleId: 'o')),
+      _host(
+        instance: const CardInstance(id: 'a', oracleId: 'o'),
+      ),
     );
     await tester.pump();
 
@@ -330,15 +369,69 @@ void main() {
     // A denomination, a keyword and one the box holds no piece for, because
     // those are the three ways a row gets built.
     CounterPieceView pieceFor(String kind) => tester.widget<CounterPieceView>(
+      find.descendant(
+        of: find.byKey(Key('kind-$kind')),
+        matching: find.byType(CounterPieceView),
+      ),
+    );
+
+    expect(pieceFor('+2/+2').piece.name, '+2/+2');
+    expect(pieceFor('+2/+2').piece.kind, CounterKind.number);
+    expect(pieceFor('flying').piece.isKeyword, isTrue);
+    expect(pieceFor('damage').piece.name, 'damage');
+    expect(pieceFor('damage').piece.isKeyword, isFalse);
+
+    // A tally rather than an unknown. It used to be grey with DAMAGE written
+    // across it, which is what a kind the box had never heard of looks like.
+    expect(pieceFor('damage').piece.kind, CounterKind.tally);
+  });
+
+  testWidgets('a long word gets a wider piece than a short one', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(id: 'a', oracleId: 'o'),
+      ),
+    );
+    await tester.pump();
+
+    double wide(String kind) => tester
+        .widget<CounterPieceView>(
           find.descendant(
             of: find.byKey(Key('kind-$kind')),
             matching: find.byType(CounterPieceView),
           ),
-        );
+        )
+        .width;
 
-    expect(pieceFor('+2/+2').piece.name, '+2/+2');
-    expect(pieceFor('flying').piece.isKeyword, isTrue);
-    expect(pieceFor('damage').piece.name, 'damage');
-    expect(pieceFor('damage').piece.isKeyword, isFalse);
+    // Every piece in the picker used to be twenty eight points wide. The text
+    // inside is scaled down to fit, so a fourteen letter word landed at about
+    // a seventh the size of `+1/+1` and could not be read at all. Making them
+    // all bigger would have kept the same ratio; the width has to follow the
+    // word.
+    expect(wide('indestructible'), greaterThan(wide('+1/+1') * 2));
+    expect(wide('flying'), greaterThan(wide('+1/+1')));
+  });
+
+  testWidgets('the whole box is offered, tallies included', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        instance: const CardInstance(id: 'a', oracleId: 'o'),
+      ),
+    );
+    await tester.pump();
+
+    for (final kind in ['+1/+1', 'flying', 'loyalty', 'damage', 'poison']) {
+      expect(
+        find.byKey(Key('kind-$kind')),
+        findsOneWidget,
+        reason: '$kind is in the box and has to be reachable',
+      );
+    }
   });
 }

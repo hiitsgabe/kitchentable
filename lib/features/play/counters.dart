@@ -1,5 +1,22 @@
 import 'package:flutter/painting.dart';
 
+/// What a counter is, which decides how it is read and how it behaves.
+enum CounterKind {
+  /// `+1/+1` and its family. They add up into one marker on the card, because
+  /// four kinds of them on one creature is arithmetic nobody should do by eye.
+  number,
+
+  /// `FLYING`. A card either has it or does not, so the piece toggles rather
+  /// than counting: two of them is not a thing a card can be wearing.
+  keyword,
+
+  /// A loyalty counter, a charge counter, a point of damage. A tally: the
+  /// thing printed on the card is the count itself. This is what a
+  /// planeswalker wears, and the box had none, so Jace was being offered
+  /// `+1/+1` as though loyalty were power.
+  tally,
+}
+
 /// One of the plastic counters that ship in a set's box.
 ///
 /// A name, a colour, and what it does to power and toughness. Nothing here is
@@ -11,7 +28,7 @@ class CounterPiece {
     required this.colour,
     this.power = 0,
     this.toughness = 0,
-    this.isKeyword = false,
+    this.kind = CounterKind.number,
   });
 
   /// What the table calls it, which is also the key it arrives under in
@@ -25,8 +42,13 @@ class CounterPiece {
   final int power;
   final int toughness;
 
+  final CounterKind kind;
+
   /// A word rather than a number, printed in capitals the way the plastic is.
-  final bool isKeyword;
+  bool get isKeyword => kind == CounterKind.keyword;
+
+  /// Counts, and what it prints on the card is the count.
+  bool get isTally => kind == CounterKind.tally;
 
   /// What is printed on it.
   ///
@@ -82,32 +104,130 @@ const counterPieces = <CounterPiece>[
   CounterPiece(name: '+2/+0', colour: Color(0xFF19B7C8), power: 2),
   CounterPiece(name: '+0/+1', colour: Color(0xFF7A1F3D), toughness: 1),
 
+  // Tallies, which the box had none of and which half the cards in a game
+  // want. A planeswalker's loyalty is not `+1/+1` and never was: it is a
+  // number, and the number is the whole of what is printed. Same for a
+  // charge, a point of damage, a counter of poison. Colours picked so that
+  // four kinds on one board can be told apart at a glance, which is the only
+  // reason any piece here has a colour.
+  CounterPiece(
+    name: 'loyalty',
+    colour: Color(0xFF3B4C8F),
+    kind: CounterKind.tally,
+  ),
+  CounterPiece(
+    name: 'charge',
+    colour: Color(0xFF2F8FA8),
+    kind: CounterKind.tally,
+  ),
+  CounterPiece(
+    name: 'damage',
+    colour: Color(0xFFB3301F),
+    kind: CounterKind.tally,
+  ),
+  CounterPiece(
+    name: 'poison',
+    colour: Color(0xFF4B7A2B),
+    kind: CounterKind.tally,
+  ),
+  CounterPiece(
+    name: 'energy',
+    colour: Color(0xFFD9A520),
+    kind: CounterKind.tally,
+  ),
+  CounterPiece(
+    name: 'experience',
+    colour: Color(0xFF8A5BA8),
+    kind: CounterKind.tally,
+  ),
+  CounterPiece(
+    name: 'stun',
+    colour: Color(0xFF9AA3AD),
+    kind: CounterKind.tally,
+  ),
+  CounterPiece(
+    name: 'shield',
+    colour: Color(0xFF6B7F99),
+    kind: CounterKind.tally,
+  ),
+  CounterPiece(
+    name: 'lore',
+    colour: Color(0xFF9C7B4A),
+    kind: CounterKind.tally,
+  ),
+  CounterPiece(name: 'oil', colour: Color(0xFF3A3340), kind: CounterKind.tally),
+  CounterPiece(
+    name: 'defense',
+    colour: Color(0xFF7A4A2B),
+    kind: CounterKind.tally,
+  ),
+  CounterPiece(
+    name: 'time',
+    colour: Color(0xFF5E8F8F),
+    kind: CounterKind.tally,
+  ),
   // Keyword counters, which the app has never had. A colour each, so a board
   // with four of them on it can be read at a glance rather than word by word.
-  CounterPiece(name: 'flying', colour: Color(0xFF8EC3E8), isKeyword: true),
-  CounterPiece(name: 'haste', colour: Color(0xFFE8641C), isKeyword: true),
-  CounterPiece(name: 'trample', colour: Color(0xFF8B5A2B), isKeyword: true),
-  CounterPiece(name: 'vigilance', colour: Color(0xFFE8C547), isKeyword: true),
-  CounterPiece(name: 'menace', colour: Color(0xFF5B3A8E), isKeyword: true),
-  CounterPiece(name: 'deathtouch', colour: Color(0xFF2E4A1F), isKeyword: true),
-  CounterPiece(name: 'lifelink', colour: Color(0xFFE87FA8), isKeyword: true),
-  CounterPiece(name: 'hexproof', colour: Color(0xFF3FBF8F), isKeyword: true),
+  CounterPiece(
+    name: 'flying',
+    colour: Color(0xFF8EC3E8),
+    kind: CounterKind.keyword,
+  ),
+  CounterPiece(
+    name: 'haste',
+    colour: Color(0xFFE8641C),
+    kind: CounterKind.keyword,
+  ),
+  CounterPiece(
+    name: 'trample',
+    colour: Color(0xFF8B5A2B),
+    kind: CounterKind.keyword,
+  ),
+  CounterPiece(
+    name: 'vigilance',
+    colour: Color(0xFFE8C547),
+    kind: CounterKind.keyword,
+  ),
+  CounterPiece(
+    name: 'menace',
+    colour: Color(0xFF5B3A8E),
+    kind: CounterKind.keyword,
+  ),
+  CounterPiece(
+    name: 'deathtouch',
+    colour: Color(0xFF2E4A1F),
+    kind: CounterKind.keyword,
+  ),
+  CounterPiece(
+    name: 'lifelink',
+    colour: Color(0xFFE87FA8),
+    kind: CounterKind.keyword,
+  ),
+  CounterPiece(
+    name: 'hexproof',
+    colour: Color(0xFF3FBF8F),
+    kind: CounterKind.keyword,
+  ),
   CounterPiece(
     name: 'first strike',
     colour: Color(0xFFB0B6C0),
-    isKeyword: true,
+    kind: CounterKind.keyword,
   ),
   CounterPiece(
     name: 'double strike',
     colour: Color(0xFF6E7684),
-    isKeyword: true,
+    kind: CounterKind.keyword,
   ),
   CounterPiece(
     name: 'indestructible',
     colour: Color(0xFF4A4038),
-    isKeyword: true,
+    kind: CounterKind.keyword,
   ),
-  CounterPiece(name: 'reach', colour: Color(0xFF6FA83A), isKeyword: true),
+  CounterPiece(
+    name: 'reach',
+    colour: Color(0xFF6FA83A),
+    kind: CounterKind.keyword,
+  ),
 ];
 
 /// The piece of that name, or null when the box has none.
@@ -120,13 +240,18 @@ CounterPiece? pieceNamed(String name) {
 
 /// A piece for a kind nobody printed.
 ///
-/// `loyalty`, `charge`, `damage`, `energy`: the model has taken any counter
-/// name since plan 2, and a card can arrive carrying one. Grey, because an
-/// invented colour would claim to be recognisable when there is nothing to
-/// recognise, and it adds nothing to power or toughness because nobody said
-/// what it would add.
-CounterPiece unknownPiece(String name) =>
-    CounterPiece(name: name, colour: const Color(0xFF6B6577));
+/// The model has taken any counter name since plan 2, and a card can arrive
+/// carrying one the box has never heard of. Grey, because an invented colour
+/// would claim to be recognisable when there is nothing to recognise, and it
+/// adds nothing to power or toughness because nobody said what it would add.
+///
+/// A tally, because that is the only honest reading of a kind nobody
+/// described: it counts, and the count is all anybody knows about it.
+CounterPiece unknownPiece(String name) => CounterPiece(
+  name: name,
+  colour: const Color(0xFF6B6577),
+  kind: CounterKind.tally,
+);
 
 /// What everything on a card adds up to. A kind the box has never heard of
 /// contributes nothing, however many of them there are.
@@ -144,12 +269,14 @@ int _sum(Map<String, int> counters, int Function(CounterPiece) part) {
   return total;
 }
 
-/// Whether a kind is one of the numbers, which is what decides whether it
-/// joins the marker or stands on its own.
-bool isNumberKind(String kind) {
-  final piece = pieceNamed(kind);
-  return piece != null && !piece.isKeyword;
-}
+/// Whether a kind is one of the power and toughness numbers, which is what
+/// decides whether it joins the marker or stands on its own.
+///
+/// This used to be "not a keyword", which was true while the box held nothing
+/// else. It is false now: a loyalty counter is not a keyword and is not a
+/// `+1/+1` either, and reading it as one would have put a planeswalker's
+/// loyalty into a creature's power.
+bool isNumberKind(String kind) => pieceNamed(kind)?.kind == CounterKind.number;
 
 /// How the net reads on the marker. Signed both halves, always, because
 /// `0/1` beside a card's printed `2/3` is a number and `+0/+1` is a change.
