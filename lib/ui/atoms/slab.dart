@@ -75,13 +75,16 @@ class _SlabState extends State<Slab> {
     if (widget.enabled) widget.onActivate();
   }
 
-  Color _face(BuildContext context) => switch (widget.tone) {
-    SlabTone.choice => context.palette.accent,
-    SlabTone.plain => Palette.slabPlain,
-    SlabTone.warm => Palette.slabWarm,
-    SlabTone.hot => Palette.slabHot,
-    SlabTone.cool => Palette.slabCool,
-  };
+  Color _face(BuildContext context) {
+    final accent = context.palette.accent;
+    return switch (widget.tone) {
+      SlabTone.choice => accent,
+      SlabTone.plain => Palette.slabPlain,
+      SlabTone.warm => _apart(Palette.slabWarm, accent),
+      SlabTone.hot => _apart(Palette.slabHot, accent),
+      SlabTone.cool => _apart(Palette.slabCool, accent),
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -154,4 +157,25 @@ class _SlabState extends State<Slab> {
       ),
     );
   }
+}
+
+/// Pushes a role's colour away from the one the player picked.
+///
+/// The roles are fixed and the accent is not, so they collide. Choosing the
+/// teal backdrop put a teal Play directly above a green Join and the menu had
+/// two buttons that looked like the same button, which is the one thing the
+/// whole colour-per-role idea exists to stop. Anything inside fifty five
+/// degrees of the accent is rotated out to fifty five, on the side it was
+/// already on, keeping its own weight and saturation.
+Color _apart(Color role, Color accent) {
+  const room = 55.0;
+  final it = HSLColor.fromColor(role);
+  final mine = HSLColor.fromColor(accent);
+
+  // Signed, shortest way round, in (-180, 180].
+  final delta = ((it.hue - mine.hue + 540) % 360) - 180;
+  if (delta.abs() >= room) return role;
+
+  final away = (mine.hue + (delta < 0 ? -room : room) + 360) % 360;
+  return it.withHue(away).toColor();
 }
