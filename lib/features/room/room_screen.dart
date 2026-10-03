@@ -519,7 +519,7 @@ class _Chair extends StatelessWidget {
           ),
         ),
         SizedBox(width: m.scaled(6)),
-        Flexible(
+        Expanded(
           child: Text(
             name,
             maxLines: 1,
@@ -534,16 +534,12 @@ class _Chair extends StatelessWidget {
           ),
         ),
         SizedBox(width: m.scaled(10)),
-        Expanded(
-          child: Text(
-            status,
-            textAlign: TextAlign.right,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: m.scaled(11),
-              color: here ? Palette.accent : Palette.inkFaint,
-            ),
+        Text(
+          status,
+          maxLines: 1,
+          style: TextStyle(
+            fontSize: m.scaled(11),
+            color: here ? Palette.accent : Palette.inkFaint,
           ),
         ),
       ],
@@ -551,7 +547,12 @@ class _Chair extends StatelessWidget {
   }
 }
 
-/// One thing the connection found out, as a line with a mark in front of it.
+/// One thing the connection found out, as a line.
+///
+/// No mark in front of it. An icon column started this text eight points in
+/// from every other line on the screen, and the mark it drew said nothing
+/// the colour does not: a sentence about privacy was wearing an ellipsis
+/// because it was neither done nor failed.
 class _Fact extends StatelessWidget {
   const _Fact({
     required this.metrics,
@@ -570,41 +571,21 @@ class _Fact extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = metrics;
-    final colour = failed
-        ? Palette.attention
-        : done
-        ? Palette.accent
-        : Palette.inkFaint;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: m.scaled(6)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(top: m.scaled(5), right: m.scaled(8)),
-            child: Icon(
-              failed
-                  ? Icons.close_rounded
-                  : done
-                  ? Icons.check_rounded
-                  : Icons.more_horiz_rounded,
-              size: m.scaled(12),
-              color: colour,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              text,
-              key: Key(id),
-              style: TextStyle(
-                fontSize: m.scaled(12),
-                height: 1.4,
-                color: failed ? Palette.attention : Palette.inkMuted,
-              ),
-            ),
-          ),
-        ],
+      padding: EdgeInsets.only(bottom: m.scaled(10)),
+      child: Text(
+        text,
+        key: Key(id),
+        style: TextStyle(
+          fontSize: m.scaled(12),
+          height: 1.4,
+          color: failed
+              ? Palette.attention
+              : done
+              ? Palette.inkMuted
+              : Palette.inkFaint,
+        ),
       ),
     );
   }
@@ -758,10 +739,10 @@ class _Aside extends StatelessWidget {
           text,
           key: Key(id),
           style: TextStyle(
-            fontSize: m.scaled(12),
-            color: Palette.inkMuted,
+            fontSize: m.scaled(11),
+            color: Palette.inkFaint.withValues(alpha: 0.65),
             decoration: TextDecoration.underline,
-            decorationColor: Palette.inkFaint,
+            decorationColor: Palette.inkFaint.withValues(alpha: 0.4),
           ),
         ),
       ),
