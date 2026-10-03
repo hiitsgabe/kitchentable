@@ -8,13 +8,9 @@ import 'connection_report.dart';
 import 'link.dart';
 import 'nostr/keys.dart';
 import 'nostr/relay.dart';
+import 'nostr/room_relays.dart';
 import 'signaling.dart';
 import 'transport.dart';
-
-/// Events the game itself rides on, as opposed to the handshake. A different
-/// kind so a relay and a subscription can tell room traffic from the
-/// WebRTC introduction, and so the two can run side by side later.
-const int roomDataKind = 25050;
 
 /// A [Transport] that carries the game over the relays themselves.
 ///
@@ -50,6 +46,12 @@ class RelayTransport implements Transport, ReportsConnection {
 
   /// The room, in the tag every event under it carries.
   final String _code;
+
+  /// The kind this room's traffic rides on, which comes from the code so
+  /// that every phone holding it listens to the same one and two rooms
+  /// almost never share. It used to be a constant, 25050, which is the kind
+  /// the NIP-RTC draft reserves for WebRTC signalling.
+  late final int _kind = roomDataKindFor(_code);
 
   /// How often this phone says it is still here. A peer not heard from in
   /// three of these is taken to have gone; its own beacon at this pace
@@ -99,7 +101,7 @@ class RelayTransport implements Transport, ReportsConnection {
     _relayStatus = _relay.status.listen(_onRelay);
     final sub = _sub = _relay.subscribe(
       Filter(
-        kinds: const [roomDataKind],
+        kinds: [_kind],
         tags: {
           'd': [_code],
         },
@@ -161,7 +163,7 @@ class RelayTransport implements Transport, ReportsConnection {
     if (body.isNotEmpty) content['b'] = body;
     final event = NostrEvent.sign(
       _keys,
-      kind: roomDataKind,
+      kind: _kind,
       tags: [
         ['d', _code],
         if (to != null) ['p', to],

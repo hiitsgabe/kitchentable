@@ -6,6 +6,7 @@ import 'package:kitchentable/net/link.dart';
 import 'package:kitchentable/net/mesh.dart';
 import 'package:kitchentable/net/nostr/keys.dart';
 import 'package:kitchentable/net/nostr/relay.dart';
+import 'package:kitchentable/net/nostr/room_relays.dart';
 import 'package:kitchentable/net/signaling.dart';
 import 'package:kitchentable/net/connection_report.dart';
 import 'package:kitchentable/net/transport.dart';
@@ -139,9 +140,9 @@ typedef _Seen = ({String from, String type, String? to, String body});
 
 Future<List<_Seen>> _watch(FakeRelay relay) async {
   final sub = _client(relay).subscribe(
-    const Filter(
-      kinds: [handshakeKind],
-      tags: {
+    Filter(
+      kinds: [handshakeKindFor(_code)],
+      tags: const {
         'd': [_code],
       },
     ),
@@ -165,7 +166,7 @@ Future<List<_Seen>> _watch(FakeRelay relay) async {
 NostrEvent _raw(Keys keys, String type, {String? to, String body = ''}) =>
     NostrEvent.sign(
       keys,
-      kind: handshakeKind,
+      kind: handshakeKindFor(_code),
       tags: [
         ['d', _code],
         if (to != null) ['p', to],

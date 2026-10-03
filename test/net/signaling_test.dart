@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/net/link.dart';
 import 'package:kitchentable/net/nostr/keys.dart';
 import 'package:kitchentable/net/nostr/relay.dart';
+import 'package:kitchentable/net/nostr/room_relays.dart';
 import 'package:kitchentable/net/signaling.dart';
 
 import 'nostr/fake_relay.dart';
@@ -67,7 +68,7 @@ typedef _Seen = ({String from, String type, String? to, String body});
 
 Future<List<_Seen>> _watch(FakeRelay relay) async {
   final sub = _client(relay).subscribe(
-    const Filter(kinds: [handshakeKind], tags: {'d': [_code]}),
+    Filter(kinds: [handshakeKindFor(_code)], tags: const {'d': [_code]}),
   );
   final seen = <_Seen>[];
   sub.events.listen((event) {
@@ -95,7 +96,7 @@ NostrEvent _raw(
 }) =>
     NostrEvent.sign(
       keys,
-      kind: handshakeKind,
+      kind: handshakeKindFor(_code),
       tags: [
         ['d', code],
         if (to != null) ['p', to],
@@ -590,7 +591,7 @@ void main() {
     // A plain listener, deduping by id the way every peer does.
     final ear = _client(fake);
     final heard = ear.subscribe(
-      const Filter(kinds: [handshakeKind], tags: {'d': [_code]}),
+      Filter(kinds: [handshakeKindFor(_code)], tags: const {'d': [_code]}),
     );
     final ids = <String>{};
     heard.events.listen((e) => ids.add(e.id));
