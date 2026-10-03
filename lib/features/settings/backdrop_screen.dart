@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ui/atoms/menu_row.dart';
+import '../../ui/atoms/slab.dart';
 import '../../ui/background/backdrop_controller.dart';
 import '../../ui/background/backdrop_style.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -60,6 +61,7 @@ class _BackdropScreenState extends ConsumerState<BackdropScreen> {
                 ? '${kind.describe} · on now'
                 : kind.describe,
             icon: _iconFor(kind),
+            tone: kind == style.kind ? SlabTone.choice : SlabTone.plain,
             metrics: m,
             autofocus: kind == style.kind,
             onActivate: () => controller.set(style.copyWith(kind: kind)),
@@ -91,6 +93,7 @@ class _BackdropScreenState extends ConsumerState<BackdropScreen> {
                   ? 'waiting for you to pick one'
                   : 'it is shrunk and kept on this device',
               icon: Icons.image_search_rounded,
+              tone: SlabTone.cool,
               metrics: m,
               onActivate: () => _pick(style),
             )

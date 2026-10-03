@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/ui/atoms/slab.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
+import 'package:kitchentable/ui/tokens/theme.dart';
 
 Widget _host({
   required VoidCallback onActivate,
@@ -98,5 +99,59 @@ void main() {
     );
 
     expect(face.height, lessThan(whole.height));
+  });
+
+  testWidgets('a role colour keeps away from the colour the player picked', (
+    tester,
+  ) async {
+    // Teal was the case that found this: a teal Play sat directly above a
+    // green Join and the menu had two buttons that looked like the same
+    // button, which is the one thing colour-per-role exists to stop.
+    const teal = Color(0xFF2EE0B0);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: kitchentableTheme(accent: teal),
+        home: Scaffold(
+          body: Column(
+            children: [
+              for (final tone in [SlabTone.choice, SlabTone.cool])
+                Slab(
+                  key: Key(tone.name),
+                  metrics: Metrics.of(DeviceClass.handheld),
+                  tone: tone,
+                  onActivate: () {},
+                  child: Text(tone.name),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    Color face(SlabTone tone) =>
+        (tester
+                    .widgetList<Container>(
+                      find.descendant(
+                        of: find.byKey(Key(tone.name)),
+                        matching: find.byType(Container),
+                      ),
+                    )
+                    .last
+                    .decoration
+                as BoxDecoration)
+            .color!;
+
+    expect(face(SlabTone.choice), teal);
+
+    final mine = HSLColor.fromColor(teal).hue;
+    final theirs = HSLColor.fromColor(face(SlabTone.cool)).hue;
+    final apart = ((theirs - mine + 540) % 360) - 180;
+
+    expect(
+      apart.abs(),
+      greaterThanOrEqualTo(50),
+      reason: 'a cool slab under a teal accent is still green',
+    );
   });
 }
