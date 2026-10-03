@@ -59,3 +59,27 @@ An empty box asking for a name is the thing this exists to stop.
 On a 390 by 844 phone the chairs are the first thing under the title, the
 invitation is one screen-third, and Start is on the first screen with four
 chairs. It was at about 1300 points, below five paragraphs.
+
+## The code is hidden, and the aside is a line
+
+Two rulings from the author after the first pass:
+
+- **The room is a link, so the code is noise.** "Não precisa mostrar código
+  da sala, porque a sala é por link, não é por código." The code is off the
+  screen: you send the link, or somebody scans the square. It survives in
+  exactly one place, the build that is served nowhere and therefore has no
+  link to send, where it is the only way in.
+- **Filling the other chairs from this device is a line, not a row.** "Não
+  precisa ser um botão... porque tá dando muita importância." As a row with
+  an icon it stood level with Start and read as an equal way to play. It is
+  now one underlined line, "Nobody coming? Play all 4 hands here", under
+  everything else.
+
+## Still open: there is no way to play without making a room
+
+Found while answering what the fill-chairs row was for. `PlayDecksScreen` is
+only ever opened from the room, so the single-deck path in it (`start(deck)`,
+no lobby) is unreachable, and filling the chairs from one device is the de
+facto solo mode, hidden inside a room it contradicts. The room should mean
+other people on their own phones; playing by yourself, or several hands on
+one device, wants its own way in from the menu.
