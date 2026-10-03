@@ -10,9 +10,8 @@ import 'package:kitchentable/table/model/card_instance.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
 List<CardInstance> _hand(int n) => [
-      for (var i = 0; i < n; i++)
-        CardInstance(id: 'h$i', oracleId: 'card$i'),
-    ];
+  for (var i = 0; i < n; i++) CardInstance(id: 'h$i', oracleId: 'card$i'),
+];
 
 /// A printing for the first card in hand, because a preview is only ever
 /// drawn for a card the catalog has heard of. Without one the hover case
@@ -58,8 +57,9 @@ Widget _host({
     );
 
 void main() {
-  testWidgets('a few cards sit in the middle, not against the left edge',
-      (tester) async {
+  testWidgets('a few cards sit in the middle, not against the left edge', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(cards: 3));
     await tester.pump();
 
@@ -93,13 +93,13 @@ void main() {
     expect(find.textContaining('No cards'), findsOneWidget);
   });
 
-  testWidgets('a card dragged sideways reports where it was put',
-      (tester) async {
+  testWidgets('a card dragged sideways reports where it was put', (
+    tester,
+  ) async {
     ({String id, int to})? moved;
-    await tester.pumpWidget(_host(
-      cards: 4,
-      onReorder: (id, to) => moved = (id: id, to: to),
-    ));
+    await tester.pumpWidget(
+      _host(cards: 4, onReorder: (id, to) => moved = (id: id, to: to)),
+    );
     await tester.pump();
 
     final third = tester.getCenter(find.byType(TableCard).at(2));
@@ -116,21 +116,23 @@ void main() {
 
   testWidgets('a tap still plays the card', (tester) async {
     CardInstance? played;
-    await tester.pumpWidget(ProviderScope(
-      child: MaterialApp(
-        home: Scaffold(
-          body: HandSheet(
-            metrics: Metrics.of(DeviceClass.handheld),
-            cards: _hand(3),
-            printings: const {},
-            onPlay: (c) => played = c,
-            onInspect: (_) {},
-            onReorder: (_, _) {},
-            startsOpen: true,
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: HandSheet(
+              metrics: Metrics.of(DeviceClass.handheld),
+              cards: _hand(3),
+              printings: const {},
+              onPlay: (c) => played = c,
+              onInspect: (_) {},
+              onReorder: (_, _) {},
+              startsOpen: true,
+            ),
           ),
         ),
       ),
-    ));
+    );
     await tester.pump();
 
     // Adding a drag to a widget that already had a tap is how a tap stops
@@ -157,8 +159,9 @@ void main() {
     expect(find.byKey(const Key('hover-preview')), findsOneWidget);
   });
 
-  testWidgets('a hand too wide to fit wraps instead of scrolling',
-      (tester) async {
+  testWidgets('a hand too wide to fit wraps instead of scrolling', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -175,8 +178,11 @@ void main() {
     // so dragging rearranged the hand instead of moving it, and there was no
     // other way to reach the far end.
     expect(last.right, lessThanOrEqualTo(sheet.right + 1));
-    expect(last.top, greaterThan(first.top),
-        reason: 'sixteen cards are still on one line');
+    expect(
+      last.top,
+      greaterThan(first.top),
+      reason: 'sixteen cards are still on one line',
+    );
   });
 
   testWidgets('a hand that fits stays on one line', (tester) async {
@@ -189,8 +195,9 @@ void main() {
     expect(last.top, first.top);
   });
 
-  testWidgets('the sheet grows for a second line but not without end',
-      (tester) async {
+  testWidgets('the sheet grows for a second line but not without end', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -213,8 +220,9 @@ void main() {
     expect(many, two);
   });
 
-  testWidgets('a short last line sits under the middle of the one above',
-      (tester) async {
+  testWidgets('a short last line sits under the middle of the one above', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -232,23 +240,28 @@ void main() {
     final lastBelow = tester.getRect(find.byType(TableCard).at(6));
     final leftOfAll = tester.getRect(find.byType(TableCard).first).left;
 
-    expect(firstBelow.left - leftOfAll, greaterThan(1),
-        reason: 'the short line was flushed to the left');
-    expect(firstBelow.left - leftOfAll,
-        closeTo(top.right - lastBelow.right, 1));
+    expect(
+      firstBelow.left - leftOfAll,
+      greaterThan(1),
+      reason: 'the short line was flushed to the left',
+    );
+    expect(
+      firstBelow.left - leftOfAll,
+      closeTo(top.right - lastBelow.right, 1),
+    );
   });
 
-  testWidgets('a card dropped on the short line lands on that line',
-      (tester) async {
+  testWidgets('a card dropped on the short line lands on that line', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
     ({String id, int to})? moved;
-    await tester.pumpWidget(_host(
-      cards: 7,
-      onReorder: (id, to) => moved = (id: id, to: to),
-    ));
+    await tester.pumpWidget(
+      _host(cards: 7, onReorder: (id, to) => moved = (id: id, to: to)),
+    );
     await tester.pump();
 
     // The first card of the second line, which is where a wrapped hand stops
@@ -268,8 +281,9 @@ void main() {
     expect(moved?.to, 5);
   });
 
-  testWidgets('playing a card from an open hand puts the hand down',
-      (tester) async {
+  testWidgets('playing a card from an open hand puts the hand down', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(cards: 3));
     await tester.pump();
 
@@ -282,8 +296,7 @@ void main() {
     expect(tester.getSize(find.byType(HandSheet)).height, lessThan(open / 2));
   });
 
-  testWidgets('a card in hand is drawn on the game s own back',
-      (tester) async {
+  testWidgets('a card in hand is drawn on the game s own back', (tester) async {
     await tester.pumpWidget(_host(cards: 1, game: Game.magic));
     await tester.pump();
 
@@ -291,5 +304,44 @@ void main() {
     // whose back it is only reaches the card if the sheet passes the game on.
     // Dropping that one argument leaves every other case here green.
     expect(find.byKey(const Key('card-back-art')), findsOneWidget);
+  });
+
+  testWidgets('the opening hand is dealt out rather than simply there', (
+    tester,
+  ) async {
+    // The table deals seven in one verb, because a hand arriving one card at
+    // a time would be seven things to agree about instead of one. So on
+    // screen the cards were just suddenly there, which is not what being
+    // dealt a hand looks like.
+    await tester.pumpWidget(_host(cards: 7));
+    await tester.pump();
+
+    double fade(int i) =>
+        tester.widgetList<Opacity>(find.byType(Opacity)).elementAt(i).opacity;
+
+    // Part way through: the first card is further along than the last.
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(fade(0), greaterThan(fade(6)));
+
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 7; i++) {
+      expect(fade(i), 1.0, reason: 'card $i never finished arriving');
+    }
+  });
+
+  testWidgets('a card drawn later does not restage the hand', (tester) async {
+    // One card arriving is one card arriving. Dealing the whole hand again
+    // every time somebody draws would be unreadable by turn three.
+    await tester.pumpWidget(_host(cards: 7));
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(_host(cards: 8));
+    await tester.pump();
+
+    expect(
+      find.byType(Opacity),
+      findsNothing,
+      reason: 'the deal is over and nothing should be fading in',
+    );
   });
 }

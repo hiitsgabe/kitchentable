@@ -1,5 +1,6 @@
 import '../model/card_instance.dart';
 import '../model/table_state.dart';
+import '../setup.dart';
 import '../shuffle.dart';
 import 'table_action.dart';
 
@@ -35,6 +36,7 @@ TableState apply(TableState table, TableAction action) => switch (action) {
   CreateToken() => _token(table, action),
   ChangeLife() => table.withLife(action.seatId, action.by),
   RollDice() => table.copyWith(dice: action.results),
+  TakeMulligan() => _mulligan(table, action),
 };
 
 TableState _onCard(
@@ -100,5 +102,47 @@ TableState _token(TableState table, CreateToken action) {
   if (zone == null) return table;
   return table.withZone(
     zone.add(CardInstance(id: action.cardId, oracleId: action.oracleId)),
+  );
+}
+
+/// The hand back into the library, a shuffle, and a fresh hand of the same
+/// size.
+///
+/// The same size every time, which is the London rule: you always draw seven
+/// and you always put back as many as you have taken. A mulligan that dealt
+/// six would be the old rule and would leave nothing to decide.
+TableState _mulligan(TableState table, TakeMulligan action) {
+  final hand = table.zone('hand-${action.seatId}');
+  final library = table.zone('library-${action.seatId}');
+  if (hand == null || library == null) return table;
+
+  var next = table
+      .withZone(hand.copyWith(cards: const []))
+      .withZone(
+        library.copyWith(
+          cards: [
+            ...library.cards,
+            for (final card in hand.cards) card.copyWith(clearPosition: true),
+          ],
+        ),
+      );
+
+  next = apply(next, ShuffleZone(zoneId: library.id, seed: action.seed));
+  next = apply(
+    next,
+    DrawCards(
+      fromZoneId: library.id,
+      toZoneId: hand.id,
+      count: openingHandSize,
+    ),
+  );
+
+  return next.copyWith(
+    seats: [
+      for (final seat in next.seats)
+        seat.id == action.seatId
+            ? seat.copyWith(mulligans: seat.mulligans + 1)
+            : seat,
+    ],
   );
 }
