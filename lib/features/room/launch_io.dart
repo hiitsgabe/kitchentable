@@ -18,5 +18,7 @@ String? launchDemoView() => null;
 
 bool launchDemoFresh() => false;
 
+bool launchDemoChat() => false;
+
 /// No address bar, no demo.
 int? launchDemoRoomSeats() => null;

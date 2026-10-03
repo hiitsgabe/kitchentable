@@ -43,6 +43,13 @@ String? launchDemoView() =>
 /// tells the table the opening is over.
 bool launchDemoFresh() => RegExp(r'fresh=1').hasMatch(web.window.location.href);
 
+/// Whether a `#demo=N` launch should put a few lines in the chat.
+///
+/// Chat only appears when there is somebody to talk to, and a demo table is
+/// several seats on one device with nobody at the other end of anything.
+/// This seeds a conversation so the drawer can be looked at.
+bool launchDemoChat() => RegExp(r'chat=1').hasMatch(web.window.location.href);
+
 /// How many chairs a `#demoroom=N` launch sets up, or null. The host's
 /// waiting room, opened without a card source, so the screen people wait on
 /// can be looked at and screenshotted the way `#demo=N` does the table.

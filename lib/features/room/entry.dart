@@ -31,6 +31,7 @@ class Entry extends ConsumerWidget {
         seats: demo,
         view: launchDemoView(),
         fresh: launchDemoFresh(),
+        chat: launchDemoChat(),
       );
     }
     final waiting = launchDemoRoomSeats();

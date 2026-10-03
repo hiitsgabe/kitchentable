@@ -108,6 +108,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     );
     final m = Metrics.of(device);
     final table = ref.watch(playProvider);
+    final chat = ref.watch(chatProvider);
     final play = ref.read(playProvider.notifier);
     final cardScale = ref.watch(cardScaleProvider);
 
@@ -306,9 +307,11 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                 onLife: (by) => play.run(ChangeLife(seatId: seat.id, by: by)),
                 onUndo: play.undo,
                 // Nobody to talk to on a table this phone holds alone, so
-                // the button is not there rather than there and dead.
-                unread: play.atATableWithOthers
-                    ? ref.watch(chatProvider).unread
+                // the button is not there rather than there and dead. It
+                // does appear once anything has been said, because a line
+                // nobody can open is worse than a button nobody needs.
+                unread: play.atATableWithOthers || chat.lines.isNotEmpty
+                    ? chat.unread
                     : null,
                 onTalk: () => _talk(m),
                 onMore: _more,
