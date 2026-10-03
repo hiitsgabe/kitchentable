@@ -35,19 +35,16 @@ enum CardAction {
   copy,
 }
 
-/// The kinds a table counts that the box holds no piece for.
+/// The kinds the box holds no piece for.
 ///
-/// The seven denominations and the twelve keywords come from [counterPieces]
-/// now, and these three are what is left: a planeswalker's loyalty, an
-/// artifact's charge and a Pokemon's damage are counted at every kitchen table
-/// and were never moulded in plastic. Dropping them would leave a Pokemon
-/// player no way to count damage at all, since nothing here lets a kind be
-/// typed in.
+/// Empty, and kept because the list was never closed: whatever is already on
+/// a card is offered alongside the box, and the table has never cared what
+/// these are called, which is why they are strings and not an enum.
 ///
-/// Still not a closed list: whatever is already on the card is offered too.
-/// The table has never cared what these are called, which is why they are
-/// strings and not an enum.
-const counterKinds = ['loyalty', 'charge', 'damage'];
+/// It held loyalty, charge and damage until the box grew tallies of its own.
+/// They were being drawn as grey unknowns with a word on them, which meant
+/// the only counter a planeswalker ever wears looked like a mistake.
+const counterKinds = <String>[];
 
 /// One card, lifted off the screen and turnable in the hand.
 ///
@@ -201,11 +198,9 @@ class _CardViewerState extends State<CardViewer>
       ),
     );
 
-    // Fits whichever way round the screen is, leaving room for the name.
-    final width = math.min(
-      media.size.width * 0.74,
-      media.size.height * 0.56 * 63 / 88,
-    );
+    // What the name and the caption under the card need. Measured off the
+    // sizes they are drawn at a few lines down rather than guessed.
+    final saidUnder = m.scaled(26 + 22 + 6 + 15);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -225,74 +220,93 @@ class _CardViewerState extends State<CardViewer>
         child: Column(
           children: [
             Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Listener(
-                      // A mouse wheel is not a scale gesture, so it is caught
-                      // separately. Without this, zoom would be touch only and
-                      // the browser build could never read a card's text.
-                      onPointerSignal: (event) {
-                        if (event is PointerScrollEvent) {
-                          setState(() {
-                            _zoom = (_zoom - event.scrollDelta.dy * 0.0016)
-                                .clamp(1.0, 3.2);
-                          });
-                        }
-                      },
-                      child: GestureDetector(
-                        onTap: _flip,
-                        // Scale rather than pan, because a GestureDetector
-                        // cannot arbitrate both. focalPointDelta carries the
-                        // drag, so the turn and the pinch come from one
-                        // recogniser.
-                        onScaleStart: (_) => _zoomAtGestureStart = _zoom,
-                        onScaleUpdate: (d) => setState(() {
-                          _zoom = (_zoomAtGestureStart * d.scale).clamp(
-                            1.0,
-                            3.2,
-                          );
-                          if (d.pointerCount == 1) {
-                            _yaw += d.focalPointDelta.dx * 0.011;
-                            // Inverted so dragging the top of the card away from
-                            // you tips the top away from you.
-                            _pitch = (_pitch - d.focalPointDelta.dy * 0.006)
-                                .clamp(-0.45, 0.45);
-                          }
-                        }),
-                        onScaleEnd: (_) => _settle(),
-                        child: _Card(
-                          card: widget.card,
-                          yaw: _yaw,
-                          pitch: _pitch,
-                          width: width * _zoom,
-                          counters: _counts,
+              // Sized off the room it has, not off the screen. It was
+              // `media.height * 0.56`, which is a share of a screen the card
+              // does not get all of: the bar below took what it needed first,
+              // and a bar one row taller than the day that number was picked
+              // pushed the card through the bottom of its own box and the
+              // caption under the controls. Taking the room that is left
+              // means the two cannot collide however many counters the box
+              // grows.
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  final width = math.max(
+                    m.scaled(80),
+                    math.min(
+                      box.maxWidth * 0.74,
+                      (box.maxHeight - saidUnder) * 0.92 * 63 / 88,
+                    ),
+                  );
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Listener(
+                          // A mouse wheel is not a scale gesture, so it is caught
+                          // separately. Without this, zoom would be touch only and
+                          // the browser build could never read a card's text.
+                          onPointerSignal: (event) {
+                            if (event is PointerScrollEvent) {
+                              setState(() {
+                                _zoom = (_zoom - event.scrollDelta.dy * 0.0016)
+                                    .clamp(1.0, 3.2);
+                              });
+                            }
+                          },
+                          child: GestureDetector(
+                            onTap: _flip,
+                            // Scale rather than pan, because a GestureDetector
+                            // cannot arbitrate both. focalPointDelta carries the
+                            // drag, so the turn and the pinch come from one
+                            // recogniser.
+                            onScaleStart: (_) => _zoomAtGestureStart = _zoom,
+                            onScaleUpdate: (d) => setState(() {
+                              _zoom = (_zoomAtGestureStart * d.scale).clamp(
+                                1.0,
+                                3.2,
+                              );
+                              if (d.pointerCount == 1) {
+                                _yaw += d.focalPointDelta.dx * 0.011;
+                                // Inverted so dragging the top of the card away from
+                                // you tips the top away from you.
+                                _pitch = (_pitch - d.focalPointDelta.dy * 0.006)
+                                    .clamp(-0.45, 0.45);
+                              }
+                            }),
+                            onScaleEnd: (_) => _settle(),
+                            child: _Card(
+                              card: widget.card,
+                              yaw: _yaw,
+                              pitch: _pitch,
+                              width: width * _zoom,
+                              counters: _counts,
+                            ),
+                          ),
                         ),
-                      ),
+                        SizedBox(height: m.scaled(26)),
+                        Text(
+                          widget.card.name,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: m.scaled(17),
+                            fontWeight: FontWeight.w600,
+                            color: Palette.ink,
+                          ),
+                        ),
+                        SizedBox(height: m.scaled(6)),
+                        Text(
+                          widget.card.imageBack == null
+                              ? 'drag to turn it over, pinch or scroll to read it'
+                              : 'drag to turn it over, it has a second face',
+                          style: TextStyle(
+                            fontSize: m.scaled(11),
+                            color: Palette.inkFaint,
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: m.scaled(26)),
-                    Text(
-                      widget.card.name,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: m.scaled(17),
-                        fontWeight: FontWeight.w600,
-                        color: Palette.ink,
-                      ),
-                    ),
-                    SizedBox(height: m.scaled(6)),
-                    Text(
-                      widget.card.imageBack == null
-                          ? 'drag to turn it over, pinch or scroll to read it'
-                          : 'drag to turn it over, it has a second face',
-                      style: TextStyle(
-                        fontSize: m.scaled(11),
-                        color: Palette.inkFaint,
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
             _actions(m),
@@ -317,84 +331,106 @@ class _CardViewerState extends State<CardViewer>
         if (pieceNamed(kind) == null && !counterKinds.contains(kind)) kind,
     ];
 
+    // Half the screen, and the picker inside it scrolls. The box is thirty
+    // one pieces now, and pieces wide enough to read are pieces that do not
+    // all fit: squeezing them into two rows is what made INDESTRUCTIBLE three
+    // points tall and unreadable.
+    //
+    // The cap is on the whole bar rather than on the picker, because the
+    // column above lays this out with no height bound at all. Capping only
+    // the picker left the verbs free to push the bar past the bottom of the
+    // screen, which it did, by forty seven points.
+    final room = MediaQuery.sizeOf(context).height * 0.46;
+
     return Align(
       alignment: Alignment.bottomCenter,
       child: Padding(
         padding: EdgeInsets.all(m.safeInset),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Its own Wrap above the verbs, and not children of theirs. Five
-            // kinds and seven controls in one Wrap flow into each other, so
-            // `damage` ends a line that starts with `Face down` and the player
-            // has to read the whole bar to find either. One Wrap each keeps
-            // what a tap chooses apart from what a tap does, and neither can
-            // overflow.
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: m.scaled(6),
-              runSpacing: m.scaled(6),
-              children: [
-                for (final kind in kinds) _kind(m, kind, _counts[kind] ?? 0),
-              ],
-            ),
-            SizedBox(height: m.scaled(10)),
-            // Wrapped, not a Row. Four controls with words on them are 358
-            // points wide and a phone is 390 before the safe inset, so a Row
-            // overflowed by 141 points before the command zone button existed
-            // and by 190 after. Nothing saw it because this is only ever built
-            // at 800 wide in a test. Three lines on a phone and one on
-            // anything wider, with every control still readable, which is why
-            // this is a Wrap rather than a FittedBox or a scroll with half the
-            // buttons off the edge.
-            Wrap(
-              alignment: WrapAlignment.center,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: m.scaled(10),
-              runSpacing: m.scaled(10),
-              children: [
-                if (instance.rotation == 180)
-                  _act(
-                    m,
-                    const Key('act-straighten'),
-                    Icons.straighten_rounded,
-                    'Straighten',
-                    CardAction.straighten,
-                  )
-                else
-                  _act(
-                    m,
-                    const Key('act-upside-down'),
-                    Icons.flip_camera_android_rounded,
-                    'Upside down',
-                    CardAction.upsideDown,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: room),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Its own Wrap above the verbs, and not children of theirs. Five
+              // kinds and seven controls in one Wrap flow into each other, so
+              // `damage` ends a line that starts with `Face down` and the player
+              // has to read the whole bar to find either. One Wrap each keeps
+              // what a tap chooses apart from what a tap does, and neither can
+              // overflow.
+              // Flexible, so the picker is the part that gives when the bar is
+              // against its cap: the verbs are what the screen is for and must
+              // never be the thing that scrolls away.
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: m.scaled(6),
+                    runSpacing: m.scaled(6),
+                    children: [
+                      for (final kind in kinds)
+                        _kind(m, kind, _counts[kind] ?? 0),
+                    ],
                   ),
-                _act(
-                  m,
-                  const Key('act-flip'),
-                  Icons.layers_rounded,
-                  instance.faceDown ? 'Face up' : 'Face down',
-                  CardAction.flip,
                 ),
-                if (widget.hasCommandZone) ...[
+              ),
+              SizedBox(height: m.scaled(10)),
+              // Wrapped, not a Row. Four controls with words on them are 358
+              // points wide and a phone is 390 before the safe inset, so a Row
+              // overflowed by 141 points before the command zone button existed
+              // and by 190 after. Nothing saw it because this is only ever built
+              // at 800 wide in a test. Three lines on a phone and one on
+              // anything wider, with every control still readable, which is why
+              // this is a Wrap rather than a FittedBox or a scroll with half the
+              // buttons off the edge.
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: m.scaled(10),
+                runSpacing: m.scaled(10),
+                children: [
+                  if (instance.rotation == 180)
+                    _act(
+                      m,
+                      const Key('act-straighten'),
+                      Icons.straighten_rounded,
+                      'Straighten',
+                      CardAction.straighten,
+                    )
+                  else
+                    _act(
+                      m,
+                      const Key('act-upside-down'),
+                      Icons.flip_camera_android_rounded,
+                      'Upside down',
+                      CardAction.upsideDown,
+                    ),
                   _act(
                     m,
-                    const Key('act-command'),
-                    Icons.home_rounded,
-                    null,
-                    CardAction.commandZone,
+                    const Key('act-flip'),
+                    Icons.layers_rounded,
+                    instance.faceDown ? 'Face up' : 'Face down',
+                    CardAction.flip,
+                  ),
+                  if (widget.hasCommandZone) ...[
+                    _act(
+                      m,
+                      const Key('act-command'),
+                      Icons.home_rounded,
+                      null,
+                      CardAction.commandZone,
+                    ),
+                  ],
+                  _act(
+                    m,
+                    const Key('act-copy'),
+                    Icons.content_copy_rounded,
+                    'Copy',
+                    CardAction.copy,
                   ),
                 ],
-                _act(
-                  m,
-                  const Key('act-copy'),
-                  Icons.content_copy_rounded,
-                  'Copy',
-                  CardAction.copy,
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -445,12 +481,31 @@ class _CardViewerState extends State<CardViewer>
         ),
         child: CounterPieceView(
           piece: piece,
-          width: m.scaled(28),
+          width: _widthFor(m, piece),
           count: count,
         ),
       ),
     );
   }
+
+  /// How wide to draw one piece in the picker.
+  ///
+  /// Every piece used to be twenty eight points wide, which is the size a
+  /// `+1/+1` wants and a tenth of what INDESTRUCTIBLE wants. The text inside
+  /// is scaled down to fit, and scaling the box scales the font with it, so a
+  /// uniformly bigger picker would have been uniformly illegible in exactly
+  /// the same proportion: a fourteen letter word drawn across a bar always
+  /// lands at about `width / len` whatever the width is.
+  ///
+  /// So the width follows the word. Nine points a letter puts every piece in
+  /// the box at roughly the same printed size, which is the thing that was
+  /// actually wrong: not that the pieces were small, but that they were all
+  /// the same size while the words on them were not.
+  ///
+  /// On the card they stay a fraction of the card, because there they are
+  /// objects lying on it and a row of them has to fit.
+  double _widthFor(Metrics m, CounterPiece piece) =>
+      m.scaled((9.0 * piece.label.length).clamp(44.0, 120.0));
 
   /// Sends a change out and keeps a copy, so the viewer can stay open.
   void _count(String kind, int by) {

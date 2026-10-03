@@ -4,16 +4,16 @@ import 'package:kitchentable/features/play/counters.dart';
 import 'package:kitchentable/features/play/widgets/counter_piece.dart';
 
 Widget _host(String kind, {int count = 1}) => MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: CounterPieceView(
-            piece: pieceNamed(kind) ?? unknownPiece(kind),
-            count: count,
-            width: 40,
-          ),
-        ),
+  home: Scaffold(
+    body: Center(
+      child: CounterPieceView(
+        piece: pieceNamed(kind) ?? unknownPiece(kind),
+        count: count,
+        width: 40,
       ),
-    );
+    ),
+  ),
+);
 
 void main() {
   testWidgets('it says its value once', (tester) async {
@@ -124,10 +124,14 @@ void main() {
     //
     // Against the piece's own colour rather than against a number, so a darker
     // box of pieces cannot quietly make this true.
-    expect(CounterPlastic.edgeLit.computeLuminance(),
-        greaterThan(body.computeLuminance()));
-    expect(CounterPlastic.edgeShade.computeLuminance(),
-        greaterThan(body.computeLuminance()));
+    expect(
+      CounterPlastic.edgeLit.computeLuminance(),
+      greaterThan(body.computeLuminance()),
+    );
+    expect(
+      CounterPlastic.edgeShade.computeLuminance(),
+      greaterThan(body.computeLuminance()),
+    );
 
     expect(
       find.byType(CounterPieceView),
@@ -165,12 +169,21 @@ void main() {
     // of each end that this replaced fails the two points and passes the
     // corners, so the pair of them is what names a hexagon.
     expect(path.contains(Offset(size.width / 2, size.height / 2)), isTrue);
-    expect(path.contains(Offset(0.5, size.height / 2)), isTrue,
-        reason: 'the left end does not come to a point');
-    expect(path.contains(Offset(size.width - 0.5, size.height / 2)), isTrue,
-        reason: 'the right end does not come to a point');
-    expect(path.contains(const Offset(0.5, 0.5)), isFalse,
-        reason: 'the top left corner is not cut');
+    expect(
+      path.contains(Offset(0.5, size.height / 2)),
+      isTrue,
+      reason: 'the left end does not come to a point',
+    );
+    expect(
+      path.contains(Offset(size.width - 0.5, size.height / 2)),
+      isTrue,
+      reason: 'the right end does not come to a point',
+    );
+    expect(
+      path.contains(const Offset(0.5, 0.5)),
+      isFalse,
+      reason: 'the top left corner is not cut',
+    );
     expect(
       path.contains(Offset(size.width - 0.5, size.height - 0.5)),
       isFalse,
@@ -178,8 +191,9 @@ void main() {
     );
   });
 
-  testWidgets('the piece after the first is hollowed out to take it',
-      (tester) async {
+  testWidgets('the piece after the first is hollowed out to take it', (
+    tester,
+  ) async {
     const size = Size(40, 24.8);
     final first = CounterPlastic.pathFor(size);
     final next = CounterPlastic.pathFor(size, joins: true);
@@ -190,12 +204,18 @@ void main() {
     // first comes to a point the next is hollow, and where the first is cut
     // away at the corner the next is square.
     expect(first.contains(Offset(0.5, size.height / 2)), isTrue);
-    expect(next.contains(Offset(0.5, size.height / 2)), isFalse,
-        reason: 'the left end is not hollowed out to receive a point');
+    expect(
+      next.contains(Offset(0.5, size.height / 2)),
+      isFalse,
+      reason: 'the left end is not hollowed out to receive a point',
+    );
 
     expect(first.contains(const Offset(0.5, 0.5)), isFalse);
-    expect(next.contains(const Offset(0.5, 0.5)), isTrue,
-        reason: 'the corner beside the notch was cut away as well');
+    expect(
+      next.contains(const Offset(0.5, 0.5)),
+      isTrue,
+      reason: 'the corner beside the notch was cut away as well',
+    );
 
     // And the right end is a point on both, because every piece has something
     // that might slot onto it.
@@ -204,5 +224,61 @@ void main() {
     // The notch reaches exactly as far in as the point reaches out, which is
     // the whole of why they fit.
     expect(next.contains(Offset(point + 0.5, size.height / 2)), isTrue);
+  });
+
+  testWidgets('a tally prints its number, not its name and a little number', (
+    tester,
+  ) async {
+    // What this is for: a planeswalker wears a four. It is not +4/+4 and it
+    // is not LOYALTY with a four beside it, it is a four. The box had no
+    // tally at all, so Jace was offered a creature's counters.
+    await tester.pumpWidget(_host('loyalty', count: 4));
+    await tester.pump();
+
+    final number = tester.renderObject<RenderBox>(find.text('4')).size;
+    final word = tester.renderObject<RenderBox>(find.text('LOYALTY')).size;
+
+    expect(
+      number.height,
+      greaterThan(word.height),
+      reason: 'the count is the thing printed on a tally',
+    );
+  });
+
+  testWidgets('a tally with none on the card keeps its name', (tester) async {
+    // This is the picker, where nothing is on the card yet. A piece printed
+    // `0` says nothing about what a tap would put on.
+    await tester.pumpWidget(_host('loyalty', count: 0));
+    await tester.pump();
+
+    expect(find.text('LOYALTY'), findsOneWidget);
+    expect(find.text('0'), findsNothing);
+  });
+
+  testWidgets('a tally shouts its number far louder than a pile does', (
+    tester,
+  ) async {
+    // A `+1/+1` with three on it already drew the three a little bigger than
+    // the words, so "bigger" alone is not the difference. On a tally the
+    // number is the thing printed and the word is a label under it, which is
+    // a different ratio entirely.
+    double ratio(String kind) {
+      final number = tester.renderObject<RenderBox>(find.text('3')).size.height;
+      final word = tester
+          .renderObject<RenderBox>(find.text(kind.toUpperCase()))
+          .size
+          .height;
+      return number / word;
+    }
+
+    await tester.pumpWidget(_host('+1/+1', count: 3));
+    await tester.pump();
+    final pile = ratio('+1/+1');
+
+    await tester.pumpWidget(_host('loyalty', count: 3));
+    await tester.pump();
+    final tally = ratio('loyalty');
+
+    expect(tally, greaterThan(pile * 1.8));
   });
 }
