@@ -1,4 +1,4 @@
-# kitchentable
+![kitchentable](brand/logo-wide.png)
 
 A card table for playing with friends who are somewhere else.
 
