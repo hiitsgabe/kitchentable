@@ -258,8 +258,8 @@ void main() {
   });
 
   group('starting one', () {
-    testWidgets('confirming the settings opens a room with a code, a QR of '
-        'the link, and a way to send it', (tester) async {
+    testWidgets('confirming the settings opens a room with a QR of the link '
+        'and a way to send it', (tester) async {
       final container = _container();
       await _pump(tester, container, const StartScreen());
 
@@ -268,10 +268,11 @@ void main() {
 
       expect(find.byType(RoomScreen), findsOneWidget);
 
-      final code = _textAt(tester, 'room-code');
+      final code = container.read(roomProvider)!.code;
       expect(code, matches(roomCodePattern));
-      expect(container.read(roomProvider)!.code, code);
       expect(container.read(roomProvider)!.hosting, isTrue);
+      expect(find.byKey(const Key('room-code')), findsNothing,
+          reason: 'a room is a link; the code is noise beside it');
 
       // The link and the QR are asserted apart on purpose. They are built from
       // the same code and a QR is not readable by eye, so a room screen that
@@ -902,17 +903,19 @@ void main() {
       container.read(roomProvider.notifier).open(_config(seats: 4));
       await _pump(tester, container, const RoomScreen());
 
-      final row = tester.widget<MenuRow>(find.byKey(const Key('room-fill')));
-      final words = '${row.title} ${row.subtitle}'.toLowerCase();
+      // A line and not a row. It answers "nobody is coming", which is not
+      // what the room is for, and as a row with an icon it stood level with
+      // Start and read as an equal way to play.
+      final words = _textAt(tester, 'room-fill').toLowerCase();
 
-      // Named as what it does, which is the whole point of moving it. The old
-      // row said "More than one seat" over "collect several decks and deal
-      // them as one table", and somebody reading that had to work out that it
-      // meant they would be playing everybody.
-      expect(words, contains('chairs'));
-      expect(words, contains('this device'));
+      expect(words, contains('hands'));
       expect(words, contains('4'), reason: 'and how many it is filling');
       expect(words, isNot(contains('more than one seat')));
+      expect(
+        tester.widgetList<MenuRow>(find.byType(MenuRow)).map((r) => r.key),
+        isNot(contains(const Key('room-fill'))),
+        reason: 'it is a line now, not a row',
+      );
     });
 
     testWidgets('filling them opens a picker that takes a deck per chair',
@@ -1017,7 +1020,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(RoomScreen), findsOneWidget);
-      expect(_textAt(tester, 'room-code'), code);
       expect(container.read(roomProvider)!.code, code);
       expect(container.read(roomProvider)!.hosting, isFalse);
     });
@@ -1081,7 +1083,7 @@ void main() {
       expect(find.byType(RoomScreen), findsOneWidget);
       expect(find.byType(MenuScreen), findsNothing,
           reason: 'a link that opens the menu is a link that did not work');
-      expect(_textAt(tester, 'room-code'), code);
+      expect(container.read(roomProvider)!.code, code);
       expect(container.read(roomProvider)!.hosting, isFalse);
     });
 
@@ -1095,7 +1097,7 @@ void main() {
       await _pump(tester, container, const Entry());
 
       expect(find.byType(RoomScreen), findsOneWidget);
-      expect(_textAt(tester, 'room-code'), 'aaaa-aaa');
+      expect(container.read(roomProvider)!.code, 'aaaa-aaa');
       expect(_textAt(tester, 'room-answer').toLowerCase(),
           contains('waiting for the host'));
     });

@@ -123,12 +123,7 @@ class RoomScreen extends ConsumerWidget {
             metrics: m,
             onActivate: () => _copy(context, link),
           ),
-          _Invite(
-            metrics: m,
-            link: link,
-            code: room.code,
-            onCode: () => _copyCode(context, room.code),
-          ),
+          _Invite(metrics: m, link: link),
         ] else ...[
           _CodeLine(
             metrics: m,
@@ -245,18 +240,15 @@ class RoomScreen extends ConsumerWidget {
                 'on any one phone in the room, and try again.',
           ),
 
-        // Only for the host, whose chairs they are, and only until a real
-        // person has taken one.
+        // A line rather than a row. It answers "nobody is coming", which is
+        // not what this screen is for, and as a row with an icon it stood
+        // level with Start and read as an equal way to play.
         if (room.config case final own? when own.seats > 1 && !somebodyElse)
-          MenuRow(
-            key: const Key('room-fill'),
-            title: 'Fill the other chairs from this device',
-            subtitle:
-                'bring a deck for each chair and play all '
-                '${own.seats} hands yourself, if nobody else is coming.',
-            icon: Icons.group_add_rounded,
+          _Aside(
             metrics: m,
-            onActivate: () => Navigator.of(context).push(
+            id: 'room-fill',
+            text: 'Nobody coming? Play all ${own.seats} hands here',
+            onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => PlayDecksScreen(chairs: own.seats),
               ),
@@ -618,21 +610,17 @@ class _Fact extends StatelessWidget {
   }
 }
 
-/// The square and the code, side by side: the two ways in that do not need
-/// a chat window. Stood one above the other they pushed the host's own Start
-/// row off the bottom of the screen, which is the thing the room is for.
+/// The square, with a word about what it is for.
+///
+/// No code beside it. A room is a link: you send it, or somebody scans it,
+/// and a seven character string is a third way in that nobody uses when the
+/// first two are there. It is kept only where there is no link to send,
+/// which is a build nobody is serving.
 class _Invite extends StatelessWidget {
-  const _Invite({
-    required this.metrics,
-    required this.link,
-    required this.code,
-    required this.onCode,
-  });
+  const _Invite({required this.metrics, required this.link});
 
   final Metrics metrics;
   final String link;
-  final String code;
-  final VoidCallback onCode;
 
   @override
   Widget build(BuildContext context) {
@@ -646,32 +634,12 @@ class _Invite extends StatelessWidget {
           RoomQr(key: const Key('room-qr'), metrics: m, link: link),
           SizedBox(width: m.scaled(14)),
           Expanded(
-            child: GestureDetector(
-              onTap: onCode,
-              behavior: HitTestBehavior.opaque,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'scan it, or read out',
-                    style: TextStyle(
-                      fontSize: m.scaled(11),
-                      color: Palette.inkFaint,
-                    ),
-                  ),
-                  SizedBox(height: m.scaled(4)),
-                  Text(
-                    code,
-                    key: const Key('room-code'),
-                    style: TextStyle(
-                      fontSize: m.scaled(18),
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: m.scaled(2),
-                      color: Palette.accent,
-                    ),
-                  ),
-                ],
+            child: Text(
+              'or let somebody at the table scan this',
+              style: TextStyle(
+                fontSize: m.scaled(12),
+                height: 1.4,
+                color: Palette.inkFaint,
               ),
             ),
           ),
@@ -756,6 +724,45 @@ class RoomQr extends StatelessWidget {
           size: m.scaled(116),
           backgroundColor: Colors.white,
           semanticsLabel: 'A QR code of the link to this room',
+        ),
+      ),
+    );
+  }
+}
+
+/// A line you can press, for a way out of this screen that is not the way
+/// the screen is for.
+class _Aside extends StatelessWidget {
+  const _Aside({
+    required this.metrics,
+    required this.id,
+    required this.text,
+    required this.onTap,
+  });
+
+  final Metrics metrics;
+  final String id;
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: m.scaled(14)),
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Text(
+          text,
+          key: Key(id),
+          style: TextStyle(
+            fontSize: m.scaled(12),
+            color: Palette.inkMuted,
+            decoration: TextDecoration.underline,
+            decorationColor: Palette.inkFaint,
+          ),
         ),
       ),
     );
