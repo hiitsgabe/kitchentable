@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../decks/model/deck_format.dart';
 import '../../decks/model/game.dart';
 import '../../table/room/room.dart';
+import '../../table/room/room_names.dart';
 import '../../ui/atoms/hint_bar.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/text_field_box.dart';
@@ -29,7 +30,9 @@ class StartScreen extends ConsumerStatefulWidget {
 }
 
 class _StartScreenState extends ConsumerState<StartScreen> {
-  final _roomName = TextEditingController();
+  // Opens holding a name rather than empty: nobody is ever asked to name a
+  // room, and an empty box is the worst thing to meet on the way in.
+  final _roomName = TextEditingController(text: freshRoomName());
   final _life = TextEditingController();
 
   DeckFormat _format = DeckFormat.commander;

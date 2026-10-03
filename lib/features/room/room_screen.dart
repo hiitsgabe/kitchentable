@@ -92,23 +92,49 @@ class RoomScreen extends ConsumerWidget {
         Hint(button: 'B', label: 'leave'),
       ],
       children: [
-        _Code(metrics: m, code: room.code),
+        // Who is here. A lobby is the people in it, which is what every
+        // client the benchmark read puts first and this screen had thirteen
+        // blocks above.
+        if (lobby != null && config != null)
+          _Seats(
+            metrics: m,
+            lobby: lobby,
+            seats: config.seats,
+            // Connected, and no deck yet, so the lobby has given them no
+            // chair. They belong in the chairs card all the same: somebody
+            // who has arrived and is choosing is the thing a host is
+            // waiting on, and it used to be a line in the diagnostics.
+            arriving: reach.open
+                .where((p) => !lobby.seated.any((s) => s.peer == p))
+                .toList(),
+          ),
+
+        // The two ways of bringing somebody in that work on a phone: send
+        // the link, or let the person opposite you scan it. The code is the
+        // third, for reading out loud, and is a line rather than a
+        // billboard: it is the highest friction of the three and it had the
+        // top of the screen.
         if (link != null) ...[
-          _Link(metrics: m, link: link),
           MenuRow(
             key: const Key('room-copy'),
-            title: 'Copy the link',
-            // The front half of the link is only where the app is downloaded
-            // from; the table itself lives on this phone. Said so, because a
-            // link that starts with somebody else's domain reads as somebody
-            // else's server.
-            subtitle: 'it opens the app and brings them to your phone',
-            icon: Icons.link_rounded,
+            title: 'Send the link',
+            subtitle: 'copies it, to paste into any chat',
+            icon: Icons.ios_share_rounded,
             metrics: m,
             onActivate: () => _copy(context, link),
           ),
-          RoomQr(key: const Key('room-qr'), metrics: m, link: link),
-        ] else
+          _Invite(
+            metrics: m,
+            link: link,
+            code: room.code,
+            onCode: () => _copyCode(context, room.code),
+          ),
+        ] else ...[
+          _CodeLine(
+            metrics: m,
+            code: room.code,
+            onTap: () => _copyCode(context, room.code),
+          ),
           _Note(
             metrics: m,
             id: 'room-no-link',
@@ -118,149 +144,19 @@ class RoomScreen extends ConsumerWidget {
                 'and this one is not served anywhere. Read the code out, or '
                 'let somebody type it in.',
           ),
-        // What the connection has said, one fact per line, in the order they
-        // happen. Somebody holding a phone that will not connect is owed the
-        // step it stopped at, not a spinner.
-        _Fact(
-          metrics: m,
-          id: 'room-relay',
-          done: reach.relayAnswered,
-          failed: reach.relayUnreachable,
-          text: reach.relayUnreachable
-              ? 'Relay: none could be reached, so nobody can find this room'
-              : reach.relayAnswered
-                  ? 'Relay: accepted this room, so it can be found'
-                  : 'Relay: reaching one',
-        ),
-        // Said in the relay's own words, since they are the only ones there
-        // are: "rate-limited: you are noting too much" is what damus says
-        // after a burst, and a phone that trickled its candidates hit it.
-        if (reach.refused != null)
-          _Fact(
-            metrics: m,
-            id: 'room-refused',
-            failed: true,
-            text: 'A relay refused this phone\'s message (${reach.refused})',
-          ),
-        // Only on the WebRTC path, which is the only one STUN is part of.
-        // The relay path never asks a STUN server anything, so a line about
-        // one would be a fact about a mechanism that is not in use.
-        if (reach.stunAnswered)
-          _Fact(
-            metrics: m,
-            id: 'room-stun',
-            done: true,
-            text: 'STUN: answered, so this phone knows its own address',
-          ),
-        for (final peer in reach.open)
-          _Fact(
-            metrics: m,
-            id: 'room-peer-$peer',
-            done: true,
-            text: _peerWords(lobby, peer),
-          ),
-        // Heard but not yet connected. On the first two-phone check the host
-        // heard the phone and the link never opened, and this screen said
-        // "chair 2: empty" with no hint that anybody had been seen.
-        for (final peer in reach.seen.difference(reach.open))
-          if (!reach.failed.containsKey(peer))
-            _Fact(
-              metrics: m,
-              id: 'room-seen-$peer',
-              // With the link's last word about itself, so a screenshot of
-              // this line says where it stopped.
-              text: reach.progress[peer] == null
-                  ? 'Somebody found this room and is connecting'
-                  : 'Somebody found this room and is connecting '
-                      '(${reach.progress[peer]})',
-            ),
-        // Failed for a reason a TURN server would not fix. Said with the
-        // reason, because a failure with no line is a failure nobody can
-        // report.
-        for (final entry in reach.failed.entries)
-          if (entry.value.needsTurn != true)
-            _Fact(
-              metrics: m,
-              id: 'room-failed-${entry.key}',
-              failed: true,
-              text: 'Could not connect to ${_peerName(lobby, entry.key)}: '
-                  '${entry.value.reason}',
-            ),
-        if (reach.needsTurn case final failure?)
-          _Fact(
-            metrics: m,
-            id: 'room-turn',
-            failed: true,
-            text:
-                '${_peerName(lobby, failure.peer)} could not be reached '
-                'directly: both phones answered STUN and still could not reach '
-                'each other, which only a relay for the connection itself '
-                'fixes. Put a TURN server in Settings, under Network, on any '
-                'one phone in the room, and try again.',
-          ),
-        if (lobby != null && !lobby.hosting)
-          _Note(
-            metrics: m,
-            id: 'room-answer',
-            colour: lobby.host == null ? Palette.attention : Palette.inkMuted,
-            text: lobby.host == null
-                ? 'Nobody has answered under this code yet. If the host is '
-                    'here, their phone will answer as soon as the two connect.'
-                : '${config!.hostName} answered: ${config.format.label}, '
-                    '${config.seats} chairs, ${config.life} life.',
-          ),
-        if (lobby != null && config != null)
-          _Chairs(metrics: m, lobby: lobby, seats: config.seats),
-        // Which build this is, since a browser keeps the last one for hours
-        // and a screenshot of an old sentence reads as the new code failing.
-        _Note(
-          metrics: m,
-          id: 'room-build',
-          colour: Palette.inkMuted,
-          text: 'build $buildStamp',
-        ),
-        _Note(
-          metrics: m,
-          id: 'room-openness',
-          colour: Palette.attention,
-          // Plainly, and in the words somebody holding cards would use.
-          // "Unencrypted" is a sentence about software; this is a sentence
-          // about their hand, which is the thing they would have assumed was
-          // theirs.
-          text:
-              'Everybody in this room can see everything in it. Your hand and '
-              'your deck are sent to the other phones as they are, and what '
-              'keeps a card face down is their copy of the app choosing not to '
-              'draw it. Fine for friends at a kitchen table. Not safe against '
-              'somebody who wants to cheat, and not private.',
-        ),
-        if (lobby != null && lobby.full)
-          _Note(
-            metrics: m,
-            id: 'room-full',
-            colour: Palette.attention,
-            text: 'The room is full: ${config!.seats} chairs and every one of '
-                'them taken. You can watch once the table is dealt.',
-          ),
-        if (lobby != null && lobby.mesh != null && !lobby.hosting)
-          _Note(
-            metrics: m,
-            id: 'room-dealt',
-            colour: Palette.accent,
-            text: lobby.dealt
-                ? '${config!.hostName} dealt the table and your phone has it.'
-                : 'The host dealt the table. Waiting for it to arrive.',
-          ),
+        ],
+
+        // What you do now, said once. The deck is the thing a player has to
+        // understand here and it was the nineteenth block on the screen.
         MenuRow(
           key: const Key('room-deck'),
           title: lobby != null && lobby.seatedHere
-              ? 'Pick a different deck'
-              : 'Pick your deck and sit down',
+              ? 'Change your deck'
+              : 'Pick your deck',
           subtitle: lobby != null && lobby.seatedHere
-              ? 'you are in chair ${_chairOf(lobby)}'
-              : config == null
-                  ? 'whatever you brought'
-                  : 'for ${config.format.label}, starting on ${config.life}',
+              ? 'you are sitting in chair ${_chairOf(lobby)}'
+              : 'everybody brings their own. Yours takes a chair, and the '
+                    'game starts once every chair has one',
           icon: Icons.style_rounded,
           metrics: m,
           autofocus: true,
@@ -281,17 +177,79 @@ class RoomScreen extends ConsumerWidget {
             metrics: m,
             onActivate: () => _start(context, ref, lobby, config),
           ),
+        if (lobby != null && !lobby.hosting && lobby.host == null)
+          _Fact(
+            metrics: m,
+            id: 'room-answer',
+            text: 'Waiting for the host to answer under this code.',
+          ),
+        if (lobby != null && lobby.mesh != null && !lobby.hosting)
+          _Fact(
+            metrics: m,
+            id: 'room-dealt',
+            done: lobby.dealt,
+            text: lobby.dealt
+                ? '${config!.hostName} dealt the table.'
+                : 'The host dealt the table. Waiting for it to arrive.',
+          ),
+
+        // The connection, which is one line while it is working and several
+        // when it is not. Nobody puts a STUN line in a lobby; this says the
+        // state, and the detail only when something has gone wrong.
+        if (reach.relayUnreachable)
+          _Fact(
+            metrics: m,
+            id: 'room-relay',
+            failed: true,
+            text: 'No relay could be reached, so nobody can find this room.',
+          )
+        else if (!reach.relayAnswered)
+          _Fact(metrics: m, id: 'room-relay', text: 'Making the room findable'),
+        if (reach.refused != null)
+          _Fact(
+            metrics: m,
+            id: 'room-refused',
+            failed: true,
+            text: 'A relay refused this phone\'s message (${reach.refused})',
+          ),
+        for (final peer in reach.seen.difference(reach.open))
+          if (!reach.failed.containsKey(peer))
+            _Fact(
+              metrics: m,
+              id: 'room-seen-$peer',
+              text: reach.progress[peer] == null
+                  ? 'Somebody found this room and is connecting'
+                  : 'Somebody found this room and is connecting '
+                        '(${reach.progress[peer]})',
+            ),
+        for (final entry in reach.failed.entries)
+          if (entry.value.needsTurn != true)
+            _Fact(
+              metrics: m,
+              id: 'room-failed-${entry.key}',
+              failed: true,
+              text:
+                  'Could not connect to ${_peerName(lobby, entry.key)}: '
+                  '${entry.value.reason}',
+            ),
+        if (reach.needsTurn case final failure?)
+          _Fact(
+            metrics: m,
+            id: 'room-turn',
+            failed: true,
+            text:
+                '${_peerName(lobby, failure.peer)} could not be reached '
+                'directly: both phones answered STUN and still could not '
+                'reach each other, which only a relay for the connection '
+                'itself fixes. Put a TURN server in Settings, under Network, '
+                'on any one phone in the room, and try again.',
+          ),
+
         // Only for the host, whose chairs they are, and only until a real
-        // person has taken one: it is still true that this device can play
-        // every hand, and it stops being the only way the moment somebody
-        // arrives.
+        // person has taken one.
         if (room.config case final own? when own.seats > 1 && !somebodyElse)
           MenuRow(
             key: const Key('room-fill'),
-            // Said rather than implied. This row used to live on the deck
-            // picker as "More than one seat", over "collect several decks and
-            // deal them as one table", and a player reading that had to work
-            // out for themselves that it meant playing everybody at the table.
             title: 'Fill the other chairs from this device',
             subtitle:
                 'bring a deck for each chair and play all '
@@ -304,6 +262,23 @@ class RoomScreen extends ConsumerWidget {
               ),
             ),
           ),
+        if (lobby != null && lobby.full)
+          _Fact(
+            metrics: m,
+            id: 'room-full',
+            text:
+                'Every chair is taken. You can watch once the table is '
+                'dealt.',
+          ),
+        // One line, not five. The long version was the longest thing on the
+        // screen and said four times over what this says once.
+        _Fact(
+          metrics: m,
+          id: 'room-openness',
+          text:
+              'Everybody here can see everything, hands and decks '
+              'included. Fine for friends; not safe against cheating.',
+        ),
       ],
     );
   }
@@ -320,15 +295,6 @@ class RoomScreen extends ConsumerWidget {
       lobby?.seated.where((s) => s.peer == peer).firstOrNull?.name ??
       'somebody';
 
-  /// "ana connected", once ana has said who she is, and before that only that
-  /// somebody has.
-  static String _peerWords(Lobby? lobby, String peer) {
-    final seat = lobby?.seated.where((s) => s.peer == peer).firstOrNull;
-    return seat == null
-        ? 'Somebody connected, and has not brought a deck yet'
-        : '${seat.name} connected, with a deck';
-  }
-
   /// Chair 1 is the host's. The seated list leaves it out while the host
   /// has not sat down, so a guest's chair is its place among the guests,
   /// counted from 2, and never its index in the list.
@@ -341,6 +307,11 @@ class RoomScreen extends ConsumerWidget {
   void _copy(BuildContext context, String link) {
     Clipboard.setData(ClipboardData(text: link));
     Toast.show(context, 'Link copied', icon: Icons.check_rounded);
+  }
+
+  void _copyCode(BuildContext context, String code) {
+    Clipboard.setData(ClipboardData(text: code));
+    Toast.show(context, 'Code copied', icon: Icons.check_rounded);
   }
 
   /// Deals everybody in, on this phone, and opens the table. The lobby hands
@@ -360,9 +331,8 @@ class RoomScreen extends ConsumerWidget {
     // From here on a verb this phone runs goes through the mesh, and one a
     // guest runs comes back through it.
     play.follow(mesh);
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const PlayScreen()));
   }
 
   /// A guest sits down at the table the host dealt, and the screen opens on
@@ -374,9 +344,8 @@ class RoomScreen extends ConsumerWidget {
     if (lobby == null || lobby.hosting || mesh?.table == null) return;
 
     ref.read(playProvider.notifier).join(mesh!, decks: lobby.decks);
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const PlayScreen()));
   }
 
   /// Leaving ends the room for this device. Back from here is the menu, and on
@@ -394,38 +363,95 @@ class RoomScreen extends ConsumerWidget {
   }
 }
 
-/// The chairs, one line each, numbered the way the start button numbers them.
-class _Chairs extends StatelessWidget {
-  const _Chairs({required this.metrics, required this.lobby, required this.seats});
+/// The chairs and who is in them, which is what a lobby is for.
+///
+/// A card at the top of the screen rather than a list two thirds down it:
+/// Jackbox pops an avatar in, Among Us stands the player in the room, and
+/// the arrival is the feedback. Each chair carries a status of its own, so a
+/// host waiting on somebody can see which somebody.
+class _Seats extends StatelessWidget {
+  const _Seats({
+    required this.metrics,
+    required this.lobby,
+    required this.seats,
+    this.arriving = const [],
+  });
 
   final Metrics metrics;
   final Lobby lobby;
   final int seats;
 
+  /// Peers that are connected and have brought no deck yet, so the lobby has
+  /// seated none of them.
+  final List<String> arriving;
+
   @override
   Widget build(BuildContext context) {
     final m = metrics;
+    final taken = [for (var c = 1; c <= seats; c++) _in(c)].nonNulls.length;
 
     return Padding(
       key: const Key('room-chairs'),
       padding: EdgeInsets.only(bottom: m.scaled(14)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (var chair = 1; chair <= seats; chair++)
-            Padding(
-              padding: EdgeInsets.only(bottom: m.scaled(4)),
-              child: Text(
-                _words(chair),
-                key: Key('room-chair-$chair'),
-                style: TextStyle(
-                  fontSize: m.scaled(12),
-                  height: 1.4,
-                  color: _in(chair) == null ? Palette.inkFaint : Palette.ink,
+      child: Container(
+        padding: EdgeInsets.all(m.scaled(14)),
+        decoration: BoxDecoration(
+          color: Palette.tile,
+          borderRadius: BorderRadius.circular(m.scaled(14)),
+          border: Border.all(color: Palette.tileEdge),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'CHAIRS',
+                  style: TextStyle(
+                    fontSize: m.scaled(10),
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w500,
+                    color: Palette.inkFaint,
+                  ),
                 ),
-              ),
+                const Spacer(),
+                Text(
+                  '$taken of $seats',
+                  key: const Key('room-chairs-count'),
+                  style: TextStyle(
+                    fontSize: m.scaled(11),
+                    fontWeight: FontWeight.w600,
+                    color: taken == seats ? Palette.accent : Palette.inkMuted,
+                  ),
+                ),
+              ],
             ),
-        ],
+            SizedBox(height: m.scaled(10)),
+            for (var chair = 1; chair <= seats; chair++) ...[
+              if (chair > 1) SizedBox(height: m.scaled(8)),
+              _Chair(
+                metrics: m,
+                chair: chair,
+                name: _name(chair),
+                status: _status(chair),
+                here: _in(chair) != null,
+                mine: _in(chair)?.peer == lobby.me,
+              ),
+            ],
+            for (final peer in arriving) ...[
+              SizedBox(height: m.scaled(8)),
+              _Chair(
+                key: Key('room-peer-$peer'),
+                metrics: m,
+                chair: null,
+                name: 'Somebody',
+                status: 'connected, picking a deck',
+                here: true,
+                mine: false,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -441,20 +467,95 @@ class _Chairs extends StatelessWidget {
     return chair - 2 < guests.length ? guests[chair - 2] : null;
   }
 
+  String _name(int chair) {
+    final who = _in(chair);
+    if (who != null) return who.peer == lobby.me ? 'You' : who.name;
+    if (chair == 1) return lobby.hosting ? 'You' : 'The host';
+    return 'Empty';
+  }
+
   /// An empty chair 1 is the host not sat down yet and never somebody
   /// else's to take.
-  String _words(int chair) {
-    final who = _in(chair);
-    if (who != null) {
-      final you = who.peer == lobby.me ? ' (you)' : '';
-      return 'chair $chair: ${who.name}$you';
-    }
+  String _status(int chair) {
+    if (_in(chair) != null) return 'ready';
     if (chair == 1) {
-      return lobby.hosting
-          ? 'chair 1: yours, once you pick a deck'
-          : 'chair 1: the host, not sat down yet';
+      return lobby.hosting ? 'pick a deck to sit down' : 'not sat down yet';
     }
-    return 'chair $chair: empty';
+    return 'waiting for somebody';
+  }
+}
+
+/// One chair: its number, who is in it, and what it is waiting for.
+class _Chair extends StatelessWidget {
+  const _Chair({
+    super.key,
+    required this.metrics,
+    required this.chair,
+    required this.name,
+    required this.status,
+    required this.here,
+    required this.mine,
+  });
+
+  final Metrics metrics;
+
+  /// The chair's number, or null for somebody who has arrived and has no
+  /// chair yet.
+  final int? chair;
+
+  final String name;
+  final String status;
+  final bool here;
+  final bool mine;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+
+    return Row(
+      key: chair == null ? null : Key('room-chair-$chair'),
+      children: [
+        SizedBox(
+          width: m.scaled(18),
+          child: Text(
+            chair == null ? '' : '$chair',
+            style: TextStyle(
+              fontSize: m.scaled(12),
+              fontWeight: FontWeight.w700,
+              color: here ? Palette.inkMuted : Palette.inkFaint,
+            ),
+          ),
+        ),
+        SizedBox(width: m.scaled(6)),
+        Flexible(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: m.scaled(14),
+              fontWeight: mine ? FontWeight.w700 : FontWeight.w500,
+              color: here
+                  ? (mine ? Palette.accent : Palette.ink)
+                  : Palette.inkFaint,
+            ),
+          ),
+        ),
+        SizedBox(width: m.scaled(10)),
+        Expanded(
+          child: Text(
+            status,
+            textAlign: TextAlign.right,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: m.scaled(11),
+              color: here ? Palette.accent : Palette.inkFaint,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -480,8 +581,8 @@ class _Fact extends StatelessWidget {
     final colour = failed
         ? Palette.attention
         : done
-            ? Palette.accent
-            : Palette.inkFaint;
+        ? Palette.accent
+        : Palette.inkFaint;
 
     return Padding(
       padding: EdgeInsets.only(bottom: m.scaled(6)),
@@ -494,8 +595,8 @@ class _Fact extends StatelessWidget {
               failed
                   ? Icons.close_rounded
                   : done
-                      ? Icons.check_rounded
-                      : Icons.more_horiz_rounded,
+                  ? Icons.check_rounded
+                  : Icons.more_horiz_rounded,
               size: m.scaled(12),
               color: colour,
             ),
@@ -517,12 +618,21 @@ class _Fact extends StatelessWidget {
   }
 }
 
-/// The code, at the size of something you read across a table.
-class _Code extends StatelessWidget {
-  const _Code({required this.metrics, required this.code});
+/// The square and the code, side by side: the two ways in that do not need
+/// a chat window. Stood one above the other they pushed the host's own Start
+/// row off the bottom of the screen, which is the thing the room is for.
+class _Invite extends StatelessWidget {
+  const _Invite({
+    required this.metrics,
+    required this.link,
+    required this.code,
+    required this.onCode,
+  });
 
   final Metrics metrics;
+  final String link;
   final String code;
+  final VoidCallback onCode;
 
   @override
   Widget build(BuildContext context) {
@@ -530,81 +640,87 @@ class _Code extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.only(bottom: m.scaled(14)),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(
-          horizontal: m.scaled(16),
-          vertical: m.scaled(18),
-        ),
-        decoration: BoxDecoration(
-          color: Palette.tile,
-          borderRadius: BorderRadius.circular(m.scaled(14)),
-          border: Border.all(color: Palette.tileEdge),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'THE CODE',
-              style: TextStyle(
-                fontSize: m.scaled(10),
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w500,
-                color: Palette.inkFaint,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          RoomQr(key: const Key('room-qr'), metrics: m, link: link),
+          SizedBox(width: m.scaled(14)),
+          Expanded(
+            child: GestureDetector(
+              onTap: onCode,
+              behavior: HitTestBehavior.opaque,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'scan it, or read out',
+                    style: TextStyle(
+                      fontSize: m.scaled(11),
+                      color: Palette.inkFaint,
+                    ),
+                  ),
+                  SizedBox(height: m.scaled(4)),
+                  Text(
+                    code,
+                    key: const Key('room-code'),
+                    style: TextStyle(
+                      fontSize: m.scaled(18),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: m.scaled(2),
+                      color: Palette.accent,
+                    ),
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: m.scaled(8)),
-            Text(
-              code,
-              key: const Key('room-code'),
-              style: TextStyle(
-                fontSize: m.scaled(34),
-                fontWeight: FontWeight.w700,
-                letterSpacing: m.scaled(4),
-                color: Palette.accent,
-              ),
-            ),
-            SizedBox(height: m.scaled(4)),
-            Text(
-              // What the code is, said in the terms of the person holding the
-              // phone. It is how a friend finds this table: they type it into
-              // Join, or open the link, and their phone connects to yours.
-              'read it out, or send the link. Either one brings a friend to '
-              'this table, on your phone, from anywhere.',
-              style: TextStyle(
-                fontSize: m.scaled(11),
-                height: 1.4,
-                color: Palette.inkFaint,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _Link extends StatelessWidget {
-  const _Link({required this.metrics, required this.link});
+/// The code, as a line you can read out, where there is no link to put it
+/// beside.
+class _CodeLine extends StatelessWidget {
+  const _CodeLine({
+    required this.metrics,
+    required this.code,
+    required this.onTap,
+  });
 
   final Metrics metrics;
-  final String link;
+  final String code;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final m = metrics;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: m.scaled(10)),
-      child: SelectionArea(
-        child: Text(
-          link,
-          key: const Key('room-link'),
-          style: TextStyle(
-            fontSize: m.scaled(13),
-            height: 1.4,
-            color: Palette.ink,
-          ),
+      padding: EdgeInsets.only(bottom: m.scaled(14)),
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Row(
+          children: [
+            Text(
+              'or read out the code',
+              style: TextStyle(fontSize: m.scaled(12), color: Palette.inkFaint),
+            ),
+            SizedBox(width: m.scaled(8)),
+            Text(
+              code,
+              key: const Key('room-code'),
+              style: TextStyle(
+                fontSize: m.scaled(15),
+                fontWeight: FontWeight.w700,
+                letterSpacing: m.scaled(1.5),
+                color: Palette.accent,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -627,22 +743,19 @@ class RoomQr extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = metrics;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: m.scaled(14)),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          padding: EdgeInsets.all(m.scaled(10)),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(m.scaled(10)),
-          ),
-          child: QrImageView(
-            data: link,
-            size: m.scaled(160),
-            backgroundColor: Colors.white,
-            semanticsLabel: 'A QR code of the link to this room',
-          ),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: EdgeInsets.all(m.scaled(8)),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(m.scaled(10)),
+        ),
+        child: QrImageView(
+          data: link,
+          size: m.scaled(116),
+          backgroundColor: Colors.white,
+          semanticsLabel: 'A QR code of the link to this room',
         ),
       ),
     );

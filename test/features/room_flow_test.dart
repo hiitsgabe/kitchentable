@@ -182,6 +182,18 @@ String _label(WidgetTester tester) =>
 /// Read through the finder deliberately: `tester.widget` on an empty finder
 /// throws Bad state: No element, which is a red case that never says which
 /// assertion it was. A probe that emptied the screen read exactly like that.
+/// Every line of text inside a keyed row, joined. The chairs are a row of
+/// number, name and status rather than one string.
+String _rowAt(WidgetTester tester, String key) {
+  final finder = find.byKey(Key(key));
+  expect(finder, findsOneWidget, reason: 'no row at $key');
+  return tester
+      .widgetList<Text>(find.descendant(of: finder, matching: find.byType(Text)))
+      .map((t) => t.data ?? '')
+      .join(' ')
+      .trim();
+}
+
 String _textAt(WidgetTester tester, String key) {
   final finder = find.byKey(Key(key));
   expect(finder, findsOneWidget, reason: 'no text at $key');
@@ -246,8 +258,8 @@ void main() {
   });
 
   group('starting one', () {
-    testWidgets('confirming the settings opens a room with a code, a link '
-        'and a QR of that link', (tester) async {
+    testWidgets('confirming the settings opens a room with a code, a QR of '
+        'the link, and a way to send it', (tester) async {
       final container = _container();
       await _pump(tester, container, const StartScreen());
 
@@ -265,7 +277,7 @@ void main() {
       // the same code and a QR is not readable by eye, so a room screen that
       // put the wrong code in the link would still show a QR somebody could
       // scan, and a case that only looked at the QR would let it through.
-      expect(_textAt(tester, 'room-link'), linkFor(code, origin: _origin));
+      expect(find.byKey(const Key('room-copy')), findsOneWidget);
       expect(
         tester.widget<RoomQr>(find.byKey(const Key('room-qr'))).link,
         linkFor(code, origin: _origin),
@@ -449,7 +461,7 @@ void main() {
       await _pump(tester, container, const RoomScreen());
 
       expect(find.byKey(const Key('room-code')), findsOneWidget);
-      expect(find.byKey(const Key('room-link')), findsNothing);
+      expect(find.byKey(const Key('room-copy')), findsNothing);
       expect(find.byType(QrImageView), findsNothing);
       expect(find.byKey(const Key('room-no-link')), findsOneWidget);
     });
@@ -507,90 +519,74 @@ void main() {
       final container = _hosting(net, seats: 3);
       await _pump(tester, container, const RoomScreen());
 
-      expect(_textAt(tester, 'room-chair-1'), contains('yours'));
-      expect(_textAt(tester, 'room-chair-2'), contains('empty'));
-      expect(_textAt(tester, 'room-chair-3'), contains('empty'));
+      expect(_rowAt(tester, 'room-chair-1'), contains('pick a deck'));
+      expect(_textAt(tester, 'room-chairs-count'), '0 of 3');
+      expect(_rowAt(tester, 'room-chair-2'), contains('Empty'));
+      expect(_rowAt(tester, 'room-chair-3'), contains('Empty'));
       expect(_label(tester), contains('3 of 3 chairs empty'));
 
       final ana = _friend(net, 'ana');
       await _settle(tester, net);
       // Connected is not seated: a chair is a person with a deck.
-      expect(_textAt(tester, 'room-chair-2'), contains('empty'));
+      expect(_rowAt(tester, 'room-chair-2'), contains('Empty'));
 
       ana.bring(deck: _deck('anas'), name: 'ana');
       await _settle(tester, net);
 
-      expect(_textAt(tester, 'room-chair-2'), 'chair 2: ana');
-      expect(_textAt(tester, 'room-chair-3'), contains('empty'));
+      expect(_rowAt(tester, 'room-chair-2'), contains('ana'));
+      expect(_rowAt(tester, 'room-chair-2'), contains('ready'));
+      expect(_textAt(tester, 'room-chairs-count'), '1 of 3');
+      expect(_rowAt(tester, 'room-chair-3'), contains('Empty'));
       expect(_label(tester), contains('2 of 3 chairs empty'));
 
       net.drop('ana');
       await _settle(tester, net);
-      expect(_textAt(tester, 'room-chair-2'), contains('empty'),
+      expect(_rowAt(tester, 'room-chair-2'), contains('Empty'),
           reason: 'a friend who leaves gives the chair back');
     });
 
-    testWidgets('the connection is stated as facts, one line each',
-        (tester) async {
+    testWidgets('the connection is one line while it works, and says more '
+        'only when it does not', (tester) async {
       final net = FakeNetwork();
       final container = _hosting(net);
       await _pump(tester, container, const RoomScreen());
 
-      // Nothing has happened yet, so every line says it is waiting and no
-      // friend has a line at all.
-      expect(_textAt(tester, 'room-relay').toLowerCase(), contains('reaching'));
-      expect(_textAt(tester, 'room-build'), 'build $buildStamp');
-      // The STUN line belongs to the WebRTC path and shows only once a STUN
-      // server has answered; before that, and on the relay path, it is absent.
+      // Reaching it is worth a line; nobody puts a STUN line in a lobby.
+      expect(_textAt(tester, 'room-relay').toLowerCase(), contains('findable'));
       expect(find.byKey(const Key('room-stun')), findsNothing);
       expect(find.byKey(const Key('room-peer-ana')), findsNothing);
 
       final reach = container.read(reachProvider.notifier);
       reach.note(const RendezvousStep(SignalingStatus(SignalingStep.announced)));
-      reach.note(const LinkStep(LinkStatus(LinkStage.reflexive, peer: 'ana')));
       await tester.pump();
 
-      expect(_textAt(tester, 'room-relay').toLowerCase(), contains('accepted'));
-      expect(_textAt(tester, 'room-stun').toLowerCase(), contains('answered'));
+      // A relay that took the room is not news, so the line goes away.
+      expect(find.byKey(const Key('room-relay')), findsNothing);
 
+      // Somebody connected, with no deck yet: a chair-less row in the chairs
+      // card, which is where a host looks for who has arrived.
       reach.note(const LinkStep(LinkStatus(LinkStage.opened, peer: 'ana')));
       await tester.pump();
-      expect(_textAt(tester, 'room-peer-ana').toLowerCase(),
-          contains('connected'));
-      expect(_textAt(tester, 'room-peer-ana'), isNot(contains('ana')),
+      expect(_rowAt(tester, 'room-peer-ana').toLowerCase(),
+          contains('picking a deck'));
+      expect(_rowAt(tester, 'room-peer-ana'), isNot(contains('ana')),
           reason: 'the name is not known until the deck arrives');
 
+      // Once the deck lands they have a chair, and the chair-less row goes.
       _friend(net, 'ana').bring(deck: _deck('anas'), name: 'ana');
       await _settle(tester, net);
-      expect(_textAt(tester, 'room-peer-ana'), startsWith('ana '));
-
-      reach.note(const LinkStep(LinkStatus(LinkStage.closed, peer: 'ana')));
-      await tester.pump();
       expect(find.byKey(const Key('room-peer-ana')), findsNothing);
+      expect(_rowAt(tester, 'room-chair-2'), contains('ana'));
+
+      // A relay that cannot be reached at all is news again.
+      reach.note(const RendezvousStep(
+        SignalingStatus(SignalingStep.relayUnreachable),
+      ));
+      await tester.pump();
+      expect(_textAt(tester, 'room-relay').toLowerCase(),
+          contains('no relay could be reached'));
     });
 
-    testWidgets("a relay's refusal shows in its own words until the next "
-        'message it takes', (tester) async {
-      final net = FakeNetwork();
-      final container = _hosting(net);
-      await _pump(tester, container, const RoomScreen());
-      final reach = container.read(reachProvider.notifier);
-
-      expect(find.byKey(const Key('room-refused')), findsNothing);
-      reach.note(const RendezvousStep(SignalingStatus(
-        SignalingStep.refused,
-        reason: 'ice: rate-limited: you are noting too much',
-      )));
-      await tester.pump();
-      expect(
-        _textAt(tester, 'room-refused'),
-        contains('rate-limited: you are noting too much'),
-      );
-
-      reach.note(const RendezvousStep(SignalingStatus(SignalingStep.announced)));
-      await tester.pump();
-      expect(find.byKey(const Key('room-refused')), findsNothing);
-    });
     testWidgets('a peer that was heard shows before it connects, and a failure '
         'shows its reason', (tester) async {
       final net = FakeNetwork();
@@ -625,6 +621,8 @@ void main() {
       await tester.pump();
       expect(find.byKey(const Key('room-seen-ana')), findsNothing);
       expect(find.byKey(const Key('room-peer-ana')), findsOneWidget);
+      expect(_rowAt(tester, 'room-peer-ana').toLowerCase(),
+          contains('picking a deck'));
 
       // A failure that a TURN server would not fix used to be invisible: no
       // turn line, no peer line, nothing. Now it says why.
@@ -787,15 +785,16 @@ void main() {
       await _pump(tester, container, const RoomScreen());
 
       expect(_textAt(tester, 'room-answer').toLowerCase(),
-          contains('nobody has answered'));
+          contains('waiting for the host'));
       expect(find.byKey(const Key('room-chairs')), findsNothing,
           reason: 'a guest cannot count chairs it has not been told about');
       expect(find.byKey(const Key('room-start')), findsNothing);
 
       await _settle(tester, net);
-      expect(_textAt(tester, 'room-answer'), contains('kit answered'));
-      expect(_textAt(tester, 'room-chair-1'), contains('host'));
-      expect(_textAt(tester, 'room-chair-2'), contains('empty'));
+      expect(find.byKey(const Key('room-answer')), findsNothing,
+          reason: 'the host answered, so there is nothing to wait for');
+      expect(_rowAt(tester, 'room-chair-1'), contains('host'));
+      expect(_rowAt(tester, 'room-chair-2'), contains('Empty'));
       expect(find.byKey(const Key('room-fill')), findsNothing,
           reason: 'the other chairs are other people\'s');
 
@@ -804,12 +803,12 @@ void main() {
       await tester.tap(find.byKey(const Key('deck-row-0')));
       await tester.pumpAndSettle();
       await _settle(tester, net);
-      expect(_textAt(tester, 'room-chair-2'), 'chair 2: $namelessPlayer (you)');
+      expect(_rowAt(tester, 'room-chair-2'), contains('You'));
       expect(host.seated.map((s) => s.name), [namelessPlayer]);
 
       host.sit(deck: _deck('hosts'), name: 'kit');
       await _settle(tester, net);
-      expect(_textAt(tester, 'room-chair-1'), 'chair 1: kit');
+      expect(_rowAt(tester, 'room-chair-1'), contains('kit'));
       expect(find.byKey(const Key('room-dealt')), findsNothing);
       expect(find.byType(PlayScreen), findsNothing);
 
@@ -1098,7 +1097,7 @@ void main() {
       expect(find.byType(RoomScreen), findsOneWidget);
       expect(_textAt(tester, 'room-code'), 'aaaa-aaa');
       expect(_textAt(tester, 'room-answer').toLowerCase(),
-          contains('nobody has answered'));
+          contains('waiting for the host'));
     });
 
     testWidgets('and an ordinary launch still opens the menu', (tester) async {

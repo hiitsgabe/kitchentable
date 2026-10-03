@@ -15,3 +15,6 @@ String? launchOrigin() => null;
 int? launchDemoSeats() => null;
 
 String? launchDemoView() => null;
+
+/// No address bar, no demo.
+int? launchDemoRoomSeats() => null;
