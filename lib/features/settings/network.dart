@@ -59,4 +59,6 @@ class TurnSetting extends Notifier<TurnServer?> {
   }
 }
 
-final turnProvider = NotifierProvider<TurnSetting, TurnServer?>(TurnSetting.new);
+final turnProvider = NotifierProvider<TurnSetting, TurnServer?>(
+  TurnSetting.new,
+);

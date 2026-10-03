@@ -229,31 +229,31 @@ class _HandSheetState extends State<HandSheet> {
   /// The bar that puts it down again. A hand you cannot put down is worse than
   /// one that never moved.
   Widget _handle(Metrics m) => GestureDetector(
-        key: const Key('hand-handle'),
-        onTap: _toggle,
-        behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          height: m.scaled(_handleHeight),
-          child: Icon(
-            Icons.keyboard_arrow_down_rounded,
-            size: m.scaled(20),
-            color: Palette.inkMuted,
-          ),
-        ),
-      );
+    key: const Key('hand-handle'),
+    onTap: _toggle,
+    behavior: HitTestBehavior.opaque,
+    child: SizedBox(
+      height: m.scaled(_handleHeight),
+      child: Icon(
+        Icons.keyboard_arrow_down_rounded,
+        size: m.scaled(20),
+        color: Palette.inkMuted,
+      ),
+    ),
+  );
 
   Widget _hand(Metrics m, double emptyHeight) =>
       widget.cards.isEmpty ? _nothingInHand(m, emptyHeight) : _cards(m);
 
   Widget _nothingInHand(Metrics m, double height) => SizedBox(
-        height: height,
-        child: Center(
-          child: Text(
-            'No cards in hand',
-            style: TextStyle(fontSize: m.scaled(12), color: Palette.inkFaint),
-          ),
-        ),
-      );
+    height: height,
+    child: Center(
+      child: Text(
+        'No cards in hand',
+        style: TextStyle(fontSize: m.scaled(12), color: Palette.inkFaint),
+      ),
+    ),
+  );
 
   Widget _cards(Metrics m) {
     final gap = m.scaled(6);
@@ -347,8 +347,7 @@ class _HandSheetState extends State<HandSheet> {
     final onLine = left < perLine ? left : perLine;
     final widest = perLine < cards.length ? perLine : cards.length;
     final indent = (widest - onLine) * pitch / 2;
-    final column =
-        ((at.dx - indent) / pitch).floor().clamp(0, onLine - 1);
+    final column = ((at.dx - indent) / pitch).floor().clamp(0, onLine - 1);
 
     final to = line * perLine + column;
     if (to == from) return;

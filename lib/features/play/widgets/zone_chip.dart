@@ -139,10 +139,7 @@ class ZoneChip extends ConsumerWidget {
 
     return thrownAt == null
         ? tappable
-        : CardDropTarget(
-            onDrop: (card, _) => thrownAt(card),
-            child: tappable,
-          );
+        : CardDropTarget(onDrop: (card, _) => thrownAt(card), child: tappable);
   }
 
   /// The word and the number, along the bottom edge.
@@ -153,35 +150,32 @@ class ZoneChip extends ConsumerWidget {
   /// the thing it names used to set the width of the column the chip stands in,
   /// and that column's width comes out of the board.
   Widget _caption(Metrics m) => Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: m.scaled(4),
-          vertical: m.scaled(2),
-        ),
-        color: Palette.tile.withValues(alpha: 0.86),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                style: TextStyle(
-                  fontSize: m.scaled(10),
-                  color: Palette.inkFaint,
-                ),
-              ),
-              SizedBox(width: m.scaled(6)),
-              Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: m.scaled(11),
-                  fontWeight: FontWeight.w700,
-                  color: Palette.ink,
-                ),
-              ),
-            ],
+    padding: EdgeInsets.symmetric(
+      horizontal: m.scaled(4),
+      vertical: m.scaled(2),
+    ),
+    color: Palette.tile.withValues(alpha: 0.86),
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            style: TextStyle(fontSize: m.scaled(10), color: Palette.inkFaint),
           ),
-        ),
-      );
+          SizedBox(width: m.scaled(6)),
+          Text(
+            '$count',
+            style: TextStyle(
+              fontSize: m.scaled(11),
+              fontWeight: FontWeight.w700,
+              color: Palette.ink,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }

@@ -4,13 +4,7 @@ import 'deck.dart';
 
 /// The five, in the order they sit on a Magic card's colour pie, which is the
 /// order every player already has in their head.
-const basicLandNames = [
-  'Plains',
-  'Island',
-  'Swamp',
-  'Mountain',
-  'Forest',
-];
+const basicLandNames = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
 
 /// The colours a deck is actually in, read off the cards already in it.
 ///
@@ -21,9 +15,7 @@ Set<String> colourIdentityOf(Deck deck) {
   final commander = deck.commanders.firstOrNull;
   if (commander != null) return commander.card.colorIdentity.toSet();
 
-  return {
-    for (final slot in deck.slots) ...slot.card.colorIdentity,
-  };
+  return {for (final slot in deck.slots) ...slot.card.colorIdentity};
 }
 
 const _landForColour = {
@@ -60,10 +52,7 @@ Map<String, int> evenLandSplit(Deck deck) {
   final each = missing ~/ names.length;
   var spare = missing % names.length;
 
-  return {
-    for (final name in names)
-      name: each + (spare-- > 0 ? 1 : 0),
-  };
+  return {for (final name in names) name: each + (spare-- > 0 ? 1 : 0)};
 }
 
 Future<Map<String, CatalogCard>> loadBasicLands(CatalogDb db) =>

@@ -439,7 +439,9 @@ class _CardViewerState extends State<CardViewer>
           // object, and twenty two of them is a wall of chrome.
           color: on ? context.palette.tileFocused : Colors.transparent,
           borderRadius: BorderRadius.circular(m.scaled(9)),
-          border: Border.all(color: on ? context.palette.accent : Colors.transparent),
+          border: Border.all(
+            color: on ? context.palette.accent : Colors.transparent,
+          ),
         ),
         child: CounterPieceView(
           piece: piece,

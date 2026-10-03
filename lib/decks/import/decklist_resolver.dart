@@ -43,11 +43,13 @@ Future<ResolvedDecklist> resolveDecklist(
       notFound.add(entry.name);
       continue;
     }
-    slots.add(DeckSlot(
-      card: card,
-      quantity: entry.quantity,
-      sideboard: entry.sideboard,
-    ));
+    slots.add(
+      DeckSlot(
+        card: card,
+        quantity: entry.quantity,
+        sideboard: entry.sideboard,
+      ),
+    );
   }
 
   return ResolvedDecklist(

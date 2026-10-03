@@ -60,8 +60,7 @@ class SheetHeading extends StatelessWidget {
               aside,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style:
-                  TextStyle(fontSize: m.scaled(12), color: Palette.inkFaint),
+              style: TextStyle(fontSize: m.scaled(12), color: Palette.inkFaint),
             ),
           ),
         ],
@@ -213,8 +212,7 @@ class CardRow extends StatelessWidget {
                           onTap: () => onChoose(to),
                         ),
                       ),
-                      if (to != destinations.last)
-                        SizedBox(width: m.scaled(6)),
+                      if (to != destinations.last) SizedBox(width: m.scaled(6)),
                     ],
                   ],
                 ),

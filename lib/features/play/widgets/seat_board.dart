@@ -54,7 +54,9 @@ class SeatBoard extends StatelessWidget {
         color: mine ? context.palette.tileFocused : Palette.tile,
         borderRadius: BorderRadius.circular(m.scaled(12)),
         border: Border.all(
-          color: mine ? context.palette.accent.withValues(alpha: 0.7) : Palette.tileEdge,
+          color: mine
+              ? context.palette.accent.withValues(alpha: 0.7)
+              : Palette.tileEdge,
           width: mine ? m.scaled(1.5) : 1,
         ),
       ),
@@ -65,47 +67,50 @@ class SeatBoard extends StatelessWidget {
           GestureDetector(
             onTap: onTapBadge,
             behavior: HitTestBehavior.opaque,
-            child: LayoutBuilder(builder: (context, badge) => Row(
-              children: [
-                // The name takes the row and gives way last: what else is
-                // here is a count and a number, and a name cut to one letter
-                // beside a whole "hand 3" is the wrong thing kept.
-                Expanded(
-                  child: Text(
-                    label,
-                    key: Key('badge-$seatId'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: m.scaled(12),
-                      fontWeight: FontWeight.w700,
-                      color: mine ? context.palette.accent : Palette.ink,
+            child: LayoutBuilder(
+              builder: (context, badge) => Row(
+                children: [
+                  // The name takes the row and gives way last: what else is
+                  // here is a count and a number, and a name cut to one letter
+                  // beside a whole "hand 3" is the wrong thing kept.
+                  Expanded(
+                    child: Text(
+                      label,
+                      key: Key('badge-$seatId'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: m.scaled(12),
+                        fontWeight: FontWeight.w700,
+                        color: mine ? context.palette.accent : Palette.ink,
+                      ),
                     ),
                   ),
-                ),
-                // The count gives way to the name in a narrow cell; the rail
-                // carries it anyway.
-                if (hand case final n? when badge.maxWidth >= m.scaled(180)) ...[
+                  // The count gives way to the name in a narrow cell; the rail
+                  // carries it anyway.
+                  if (hand case final n?
+                      when badge.maxWidth >= m.scaled(180)) ...[
+                    SizedBox(width: m.scaled(8)),
+                    Text(
+                      'hand $n',
+                      style: TextStyle(
+                        fontSize: m.scaled(10),
+                        color: Palette.inkFaint,
+                      ),
+                    ),
+                  ],
                   SizedBox(width: m.scaled(8)),
                   Text(
-                    'hand $n',
+                    '$life',
                     style: TextStyle(
-                      fontSize: m.scaled(10),
-                      color: Palette.inkFaint,
+                      fontSize: m.scaled(16),
+                      fontWeight: FontWeight.w800,
+                      color: life <= 0 ? Palette.attention : Palette.ink,
                     ),
                   ),
                 ],
-                SizedBox(width: m.scaled(8)),
-                Text(
-                  '$life',
-                  style: TextStyle(
-                    fontSize: m.scaled(16),
-                    fontWeight: FontWeight.w800,
-                    color: life <= 0 ? Palette.attention : Palette.ink,
-                  ),
-                ),
-              ],
-            )),
+              ),
+            ),
           ),
           SizedBox(height: m.scaled(4)),
           Expanded(

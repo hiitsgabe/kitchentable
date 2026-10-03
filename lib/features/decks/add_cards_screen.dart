@@ -116,21 +116,13 @@ class _CardRow extends ConsumerWidget {
         // exactly like the app having missed the tap.
         onTap: () {
           if (blocked) {
-            Toast.show(
-              context,
-              complaint!.message,
-              icon: Icons.block_rounded,
-            );
+            Toast.show(context, complaint!.message, icon: Icons.block_rounded);
             return;
           }
           ref
               .read(deckEditorProvider.notifier)
               .add(DeckSlot(card: card, quantity: 1));
-          Toast.show(
-            context,
-            'Added ${card.name}',
-            icon: Icons.check_rounded,
-          );
+          Toast.show(context, 'Added ${card.name}', icon: Icons.check_rounded);
         },
         behavior: HitTestBehavior.opaque,
         child: Padding(

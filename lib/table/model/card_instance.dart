@@ -50,8 +50,7 @@ class CardInstance {
   CardInstance turned() => copyWith(rotation: rotation == 0 ? 90 : 0);
 
   /// An exact angle, for the big view. Quarter turns, and it does not toggle.
-  CardInstance turnedTo(int degrees) =>
-      copyWith(rotation: degrees % 360);
+  CardInstance turnedTo(int degrees) => copyWith(rotation: degrees % 360);
 
   CardInstance flipped() => copyWith(faceDown: !faceDown);
 
@@ -74,20 +73,18 @@ class CardInstance {
     bool clearAttachment = false,
     ({double x, double y})? position,
     bool clearPosition = false,
-  }) =>
-      CardInstance(
-        id: id,
-        oracleId: oracleId,
-        rotation: rotation ?? this.rotation,
-        faceDown: faceDown ?? this.faceDown,
-        counters: counters ?? this.counters,
-        attachedTo: clearAttachment ? null : (attachedTo ?? this.attachedTo),
-        position: clearPosition ? null : (position ?? this.position),
-      );
+  }) => CardInstance(
+    id: id,
+    oracleId: oracleId,
+    rotation: rotation ?? this.rotation,
+    faceDown: faceDown ?? this.faceDown,
+    counters: counters ?? this.counters,
+    attachedTo: clearAttachment ? null : (attachedTo ?? this.attachedTo),
+    position: clearPosition ? null : (position ?? this.position),
+  );
 
   @override
-  bool operator ==(Object other) =>
-      other is CardInstance && other.id == id;
+  bool operator ==(Object other) => other is CardInstance && other.id == id;
 
   @override
   int get hashCode => id.hashCode;

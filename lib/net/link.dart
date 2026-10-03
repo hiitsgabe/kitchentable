@@ -108,10 +108,10 @@ class TurnServer {
   final String credential;
 
   Map<String, String> toJson() => {
-        'url': url,
-        'username': username,
-        'credential': credential,
-      };
+    'url': url,
+    'username': username,
+    'credential': credential,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -155,12 +155,7 @@ enum LinkStage {
 
 @immutable
 class LinkStatus {
-  const LinkStatus(
-    this.stage, {
-    required this.peer,
-    this.failure,
-    this.detail,
-  });
+  const LinkStatus(this.stage, {required this.peer, this.failure, this.detail});
 
   final LinkStage stage;
   final String peer;

@@ -61,10 +61,12 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final decks = ref.watch(decksProvider);
 
     return ScreenFrame(
@@ -72,8 +74,9 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
       title: _filling ? 'The other chairs' : 'Play',
       label: switch (decks) {
         AsyncData(:final value) when value.isEmpty => 'no decks to play with',
-        AsyncData() when _filling => 'one deck for each of the '
-            '${widget.chairs} chairs',
+        AsyncData() when _filling =>
+          'one deck for each of the '
+              '${widget.chairs} chairs',
         AsyncData() => 'pick one and it deals',
         AsyncError() => 'could not read your decks',
         _ => 'reading',
@@ -82,34 +85,34 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
       children: [
         ...switch (decks) {
           AsyncData(:final value) => [
-              if (value.isNotEmpty && _filling)
-                MenuRow(
-                  key: const Key('deal'),
-                  title: 'Deal',
-                  // Dimmed rather than missing, like every other dead row, and
-                  // the subtitle says who is at the table so far.
-                  subtitle: _picked.isEmpty
-                      ? 'nobody at the table yet'
-                      : _picked.map((d) => d.name).join(', '),
-                  icon: Icons.play_arrow_rounded,
-                  enabled: _picked.isNotEmpty,
-                  metrics: m,
-                  onActivate: () => _dealPod(_picked),
-                ),
-              for (final (i, deck) in value.indexed)
-                MenuRow(
-                  key: Key('deck-row-$i'),
-                  title: deck.name,
-                  subtitle: _describe(deck),
-                  icon: _iconFor(deck.game),
-                  // A deck with no cards deals nothing, so it is here and
-                  // dimmed rather than missing, like every other dead row.
-                  enabled: deck.cardCount > 0,
-                  metrics: m,
-                  autofocus: i == 0,
-                  onActivate: () => _filling ? _pick(deck) : _deal(deck),
-                ),
-            ],
+            if (value.isNotEmpty && _filling)
+              MenuRow(
+                key: const Key('deal'),
+                title: 'Deal',
+                // Dimmed rather than missing, like every other dead row, and
+                // the subtitle says who is at the table so far.
+                subtitle: _picked.isEmpty
+                    ? 'nobody at the table yet'
+                    : _picked.map((d) => d.name).join(', '),
+                icon: Icons.play_arrow_rounded,
+                enabled: _picked.isNotEmpty,
+                metrics: m,
+                onActivate: () => _dealPod(_picked),
+              ),
+            for (final (i, deck) in value.indexed)
+              MenuRow(
+                key: Key('deck-row-$i'),
+                title: deck.name,
+                subtitle: _describe(deck),
+                icon: _iconFor(deck.game),
+                // A deck with no cards deals nothing, so it is here and
+                // dimmed rather than missing, like every other dead row.
+                enabled: deck.cardCount > 0,
+                metrics: m,
+                autofocus: i == 0,
+                onActivate: () => _filling ? _pick(deck) : _deal(deck),
+              ),
+          ],
           _ => const <Widget>[],
         },
       ],
@@ -121,17 +124,17 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
       : '${deck.format.label} · ${deck.cardCount} cards';
 
   static IconData _iconFor(Game game) => switch (game) {
-        Game.magic => Icons.auto_awesome_rounded,
-        Game.pokemon => Icons.catching_pokemon_rounded,
-      };
+    Game.magic => Icons.auto_awesome_rounded,
+    Game.pokemon => Icons.catching_pokemon_rounded,
+  };
 
   /// Collects a deck for one of the chairs, and refuses once they are all
   /// taken: the room already said how many there are, and a table with more
   /// chairs than the room describes is the same lie the other way round.
   void _pick(Deck deck) => setState(() {
-        if (_picked.length >= widget.chairs!) return;
-        _picked.add(deck);
-      });
+    if (_picked.length >= widget.chairs!) return;
+    _picked.add(deck);
+  });
 
   /// Loads the deck's cards. The list is deliberately read without them, so
   /// dealing straight from a row would sit down at an empty table.
@@ -158,8 +161,11 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
       full = await repo.load(deck.id);
     } catch (e) {
       if (mounted) {
-        Toast.show(context, 'Could not read that deck: $e',
-            icon: Icons.block_rounded);
+        Toast.show(
+          context,
+          'Could not read that deck: $e',
+          icon: Icons.block_rounded,
+        );
       }
       return null;
     }
@@ -167,13 +173,19 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
     if (!mounted) return null;
 
     if (full == null) {
-      Toast.show(context, 'That deck is no longer there',
-          icon: Icons.block_rounded);
+      Toast.show(
+        context,
+        'That deck is no longer there',
+        icon: Icons.block_rounded,
+      );
       return null;
     }
     if (full.slots.isEmpty) {
-      Toast.show(context, 'That deck has no cards in it yet',
-          icon: Icons.block_rounded);
+      Toast.show(
+        context,
+        'That deck has no cards in it yet',
+        icon: Icons.block_rounded,
+      );
       return null;
     }
     return full;
@@ -203,11 +215,9 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
       return;
     }
 
-    ref.read(playProvider.notifier).start(
-          full,
-          seed: freshSeed(),
-          life: _roomLife,
-        );
+    ref
+        .read(playProvider.notifier)
+        .start(full, seed: freshSeed(), life: _roomLife);
     await _open();
   }
 
@@ -224,11 +234,9 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
       ));
     }
 
-    ref.read(playProvider.notifier).startPod(
-          players: full,
-          seed: freshSeed(),
-          life: _roomLife,
-        );
+    ref
+        .read(playProvider.notifier)
+        .startPod(players: full, seed: freshSeed(), life: _roomLife);
     await _open();
   }
 
@@ -237,13 +245,15 @@ class _PlayDecksScreenState extends ConsumerState<PlayDecksScreen> {
   /// way.
   Future<void> _open() async {
     if (ref.read(playProvider) == null) {
-      Toast.show(context, 'The table would not come up',
-          icon: Icons.block_rounded);
+      Toast.show(
+        context,
+        'The table would not come up',
+        icon: Icons.block_rounded,
+      );
       return;
     }
 
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
-    );
+    await Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const PlayScreen()));
   }
 }

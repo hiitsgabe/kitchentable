@@ -23,10 +23,10 @@ class PaintSwirl extends StatefulWidget {
 
   static Future<ui.FragmentProgram?>? _loading;
 
-  static Future<ui.FragmentProgram?> _program() => _loading ??= ui
-      .FragmentProgram.fromAsset('shaders/paint_swirl.frag')
-      .then<ui.FragmentProgram?>((p) => p)
-      .catchError((Object _) => null);
+  static Future<ui.FragmentProgram?> _program() =>
+      _loading ??= ui.FragmentProgram.fromAsset('shaders/paint_swirl.frag')
+          .then<ui.FragmentProgram?>((p) => p)
+          .catchError((Object _) => null);
 
   @override
   State<PaintSwirl> createState() => _PaintSwirlState();

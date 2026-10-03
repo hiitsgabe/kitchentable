@@ -31,17 +31,17 @@ class Backdrop extends StatelessWidget {
   }
 
   Widget _paint() => switch (style.kind) {
-        // The drift is the fallback on purpose: it is the one that needs no
-        // shader, so a platform without them still has a moving backdrop.
-        BackdropKind.paint => PaintSwirl(
-          style: style,
-          fallback: _Drift(style: style),
-        ),
-        BackdropKind.aurora => _Aurora(style: style),
-        BackdropKind.drift => _Drift(style: style),
-        BackdropKind.flat => _Flat(style: style),
-        BackdropKind.image => _Picture(style: style),
-      };
+    // The drift is the fallback on purpose: it is the one that needs no
+    // shader, so a platform without them still has a moving backdrop.
+    BackdropKind.paint => PaintSwirl(
+      style: style,
+      fallback: _Drift(style: style),
+    ),
+    BackdropKind.aurora => _Aurora(style: style),
+    BackdropKind.drift => _Drift(style: style),
+    BackdropKind.flat => _Flat(style: style),
+    BackdropKind.image => _Picture(style: style),
+  };
 }
 
 class _Flat extends StatelessWidget {
@@ -51,17 +51,14 @@ class _Flat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color.lerp(style.bottom, style.top, 0.14)!,
-              style.bottom,
-            ],
-          ),
-        ),
-      );
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color.lerp(style.bottom, style.top, 0.14)!, style.bottom],
+      ),
+    ),
+  );
 }
 
 /// The fluid one, and the only part of the app that leans on a fragment shader.
@@ -114,11 +111,11 @@ class _DriftState extends State<_Drift> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _clock,
-        builder: (_, _) => CustomPaint(
-          painter: _DriftPainter(style: widget.style, t: _clock.value),
-        ),
-      );
+    animation: _clock,
+    builder: (_, _) => CustomPaint(
+      painter: _DriftPainter(style: widget.style, t: _clock.value),
+    ),
+  );
 }
 
 class _DriftPainter extends CustomPainter {

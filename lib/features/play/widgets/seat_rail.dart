@@ -5,7 +5,13 @@ import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 
 /// One seat on the rail: who, and how much life.
-typedef RailSeat = ({String seatId, String label, int life, int hand, bool mine});
+typedef RailSeat = ({
+  String seatId,
+  String label,
+  int life,
+  int hand,
+  bool mine,
+});
 
 /// One thin row for the whole table: a chip per player with their label and
 /// life, in table order, yours marked.
@@ -67,8 +73,9 @@ class SeatRail extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: m.scaled(11),
-                        fontWeight:
-                            seat.mine ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: seat.mine
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                         color: Palette.ink,
                       ),
                     ),

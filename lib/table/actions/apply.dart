@@ -11,31 +11,31 @@ import 'table_action.dart';
 /// error. At a real table you do not get an exception for reaching for a card
 /// that somebody already moved, you just find it gone.
 TableState apply(TableState table, TableAction action) => switch (action) {
-      MoveCard() => _move(table, action),
-      RotateCard() => _onCard(
-          table,
-          action.cardId,
-          (c) => action.to == null ? c.turned() : c.turnedTo(action.to!),
-        ),
-      FlipCard() => _onCard(table, action.cardId, (c) => c.flipped()),
-      ChangeCounter() => _onCard(
-          table,
-          action.cardId,
-          (c) => c.withCounter(action.kind, action.by),
-        ),
-      AttachCard() => _onCard(
-          table,
-          action.cardId,
-          (c) => action.toCardId == null
-              ? c.copyWith(clearAttachment: true)
-              : c.copyWith(attachedTo: action.toCardId),
-        ),
-      ShuffleZone() => _shuffle(table, action),
-      DrawCards() => _draw(table, action),
-      CreateToken() => _token(table, action),
-      ChangeLife() => table.withLife(action.seatId, action.by),
-      RollDice() => table.copyWith(dice: action.results),
-    };
+  MoveCard() => _move(table, action),
+  RotateCard() => _onCard(
+    table,
+    action.cardId,
+    (c) => action.to == null ? c.turned() : c.turnedTo(action.to!),
+  ),
+  FlipCard() => _onCard(table, action.cardId, (c) => c.flipped()),
+  ChangeCounter() => _onCard(
+    table,
+    action.cardId,
+    (c) => c.withCounter(action.kind, action.by),
+  ),
+  AttachCard() => _onCard(
+    table,
+    action.cardId,
+    (c) => action.toCardId == null
+        ? c.copyWith(clearAttachment: true)
+        : c.copyWith(attachedTo: action.toCardId),
+  ),
+  ShuffleZone() => _shuffle(table, action),
+  DrawCards() => _draw(table, action),
+  CreateToken() => _token(table, action),
+  ChangeLife() => table.withLife(action.seatId, action.by),
+  RollDice() => table.copyWith(dice: action.results),
+};
 
 TableState _onCard(
   TableState table,

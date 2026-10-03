@@ -61,9 +61,7 @@ class RotateCard extends TableAction {
 
   @override
   bool operator ==(Object other) =>
-      other is RotateCard &&
-      other.cardId == cardId &&
-      other.to == to;
+      other is RotateCard && other.cardId == cardId && other.to == to;
 
   @override
   int get hashCode => Object.hash(cardId, to);
@@ -74,9 +72,7 @@ class FlipCard extends TableAction {
   final String cardId;
 
   @override
-  bool operator ==(Object other) =>
-      other is FlipCard &&
-      other.cardId == cardId;
+  bool operator ==(Object other) => other is FlipCard && other.cardId == cardId;
 
   @override
   int get hashCode => cardId.hashCode;
@@ -132,9 +128,7 @@ class ShuffleZone extends TableAction {
 
   @override
   bool operator ==(Object other) =>
-      other is ShuffleZone &&
-      other.zoneId == zoneId &&
-      other.seed == seed;
+      other is ShuffleZone && other.zoneId == zoneId && other.seed == seed;
 
   @override
   int get hashCode => Object.hash(zoneId, seed);
@@ -195,9 +189,7 @@ class ChangeLife extends TableAction {
 
   @override
   bool operator ==(Object other) =>
-      other is ChangeLife &&
-      other.seatId == seatId &&
-      other.by == by;
+      other is ChangeLife && other.seatId == seatId && other.by == by;
 
   @override
   int get hashCode => Object.hash(seatId, by);
@@ -212,8 +204,7 @@ class RollDice extends TableAction {
 
   @override
   bool operator ==(Object other) =>
-      other is RollDice &&
-      listEquals(other.results, results);
+      other is RollDice && listEquals(other.results, results);
 
   @override
   int get hashCode => Object.hashAll(results);

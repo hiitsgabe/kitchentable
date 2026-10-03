@@ -30,8 +30,9 @@ class PlayRefusal extends Notifier<Refusal?> {
   void say(Refusal? refusal) => state = refusal;
 }
 
-final playRefusalProvider =
-    NotifierProvider<PlayRefusal, Refusal?>(PlayRefusal.new);
+final playRefusalProvider = NotifierProvider<PlayRefusal, Refusal?>(
+  PlayRefusal.new,
+);
 
 /// Which seat this device is looking out of.
 ///
@@ -65,8 +66,9 @@ class ViewerSeat extends Notifier<String?> {
 /// [SeatOwner.here] and the key is never compared.
 String? _meOf(Ref ref) => ref.read(transportProvider)?.me;
 
-final viewerSeatProvider =
-    NotifierProvider<ViewerSeat, String?>(ViewerSeat.new);
+final viewerSeatProvider = NotifierProvider<ViewerSeat, String?>(
+  ViewerSeat.new,
+);
 
 class PlayController extends Notifier<TableState?> {
   /// The table when it is on this device alone: solo, or the pod on one
@@ -130,10 +132,10 @@ class PlayController extends Notifier<TableState?> {
   TableState? get _table => _mesh?.table ?? _session?.state;
 
   void start(Deck deck, {String? seed, int? life}) => startPod(
-        players: [(deck: deck, name: 'you', owner: const SeatOwner.here())],
-        seed: seed,
-        life: life,
-      );
+    players: [(deck: deck, name: 'you', owner: const SeatOwner.here())],
+    seed: seed,
+    life: life,
+  );
 
   /// Everybody at this device. Solo comes through here too: one player is a
   /// pod of one, and a separate path for it is how the one seat case drifts
@@ -168,8 +170,10 @@ class PlayController extends Notifier<TableState?> {
     // point: a table that has just been opened is already seven cards down.
     _deckSizes = {
       for (var i = 0; i < table.seats.length; i++)
-        table.seats[i].id:
-            players[i].deck.main.fold(0, (n, s) => n + s.quantity),
+        table.seats[i].id: players[i].deck.main.fold(
+          0,
+          (n, s) => n + s.quantity,
+        ),
     };
     _commanders = _commandersOf(table);
     _session = TableSession(table);
@@ -233,11 +237,11 @@ class PlayController extends Notifier<TableState?> {
   /// the command zone by any other road is counted the same way. Empty in a
   /// format without commanders: magicZonesFor makes no such zone.
   static Map<String, Set<String>> _commandersOf(TableState table) => {
-        for (final seat in table.seats)
-          seat.id: (table.zone('command-${seat.id}')?.cards ?? [])
-              .map((c) => c.id)
-              .toSet(),
-      };
+    for (final seat in table.seats)
+      seat.id: (table.zone('command-${seat.id}')?.cards ?? [])
+          .map((c) => c.id)
+          .toSet(),
+  };
 
   /// Looks out of the first seat this device may act for, or none.
   void _sitAt(TableState table) {
@@ -285,10 +289,14 @@ class PlayController extends Notifier<TableState?> {
       // this phone's history and the table is on every phone: whose undo
       // travels, and how far, is a decision nobody has made yet, and until
       // somebody does the honest thing is to say no out loud.
-      ref.read(playRefusalProvider.notifier).say(const Refusal(
-            'Undo stays on this phone and the table is on every phone, so it '
-            'is off while other people are at it.',
-          ));
+      ref
+          .read(playRefusalProvider.notifier)
+          .say(
+            const Refusal(
+              'Undo stays on this phone and the table is on every phone, so it '
+              'is off while other people are at it.',
+            ),
+          );
       return;
     }
     final session = _session;
@@ -327,5 +335,6 @@ class PlayController extends Notifier<TableState?> {
   Refusal? get lastRefusal => ref.read(playRefusalProvider);
 }
 
-final playProvider =
-    NotifierProvider<PlayController, TableState?>(PlayController.new);
+final playProvider = NotifierProvider<PlayController, TableState?>(
+  PlayController.new,
+);

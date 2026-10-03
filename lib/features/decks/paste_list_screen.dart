@@ -59,10 +59,12 @@ class _PasteListScreenState extends ConsumerState<PasteListScreen> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final preview = _preview;
 
     return ScreenFrame(
@@ -71,8 +73,8 @@ class _PasteListScreenState extends ConsumerState<PasteListScreen> {
       label: _working
           ? 'looking them up'
           : preview == null
-              ? 'one card per line'
-              : '${preview.resolvedCount} cards found',
+          ? 'one card per line'
+          : '${preview.resolvedCount} cards found',
       onBack: () => Navigator.of(context).maybePop(),
       children: [
         TextFieldBox(

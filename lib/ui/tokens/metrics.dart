@@ -37,11 +37,10 @@ class Metrics {
   static const _handheld = Metrics(scale: 1, safeInset: 16, focusRing: 2);
   static const _tv = Metrics(scale: 1.6, safeInset: 48, focusRing: 3);
 
-  static Metrics of(DeviceClass deviceClass) =>
-      switch (deviceClass) {
-        DeviceClass.handheld => _handheld,
-        DeviceClass.tv => _tv,
-      };
+  static Metrics of(DeviceClass deviceClass) => switch (deviceClass) {
+    DeviceClass.handheld => _handheld,
+    DeviceClass.tv => _tv,
+  };
 
   double scaled(double base) => base * scale;
 

@@ -17,12 +17,12 @@ class DeckRepository {
     // Newest first, and the id breaks the tie. Two decks saved inside the same
     // millisecond carry the same timestamp, and without a tie break their order
     // is whatever sqlite felt like, which changes between runs.
-    final rows = await (db.select(db.decks)
-          ..orderBy([
-            (d) => OrderingTerm.desc(d.updatedAt),
-            (d) => OrderingTerm.desc(d.id),
-          ]))
-        .get();
+    final rows =
+        await (db.select(db.decks)..orderBy([
+              (d) => OrderingTerm.desc(d.updatedAt),
+              (d) => OrderingTerm.desc(d.id),
+            ]))
+            .get();
 
     // Deliberately without slots. The list screen shows a name, a format and a
     // count, and loading every card of every deck to draw that would be silly.
@@ -30,14 +30,16 @@ class DeckRepository {
     final counts = await _cardCounts();
 
     return rows
-        .map((r) => Deck(
-              id: r.id,
-              name: r.name,
-              format: _formatFrom(r.format),
-              game: _gameFrom(r.game),
-              slots: const [],
-              knownCardCount: counts[r.id] ?? 0,
-            ))
+        .map(
+          (r) => Deck(
+            id: r.id,
+            name: r.name,
+            format: _formatFrom(r.format),
+            game: _gameFrom(r.game),
+            slots: const [],
+            knownCardCount: counts[r.id] ?? 0,
+          ),
+        )
         .toList();
   }
 
@@ -58,12 +60,14 @@ class DeckRepository {
   }
 
   Future<Deck?> load(String id) async {
-    final row = await (db.select(db.decks)..where((d) => d.id.equals(id)))
-        .getSingleOrNull();
+    final row = await (db.select(
+      db.decks,
+    )..where((d) => d.id.equals(id))).getSingleOrNull();
     if (row == null) return null;
 
-    final entries =
-        await (db.select(db.deckCards)..where((c) => c.deckId.equals(id))).get();
+    final entries = await (db.select(
+      db.deckCards,
+    )..where((c) => c.deckId.equals(id))).get();
     final cards = await db.cardsByOracleIds(
       entries.map((e) => e.oracleId).toList(),
     );
@@ -77,12 +81,14 @@ class DeckRepository {
       // without saying so, but there is nowhere to say it from here, so the
       // deck screen counts what it has and the number speaks.
       if (card == null) continue;
-      slots.add(DeckSlot(
-        card: card,
-        quantity: entry.quantity,
-        sideboard: entry.sideboard,
-        commander: entry.commander,
-      ));
+      slots.add(
+        DeckSlot(
+          card: card,
+          quantity: entry.quantity,
+          sideboard: entry.sideboard,
+          commander: entry.commander,
+        ),
+      );
     }
 
     return Deck(
@@ -96,7 +102,9 @@ class DeckRepository {
 
   Future<void> save(Deck deck) async {
     await db.transaction(() async {
-      await db.into(db.decks).insertOnConflictUpdate(
+      await db
+          .into(db.decks)
+          .insertOnConflictUpdate(
             DecksCompanion.insert(
               id: deck.id,
               name: deck.name,
@@ -106,8 +114,9 @@ class DeckRepository {
             ),
           );
 
-      await (db.delete(db.deckCards)..where((c) => c.deckId.equals(deck.id)))
-          .go();
+      await (db.delete(
+        db.deckCards,
+      )..where((c) => c.deckId.equals(deck.id))).go();
 
       await db.batch((b) {
         b.insertAll(
@@ -133,13 +142,11 @@ class DeckRepository {
     });
   }
 
-  static Game _gameFrom(String stored) => Game.values.firstWhere(
-        (g) => g.name == stored,
-        orElse: () => Game.magic,
-      );
+  static Game _gameFrom(String stored) =>
+      Game.values.firstWhere((g) => g.name == stored, orElse: () => Game.magic);
 
   static DeckFormat _formatFrom(String stored) => DeckFormat.values.firstWhere(
-        (f) => f.name == stored,
-        orElse: () => DeckFormat.commander,
-      );
+    (f) => f.name == stored,
+    orElse: () => DeckFormat.commander,
+  );
 }

@@ -12,9 +12,9 @@ import 'polyhedron.dart';
 /// not count: it would paint as a line of pixels that flickers as the die
 /// rolls, and a real die shows nothing there.
 List<int> visibleFaces(Polyhedron die, Quaternion turn) => [
-      for (var i = 0; i < die.faces.length; i++)
-        if (turn.rotated(die.normalOf(die.faces[i])).z > 0) i,
-    ];
+  for (var i = 0; i < die.faces.length; i++)
+    if (turn.rotated(die.normalOf(die.faces[i])).z > 0) i,
+];
 
 /// Where the number on [face] sits, measured out from the middle of a die
 /// drawn [size] across.
@@ -60,18 +60,18 @@ class DieView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: size,
-        height: size,
-        child: CustomPaint(
-          painter: _Solid(
-            accent: context.palette.accent,
-            die: die,
-            showing: showing,
-            turn: turn,
-            size: size,
-          ),
-        ),
-      );
+    width: size,
+    height: size,
+    child: CustomPaint(
+      painter: _Solid(
+        accent: context.palette.accent,
+        die: die,
+        showing: showing,
+        turn: turn,
+        size: size,
+      ),
+    ),
+  );
 }
 
 class _Solid extends CustomPainter {

@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../atoms/slab.dart';
+import '../atoms/tray.dart';
 import '../tokens/app_palette.dart';
+import '../tokens/lettering.dart';
 import '../tokens/metrics.dart';
 import '../tokens/palette.dart';
 
-/// Every screen in this app is the same shape: a wordmark or a title, a small
-/// uppercase line under it saying what is true right now, and a list.
+/// Every screen in this app is the same shape: a title, a small line of
+/// capitals under it saying what is true right now, and a tray with the
+/// screen in it.
+///
+/// The tray is the change. Everything used to float directly on the backdrop,
+/// which is the reason thin text had to fight the paint behind it; now the
+/// paint stops at a border and the screen stands on something solid. See
+/// docs/benchmarks/2026-10-03-balatro-ui.md.
+///
+/// Back moved to the bottom and became a slab the width of the tray. It is
+/// where the reference puts it, and it is also the only thing on the screen
+/// that is not one of the screen's own choices, so it has no business being
+/// the first thing above them.
 ///
 /// No footer. It carried a row naming the D-pad buttons on every screen, on
 /// devices that have no D-pad: a phone and a desktop both drew "move" and "A
 /// open" along the bottom of every menu in the app.
-///
-/// It lives in one place because the first version did not, and three screens
-/// each grew their own Column with their own padding and their own idea of
-/// where the bottom was.
 class ScreenFrame extends StatelessWidget {
   const ScreenFrame({
     super.key,
@@ -32,7 +42,7 @@ class ScreenFrame extends StatelessWidget {
   /// a plain screen title.
   final String title;
 
-  /// The small uppercase line. It says what is true at this moment, not what
+  /// The small line of capitals. It says what is true at this moment, not what
   /// the screen is called.
   final String label;
 
@@ -41,9 +51,9 @@ class ScreenFrame extends StatelessWidget {
 
   final bool wordmark;
 
-  /// Drawn as a back affordance when given, and bound to Escape and the gamepad
-  /// B button. A browser window and a television remote have neither a back
-  /// gesture nor a system back button.
+  /// Drawn as a slab along the bottom when given, and bound to Escape and the
+  /// gamepad B button. A browser window and a television remote have neither a
+  /// back gesture nor a system back button.
   final VoidCallback? onBack;
 
   @override
@@ -60,39 +70,62 @@ class ScreenFrame extends StatelessWidget {
                 child: Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: m.safeInset,
-                    vertical: m.scaled(24),
+                    vertical: m.scaled(20),
                   ),
-                  // Header pinned to the top, hint bar pinned to the bottom,
-                  // and only the list between them moves. This oscillated
-                  // twice: full width with a floating footer, then a hugging
-                  // column with the header stranded mid screen. The complaint
-                  // both times was the width, never the height.
+                  // Header pinned to the top, Back pinned to the bottom, and
+                  // only the tray between them grows. This oscillated twice:
+                  // full width with a floating footer, then a hugging column
+                  // with the header stranded mid screen. The complaint both
+                  // times was the width, never the height.
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      if (onBack != null) ...[
-                        _BackRow(metrics: m, onBack: onBack!),
-                        SizedBox(height: m.scaled(16)),
-                      ],
                       _Heading(metrics: m, title: title, wordmark: wordmark),
-                      SizedBox(height: m.scaled(6)),
-                      Text(
-                        label.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: m.scaled(10),
-                          height: 1.4,
-                          letterSpacing: 1.3,
-                          fontWeight: FontWeight.w500,
-                          color: Palette.inkFaint,
+                      SizedBox(height: m.scaled(7)),
+                      TrayLabel(
+                        metrics: m,
+                        text: label,
+                        align: TextAlign.center,
+                      ),
+                      SizedBox(height: m.scaled(16)),
+                      // Flexible with a shrink-wrapping list, not Expanded: a
+                      // tray has to end where its contents end. Stretched to
+                      // the viewport it left four rows floating in half a
+                      // screen of empty slate, which is the one thing the
+                      // reference never does.
+                      Flexible(
+                        child: Tray(
+                          metrics: m,
+                          padding: EdgeInsets.fromLTRB(
+                            m.scaled(14),
+                            m.scaled(14),
+                            m.scaled(14),
+                            m.scaled(4),
+                          ),
+                          child: ListView(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            children: children,
+                          ),
                         ),
                       ),
-                      SizedBox(height: m.scaled(26)),
-                      Expanded(
-                        child: ListView(
-                          padding: EdgeInsets.zero,
-                          children: children,
+                      if (onBack != null) ...[
+                        SizedBox(height: m.scaled(12)),
+                        Slab(
+                          metrics: m,
+                          tone: SlabTone.warm,
+                          onActivate: onBack!,
+                          semanticLabel: 'Back',
+                          padding: EdgeInsets.symmetric(
+                            horizontal: m.scaled(14),
+                            vertical: m.scaled(14),
+                          ),
+                          child: Center(
+                            child: Text('Back', style: slabText(m.scaled(15))),
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -152,11 +185,12 @@ class _Heading extends StatelessWidget {
     if (!wordmark) {
       return Text(
         title,
-        style: TextStyle(
-          fontSize: m.scaled(24),
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.4,
+        textAlign: TextAlign.center,
+        style: pixel(
+          size: m.scaled(26),
+          weight: 700,
           color: Palette.ink,
+          outlined: true,
         ),
       );
     }
@@ -167,89 +201,18 @@ class _Heading extends StatelessWidget {
       TextSpan(
         children: [
           const TextSpan(text: 'kitchen'),
-          TextSpan(text: 'table', style: TextStyle(color: context.palette.accent)),
+          TextSpan(
+            text: 'table',
+            style: TextStyle(color: context.palette.accent),
+          ),
         ],
       ),
-      style: TextStyle(
-        fontSize: m.scaled(28),
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.9,
+      textAlign: TextAlign.center,
+      style: pixel(
+        size: m.scaled(34),
+        weight: 700,
         color: Palette.ink,
-      ),
-    );
-  }
-}
-
-class _BackRow extends StatefulWidget {
-  const _BackRow({required this.metrics, required this.onBack});
-
-  final Metrics metrics;
-  final VoidCallback onBack;
-
-  @override
-  State<_BackRow> createState() => _BackRowState();
-}
-
-class _BackRowState extends State<_BackRow> {
-  bool _focused = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = widget.metrics;
-
-    // The first version was an unpadded Row of a 16 point icon and 12 point
-    // text: twenty three points tall, measured, and unable to take focus at
-    // all. It missed often enough to read as broken.
-    return FocusableActionDetector(
-      onFocusChange: (v) => setState(() => _focused = v),
-      actions: <Type, Action<Intent>>{
-        ActivateIntent: CallbackAction<ActivateIntent>(
-          onInvoke: (_) {
-            widget.onBack();
-            return null;
-          },
-        ),
-      },
-      child: Semantics(
-        button: true,
-        label: 'Back',
-        child: GestureDetector(
-          onTap: widget.onBack,
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            constraints: BoxConstraints(minHeight: m.scaled(44)),
-            padding: EdgeInsets.symmetric(
-              horizontal: m.scaled(12),
-              vertical: m.scaled(10),
-            ),
-            decoration: BoxDecoration(
-              color: _focused ? context.palette.focusWash : Colors.transparent,
-              borderRadius: BorderRadius.circular(m.scaled(10)),
-              border: Border.all(
-                color: _focused ? context.palette.accent : Colors.transparent,
-                width: m.focusRing,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.arrow_back_rounded,
-                  size: m.scaled(18),
-                  color: _focused ? context.palette.accent : Palette.inkMuted,
-                ),
-                SizedBox(width: m.scaled(8)),
-                Text(
-                  'Back',
-                  style: TextStyle(
-                    fontSize: m.scaled(13),
-                    color: _focused ? Palette.ink : Palette.inkMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        outlined: true,
       ),
     );
   }

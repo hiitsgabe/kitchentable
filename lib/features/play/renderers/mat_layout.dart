@@ -43,12 +43,9 @@ final matScaleFloor = 72 / cardOnMat.width;
 /// the smaller of anything and infinity is the anything, so a box that scrolls
 /// is scaled by its width alone, which is what scrolling is for.
 double matScaleFor(Size box) => math.max(
-      matScaleFloor,
-      math.min(
-        box.width / matSize.width,
-        box.height / matSize.height,
-      ),
-    );
+  matScaleFloor,
+  math.min(box.width / matSize.width, box.height / matSize.height),
+);
 
 /// The smallest a card on a board is drawn, in points.
 ///
@@ -150,9 +147,7 @@ List<int> seatOrder({required int count, required int? viewerAt}) {
   if (viewerAt == null || viewerAt < 0 || viewerAt >= count) {
     return [for (var i = 0; i < count; i++) i];
   }
-  return [
-    for (var i = 1; i <= count; i++) (viewerAt + i) % count,
-  ];
+  return [for (var i = 1; i <= count; i++) (viewerAt + i) % count];
 }
 
 /// How big the whole surface is, so the viewer knows what it is panning over.

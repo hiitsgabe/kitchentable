@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
+import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import 'room_controller.dart';
@@ -27,8 +28,9 @@ class JoinScreen extends ConsumerStatefulWidget {
 }
 
 class _JoinScreenState extends ConsumerState<JoinScreen> {
-  late final TextEditingController _typed =
-      TextEditingController(text: widget.code ?? '');
+  late final TextEditingController _typed = TextEditingController(
+    text: widget.code ?? '',
+  );
 
   @override
   void dispose() {
@@ -39,10 +41,12 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final ready = looksLikeRoom(_typed.text);
 
     return ScreenFrame(
@@ -63,8 +67,9 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
         SizedBox(height: m.scaled(10)),
         Text(
           'Upper case, lower case and the whole link around it are all fine.',
-          style: TextStyle(
-            fontSize: m.scaled(11),
+          style: pixel(
+            size: m.scaled(11),
+            weight: 500,
             height: 1.4,
             color: Palette.inkFaint,
           ),

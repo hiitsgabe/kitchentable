@@ -24,9 +24,7 @@ class BackdropController extends Notifier<BackdropStyle> {
     final raw = prefs.getString(_key);
     if (raw == null) return;
     try {
-      state = BackdropStyle.fromJson(
-        jsonDecode(raw) as Map<String, Object?>,
-      );
+      state = BackdropStyle.fromJson(jsonDecode(raw) as Map<String, Object?>);
     } catch (_) {
       // A preference that will not parse is a preference from an older build.
       // Falling back to the default beats refusing to start.
@@ -40,5 +38,6 @@ class BackdropController extends Notifier<BackdropStyle> {
   }
 }
 
-final backdropProvider =
-    NotifierProvider<BackdropController, BackdropStyle>(BackdropController.new);
+final backdropProvider = NotifierProvider<BackdropController, BackdropStyle>(
+  BackdropController.new,
+);

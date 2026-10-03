@@ -32,7 +32,8 @@ class SplitView extends StatelessWidget {
     final gap = metrics.scaled(8);
     final mine = seats.where((s) => s.seatId == mineId).firstOrNull;
     final others = seats.where((s) => s.seatId != mineId).toList();
-    final other = others.where((s) => s.seatId == watchedSeatId).firstOrNull ??
+    final other =
+        others.where((s) => s.seatId == watchedSeatId).firstOrNull ??
         others.firstOrNull;
     if (mine == null) return other == null ? const SizedBox() : board(other);
     if (other == null) return board(mine);
@@ -41,13 +42,29 @@ class SplitView extends StatelessWidget {
       builder: (context, box) {
         final wide = box.maxWidth > box.maxHeight;
         final cells = [
-          Expanded(child: KeyedSubtree(key: const Key('split-other'), child: board(other))),
+          Expanded(
+            child: KeyedSubtree(
+              key: const Key('split-other'),
+              child: board(other),
+            ),
+          ),
           wide ? SizedBox(width: gap) : SizedBox(height: gap),
-          Expanded(child: KeyedSubtree(key: const Key('split-mine'), child: board(mine))),
+          Expanded(
+            child: KeyedSubtree(
+              key: const Key('split-mine'),
+              child: board(mine),
+            ),
+          ),
         ];
         return wide
-            ? Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: cells)
-            : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: cells);
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: cells,
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: cells,
+              );
       },
     );
   }

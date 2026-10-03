@@ -51,16 +51,16 @@ List<TableAction> arrange({
         // inserts into is shorter again than the one that was counted. A card
         // arriving from a graveyard was never in the library, so the pile is
         // one longer when it lands and the bottom is one further down.
-        moves.add(MoveCard(
-          cardId: placement.cardId,
-          toZoneId: libraryId,
-          at: librarySize - gone - (fromLibrary ? 1 : 0),
-        ));
+        moves.add(
+          MoveCard(
+            cardId: placement.cardId,
+            toZoneId: libraryId,
+            at: librarySize - gone - (fromLibrary ? 1 : 0),
+          ),
+        );
       case Landing.graveyard:
         if (graveyardId != null) {
-          moves.add(
-            MoveCard(cardId: placement.cardId, toZoneId: graveyardId),
-          );
+          moves.add(MoveCard(cardId: placement.cardId, toZoneId: graveyardId));
           gone++;
         }
       case Landing.hand:
@@ -75,9 +75,7 @@ List<TableAction> arrange({
 
   for (final placement in placements.reversed) {
     if (placement.to != Landing.top) continue;
-    moves.add(
-      MoveCard(cardId: placement.cardId, toZoneId: libraryId, at: 0),
-    );
+    moves.add(MoveCard(cardId: placement.cardId, toZoneId: libraryId, at: 0));
   }
 
   return moves;

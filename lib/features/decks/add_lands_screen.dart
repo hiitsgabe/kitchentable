@@ -48,10 +48,12 @@ class _AddLandsScreenState extends ConsumerState<AddLandsScreen> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final deck = ref.watch(deckEditorProvider);
     final editor = ref.read(deckEditorProvider.notifier);
 
@@ -140,17 +142,17 @@ class _Label extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: metrics.scaled(10)),
-        child: Text(
-          text.toUpperCase(),
-          style: TextStyle(
-            fontSize: metrics.scaled(10),
-            letterSpacing: 1.3,
-            fontWeight: FontWeight.w500,
-            color: Palette.inkFaint,
-          ),
-        ),
-      );
+    padding: EdgeInsets.only(bottom: metrics.scaled(10)),
+    child: Text(
+      text.toUpperCase(),
+      style: TextStyle(
+        fontSize: metrics.scaled(10),
+        letterSpacing: 1.3,
+        fontWeight: FontWeight.w500,
+        color: Palette.inkFaint,
+      ),
+    ),
+  );
 }
 
 class _LandRow extends ConsumerWidget {

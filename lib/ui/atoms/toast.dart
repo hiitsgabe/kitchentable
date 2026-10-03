@@ -17,10 +17,12 @@ class Toast {
     if (overlay == null) return;
 
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
 
     // One at a time. Tapping five cards quickly should leave one line saying
     // the last thing, not five stacked on top of each other.
@@ -79,9 +81,7 @@ class _ToastState extends State<_Toast> with SingleTickerProviderStateMixin {
             position: Tween(
               begin: const Offset(0, -0.4),
               end: Offset.zero,
-            ).animate(
-              CurvedAnimation(parent: _in, curve: Curves.easeOutCubic),
-            ),
+            ).animate(CurvedAnimation(parent: _in, curve: Curves.easeOutCubic)),
             child: Center(
               child: Container(
                 padding: EdgeInsets.symmetric(

@@ -18,11 +18,11 @@ class DeckSlot {
   final bool commander;
 
   DeckSlot withQuantity(int q) => DeckSlot(
-        card: card,
-        quantity: q,
-        sideboard: sideboard,
-        commander: commander,
-      );
+    card: card,
+    quantity: q,
+    sideboard: sideboard,
+    commander: commander,
+  );
 }
 
 class Deck {
@@ -75,13 +75,13 @@ class Deck {
   int get cardCount => slots.isNotEmpty ? mainCount : (knownCardCount ?? 0);
 
   Deck copyWith({String? name, List<DeckSlot>? slots}) => Deck(
-        id: id,
-        name: name ?? this.name,
-        format: format,
-        game: game,
-        slots: slots ?? this.slots,
-        knownCardCount: knownCardCount,
-      );
+    id: id,
+    name: name ?? this.name,
+    format: format,
+    game: game,
+    slots: slots ?? this.slots,
+    knownCardCount: knownCardCount,
+  );
 }
 
 /// Why a card cannot go in, in words a player can act on.
@@ -116,10 +116,7 @@ DeckComplaint? complainAbout(
 
   final key = deck.format.legalityKey;
   if (key != null && !card.isLegalIn(key)) {
-    return DeckComplaint(
-      'Not legal in ${deck.format.label}',
-      blocking: false,
-    );
+    return DeckComplaint('Not legal in ${deck.format.label}', blocking: false);
   }
 
   return null;

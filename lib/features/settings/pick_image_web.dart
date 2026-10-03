@@ -24,10 +24,9 @@ const _quality = 0.75;
 /// a name, and the handle dies with the tab. The bytes are what survives a
 /// reload.
 Future<String?> pickImage() {
-  final input =
-      web.document.createElement('input') as web.HTMLInputElement
-        ..type = 'file'
-        ..accept = 'image/*';
+  final input = web.document.createElement('input') as web.HTMLInputElement
+    ..type = 'file'
+    ..accept = 'image/*';
   final chosen = Completer<String?>();
 
   input.onchange = (web.Event _) {
@@ -82,12 +81,17 @@ Future<String?> _shrink(String dataUrl) {
     final longest = wide > tall ? wide : tall;
     final scale = longest > _longestSide ? _longestSide / longest : 1.0;
 
-    final canvas =
-        web.document.createElement('canvas') as web.HTMLCanvasElement
-          ..width = (wide * scale).round()
-          ..height = (tall * scale).round();
+    final canvas = web.document.createElement('canvas') as web.HTMLCanvasElement
+      ..width = (wide * scale).round()
+      ..height = (tall * scale).round();
     final paper = canvas.getContext('2d') as web.CanvasRenderingContext2D;
-    paper.drawImage(image, 0, 0, canvas.width.toDouble(), canvas.height.toDouble());
+    paper.drawImage(
+      image,
+      0,
+      0,
+      canvas.width.toDouble(),
+      canvas.height.toDouble(),
+    );
 
     final out = canvas.toDataURL('image/jpeg', _quality.toJS);
     final comma = out.indexOf(',');

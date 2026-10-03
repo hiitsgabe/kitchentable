@@ -26,15 +26,18 @@ class Seat {
   /// Who is holding this chair. Empty until somebody sits.
   final SeatOwner owner;
 
-  Zone? zone(String zoneId) =>
-      zones.where((z) => z.id == zoneId).firstOrNull;
+  Zone? zone(String zoneId) => zones.where((z) => z.id == zoneId).firstOrNull;
 
-  Seat copyWith({String? name, int? life, List<Zone>? zones, SeatOwner? owner}) =>
-      Seat(
-        id: id,
-        name: name ?? this.name,
-        life: life ?? this.life,
-        zones: zones ?? this.zones,
-        owner: owner ?? this.owner,
-      );
+  Seat copyWith({
+    String? name,
+    int? life,
+    List<Zone>? zones,
+    SeatOwner? owner,
+  }) => Seat(
+    id: id,
+    name: name ?? this.name,
+    life: life ?? this.life,
+    zones: zones ?? this.zones,
+    owner: owner ?? this.owner,
+  );
 }

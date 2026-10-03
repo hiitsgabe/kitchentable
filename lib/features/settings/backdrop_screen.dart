@@ -7,7 +7,7 @@ import '../../ui/atoms/menu_row.dart';
 import '../../ui/background/backdrop_controller.dart';
 import '../../ui/background/backdrop_style.dart';
 import '../../ui/organisms/screen_frame.dart';
-import '../../ui/tokens/app_palette.dart';
+import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import 'pick_image.dart';
@@ -29,18 +29,20 @@ class _BackdropScreenState extends ConsumerState<BackdropScreen> {
     if (!mounted) return;
     setState(() => _picking = false);
     if (data == null) return;
-    await ref.read(backdropProvider.notifier).set(
-          style.copyWith(kind: BackdropKind.image, imageData: data),
-        );
+    await ref
+        .read(backdropProvider.notifier)
+        .set(style.copyWith(kind: BackdropKind.image, imageData: data));
   }
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final style = ref.watch(backdropProvider);
     final controller = ref.read(backdropProvider.notifier);
 
@@ -98,8 +100,9 @@ class _BackdropScreenState extends ConsumerState<BackdropScreen> {
               child: Text(
                 'Choosing a picture is only in the web version for now. This '
                 'build has no chooser, so the colours below are what it draws.',
-                style: TextStyle(
-                  fontSize: m.scaled(11),
+                style: pixel(
+                  size: m.scaled(11),
+                  weight: 500,
                   height: 1.45,
                   color: Palette.inkFaint,
                 ),
@@ -112,14 +115,16 @@ class _BackdropScreenState extends ConsumerState<BackdropScreen> {
               subtitle: 'back to the colours below',
               icon: Icons.delete_outline_rounded,
               metrics: m,
-              onActivate: () => controller.set(style.copyWith(clearImage: true)),
+              onActivate: () =>
+                  controller.set(style.copyWith(clearImage: true)),
             ),
           SizedBox(height: m.scaled(10)),
         ],
         _Label(metrics: m, text: 'colour'),
         _Said(
           metrics: m,
-          text: 'It is the background, and everything the app draws to point '
+          text:
+              'It is the background, and everything the app draws to point '
               'at something: borders, the focus ring, your own board, the '
               'buttons you press.',
         ),
@@ -145,12 +150,12 @@ class _BackdropScreenState extends ConsumerState<BackdropScreen> {
   }
 
   IconData _iconFor(BackdropKind k) => switch (k) {
-        BackdropKind.paint => Icons.brush_rounded,
-        BackdropKind.aurora => Icons.blur_on_rounded,
-        BackdropKind.drift => Icons.bubble_chart_rounded,
-        BackdropKind.flat => Icons.gradient_rounded,
-        BackdropKind.image => Icons.image_rounded,
-      };
+    BackdropKind.paint => Icons.brush_rounded,
+    BackdropKind.aurora => Icons.blur_on_rounded,
+    BackdropKind.drift => Icons.bubble_chart_rounded,
+    BackdropKind.flat => Icons.gradient_rounded,
+    BackdropKind.image => Icons.image_rounded,
+  };
 }
 
 class _Label extends StatelessWidget {
@@ -161,17 +166,18 @@ class _Label extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: metrics.scaled(10)),
-        child: Text(
-          text.toUpperCase(),
-          style: TextStyle(
-            fontSize: metrics.scaled(10),
-            letterSpacing: 1.3,
-            fontWeight: FontWeight.w500,
-            color: Palette.inkFaint,
-          ),
-        ),
-      );
+    padding: EdgeInsets.only(bottom: metrics.scaled(10)),
+    child: Text(
+      text.toUpperCase(),
+      style: pixel(
+        size: metrics.scaled(10),
+        weight: 500,
+        letterSpacing: 1.3,
+
+        color: Palette.inkFaint,
+      ),
+    ),
+  );
 }
 
 /// A line under a heading, saying what the group changes.
@@ -183,16 +189,17 @@ class _Said extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: metrics.scaled(12)),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: metrics.scaled(11),
-            height: 1.45,
-            color: Palette.inkFaint,
-          ),
-        ),
-      );
+    padding: EdgeInsets.only(bottom: metrics.scaled(12)),
+    child: Text(
+      text,
+      style: pixel(
+        size: metrics.scaled(11),
+        weight: 500,
+        height: 1.45,
+        color: Palette.inkFaint,
+      ),
+    ),
+  );
 }
 
 class _Swatch extends StatelessWidget {
@@ -232,8 +239,8 @@ class _Swatch extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(m.scaled(10)),
                 border: Border.all(
-                  color: chosen ? context.palette.accent : Palette.tileEdge,
-                  width: chosen ? m.focusRing : 1,
+                  color: chosen ? Palette.slabInk : Palette.outline,
+                  width: m.scaled(2),
                 ),
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
@@ -248,8 +255,9 @@ class _Swatch extends StatelessWidget {
               child: Text(
                 name,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: m.scaled(10),
+                style: pixel(
+                  size: m.scaled(10),
+                  weight: 500,
                   color: chosen ? Palette.ink : Palette.inkFaint,
                 ),
               ),

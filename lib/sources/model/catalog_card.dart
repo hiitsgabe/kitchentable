@@ -49,10 +49,11 @@ class CatalogCard {
   /// Double faced cards carry their images under `card_faces` rather than at
   /// the top level, so the front face stands in for the card.
   static CatalogCard fromScryfall(Map<String, dynamic> json) {
-    final images = (json['image_uris'] as Map<String, dynamic>?) ??
+    final images =
+        (json['image_uris'] as Map<String, dynamic>?) ??
         ((json['card_faces'] as List<dynamic>?)?.isNotEmpty == true
             ? (json['card_faces'] as List<dynamic>).first['image_uris']
-                as Map<String, dynamic>?
+                  as Map<String, dynamic>?
             : null);
 
     final faces = json['card_faces'] as List<dynamic>?;
@@ -60,7 +61,7 @@ class CatalogCard {
     // start of a ternary to the parser, not as a nullable cast.
     final back = (faces != null && faces.length > 1)
         ? ((faces[1]['image_uris'] as Map<String, dynamic>?)?['normal']
-            as String?)
+              as String?)
         : null;
 
     return CatalogCard(

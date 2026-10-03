@@ -13,10 +13,10 @@ enum TableRenderer {
   split;
 
   TableRenderer get next => switch (this) {
-        TableRenderer.grid => TableRenderer.focus,
-        TableRenderer.focus => TableRenderer.split,
-        TableRenderer.split => TableRenderer.grid,
-      };
+    TableRenderer.grid => TableRenderer.focus,
+    TableRenderer.focus => TableRenderer.split,
+    TableRenderer.split => TableRenderer.grid,
+  };
 }
 
 /// What to draw: the player's pick, or the grid, which fills the screen on
@@ -56,8 +56,9 @@ class RendererChoice extends Notifier<TableRenderer?> {
   }
 }
 
-final rendererChoiceProvider =
-    NotifierProvider<RendererChoice, TableRenderer?>(RendererChoice.new);
+final rendererChoiceProvider = NotifierProvider<RendererChoice, TableRenderer?>(
+  RendererChoice.new,
+);
 
 /// Which other seat the player is looking at: the page Focus is on, or the
 /// second board of a Split. Null means the view's own default (yours in
@@ -71,5 +72,6 @@ class WatchedSeat extends Notifier<String?> {
   set state(String? seatId) => super.state = seatId;
 }
 
-final watchedSeatProvider =
-    NotifierProvider<WatchedSeat, String?>(WatchedSeat.new);
+final watchedSeatProvider = NotifierProvider<WatchedSeat, String?>(
+  WatchedSeat.new,
+);

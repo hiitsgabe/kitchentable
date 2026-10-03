@@ -109,9 +109,7 @@ class _PileSheetState extends State<PileSheet> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (final card in showing) _row(m, card),
-                    ],
+                    children: [for (final card in showing) _row(m, card)],
                   ),
                 ),
               ),
@@ -128,8 +126,7 @@ class _PileSheetState extends State<PileSheet> {
               // put is a shorter list and not a flag.
               onTap: () => widget.onArrange([
                 for (final card in widget.cards)
-                  if (_going[card.id] case final to?)
-                    (cardId: card.id, to: to),
+                  if (_going[card.id] case final to?) (cardId: card.id, to: to),
               ]),
             ),
           ],
@@ -144,50 +141,47 @@ class _PileSheetState extends State<PileSheet> {
   /// of them greyed: [SheetChoice] has no off state and inventing one to say
   /// "the pile ends here" is a word the page number already says.
   Widget _pager(Metrics m, {required int page, required int pages}) => Padding(
-        padding: EdgeInsets.only(top: m.scaled(4)),
-        child: Row(
-          children: [
-            if (page > 0)
-              Expanded(
-                child: SheetChoice(
-                  metrics: m,
-                  key: const Key('pile-back'),
-                  icon: Icons.chevron_left_rounded,
-                  label: 'Back',
-                  onTap: () => setState(() => _page = page - 1),
-                ),
-              ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: m.scaled(10)),
-              child: Text(
-                '${page + 1} of $pages',
-                style: TextStyle(
-                  fontSize: m.scaled(13),
-                  color: Palette.inkMuted,
-                ),
-              ),
+    padding: EdgeInsets.only(top: m.scaled(4)),
+    child: Row(
+      children: [
+        if (page > 0)
+          Expanded(
+            child: SheetChoice(
+              metrics: m,
+              key: const Key('pile-back'),
+              icon: Icons.chevron_left_rounded,
+              label: 'Back',
+              onTap: () => setState(() => _page = page - 1),
             ),
-            if (page < pages - 1)
-              Expanded(
-                child: SheetChoice(
-                  metrics: m,
-                  key: const Key('pile-next'),
-                  icon: Icons.chevron_right_rounded,
-                  label: 'Next',
-                  onTap: () => setState(() => _page = page + 1),
-                ),
-              ),
-          ],
+          ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: m.scaled(10)),
+          child: Text(
+            '${page + 1} of $pages',
+            style: TextStyle(fontSize: m.scaled(13), color: Palette.inkMuted),
+          ),
         ),
-      );
+        if (page < pages - 1)
+          Expanded(
+            child: SheetChoice(
+              metrics: m,
+              key: const Key('pile-next'),
+              icon: Icons.chevron_right_rounded,
+              label: 'Next',
+              onTap: () => setState(() => _page = page + 1),
+            ),
+          ),
+      ],
+    ),
+  );
 
   Widget _row(Metrics m, CardInstance card) => CardRow(
-        key: Key('pile-card-${card.id}'),
-        metrics: m,
-        cardId: card.id,
-        printing: widget.printings[card.oracleId],
-        destinations: _outOfThePile,
-        chosen: _going[card.id],
-        onChoose: (to) => setState(() => _going[card.id] = to),
-      );
+    key: Key('pile-card-${card.id}'),
+    metrics: m,
+    cardId: card.id,
+    printing: widget.printings[card.oracleId],
+    destinations: _outOfThePile,
+    chosen: _going[card.id],
+    onChoose: (to) => setState(() => _going[card.id] = to),
+  );
 }

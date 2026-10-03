@@ -40,10 +40,8 @@ class WireError implements Exception {
 /// verb does not compile until somebody writes its line. That is the check that
 /// cannot be forgotten, and it is why this is a switch expression with no
 /// default clause.
-String toWire(TableAction action) => jsonEncode({
-      'v': wireVersion,
-      ..._verbToJson(action),
-    });
+String toWire(TableAction action) =>
+    jsonEncode({'v': wireVersion, ..._verbToJson(action)});
 
 /// Reads a verb back off the wire.
 TableAction fromWire(String wire) {
@@ -53,108 +51,102 @@ TableAction fromWire(String wire) {
   final type = json['type'];
   return switch (type) {
     'MoveCard' => MoveCard(
-        cardId: _string(json, 'cardId'),
-        toZoneId: _string(json, 'toZoneId'),
-        at: _intOrNull(json, 'at'),
-        faceDown: _boolOrNull(json, 'faceDown'),
-        position: _positionFrom(json['position']),
-      ),
+      cardId: _string(json, 'cardId'),
+      toZoneId: _string(json, 'toZoneId'),
+      at: _intOrNull(json, 'at'),
+      faceDown: _boolOrNull(json, 'faceDown'),
+      position: _positionFrom(json['position']),
+    ),
     'RotateCard' => RotateCard(
-        _string(json, 'cardId'),
-        to: _intOrNull(json, 'to'),
-      ),
+      _string(json, 'cardId'),
+      to: _intOrNull(json, 'to'),
+    ),
     'FlipCard' => FlipCard(_string(json, 'cardId')),
     'ChangeCounter' => ChangeCounter(
-        cardId: _string(json, 'cardId'),
-        kind: _string(json, 'kind'),
-        by: _int(json, 'by'),
-      ),
+      cardId: _string(json, 'cardId'),
+      kind: _string(json, 'kind'),
+      by: _int(json, 'by'),
+    ),
     'AttachCard' => AttachCard(
-        cardId: _string(json, 'cardId'),
-        toCardId: _stringOrNull(json, 'toCardId'),
-      ),
+      cardId: _string(json, 'cardId'),
+      toCardId: _stringOrNull(json, 'toCardId'),
+    ),
     'ShuffleZone' => ShuffleZone(
-        zoneId: _string(json, 'zoneId'),
-        seed: _string(json, 'seed'),
-      ),
+      zoneId: _string(json, 'zoneId'),
+      seed: _string(json, 'seed'),
+    ),
     'DrawCards' => DrawCards(
-        fromZoneId: _string(json, 'fromZoneId'),
-        toZoneId: _string(json, 'toZoneId'),
-        count: _int(json, 'count'),
-      ),
+      fromZoneId: _string(json, 'fromZoneId'),
+      toZoneId: _string(json, 'toZoneId'),
+      count: _int(json, 'count'),
+    ),
     'CreateToken' => CreateToken(
-        zoneId: _string(json, 'zoneId'),
-        oracleId: _string(json, 'oracleId'),
-        cardId: _string(json, 'cardId'),
-      ),
+      zoneId: _string(json, 'zoneId'),
+      oracleId: _string(json, 'oracleId'),
+      cardId: _string(json, 'cardId'),
+    ),
     'ChangeLife' => ChangeLife(
-        seatId: _string(json, 'seatId'),
-        by: _int(json, 'by'),
-      ),
+      seatId: _string(json, 'seatId'),
+      by: _int(json, 'by'),
+    ),
     'RollDice' => RollDice(_ints(json, 'results')),
     _ => throw WireError(
-        'unknown verb "$type". This build speaks ten and that is not one of '
-        'them, so the peer that sent it is running something newer.',
-      ),
+      'unknown verb "$type". This build speaks ten and that is not one of '
+      'them, so the peer that sent it is running something newer.',
+    ),
   };
 }
 
 Map<String, Object?> _verbToJson(TableAction action) => switch (action) {
-      MoveCard() => {
-          'type': 'MoveCard',
-          'cardId': action.cardId,
-          'toZoneId': action.toZoneId,
-          'at': action.at,
-          'faceDown': action.faceDown,
-          'position': _positionToJson(action.position),
-        },
-      RotateCard() => {
-          'type': 'RotateCard',
-          'cardId': action.cardId,
-          'to': action.to,
-        },
-      FlipCard() => {
-          'type': 'FlipCard',
-          'cardId': action.cardId,
-        },
-      ChangeCounter() => {
-          'type': 'ChangeCounter',
-          'cardId': action.cardId,
-          'kind': action.kind,
-          'by': action.by,
-        },
-      AttachCard() => {
-          'type': 'AttachCard',
-          'cardId': action.cardId,
-          'toCardId': action.toCardId,
-        },
-      ShuffleZone() => {
-          'type': 'ShuffleZone',
-          'zoneId': action.zoneId,
-          'seed': action.seed,
-        },
-      DrawCards() => {
-          'type': 'DrawCards',
-          'fromZoneId': action.fromZoneId,
-          'toZoneId': action.toZoneId,
-          'count': action.count,
-        },
-      CreateToken() => {
-          'type': 'CreateToken',
-          'zoneId': action.zoneId,
-          'oracleId': action.oracleId,
-          'cardId': action.cardId,
-        },
-      ChangeLife() => {
-          'type': 'ChangeLife',
-          'seatId': action.seatId,
-          'by': action.by,
-        },
-      RollDice() => {
-          'type': 'RollDice',
-          'results': action.results,
-        },
-    };
+  MoveCard() => {
+    'type': 'MoveCard',
+    'cardId': action.cardId,
+    'toZoneId': action.toZoneId,
+    'at': action.at,
+    'faceDown': action.faceDown,
+    'position': _positionToJson(action.position),
+  },
+  RotateCard() => {
+    'type': 'RotateCard',
+    'cardId': action.cardId,
+    'to': action.to,
+  },
+  FlipCard() => {'type': 'FlipCard', 'cardId': action.cardId},
+  ChangeCounter() => {
+    'type': 'ChangeCounter',
+    'cardId': action.cardId,
+    'kind': action.kind,
+    'by': action.by,
+  },
+  AttachCard() => {
+    'type': 'AttachCard',
+    'cardId': action.cardId,
+    'toCardId': action.toCardId,
+  },
+  ShuffleZone() => {
+    'type': 'ShuffleZone',
+    'zoneId': action.zoneId,
+    'seed': action.seed,
+  },
+  DrawCards() => {
+    'type': 'DrawCards',
+    'fromZoneId': action.fromZoneId,
+    'toZoneId': action.toZoneId,
+    'count': action.count,
+  },
+  CreateToken() => {
+    'type': 'CreateToken',
+    'zoneId': action.zoneId,
+    'oracleId': action.oracleId,
+    'cardId': action.cardId,
+  },
+  ChangeLife() => {
+    'type': 'ChangeLife',
+    'seatId': action.seatId,
+    'by': action.by,
+  },
+  RollDice() => {'type': 'RollDice', 'results': action.results},
+};
 
 /// The whole table, for a peer arriving late.
 ///
@@ -163,10 +155,10 @@ Map<String, Object?> _verbToJson(TableAction action) => switch (action) {
 /// which is a promise about the client and not about the wire. The room screen
 /// says so out loud rather than leaving it to be assumed.
 String stateToWire(TableState table) => jsonEncode({
-      'v': wireVersion,
-      'dice': table.dice,
-      'seats': [for (final seat in table.seats) _seatToJson(seat)],
-    });
+  'v': wireVersion,
+  'dice': table.dice,
+  'seats': [for (final seat in table.seats) _seatToJson(seat)],
+});
 
 TableState stateFromWire(String wire) {
   final json = _objectFrom(wire);
@@ -191,22 +183,22 @@ TableState stateFromWire(String wire) {
 }
 
 Map<String, Object?> _seatToJson(Seat seat) => {
-      'id': seat.id,
-      'name': seat.name,
-      'life': seat.life,
-      'owner': _ownerToJson(seat.owner),
-      'zones': [for (final zone in seat.zones) _zoneToJson(zone)],
-    };
+  'id': seat.id,
+  'name': seat.name,
+  'life': seat.life,
+  'owner': _ownerToJson(seat.owner),
+  'zones': [for (final zone in seat.zones) _zoneToJson(zone)],
+};
 
 Seat _seatFrom(Map<String, Object?> json) => Seat(
-      id: _string(json, 'id'),
-      name: _string(json, 'name'),
-      life: _int(json, 'life'),
-      owner: _ownerFrom(_string(json, 'owner')),
-      zones: [
-        for (final zone in _list(json, 'zones')) _zoneFrom(_object(zone, 'zone')),
-      ],
-    );
+  id: _string(json, 'id'),
+  name: _string(json, 'name'),
+  life: _int(json, 'life'),
+  owner: _ownerFrom(_string(json, 'owner')),
+  zones: [
+    for (final zone in _list(json, 'zones')) _zoneFrom(_object(zone, 'zone')),
+  ],
+);
 
 /// `SeatOwner` holds its two fields privately and is built through three named
 /// constructors, so this reads the getters and picks the constructor back.
@@ -236,28 +228,30 @@ SeatOwner _ownerFrom(String owner) {
   if (owner.startsWith('peer:')) {
     return SeatOwner.peer(owner.substring('peer:'.length));
   }
-  throw WireError('a seat is held by "$owner", which is nobody this build knows');
+  throw WireError(
+    'a seat is held by "$owner", which is nobody this build knows',
+  );
 }
 
 Map<String, Object?> _zoneToJson(Zone zone) => {
-      'id': zone.id,
-      'seatId': zone.seatId,
-      'label': zone.label,
-      'visibility': zone.visibility.name,
-      'ordered': zone.ordered,
-      'cards': [for (final card in zone.cards) _cardToJson(card)],
-    };
+  'id': zone.id,
+  'seatId': zone.seatId,
+  'label': zone.label,
+  'visibility': zone.visibility.name,
+  'ordered': zone.ordered,
+  'cards': [for (final card in zone.cards) _cardToJson(card)],
+};
 
 Zone _zoneFrom(Map<String, Object?> json) => Zone(
-      id: _string(json, 'id'),
-      seatId: _string(json, 'seatId'),
-      label: _string(json, 'label'),
-      visibility: _visibilityFrom(_string(json, 'visibility')),
-      ordered: _bool(json, 'ordered'),
-      cards: [
-        for (final card in _list(json, 'cards')) _cardFrom(_object(card, 'card')),
-      ],
-    );
+  id: _string(json, 'id'),
+  seatId: _string(json, 'seatId'),
+  label: _string(json, 'label'),
+  visibility: _visibilityFrom(_string(json, 'visibility')),
+  ordered: _bool(json, 'ordered'),
+  cards: [
+    for (final card in _list(json, 'cards')) _cardFrom(_object(card, 'card')),
+  ],
+);
 
 ZoneVisibility _visibilityFrom(String name) {
   for (final visibility in ZoneVisibility.values) {
@@ -270,24 +264,24 @@ ZoneVisibility _visibilityFrom(String name) {
 }
 
 Map<String, Object?> _cardToJson(CardInstance card) => {
-      'id': card.id,
-      'oracleId': card.oracleId,
-      'rotation': card.rotation,
-      'faceDown': card.faceDown,
-      'counters': card.counters,
-      'attachedTo': card.attachedTo,
-      'position': _positionToJson(card.position),
-    };
+  'id': card.id,
+  'oracleId': card.oracleId,
+  'rotation': card.rotation,
+  'faceDown': card.faceDown,
+  'counters': card.counters,
+  'attachedTo': card.attachedTo,
+  'position': _positionToJson(card.position),
+};
 
 CardInstance _cardFrom(Map<String, Object?> json) => CardInstance(
-      id: _string(json, 'id'),
-      oracleId: _string(json, 'oracleId'),
-      rotation: _int(json, 'rotation'),
-      faceDown: _bool(json, 'faceDown'),
-      counters: _counters(json, 'counters'),
-      attachedTo: _stringOrNull(json, 'attachedTo'),
-      position: _positionFrom(json['position']),
-    );
+  id: _string(json, 'id'),
+  oracleId: _string(json, 'oracleId'),
+  rotation: _int(json, 'rotation'),
+  faceDown: _bool(json, 'faceDown'),
+  counters: _counters(json, 'counters'),
+  attachedTo: _stringOrNull(json, 'attachedTo'),
+  position: _positionFrom(json['position']),
+);
 
 Map<String, Object?>? _positionToJson(({double x, double y})? position) =>
     position == null ? null : {'x': position.x, 'y': position.y};
@@ -313,7 +307,9 @@ Map<String, Object?> _objectFrom(String wire) {
 
 Map<String, Object?> _object(Object? json, String what) {
   if (json is Map<String, Object?>) return json;
-  throw WireError('a $what should be an object and this is ${json.runtimeType}');
+  throw WireError(
+    'a $what should be an object and this is ${json.runtimeType}',
+  );
 }
 
 void _checkVersion(Map<String, Object?> json) {
@@ -326,8 +322,8 @@ void _checkVersion(Map<String, Object?> json) {
 }
 
 Never _wrong(String key, Object? value, String wanted) => throw WireError(
-      '"$key" should be $wanted and it is ${value.runtimeType} ($value)',
-    );
+  '"$key" should be $wanted and it is ${value.runtimeType} ($value)',
+);
 
 String _string(Map<String, Object?> json, String key) {
   final value = json[key];
@@ -375,13 +371,13 @@ List<Object?> _list(Map<String, Object?> json, String key) {
 }
 
 List<int> _ints(Map<String, Object?> json, String key) => [
-      for (final value in _list(json, key))
-        value is int ? value : _wrong(key, value, 'a list of whole numbers'),
-    ];
+  for (final value in _list(json, key))
+    value is int ? value : _wrong(key, value, 'a list of whole numbers'),
+];
 
 Map<String, int> _counters(Map<String, Object?> json, String key) => {
-      for (final entry in _object(json[key], 'counter map').entries)
-        entry.key: entry.value is int
-            ? entry.value as int
-            : _wrong(key, entry.value, 'a map of whole numbers'),
-    };
+  for (final entry in _object(json[key], 'counter map').entries)
+    entry.key: entry.value is int
+        ? entry.value as int
+        : _wrong(key, entry.value, 'a map of whole numbers'),
+};

@@ -49,8 +49,8 @@ typedef Seated = ({String peer, String name});
 /// a lobby that hears a table has its answer too.
 class Lobby extends ChangeNotifier {
   Lobby.host({required this.transport, required RoomConfig this._config})
-      : hosting = true,
-        _host = transport.me {
+    : hosting = true,
+      _host = transport.me {
     _listen();
   }
 
@@ -148,9 +148,9 @@ class Lobby extends ChangeNotifier {
   /// nobody has sent it anybody else's, and the screen there falls back to
   /// its catalog for the rest.
   Map<String, CatalogCard> get printings => {
-        for (final deck in _decks.values)
-          for (final slot in deck.slots) slot.card.oracleId: slot.card,
-      };
+    for (final deck in _decks.values)
+      for (final slot in deck.slots) slot.card.oracleId: slot.card,
+  };
 
   /// How many messages could not be read, and were counted rather than
   /// thrown, because the other end may be a build somebody changed.
@@ -168,7 +168,9 @@ class Lobby extends ChangeNotifier {
   /// The host takes chair 1.
   void sit({required Deck deck, required String name}) {
     if (!hosting) {
-      throw StateError('a guest brings a deck, and the host is the one who sits');
+      throw StateError(
+        'a guest brings a deck, and the host is the one who sits',
+      );
     }
     if (_mesh != null) return;
     _decks[me] = deck;
@@ -291,8 +293,8 @@ class Lobby extends ChangeNotifier {
       switch (json['kind']) {
         case 'hello':
           if (hosting) _tellChairs(message.from);
-          // A guest hears every other guest knock, because a knock goes to
-          // everybody. Nothing to answer and nothing to refuse.
+        // A guest hears every other guest knock, because a knock goes to
+        // everybody. Nothing to answer and nothing to refuse.
         case 'chairs':
           if (hosting) {
             _refuse('${message.from} told the host what the chairs are');
@@ -307,8 +309,10 @@ class Lobby extends ChangeNotifier {
           }
         case 'dealt':
           if (hosting || message.from != _host) {
-            _refuse('${message.from} said the table is dealt and is not '
-                'hosting');
+            _refuse(
+              '${message.from} said the table is dealt and is not '
+              'hosting',
+            );
           } else {
             _handOver(null);
           }
@@ -376,11 +380,11 @@ class Lobby extends ChangeNotifier {
   }
 
   String _chairsWire() => _say('chairs', {
-        'config': _configToJson(_config!),
-        'seated': [
-          for (final s in _chairs) {'peer': s.peer, 'name': s.name},
-        ],
-      });
+    'config': _configToJson(_config!),
+    'seated': [
+      for (final s in _chairs) {'peer': s.peer, 'name': s.name},
+    ],
+  });
 
   // A guest's side.
 
@@ -415,10 +419,7 @@ class Lobby extends ChangeNotifier {
     _bringing = null;
     transport.send(
       host,
-      _say('bring', {
-        'name': bringing.name,
-        'deck': deckToWire(bringing.deck),
-      }),
+      _say('bring', {'name': bringing.name, 'deck': deckToWire(bringing.deck)}),
     );
   }
 
@@ -460,19 +461,21 @@ class Lobby extends ChangeNotifier {
   }
 
   static Map<String, Object?> _configToJson(RoomConfig config) => {
-        'format': config.format.name,
-        'seats': config.seats,
-        'life': config.life,
-        'hostName': config.hostName,
-        'roomName': config.roomName,
-      };
+    'format': config.format.name,
+    'seats': config.seats,
+    'life': config.life,
+    'hostName': config.hostName,
+    'roomName': config.roomName,
+  };
 
   static RoomConfig _configFrom(Map<String, Object?> json) {
     final name = _string(json, 'format');
     final format = DeckFormat.values.where((f) => f.name == name).firstOrNull;
     if (format == null) {
-      throw WireError('the room is in the format "$name", which this build '
-          'does not know');
+      throw WireError(
+        'the room is in the format "$name", which this build '
+        'does not know',
+      );
     }
     final seats = _int(json, 'seats');
     if (!roomSeatChoices.contains(seats)) {
@@ -596,51 +599,50 @@ class Reach {
 
   /// This, after one more thing happened.
   Reach after(ConnectionStep step) => switch (step) {
-        RendezvousStep(:final status) => switch (status.step) {
-            SignalingStep.announced => _copy(
-                relayAnswered: true,
-                relayUnreachable: false,
-                refused: '',
-              ),
-            SignalingStep.refused => _copy(refused: status.reason ?? ''),
-            SignalingStep.relayUnreachable => _copy(relayUnreachable: true),
-            SignalingStep.relayConnected => _copy(relayUnreachable: false),
-            SignalingStep.peerHere => status.peer == null
-                ? this
-                : _copy(seen: {...seen, status.peer!}),
-            _ => this,
-          },
-        LinkStep(:final status) => switch (status.stage) {
-            LinkStage.reflexive => _copy(
-                stunAnswered: true,
-                seen: {...seen, status.peer},
-              ),
-            LinkStage.progress => _copy(
-                seen: {...seen, status.peer},
-                progress: {...progress, status.peer: status.detail ?? ''},
-              ),
-            LinkStage.opened => _copy(
-                seen: {...seen, status.peer},
-                open: {...open, status.peer},
-                failed: {...failed}..remove(status.peer),
-                progress: {...progress}..remove(status.peer),
-              ),
-            LinkStage.closed => _copy(
-                seen: {...seen}..remove(status.peer),
-                open: {...open}..remove(status.peer),
-              ),
-            LinkStage.failed => _copy(
-                seen: {...seen}..remove(status.peer),
-                open: {...open}..remove(status.peer),
-                failed: status.failure == null
-                    ? failed
-                    : {...failed, status.peer: status.failure!},
-                needsTurn: status.failure?.needsTurn == true
-                    ? status.failure
-                    : needsTurn,
-              ),
-          },
-      };
+    RendezvousStep(:final status) => switch (status.step) {
+      SignalingStep.announced => _copy(
+        relayAnswered: true,
+        relayUnreachable: false,
+        refused: '',
+      ),
+      SignalingStep.refused => _copy(refused: status.reason ?? ''),
+      SignalingStep.relayUnreachable => _copy(relayUnreachable: true),
+      SignalingStep.relayConnected => _copy(relayUnreachable: false),
+      SignalingStep.peerHere =>
+        status.peer == null ? this : _copy(seen: {...seen, status.peer!}),
+      _ => this,
+    },
+    LinkStep(:final status) => switch (status.stage) {
+      LinkStage.reflexive => _copy(
+        stunAnswered: true,
+        seen: {...seen, status.peer},
+      ),
+      LinkStage.progress => _copy(
+        seen: {...seen, status.peer},
+        progress: {...progress, status.peer: status.detail ?? ''},
+      ),
+      LinkStage.opened => _copy(
+        seen: {...seen, status.peer},
+        open: {...open, status.peer},
+        failed: {...failed}..remove(status.peer),
+        progress: {...progress}..remove(status.peer),
+      ),
+      LinkStage.closed => _copy(
+        seen: {...seen}..remove(status.peer),
+        open: {...open}..remove(status.peer),
+      ),
+      LinkStage.failed => _copy(
+        seen: {...seen}..remove(status.peer),
+        open: {...open}..remove(status.peer),
+        failed: status.failure == null
+            ? failed
+            : {...failed, status.peer: status.failure!},
+        needsTurn: status.failure?.needsTurn == true
+            ? status.failure
+            : needsTurn,
+      ),
+    },
+  };
 
   Reach _copy({
     bool? relayAnswered,
@@ -652,18 +654,17 @@ class Reach {
     Map<String, String>? progress,
     LinkFailure? needsTurn,
     String? refused,
-  }) =>
-      Reach(
-        refused: refused == null ? this.refused : (refused == '' ? null : refused),
-        relayAnswered: relayAnswered ?? this.relayAnswered,
-        relayUnreachable: relayUnreachable ?? this.relayUnreachable,
-        stunAnswered: stunAnswered ?? this.stunAnswered,
-        seen: seen ?? this.seen,
-        open: open ?? this.open,
-        failed: failed ?? this.failed,
-        progress: progress ?? this.progress,
-        needsTurn: needsTurn ?? this.needsTurn,
-      );
+  }) => Reach(
+    refused: refused == null ? this.refused : (refused == '' ? null : refused),
+    relayAnswered: relayAnswered ?? this.relayAnswered,
+    relayUnreachable: relayUnreachable ?? this.relayUnreachable,
+    stunAnswered: stunAnswered ?? this.stunAnswered,
+    seen: seen ?? this.seen,
+    open: open ?? this.open,
+    failed: failed ?? this.failed,
+    progress: progress ?? this.progress,
+    needsTurn: needsTurn ?? this.needsTurn,
+  );
 }
 
 // The providers. The room screen reads these and nothing under them.
@@ -682,12 +683,12 @@ const defaultRelays = [
 /// A provider so tests can hand the room a network in memory; the real one
 /// is Nostr for the introduction and WebRTC for the connection, and it
 /// starts joining the moment it is made.
-final transportFactoryProvider = Provider<Transport Function(String code)>(
-  (ref) {
-    final turn = ref.watch(turnProvider);
-    return (code) => _reachOut(code, turn: turn);
-  },
-);
+final transportFactoryProvider = Provider<Transport Function(String code)>((
+  ref,
+) {
+  final turn = ref.watch(turnProvider);
+  return (code) => _reachOut(code, turn: turn);
+});
 
 Transport _reachOut(String code, {TurnServer? turn}) {
   // The relay path: the game rides on the relays the room is found on, which
@@ -747,8 +748,9 @@ final lobbyProvider = NotifierProvider<LobbyHere, Lobby?>(LobbyHere.new);
 /// notifies on every chair and every verb and this changes once. A screen
 /// that opens the table when this turns true listens here and hears it the
 /// one time it happens.
-final dealtProvider =
-    Provider<bool>((ref) => ref.watch(lobbyProvider)?.dealt ?? false);
+final dealtProvider = Provider<bool>(
+  (ref) => ref.watch(lobbyProvider)?.dealt ?? false,
+);
 
 /// What the connection has said, for the room this device is in.
 class ReachHere extends Notifier<Reach> {

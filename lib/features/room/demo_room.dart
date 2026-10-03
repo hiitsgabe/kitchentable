@@ -27,7 +27,9 @@ class _DemoRoomState extends ConsumerState<DemoRoom> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(roomProvider.notifier).open(
+      ref
+          .read(roomProvider.notifier)
+          .open(
             RoomConfig(
               format: DeckFormat.commander,
               seats: roomSeatChoices.contains(widget.seats)

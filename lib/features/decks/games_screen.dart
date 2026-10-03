@@ -17,17 +17,18 @@ class GamesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final decks = ref.watch(decksProvider);
 
     int countFor(Game game) => switch (decks) {
-          AsyncData(:final value) =>
-            value.where((d) => d.game == game).length,
-          _ => 0,
-        };
+      AsyncData(:final value) => value.where((d) => d.game == game).length,
+      _ => 0,
+    };
 
     return ScreenFrame(
       metrics: m,
@@ -58,7 +59,7 @@ class GamesScreen extends ConsumerWidget {
   }
 
   static IconData _iconFor(Game game) => switch (game) {
-        Game.magic => Icons.auto_awesome_rounded,
-        Game.pokemon => Icons.catching_pokemon_rounded,
-      };
+    Game.magic => Icons.auto_awesome_rounded,
+    Game.pokemon => Icons.catching_pokemon_rounded,
+  };
 }

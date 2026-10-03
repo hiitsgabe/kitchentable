@@ -14,10 +14,7 @@ typedef CardLocation = ({CardInstance card, Zone zone});
 /// and it is what lets plan 3 broadcast a state instead of a diff.
 @immutable
 class TableState {
-  const TableState({
-    required this.seats,
-    this.dice = const [],
-  });
+  const TableState({required this.seats, this.dice = const []});
 
   final List<Seat> seats;
 
@@ -29,8 +26,7 @@ class TableState {
   Zone? zone(String zoneId) =>
       allZones.where((z) => z.id == zoneId).firstOrNull;
 
-  Seat? seat(String seatId) =>
-      seats.where((s) => s.id == seatId).firstOrNull;
+  Seat? seat(String seatId) => seats.where((s) => s.id == seatId).firstOrNull;
 
   CardLocation? locate(String cardId) {
     for (final zone in allZones) {
@@ -41,32 +37,24 @@ class TableState {
   }
 
   TableState withZone(Zone zone) => copyWith(
-        seats: [
-          for (final seat in seats)
-            if (seat.id != zone.seatId)
-              seat
-            else
-              seat.copyWith(
-                zones: [
-                  for (final z in seat.zones) z.id == zone.id ? zone : z,
-                ],
-              ),
-        ],
-      );
+    seats: [
+      for (final seat in seats)
+        if (seat.id != zone.seatId)
+          seat
+        else
+          seat.copyWith(
+            zones: [for (final z in seat.zones) z.id == zone.id ? zone : z],
+          ),
+    ],
+  );
 
   TableState withLife(String seatId, int by) => copyWith(
-        seats: [
-          for (final seat in seats)
-            seat.id == seatId ? seat.copyWith(life: seat.life + by) : seat,
-        ],
-      );
+    seats: [
+      for (final seat in seats)
+        seat.id == seatId ? seat.copyWith(life: seat.life + by) : seat,
+    ],
+  );
 
-  TableState copyWith({
-    List<Seat>? seats,
-    List<int>? dice,
-  }) =>
-      TableState(
-        seats: seats ?? this.seats,
-        dice: dice ?? this.dice,
-      );
+  TableState copyWith({List<Seat>? seats, List<int>? dice}) =>
+      TableState(seats: seats ?? this.seats, dice: dice ?? this.dice);
 }

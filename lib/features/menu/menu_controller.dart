@@ -41,31 +41,31 @@ class MenuState {
   /// client in the benchmark says the same thing: one dominant action, and
   /// a menu of five equal rows has none.
   List<MenuEntry> get entries => [
-        MenuEntry(
-          id: MenuEntryId.play,
-          title: 'Play',
-          subtitle: 'make a table and invite people',
-          enabled: true,
-        ),
-        MenuEntry(
-          id: MenuEntryId.join,
-          title: 'Join',
-          subtitle: 'paste a link, or type the code',
-          enabled: true,
-        ),
-        MenuEntry(
-          id: MenuEntryId.decks,
-          title: 'Decks',
-          subtitle: hasCatalog ? 'build one, or change one' : 'needs a source',
-          enabled: hasCatalog,
-        ),
-        const MenuEntry(
-          id: MenuEntryId.settings,
-          title: 'Settings',
-          subtitle: 'your name, sources, network',
-          enabled: true,
-        ),
-      ];
+    MenuEntry(
+      id: MenuEntryId.play,
+      title: 'Play',
+      subtitle: 'make a table and invite people',
+      enabled: true,
+    ),
+    MenuEntry(
+      id: MenuEntryId.join,
+      title: 'Join',
+      subtitle: 'paste a link, or type the code',
+      enabled: true,
+    ),
+    MenuEntry(
+      id: MenuEntryId.decks,
+      title: 'Decks',
+      subtitle: hasCatalog ? 'build one, or change one' : 'needs a source',
+      enabled: hasCatalog,
+    ),
+    const MenuEntry(
+      id: MenuEntryId.settings,
+      title: 'Settings',
+      subtitle: 'your name, sources, network',
+      enabled: true,
+    ),
+  ];
 }
 
 /// Null where there is no local catalog. Both real builds have one today, so

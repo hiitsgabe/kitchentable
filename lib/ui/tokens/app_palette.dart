@@ -25,10 +25,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// are the accent dragged most of the way back into the dark, which is what
   /// the hand-written pink ones were.
   factory AppPalette.of(Color accent) => AppPalette(
-        accent: accent,
-        focusWash: Color.lerp(Palette.felt, accent, 0.14)!,
-        tileFocused: Color.lerp(Palette.tile, accent, 0.16)!,
-      );
+    accent: accent,
+    focusWash: Color.lerp(Palette.felt, accent, 0.14)!,
+    tileFocused: Color.lerp(Palette.tile, accent, 0.16)!,
+  );
 
   final Color accent;
   final Color focusWash;

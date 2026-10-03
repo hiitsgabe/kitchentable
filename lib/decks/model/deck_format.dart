@@ -11,22 +11,22 @@ enum DeckFormat {
   pokemonStandard;
 
   String get label => switch (this) {
-        DeckFormat.commander => 'Commander',
-        DeckFormat.standard => 'Standard',
-        DeckFormat.pauper => 'Pauper',
-        DeckFormat.draft => 'Draft',
-        DeckFormat.pokemonStandard => 'Standard',
-      };
+    DeckFormat.commander => 'Commander',
+    DeckFormat.standard => 'Standard',
+    DeckFormat.pauper => 'Pauper',
+    DeckFormat.draft => 'Draft',
+    DeckFormat.pokemonStandard => 'Standard',
+  };
 
   /// How many cards the main deck must hold. Commander counts its commander
   /// inside the hundred, which is the part people get wrong.
   int get deckSize => switch (this) {
-        DeckFormat.commander => 100,
-        DeckFormat.standard => 60,
-        DeckFormat.pauper => 60,
-        DeckFormat.draft => 40,
-        DeckFormat.pokemonStandard => 60,
-      };
+    DeckFormat.commander => 100,
+    DeckFormat.standard => 60,
+    DeckFormat.pauper => 60,
+    DeckFormat.draft => 40,
+    DeckFormat.pokemonStandard => 60,
+  };
 
   /// Commander is the only one of the four where the size is a ceiling as well
   /// as a floor. The others are a minimum and people play more.
@@ -41,28 +41,28 @@ enum DeckFormat {
   bool get winsByPrizes => this == DeckFormat.pokemonStandard;
 
   int get sideboardSize => switch (this) {
-        DeckFormat.commander => 0,
-        DeckFormat.draft => 0,
-        DeckFormat.pokemonStandard => 0,
-        _ => 15,
-      };
+    DeckFormat.commander => 0,
+    DeckFormat.draft => 0,
+    DeckFormat.pokemonStandard => 0,
+    _ => 15,
+  };
 
   bool get needsCommander => this == DeckFormat.commander;
 
   int get startingLife => switch (this) {
-        DeckFormat.commander => 40,
-        DeckFormat.pokemonStandard => 0,
-        _ => 20,
-      };
+    DeckFormat.commander => 40,
+    DeckFormat.pokemonStandard => 0,
+    _ => 20,
+  };
 
   /// The key to look up in Scryfall's `legalities` map, or null where the
   /// format does not restrict which cards exist. A draft pool is whatever came
   /// out of the packs, so nothing to check.
   String? get legalityKey => switch (this) {
-        DeckFormat.commander => 'commander',
-        DeckFormat.standard => 'standard',
-        DeckFormat.pauper => 'pauper',
-        DeckFormat.draft => null,
-        DeckFormat.pokemonStandard => null,
-      };
+    DeckFormat.commander => 'commander',
+    DeckFormat.standard => 'standard',
+    DeckFormat.pauper => 'pauper',
+    DeckFormat.draft => null,
+    DeckFormat.pokemonStandard => null,
+  };
 }

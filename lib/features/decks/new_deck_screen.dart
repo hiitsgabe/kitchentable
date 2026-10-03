@@ -22,10 +22,12 @@ class NewDeckScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
 
     return ScreenFrame(
       metrics: m,
@@ -47,21 +49,20 @@ class NewDeckScreen extends ConsumerWidget {
   }
 
   static String _describe(DeckFormat f) => switch (f) {
-        DeckFormat.pokemonStandard => '60 cards, four of each, six prizes',
-        DeckFormat.commander =>
-          '100 cards, one of each, a commander, 40 life',
-        DeckFormat.standard => '60 cards, four of each, 15 sideboard',
-        DeckFormat.pauper => '60 cards, commons only, 15 sideboard',
-        DeckFormat.draft => '40 cards, whatever came out of the packs',
-      };
+    DeckFormat.pokemonStandard => '60 cards, four of each, six prizes',
+    DeckFormat.commander => '100 cards, one of each, a commander, 40 life',
+    DeckFormat.standard => '60 cards, four of each, 15 sideboard',
+    DeckFormat.pauper => '60 cards, commons only, 15 sideboard',
+    DeckFormat.draft => '40 cards, whatever came out of the packs',
+  };
 
   static IconData _iconFor(DeckFormat f) => switch (f) {
-        DeckFormat.pokemonStandard => Icons.catching_pokemon_rounded,
-        DeckFormat.commander => Icons.groups_rounded,
-        DeckFormat.standard => Icons.shield_rounded,
-        DeckFormat.pauper => Icons.savings_rounded,
-        DeckFormat.draft => Icons.inventory_2_rounded,
-      };
+    DeckFormat.pokemonStandard => Icons.catching_pokemon_rounded,
+    DeckFormat.commander => Icons.groups_rounded,
+    DeckFormat.standard => Icons.shield_rounded,
+    DeckFormat.pauper => Icons.savings_rounded,
+    DeckFormat.draft => Icons.inventory_2_rounded,
+  };
 
   Future<void> _create(
     BuildContext context,

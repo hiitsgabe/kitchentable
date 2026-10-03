@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 
-import '../tokens/app_palette.dart';
-import '../tokens/palette.dart';
+import '../tokens/lettering.dart';
 import '../tokens/metrics.dart';
+import '../tokens/palette.dart';
+import 'slab.dart';
 
-/// One line in a list. Focus has to be loud, because the same widget is read
-/// from thirty centimetres on a handheld and from three metres on a television.
+/// One line in a list, and a slab like everything else you can press.
 ///
-/// It answers ActivateIntent as well as a tap, and that is not decoration.
-/// MaterialApp maps the select button and gameButtonA to ActivateIntent, but
-/// WidgetsApp.defaultActions has no handler for it, so without the action below
-/// the intent is dispatched and nothing catches it: the row would take focus,
-/// draw its border and do nothing when pressed.
+/// It used to be a transparent rectangle that grew a one point border when
+/// focused, which is how every Flutter app looks and was the specific
+/// complaint: "tá muito com cara de AI". It is now a tile with a colour, an
+/// outline and a thickness, whether it is focused or not, and focus is a
+/// white edge rather than the only thing that makes it visible at all.
 ///
 /// A disabled row can still be focused under directional navigation, which is
 /// Flutter's choice and the right one. Its subtitle usually says why it is
 /// disabled, and that sentence is worth reaching. It just never activates.
-class MenuRow extends StatefulWidget {
+class MenuRow extends StatelessWidget {
   const MenuRow({
     super.key,
     required this.title,
@@ -27,6 +27,7 @@ class MenuRow extends StatefulWidget {
     this.enabled = true,
     this.focusNode,
     this.autofocus = false,
+    this.tone = SlabTone.plain,
   });
 
   final String title;
@@ -42,117 +43,51 @@ class MenuRow extends StatefulWidget {
   final FocusNode? focusNode;
   final bool autofocus;
 
-  @override
-  State<MenuRow> createState() => _MenuRowState();
-}
-
-class _MenuRowState extends State<MenuRow> {
-  bool _focused = false;
-
-  void _activate() {
-    if (widget.enabled) widget.onActivate();
-  }
+  /// Ordinary rows are [SlabTone.plain]. A screen marks its own one dominant
+  /// action, and the reference screens never have two.
+  final SlabTone tone;
 
   @override
   Widget build(BuildContext context) {
-    final m = widget.metrics;
+    final m = metrics;
 
-    return FocusableActionDetector(
-      focusNode: widget.focusNode,
-      autofocus: widget.autofocus && widget.enabled,
-      enabled: widget.enabled,
-      descendantsAreFocusable: widget.enabled,
-      onFocusChange: (v) => setState(() => _focused = v),
-      actions: <Type, Action<Intent>>{
-        ActivateIntent: CallbackAction<ActivateIntent>(
-          onInvoke: (_) {
-            _activate();
-            return null;
-          },
-        ),
-      },
-      child: Semantics(
-        button: true,
-        enabled: widget.enabled,
-        label: widget.subtitle == null
-            ? widget.title
-            : '${widget.title}. ${widget.subtitle}',
-        child: GestureDetector(
-          onTap: widget.enabled ? _activate : null,
-          behavior: HitTestBehavior.opaque,
-          child: Opacity(
-            opacity: widget.enabled ? 1 : 0.42,
-            child: Container(
-              margin: EdgeInsets.only(bottom: m.scaled(8)),
-              padding: EdgeInsets.symmetric(
-                horizontal: m.scaled(12),
-                vertical: m.scaled(12),
-              ),
-              decoration: BoxDecoration(
-                color: _focused ? context.palette.focusWash : Colors.transparent,
-                borderRadius: BorderRadius.circular(m.scaled(14)),
-                border: Border.all(
-                  color: _focused ? context.palette.accent : Colors.transparent,
-                  width: m.focusRing,
-                ),
-              ),
-              child: Row(
+    return Padding(
+      padding: EdgeInsets.only(bottom: m.scaled(10)),
+      child: Slab(
+        metrics: m,
+        tone: tone,
+        enabled: enabled,
+        focusNode: focusNode,
+        autofocus: autofocus,
+        onActivate: onActivate,
+        semanticLabel: subtitle == null ? title : '$title. $subtitle',
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: m.scaled(20), color: Palette.slabInk),
+              SizedBox(width: m.scaled(12)),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (widget.icon != null) ...[
-                    Container(
-                      width: m.scaled(38),
-                      height: m.scaled(38),
-                      decoration: BoxDecoration(
-                        color: _focused ? context.palette.tileFocused : Palette.tile,
-                        borderRadius: BorderRadius.circular(m.scaled(10)),
-                        border: Border.all(
-                          color: _focused ? context.palette.accent : Palette.tileEdge,
-                        ),
-                      ),
-                      child: Icon(
-                        widget.icon,
-                        size: m.scaled(19),
-                        color: _focused ? context.palette.accent : Palette.inkMuted,
+                  Text(title, style: slabText(m.scaled(16))),
+                  if (subtitle != null) ...[
+                    SizedBox(height: m.scaled(4)),
+                    Text(
+                      subtitle!,
+                      style: pixel(
+                        size: m.scaled(12),
+                        weight: 500,
+                        height: 1.25,
+                        color: const Color(0xD6FFFFFF),
                       ),
                     ),
-                    SizedBox(width: m.scaled(13)),
                   ],
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.title,
-                          style: TextStyle(
-                            fontSize: m.scaled(16),
-                            height: 1.25,
-                            color: Palette.ink,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        if (widget.subtitle != null) ...[
-                          SizedBox(height: m.scaled(3)),
-                          Text(
-                            widget.subtitle!,
-                            style: TextStyle(
-                              fontSize: m.scaled(12),
-                              height: 1.3,
-                              color: Palette.inkFaint,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: m.scaled(20),
-                    color: _focused ? context.palette.accent : Palette.inkFaint,
-                  ),
                 ],
               ),
             ),
-          ),
+          ],
         ),
       ),
     );

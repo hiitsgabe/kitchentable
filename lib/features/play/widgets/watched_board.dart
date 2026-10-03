@@ -43,35 +43,34 @@ class WatchedCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
-          final box = constraints.biggest;
-          if (box.width <= 0 || box.height <= 0 || !box.height.isFinite) {
-            return const SizedBox.shrink();
-          }
-          final cards =
-              seat.pile('battlefield')?.cards ?? const <CardInstance>[];
-          // Seven across the box, and never below the floor: the box decides
-          // the size, so a bigger box is bigger cards and a full board. In a
-          // cell too short for two rows at that size the card shrinks until
-          // two rows fit, down to a smaller floor, so a second row lands
-          // under the first rather than on top of it.
-          final gap = metrics.scaled(6);
-          final across = ((box.width - matPadding) / 7).clamp(floor, 140.0);
-          final twoRows = ((box.height - gap) / 2) * 63 / 88;
-          final width = across <= twoRows ? across : twoRows.clamp(44.0, across);
-          final card = Size(width, width * 88 / 63);
+    builder: (context, constraints) {
+      final box = constraints.biggest;
+      if (box.width <= 0 || box.height <= 0 || !box.height.isFinite) {
+        return const SizedBox.shrink();
+      }
+      final cards = seat.pile('battlefield')?.cards ?? const <CardInstance>[];
+      // Seven across the box, and never below the floor: the box decides
+      // the size, so a bigger box is bigger cards and a full board. In a
+      // cell too short for two rows at that size the card shrinks until
+      // two rows fit, down to a smaller floor, so a second row lands
+      // under the first rather than on top of it.
+      final gap = metrics.scaled(6);
+      final across = ((box.width - matPadding) / 7).clamp(floor, 140.0);
+      final twoRows = ((box.height - gap) / 2) * 63 / 88;
+      final width = across <= twoRows ? across : twoRows.clamp(44.0, across);
+      final card = Size(width, width * 88 / 63);
 
-          return ClipRect(
-            child: Stack(
-              key: Key('watched-${seat.seatId}'),
-              children: [
-                for (final (i, instance) in cards.indexed)
-                  _place(instance, i, card, box),
-              ],
-            ),
-          );
-        },
+      return ClipRect(
+        child: Stack(
+          key: Key('watched-${seat.seatId}'),
+          children: [
+            for (final (i, instance) in cards.indexed)
+              _place(instance, i, card, box),
+          ],
+        ),
       );
+    },
+  );
 
   Widget _place(CardInstance instance, int index, Size card, Size box) {
     final spot = _spot(instance.position, index, card, box);
@@ -103,18 +102,33 @@ class WatchedCanvas extends StatelessWidget {
     // The same inset your own board keeps, so a card at the left edge of
     // theirs lines up with one at the left edge of yours.
     final gap = metrics.scaled(6);
-    final maxX = (box.width - card.width - matPadding).clamp(matPadding, double.infinity);
-    final maxY = (box.height - card.height - matPadding).clamp(matPadding, double.infinity);
+    final maxX = (box.width - card.width - matPadding).clamp(
+      matPadding,
+      double.infinity,
+    );
+    final maxY = (box.height - card.height - matPadding).clamp(
+      matPadding,
+      double.infinity,
+    );
     if (position != null) {
       return Offset(
         matPadding + position.x * (maxX - matPadding),
         matPadding + position.y * (maxY - matPadding),
       );
     }
-    final perRow = ((box.width - matPadding) ~/ (card.width + gap)).clamp(1, 99);
+    final perRow = ((box.width - matPadding) ~/ (card.width + gap)).clamp(
+      1,
+      99,
+    );
     return Offset(
-      (matPadding + (index % perRow) * (card.width + gap)).clamp(matPadding, maxX),
-      (matPadding + (index ~/ perRow) * (card.height + gap)).clamp(matPadding, maxY),
+      (matPadding + (index % perRow) * (card.width + gap)).clamp(
+        matPadding,
+        maxX,
+      ),
+      (matPadding + (index ~/ perRow) * (card.height + gap)).clamp(
+        matPadding,
+        maxY,
+      ),
     );
   }
 }

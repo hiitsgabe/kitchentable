@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sources/model/source_def.dart';
 import '../../ui/atoms/progress_track.dart';
 import '../../ui/organisms/screen_frame.dart';
+import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import 'import_controller.dart';
@@ -30,10 +31,12 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final m = Metrics.of(classifyDevice(
-      size: media.size,
-      hasTouch: media.navigationMode == NavigationMode.traditional,
-    ));
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
     final s = ref.watch(importProvider);
 
     return ScreenFrame(
@@ -54,17 +57,21 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
           metrics: m,
           label: 'Indexing',
           fraction: s.phase == ImportPhase.downloading ? 0 : s.indexFraction,
-          trailing:
-              s.phase == ImportPhase.downloading ? 'waiting' : '${s.indexed} cards',
+          trailing: s.phase == ImportPhase.downloading
+              ? 'waiting'
+              : '${s.indexed} cards',
           dimmed: s.phase == ImportPhase.downloading,
         ),
-        if (s.phase == ImportPhase.failed) _Note(metrics: m, text: s.error, bad: true),
+        if (s.phase == ImportPhase.failed)
+          _Note(metrics: m, text: s.error, bad: true),
         if (s.phase == ImportPhase.done)
           _Note(metrics: m, text: 'Done. ${s.indexed} cards.'),
-        if (s.phase == ImportPhase.downloading || s.phase == ImportPhase.indexing)
+        if (s.phase == ImportPhase.downloading ||
+            s.phase == ImportPhase.indexing)
           _Note(
             metrics: m,
-            text: 'You can leave this screen. It keeps going and tells you when '
+            text:
+                'You can leave this screen. It keeps going and tells you when '
                 'it is finished.',
           ),
       ],
@@ -72,12 +79,12 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   }
 
   String _labelFor(ImportState s) => switch (s.phase) {
-        ImportPhase.idle => 'starting',
-        ImportPhase.downloading => 'downloading',
-        ImportPhase.indexing => 'indexing',
-        ImportPhase.done => 'finished',
-        ImportPhase.failed => 'did not work',
-      };
+    ImportPhase.idle => 'starting',
+    ImportPhase.downloading => 'downloading',
+    ImportPhase.indexing => 'indexing',
+    ImportPhase.done => 'finished',
+    ImportPhase.failed => 'did not work',
+  };
 }
 
 class _Note extends StatelessWidget {
@@ -95,8 +102,9 @@ class _Note extends StatelessWidget {
       padding: EdgeInsets.only(top: m.scaled(6), left: m.scaled(2)),
       child: Text(
         text ?? 'It did not work',
-        style: TextStyle(
-          fontSize: m.scaled(12),
+        style: pixel(
+          size: m.scaled(12),
+          weight: 500,
           height: 1.5,
           color: bad ? Palette.attention : Palette.inkFaint,
         ),
