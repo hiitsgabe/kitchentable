@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'link.dart';
 import 'nostr/keys.dart';
 import 'nostr/relay.dart';
+import 'nostr/room_relays.dart';
 
 /// The three things WebRTC has to say to set up a link, and nothing else.
 enum SignalKind { offer, answer, ice }
@@ -162,6 +163,10 @@ class Signaling {
   final Relay _relay;
   final Keys _keys;
   final String code;
+
+  /// The kind the handshake rides on, from the code, so that every phone
+  /// holding it listens to the same one. See [handshakeKindFor].
+  late final int _kind = handshakeKindFor(code);
   final Future<String> Function(String peer) _makeOffer;
   final Duration announceEvery;
 
@@ -220,7 +225,7 @@ class Signaling {
     _relayStatus = _relay.status.listen(_onRelay);
     final sub = _sub = _relay.subscribe(
       Filter(
-        kinds: const [handshakeKind],
+        kinds: [_kind],
         tags: {
           'd': [code],
         },
@@ -283,7 +288,7 @@ class Signaling {
     final sent = _relay.publish(
       NostrEvent.sign(
         _keys,
-        kind: handshakeKind,
+        kind: _kind,
         tags: [
           ['d', code],
           if (to != null) ['p', to],

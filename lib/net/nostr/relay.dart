@@ -234,6 +234,8 @@ class Relay {
     this.reconnectAfter = const Duration(seconds: 2),
     this.okTimeout = const Duration(seconds: 5),
     this.connectTimeout = const Duration(seconds: 4),
+    this.restAfterFlood = const Duration(seconds: 30),
+    this.restAtMost = const Duration(minutes: 10),
     WebSocketChannel Function(Uri url)? connect,
   }) : _connect = connect ?? WebSocketChannel.connect {
     for (final url in urls) {
@@ -242,6 +244,12 @@ class Relay {
   }
 
   final Duration reconnectAfter;
+
+  /// How long a relay is left alone the first time it says it is being
+  /// flooded, and the longest it is ever left alone. Each refusal in a row
+  /// doubles the wait between the two.
+  final Duration restAfterFlood;
+  final Duration restAtMost;
 
   /// How long [publish] waits for a relay's `OK` before giving up on it.
   final Duration okTimeout;
@@ -362,13 +370,24 @@ class Relay {
         }
       case 'OK':
         // Yes is ''. No is the relay's reason, or a word when it gave none.
+        final yes = message.length > 2 && message[2] == true;
+        final reason = message.length > 3 ? '${message[3]}' : '';
+        // A duplicate is not a refusal. The relay is saying it already has
+        // this event, which is the right outcome and not a reason to treat
+        // the relay as unwell.
+        final had = !yes && reason.startsWith('duplicate:');
+        if (yes || had) {
+          from._tookIt();
+        } else {
+          from._wouldNot(reason);
+        }
         from._oks
             .remove(message[1])
             ?.complete(
-              message.length > 2 && message[2] == true
+              yes || had
                   ? ''
-                  : message.length > 3 && '${message[3]}'.isNotEmpty
-                  ? '${message[3]}'
+                  : reason.isNotEmpty
+                  ? reason
                   : 'refused without a reason',
             );
       case 'EOSE':
@@ -395,6 +414,64 @@ class _Socket {
   final Map<String, Completer<void>> _eoses = {};
   bool _closing = false;
   bool _timedOut = false;
+
+  /// When this relay will be offered another event.
+  ///
+  /// A relay that says it is being flooded is told so by being left alone,
+  /// not by being asked again immediately. The app learned this the hard
+  /// way: it used to read every OK as a yes, then read the no and do
+  /// nothing differently, and damus banned it.
+  DateTime? _restUntil;
+  Duration _rest = Duration.zero;
+
+  /// Shut out for good rather than busy.
+  ///
+  /// There is a difference between "slow down" and "you may not post here",
+  /// and only one of them is worth retrying. A relay that refuses the
+  /// room's whole kind will refuse it for ever.
+  bool _unwelcome = false;
+
+  /// The refusals that mean never, as opposed to not now.
+  ///
+  /// `invalid:` is deliberately not here. It means the relay could not read
+  /// that one event, which is this client's fault and says nothing about
+  /// whether the relay wants our traffic. Treating it as terminal retired a
+  /// perfectly good relay the first time anything sent a bad signature.
+  static final _never = RegExp(r'^(blocked|restricted|auth-required|pow):');
+
+  /// Whether this relay would take an event right now.
+  bool get _willing => open && !_unwelcome && !_resting;
+
+  bool get _resting {
+    final until = _restUntil;
+    if (until == null) return false;
+    if (DateTime.now().isBefore(until)) return true;
+    _restUntil = null;
+    return false;
+  }
+
+  /// It took one, so whatever it was complaining about is over.
+  void _tookIt() {
+    _rest = Duration.zero;
+    _restUntil = null;
+  }
+
+  /// It would not take one, and what happens next depends on why.
+  void _wouldNot(String reason) {
+    if (_never.hasMatch(reason)) {
+      _unwelcome = true;
+      // Nothing more is going to this relay, so stop holding a socket open
+      // to it and stop reconnecting to it.
+      unawaited(_close());
+      return;
+    }
+    if (!reason.startsWith('rate-limited:')) return;
+    _rest = _rest == Duration.zero
+        ? _relay.restAfterFlood
+        : _rest * 2;
+    if (_rest > _relay.restAtMost) _rest = _relay.restAtMost;
+    _restUntil = DateTime.now().add(_rest);
+  }
 
   bool get open => _channel != null;
 
@@ -459,7 +536,7 @@ class _Socket {
   /// when it was down or never answered.
   Future<String?> _publish(NostrEvent event) async {
     await _first.future;
-    if (!open) return null;
+    if (!_willing) return null;
     final ok = _oks[event.id] = Completer<String?>();
     _send(['EVENT', event.toJson()]);
     return ok.future.timeout(

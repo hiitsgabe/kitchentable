@@ -76,30 +76,26 @@ It parses the prefix on `OK: false` and `CLOSED`:
 We learned the first half of this the hard way, that `OK: false` is a no and
 not a yes. We do not yet do anything different depending on which no it is.
 
-### 4. A repeated announcement needs a nonce
+### 4, 5 and 6, which we already do or do not need
 
-```js
-// Relays deduplicate IDs, and created_at only has second precision. An
-// intentional discovery retry must remain distinct from the previous send.
-toJson({...payload, nonce: genId(8)})
-```
+Checked against our own source rather than assumed, and three of the six
+lessons turned out not to apply. Recording them because a list of six fixes
+where three are no-ops is worse than a list of three.
 
-Two identical beacons inside one second hash to the same event id, and the
-relay drops the second as a duplicate. The retry that was supposed to find a
-peer never leaves. We send presence beacons and we do not nonce them.
+**The nonce we already have.** Trystero adds `nonce: genId(8)` to a repeated
+announcement, because relays deduplicate by event id and `created_at` only
+has second precision, so the retry that was meant to find a peer never
+leaves. Our `_publish` has carried `'n': _seq++` on every message since it
+was written, for the same stated reason. Nothing to do.
 
-### 5. Announce rarely, and let arrivals do the work
+**The cadence does not matter at our size.** Trystero announces once a
+minute. We announce every twenty seconds, which at a table of four is 0.2
+events a second against a budget of about two. Presence is not what gets a
+client rate limited; a hand of cards being played is.
 
-`steadyAnnounceIntervalMs = 60_000`, with the comment: "Newcomers announce
-immediately and wake subscribed incumbents, so the fast cadence is only
-needed during startup." Presence is a heartbeat once a minute as a fallback,
-not a poll.
-
-### 6. Subscriptions get batched
-
-`maxTopicsPerSubscription = 250`, with filters chunked across subscriptions.
-We measured nos.lol and primal advertising `max_subscriptions: 20`. A client
-that opens one subscription per thing it cares about runs out.
+**Batching is for clients with hundreds of topics.** Trystero chunks 250
+topics per subscription. We open two subscriptions in total, against relays
+advertising a limit of twenty.
 
 ## What it does about the thing that cannot be solved
 
@@ -196,18 +192,20 @@ the field for the second.
 
 ## What to actually do with this
 
-Six of the findings above are bugs in the transport that carries the game
-today, and none of them has anything to do with voice:
+Three of the findings above are real bugs in the transport that carries the
+game today, and none of them has anything to do with voice:
 
 1. Derive the kind from the room code, off the fixed 25050.
 2. Replace the three busiest relays with a wide list of quiet ones, and
-   connect to five.
-3. Act on the refusal reason: back off a rate limit, retire a block.
-4. Nonce repeated beacons.
-5. Slow the steady announcement to a minute.
-6. Batch subscriptions against a limit of twenty.
+   connect to five of them, chosen by the room code so everybody holding it
+   converges.
+3. Act on the refusal reason: rest a relay that says it is flooded, retire
+   one that says we are not welcome, and treat a duplicate as the yes it is.
 
-Those are worth doing on their own. Whether voice follows is a separate
+The other three were already done or do not apply at our size, which is
+recorded above rather than quietly dropped.
+
+Those three are worth doing on their own. Whether voice follows is a separate
 decision, and the answer to it has not changed: the connection is the hard
 part, nobody has solved it without somebody else's relay, and the honest
 shape is to let the player bring one.

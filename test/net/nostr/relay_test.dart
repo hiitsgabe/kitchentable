@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/net/nostr/keys.dart';
 import 'package:kitchentable/net/nostr/relay.dart';
+import 'package:kitchentable/net/nostr/room_relays.dart';
 
 import 'fake_relay.dart';
 
@@ -29,7 +30,7 @@ Relay _client(List<FakeRelay> relays) {
 NostrEvent _handshake(Keys keys, String code, String content) =>
     NostrEvent.sign(
       keys,
-      kind: handshakeKind,
+      kind: handshakeKindFor(_code),
       tags: [
         ['d', code],
       ],
@@ -73,7 +74,7 @@ void main() {
     // Everything this app ever says to a relay is who it is and how to reach
     // it, and a stored copy of that on a hundred public relays is the one
     // privacy property nothing else in the plan can buy back.
-    expect(handshakeKind, inInclusiveRange(20000, 29999));
+    expect(handshakeKindFor(_code), inInclusiveRange(20000, 29999));
   });
 
   test('an event signed here verifies, and a tampered one does not', () {
@@ -139,7 +140,7 @@ void main() {
     final keys = Keys.mint();
 
     final sub = listener.subscribe(
-      const Filter(kinds: [handshakeKind], tags: {'d': [_code]}),
+      Filter(kinds: [handshakeKindFor(_code)], tags: const {'d': [_code]}),
     );
     final received = <NostrEvent>[];
     sub.events.listen(received.add);
@@ -172,7 +173,7 @@ void main() {
     final keys = Keys.mint();
 
     final sub = listener.subscribe(
-      const Filter(kinds: [handshakeKind], tags: {'d': [_code]}),
+      Filter(kinds: [handshakeKindFor(_code)], tags: const {'d': [_code]}),
     );
     final received = <NostrEvent>[];
     sub.events.listen(received.add);
@@ -204,7 +205,7 @@ void main() {
     final keys = Keys.mint();
 
     final sub = listener.subscribe(
-      const Filter(kinds: [handshakeKind], tags: {'d': [_code]}),
+      Filter(kinds: [handshakeKindFor(_code)], tags: const {'d': [_code]}),
     );
     final received = <NostrEvent>[];
     sub.events.listen(received.add);
@@ -236,7 +237,7 @@ void main() {
     final keys = Keys.mint();
 
     final sub = listener.subscribe(
-      const Filter(kinds: [handshakeKind], tags: {'d': [_code]}),
+      Filter(kinds: [handshakeKindFor(_code)], tags: const {'d': [_code]}),
     );
     final received = <NostrEvent>[];
     sub.events.listen(received.add);
@@ -322,7 +323,12 @@ void main() {
     addTearDown(client.close);
 
     final sub = client.subscribe(
-      const Filter(kinds: [handshakeKind], tags: {'d': ['zz9k-tst']}),
+      Filter(
+        kinds: [handshakeKindFor(_code)],
+        tags: const {
+          'd': ['zz9k-tst'],
+        },
+      ),
     );
     sub.events.listen((_) {});
     final sw = Stopwatch()..start();
@@ -342,7 +348,7 @@ void main() {
     final keys = Keys.mint();
     await client
         .publish(NostrEvent.sign(keys,
-            kind: handshakeKind, tags: [['d', 'zz9k-tst']], content: '{}'))
+            kind: handshakeKindFor(_code), tags: [['d', 'zz9k-tst']], content: '{}'))
         .timeout(const Duration(seconds: 2));
     expect(good.accepted, hasLength(1));
   });
@@ -359,5 +365,109 @@ void main() {
     // close() completes only once a listener drains it, and close() awaited
     // it, so this hung for the whole test timeout.
     await client.close().timeout(const Duration(seconds: 2));
+  });
+
+  group('a relay that says no', () {
+    test('being told to slow down stops the next event going there', () async {
+      // The app read every OK as a yes for a while, then read the no and
+      // did nothing differently, and damus banned it. A relay saying it is
+      // flooded is answered by being left alone.
+      final busy = await _relay();
+      busy.refuse = (_) => 'rate-limited: slow down';
+      final client = _client([busy]);
+      final keys = Keys.mint();
+
+      final first = await client.publish(_handshake(keys, _code, 'one'));
+      expect(first.refused, hasLength(1));
+
+      // The second never reaches the wire at all, which is the point: the
+      // relay asked for quiet and got it.
+      final before = busy.rejected.length;
+      final second = await client.publish(_handshake(keys, _code, 'two'));
+
+      expect(second.accepted, isEmpty);
+      expect(second.refused, isEmpty, reason: 'it was never sent to be refused');
+      expect(busy.rejected, hasLength(before));
+    });
+
+    test('being shut out closes the relay for good', () async {
+      // There is a difference between "slow down" and "you may not post
+      // here", and only one of them is worth retrying. A relay that refuses
+      // the room's whole kind will refuse it for ever.
+      final shut = await _relay();
+      shut.refuse = (_) => 'blocked: kind not accepted by this relay';
+      final client = _client([shut]);
+      final keys = Keys.mint();
+
+      await client.publish(_handshake(keys, _code, 'one'));
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+
+      expect(
+        client.connected,
+        isEmpty,
+        reason: 'a relay that shut us out should not be held open',
+      );
+    });
+
+    test('a duplicate is not a refusal', () async {
+      // The relay is saying it already has this event, which is the right
+      // outcome. Counting it as a refusal would make a resend look like a
+      // relay going wrong.
+      final seen = await _relay();
+      seen.refuse = (_) => 'duplicate: have this already';
+      final client = _client([seen]);
+
+      final sent = await client.publish(_handshake(Keys.mint(), _code, 'one'));
+
+      expect(sent.accepted, hasLength(1));
+      expect(sent.refused, isEmpty);
+    });
+
+    test('a bad signature is this client s fault, not the relay s', () async {
+      // `invalid:` means the relay could not read that one event. Treating
+      // it as terminal retired a perfectly good relay the first time
+      // anything sent a bad signature, which the suite caught.
+      final picky = await _relay();
+      picky.refuse = (_) => 'invalid: bad signature';
+      final client = _client([picky]);
+      final keys = Keys.mint();
+
+      final sent = await client.publish(_handshake(keys, _code, 'one'));
+      expect(sent.refused.values, ['invalid: bad signature']);
+
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(client.connected, hasLength(1), reason: 'the relay is still fine');
+
+      // And it is still willing to be published to.
+      picky.refuse = null;
+      final after = await client.publish(_handshake(keys, _code, 'two'));
+      expect(after.accepted, hasLength(1));
+    });
+
+    test('taking one forgives the last complaint', () async {
+      final moody = await _relay();
+      moody.refuse = (_) => 'rate-limited: slow down';
+      final client = Relay(
+        [moody.url],
+        reconnectAfter: const Duration(milliseconds: 20),
+        restAfterFlood: const Duration(milliseconds: 60),
+      );
+      addTearDown(client.close);
+      final keys = Keys.mint();
+
+      await client.publish(_handshake(keys, _code, 'one'));
+      moody.refuse = null;
+      await Future<void>.delayed(const Duration(milliseconds: 90));
+
+      // The rest is over, it takes one, and the next is not delayed.
+      expect(
+        (await client.publish(_handshake(keys, _code, 'two'))).accepted,
+        hasLength(1),
+      );
+      expect(
+        (await client.publish(_handshake(keys, _code, 'three'))).accepted,
+        hasLength(1),
+      );
+    });
   });
 }

@@ -9,6 +9,7 @@ import '../../decks/model/deck_format.dart';
 import '../../net/mesh.dart';
 import '../../net/nostr/keys.dart';
 import '../../net/nostr/relay.dart';
+import '../../net/nostr/room_relays.dart';
 import '../../net/signaling.dart';
 import '../../net/transport.dart';
 import '../../net/connection_report.dart';
@@ -669,14 +670,8 @@ class Reach {
 
 // The providers. The room screen reads these and nothing under them.
 
-/// Public relays to announce on. Here until the settings screen holds a
-/// list the player can edit, which is the next task; a room announced on
-/// none of them is a room nobody can find.
-const defaultRelays = [
-  'wss://relay.damus.io',
-  'wss://nos.lol',
-  'wss://relay.primal.net',
-];
+/// Which relays a room is held on comes from the room's own code now. See
+/// [relaysFor] and the pool it draws from.
 
 /// How this device reaches the others, given the room code.
 ///
@@ -698,7 +693,7 @@ Transport _reachOut(String code, {TurnServer? turn}) {
   // is kept in the tree for that and is not what a room uses to connect
   // today, because this connects everywhere and needs nothing filled in.
   final transport = RelayTransport(
-    relay: Relay([for (final url in defaultRelays) Uri.parse(url)]),
+    relay: Relay(relaysFor(code)),
     keys: Keys.mint(),
     code: code,
   );
