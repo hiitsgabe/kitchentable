@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../tokens/app_palette.dart';
 import '../tokens/palette.dart';
 import '../tokens/metrics.dart';
 
@@ -88,10 +89,10 @@ class _MenuRowState extends State<MenuRow> {
                 vertical: m.scaled(12),
               ),
               decoration: BoxDecoration(
-                color: _focused ? Palette.focusWash : Colors.transparent,
+                color: _focused ? context.palette.focusWash : Colors.transparent,
                 borderRadius: BorderRadius.circular(m.scaled(14)),
                 border: Border.all(
-                  color: _focused ? Palette.accent : Colors.transparent,
+                  color: _focused ? context.palette.accent : Colors.transparent,
                   width: m.focusRing,
                 ),
               ),
@@ -102,16 +103,16 @@ class _MenuRowState extends State<MenuRow> {
                       width: m.scaled(38),
                       height: m.scaled(38),
                       decoration: BoxDecoration(
-                        color: _focused ? Palette.tileFocused : Palette.tile,
+                        color: _focused ? context.palette.tileFocused : Palette.tile,
                         borderRadius: BorderRadius.circular(m.scaled(10)),
                         border: Border.all(
-                          color: _focused ? Palette.accent : Palette.tileEdge,
+                          color: _focused ? context.palette.accent : Palette.tileEdge,
                         ),
                       ),
                       child: Icon(
                         widget.icon,
                         size: m.scaled(19),
-                        color: _focused ? Palette.accent : Palette.inkMuted,
+                        color: _focused ? context.palette.accent : Palette.inkMuted,
                       ),
                     ),
                     SizedBox(width: m.scaled(13)),
@@ -146,7 +147,7 @@ class _MenuRowState extends State<MenuRow> {
                   Icon(
                     Icons.chevron_right_rounded,
                     size: m.scaled(20),
-                    color: _focused ? Palette.accent : Palette.inkFaint,
+                    color: _focused ? context.palette.accent : Palette.inkFaint,
                   ),
                 ],
               ),

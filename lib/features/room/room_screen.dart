@@ -8,6 +8,7 @@ import '../../table/shuffle.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/screen_frame.dart';
+import '../../ui/tokens/app_palette.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../decks/play_decks_screen.dart';
@@ -406,7 +407,7 @@ class _Seats extends StatelessWidget {
                   style: TextStyle(
                     fontSize: m.scaled(11),
                     fontWeight: FontWeight.w600,
-                    color: taken == seats ? Palette.accent : Palette.inkMuted,
+                    color: taken == seats ? context.palette.accent : Palette.inkMuted,
                   ),
                 ),
               ],
@@ -521,7 +522,7 @@ class _Chair extends StatelessWidget {
               fontSize: m.scaled(14),
               fontWeight: mine ? FontWeight.w700 : FontWeight.w500,
               color: here
-                  ? (mine ? Palette.accent : Palette.ink)
+                  ? (mine ? context.palette.accent : Palette.ink)
                   : Palette.inkFaint,
             ),
           ),
@@ -532,7 +533,7 @@ class _Chair extends StatelessWidget {
           maxLines: 1,
           style: TextStyle(
             fontSize: m.scaled(11),
-            color: here ? Palette.accent : Palette.inkFaint,
+            color: here ? context.palette.accent : Palette.inkFaint,
           ),
         ),
       ],
@@ -659,7 +660,7 @@ class _CodeLine extends StatelessWidget {
                 fontSize: m.scaled(15),
                 fontWeight: FontWeight.w700,
                 letterSpacing: m.scaled(1.5),
-                color: Palette.accent,
+                color: context.palette.accent,
               ),
             ),
           ],

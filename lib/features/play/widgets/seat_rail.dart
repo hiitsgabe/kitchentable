@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../ui/tokens/app_palette.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 
@@ -49,11 +50,11 @@ class SeatRail extends StatelessWidget {
                 margin: EdgeInsets.only(right: m.scaled(6)),
                 padding: EdgeInsets.symmetric(horizontal: m.scaled(10)),
                 decoration: BoxDecoration(
-                  color: seat.mine ? Palette.tileFocused : Palette.tile,
+                  color: seat.mine ? context.palette.tileFocused : Palette.tile,
                   borderRadius: BorderRadius.circular(m.scaled(14)),
                   border: Border.all(
                     color: seat.seatId == pickedSeatId
-                        ? Palette.accent
+                        ? context.palette.accent
                         : Palette.tileEdge,
                   ),
                 ),

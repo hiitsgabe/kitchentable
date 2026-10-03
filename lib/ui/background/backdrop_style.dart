@@ -41,6 +41,7 @@ class BackdropStyle {
     this.top = const Color(0xFFFF2E88),
     this.bottom = const Color(0xFF07060A),
     this.imagePath,
+    this.imageData,
   });
 
   final BackdropKind kind;
@@ -51,19 +52,28 @@ class BackdropStyle {
   final Color top;
   final Color bottom;
 
+  /// A path on a device that has a file system.
   final String? imagePath;
+
+  /// The picture itself, base64 JPEG. A browser hands out a handle to a file
+  /// rather than a name and the handle dies with the tab, so the bytes are
+  /// what survives a reload. Shrunk before it is stored.
+  final String? imageData;
 
   BackdropStyle copyWith({
     BackdropKind? kind,
     Color? top,
     Color? bottom,
     String? imagePath,
+    String? imageData,
+    bool clearImage = false,
   }) =>
       BackdropStyle(
         kind: kind ?? this.kind,
         top: top ?? this.top,
         bottom: bottom ?? this.bottom,
-        imagePath: imagePath ?? this.imagePath,
+        imagePath: clearImage ? null : (imagePath ?? this.imagePath),
+        imageData: clearImage ? null : (imageData ?? this.imageData),
       );
 
   Map<String, Object?> toJson() => {
@@ -71,6 +81,7 @@ class BackdropStyle {
         'top': top.toARGB32(),
         'bottom': bottom.toARGB32(),
         'imagePath': imagePath,
+        'imageData': imageData,
       };
 
   static BackdropStyle fromJson(Map<String, Object?> json) => BackdropStyle(
@@ -81,6 +92,7 @@ class BackdropStyle {
         top: Color((json['top'] as int?) ?? 0xFFFF2E88),
         bottom: Color((json['bottom'] as int?) ?? 0xFF07060A),
         imagePath: json['imagePath'] as String?,
+        imageData: json['imageData'] as String?,
       );
 }
 

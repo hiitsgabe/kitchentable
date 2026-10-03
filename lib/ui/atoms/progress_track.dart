@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../tokens/app_palette.dart';
 import '../tokens/metrics.dart';
 import '../tokens/palette.dart';
 
@@ -49,7 +50,7 @@ class ProgressTrack extends StatelessWidget {
                 value: fraction,
                 minHeight: m.scaled(5),
                 backgroundColor: Palette.feltEdge,
-                valueColor: const AlwaysStoppedAnimation(Palette.accent),
+                valueColor: AlwaysStoppedAnimation(context.palette.accent),
               ),
             ),
             SizedBox(height: m.scaled(5)),

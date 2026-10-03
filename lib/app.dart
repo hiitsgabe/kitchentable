@@ -13,7 +13,10 @@ class KitchentableApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: 'kitchentable',
-      theme: kitchentableTheme(),
+      // The picked colour reaches the whole app through the theme, so a
+      // border is the colour the background is rather than the pink it was
+      // written as.
+      theme: kitchentableTheme(accent: ref.watch(backdropProvider).top),
       debugShowCheckedModeBanner: false,
       // One backdrop for the whole app, under every route. Putting it inside
       // each screen would restart the animation on every push, which reads as

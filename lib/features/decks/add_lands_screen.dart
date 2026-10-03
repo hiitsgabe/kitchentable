@@ -9,6 +9,7 @@ import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/card_viewer.dart';
 import '../../ui/organisms/screen_frame.dart';
+import '../../ui/tokens/app_palette.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../menu/menu_controller.dart';
@@ -202,7 +203,7 @@ class _LandRow extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: m.scaled(14),
                   fontWeight: FontWeight.w600,
-                  color: Palette.accent,
+                  color: context.palette.accent,
                 ),
               ),
             ),

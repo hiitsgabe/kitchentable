@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,14 +7,35 @@ import '../../ui/atoms/menu_row.dart';
 import '../../ui/background/backdrop_controller.dart';
 import '../../ui/background/backdrop_style.dart';
 import '../../ui/organisms/screen_frame.dart';
+import '../../ui/tokens/app_palette.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
+import 'pick_image.dart';
 
-class BackdropScreen extends ConsumerWidget {
+class BackdropScreen extends ConsumerStatefulWidget {
   const BackdropScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BackdropScreen> createState() => _BackdropScreenState();
+}
+
+class _BackdropScreenState extends ConsumerState<BackdropScreen> {
+  bool _picking = false;
+
+  Future<void> _pick(BackdropStyle style) async {
+    if (_picking) return;
+    setState(() => _picking = true);
+    final data = await pickImage();
+    if (!mounted) return;
+    setState(() => _picking = false);
+    if (data == null) return;
+    await ref.read(backdropProvider.notifier).set(
+          style.copyWith(kind: BackdropKind.image, imageData: data),
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final m = Metrics.of(classifyDevice(
       size: media.size,
@@ -40,7 +63,66 @@ class BackdropScreen extends ConsumerWidget {
             onActivate: () => controller.set(style.copyWith(kind: kind)),
           ),
         SizedBox(height: m.scaled(20)),
+        if (style.kind == BackdropKind.image) ...[
+          SizedBox(height: m.scaled(10)),
+          if (style.imageData case final data?)
+            Padding(
+              padding: EdgeInsets.only(bottom: m.scaled(10)),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(m.scaled(10)),
+                child: Image.memory(
+                  base64Decode(data),
+                  key: const Key('backdrop-preview'),
+                  height: m.scaled(96),
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          if (canPickImage)
+            MenuRow(
+              key: const Key('backdrop-pick'),
+              title: style.imageData == null
+                  ? 'Choose a picture'
+                  : 'Choose a different picture',
+              subtitle: _picking
+                  ? 'waiting for you to pick one'
+                  : 'it is shrunk and kept on this device',
+              icon: Icons.image_search_rounded,
+              metrics: m,
+              onActivate: () => _pick(style),
+            )
+          else
+            Padding(
+              padding: EdgeInsets.only(bottom: m.scaled(12)),
+              child: Text(
+                'Choosing a picture is only in the web version for now. This '
+                'build has no chooser, so the colours below are what it draws.',
+                style: TextStyle(
+                  fontSize: m.scaled(11),
+                  height: 1.45,
+                  color: Palette.inkFaint,
+                ),
+              ),
+            ),
+          if (style.imageData != null)
+            MenuRow(
+              key: const Key('backdrop-clear'),
+              title: 'Remove the picture',
+              subtitle: 'back to the colours below',
+              icon: Icons.delete_outline_rounded,
+              metrics: m,
+              onActivate: () => controller.set(style.copyWith(clearImage: true)),
+            ),
+          SizedBox(height: m.scaled(10)),
+        ],
         _Label(metrics: m, text: 'colour'),
+        _Said(
+          metrics: m,
+          text: 'It is the background, and everything the app draws to point '
+              'at something: borders, the focus ring, your own board, the '
+              'buttons you press.',
+        ),
         Wrap(
           spacing: m.scaled(10),
           runSpacing: m.scaled(10),
@@ -62,7 +144,7 @@ class BackdropScreen extends ConsumerWidget {
     );
   }
 
-  static IconData _iconFor(BackdropKind k) => switch (k) {
+  IconData _iconFor(BackdropKind k) => switch (k) {
         BackdropKind.aurora => Icons.blur_on_rounded,
         BackdropKind.drift => Icons.bubble_chart_rounded,
         BackdropKind.flat => Icons.gradient_rounded,
@@ -85,6 +167,27 @@ class _Label extends StatelessWidget {
             fontSize: metrics.scaled(10),
             letterSpacing: 1.3,
             fontWeight: FontWeight.w500,
+            color: Palette.inkFaint,
+          ),
+        ),
+      );
+}
+
+/// A line under a heading, saying what the group changes.
+class _Said extends StatelessWidget {
+  const _Said({required this.metrics, required this.text});
+
+  final Metrics metrics;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.only(bottom: metrics.scaled(12)),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: metrics.scaled(11),
+            height: 1.45,
             color: Palette.inkFaint,
           ),
         ),
@@ -128,7 +231,7 @@ class _Swatch extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(m.scaled(10)),
                 border: Border.all(
-                  color: chosen ? Palette.accent : Palette.tileEdge,
+                  color: chosen ? context.palette.accent : Palette.tileEdge,
                   width: chosen ? m.focusRing : 1,
                 ),
                 gradient: LinearGradient(
