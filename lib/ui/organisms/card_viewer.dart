@@ -15,6 +15,7 @@ import '../atoms/card_image.dart';
 import '../tokens/app_palette.dart';
 import '../tokens/palette.dart';
 import 'card_shading.dart';
+import '../atoms/pressable.dart';
 
 /// What the viewer can ask for, beyond looking.
 ///
@@ -455,28 +456,35 @@ class _CardViewerState extends State<CardViewer>
     // wearing, so the word toggles and the numbers count.
     final up = piece.isKeyword ? (on ? -count : 1) : 1;
 
-    return GestureDetector(
+    return Pressable(
       key: Key('kind-$kind'),
-      // The tap is the whole action. It used to choose which kind a separate
-      // plus and minus further down would act on, so putting one `+1/+1` on a
-      // card was two taps with nothing between them to say the first had
-      // landed, and the second tap closed the card. Three counters meant
-      // opening the card three times.
-      onTap: () => _count(kind, up),
+      metrics: m,
+      // The press is the whole action. It used to choose which kind a
+      // separate plus and minus further down would act on, so putting one
+      // `+1/+1` on a card was two taps with nothing between them to say the
+      // first had landed, and the second tap closed the card. Three counters
+      // meant opening the card three times.
+      onPress: () => _count(kind, up),
       // And back off again, on the piece you put on rather than on a minus
       // somewhere else.
       onLongPress: on ? () => _count(kind, -1) : null,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
+      ring: false,
+      semanticLabel: on ? '$kind, $count' : kind,
+      builder: (context, state) => Container(
         padding: EdgeInsets.all(m.scaled(3)),
         decoration: BoxDecoration(
           // Lit when the card is wearing one, and nothing at all around the
           // rest. A tile behind every piece would be a second object under the
           // object, and twenty two of them is a wall of chrome.
-          color: on ? context.palette.tileFocused : Colors.transparent,
+          color: on || state.hovered
+              ? context.palette.tileFocused
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(m.scaled(9)),
           border: Border.all(
-            color: on ? context.palette.accent : Colors.transparent,
+            color: on || state.focused
+                ? context.palette.accent
+                : Colors.transparent,
+            width: state.focused ? m.focusRing : 1,
           ),
         ),
         child: CounterPieceView(
@@ -530,19 +538,26 @@ class _CardViewerState extends State<CardViewer>
     IconData icon,
     String? label,
     CardAction action,
-  ) => GestureDetector(
+  ) => Pressable(
     key: key,
-    onTap: () => widget.onAct?.call(action),
-    behavior: HitTestBehavior.opaque,
-    child: Container(
+    metrics: m,
+    onPress: () => widget.onAct?.call(action),
+    ring: false,
+    semanticLabel: label,
+    builder: (context, state) => Container(
       padding: EdgeInsets.symmetric(
         horizontal: m.scaled(label == null ? 10 : 14),
         vertical: m.scaled(10),
       ),
       decoration: BoxDecoration(
-        color: Palette.tile,
+        color: state.focused || state.hovered
+            ? context.palette.tileFocused
+            : Palette.tile,
         borderRadius: BorderRadius.circular(m.scaled(10)),
-        border: Border.all(color: Palette.tileEdge),
+        border: Border.all(
+          color: state.focused ? context.palette.accent : Palette.tileEdge,
+          width: state.focused ? m.focusRing : 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

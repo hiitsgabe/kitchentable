@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/features/play/look_at_top.dart';
 import 'package:kitchentable/features/play/widgets/deck_sheet.dart';
@@ -52,6 +53,19 @@ Widget _host({
 );
 
 void main() {
+  testWidgets('the ring is on the first choice the moment it opens, so select '
+      'does something', (tester) async {
+    await tester.pumpWidget(_host());
+    await tester.pump();
+
+    // A sheet with nothing focused is a sheet a pad cannot use: the first
+    // press would land nowhere. Search is the first choice.
+    await tester.sendKeyEvent(LogicalKeyboardKey.gameButtonA);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Search your deck'), findsOneWidget);
+  });
+
   testWidgets('it opens on the choices, not on the cards', (tester) async {
     await tester.pumpWidget(_host());
     await tester.pump();

@@ -794,6 +794,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
               Consumer(
                 builder: (context, ref, _) => Center(
                   child: DiceTray(
+                    metrics: m,
                     showing: ref.watch(playProvider)?.dice ?? const [],
                     width: m.scaled(220),
                     announced: announcedRoll(

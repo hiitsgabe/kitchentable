@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../ui/atoms/pressable.dart';
+import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import 'die_view.dart';
 import 'polyhedron.dart';
@@ -42,8 +44,12 @@ class DiceTray extends StatefulWidget {
     required this.width,
     required this.onRoll,
     this.announced,
+    this.metrics,
     super.key,
   });
+
+  /// For the ring on a focused die. Null draws it at the handheld size.
+  final Metrics? metrics;
 
   /// A throw somebody else made, which this tray has to act out.
   ///
@@ -172,6 +178,7 @@ class _DiceTrayState extends State<DiceTray>
               if (i > 0) SizedBox(width: gap),
               _Die(
                 key: Key('die-${die.sides}'),
+                metrics: widget.metrics ?? Metrics.of(DeviceClass.handheld),
                 solid: die.solid,
                 number: i == _airborne ? _landing : _numberOn(i),
                 turning: i == _airborne ? _roll.value : null,
@@ -194,6 +201,7 @@ class _DiceTrayState extends State<DiceTray>
 /// the die is lying and the caption tells you what you rolled.
 class _Die extends StatelessWidget {
   const _Die({
+    required this.metrics,
     required this.solid,
     required this.number,
     required this.turning,
@@ -202,6 +210,7 @@ class _Die extends StatelessWidget {
     super.key,
   });
 
+  final Metrics metrics;
   final Polyhedron solid;
   final int number;
 
@@ -221,9 +230,10 @@ class _Die extends StatelessWidget {
 
     return SizedBox(
       width: side,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
+      child: Pressable(
+        metrics: metrics,
+        onPress: onTap,
+        semanticLabel: 'd${solid.sides}, showing $number',
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

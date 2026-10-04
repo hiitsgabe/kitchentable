@@ -86,6 +86,7 @@ class VoiceSheet extends StatelessWidget {
             SizedBox(height: m.scaled(12)),
             Slab(
               key: const Key('voice-join'),
+              autofocus: true,
               metrics: m,
               tone: SlabTone.choice,
               enabled: voice.state != Talking.asking,
@@ -164,6 +165,7 @@ class VoiceSheet extends StatelessWidget {
             SizedBox(height: m.scaled(10)),
             Slab(
               key: const Key('voice-leave'),
+              autofocus: true,
               metrics: m,
               tone: SlabTone.warm,
               onActivate: onLeave,

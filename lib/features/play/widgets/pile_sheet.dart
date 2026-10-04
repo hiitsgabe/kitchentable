@@ -121,6 +121,7 @@ class _PileSheetState extends State<PileSheet> {
               icon: Icons.check_rounded,
               label: 'Done',
               loud: true,
+              autofocus: true,
               // Only the cards somebody chose a place for. `arrange` emits a
               // move per placement it is handed, so a pile whose cards stay
               // put is a shorter list and not a flag.
