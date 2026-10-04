@@ -37,25 +37,22 @@ void main() {
     expect(ids.toSet().length, ids.length);
   });
 
-  test(
-    'pokemon and the local file are real, and draft sets are not listed',
-    () {
-      final ids = knownSources.map((s) => s.id).toList();
-      expect(
-        ids,
-        isNot(contains('mtgjson_sets')),
-        reason: 'a source nothing reads is a download that changes nothing',
-      );
-      final pokemon = knownSources.singleWhere(
-        (s) => s.id == 'pokemon_tcg_data',
-      );
-      expect(pokemon.available, isTrue);
-      expect(pokemon.endpoint!.host, 'raw.githubusercontent.com');
-      expect(pokemon.endpoint!.path, endsWith('/sets/en.json'));
-      expect(pokemon.approximateBytes, greaterThan(20000000));
-      final local = knownSources.singleWhere((s) => s.id == 'local_file');
-      expect(local.available, isTrue);
-      expect(local.endpoint, isNull);
-    },
-  );
+  test('pokemon, mtgjson and the local file are all real sources', () {
+    final pokemon = knownSources.singleWhere((s) => s.id == 'pokemon_tcg_data');
+    expect(pokemon.available, isTrue);
+    expect(pokemon.endpoint!.host, 'raw.githubusercontent.com');
+    expect(pokemon.endpoint!.path, endsWith('/sets/en.json'));
+    expect(pokemon.approximateBytes, greaterThan(20000000));
+    final mtgjson = knownSources.singleWhere((s) => s.id == 'mtgjson_sets');
+    expect(mtgjson.available, isTrue);
+    expect(mtgjson.kind, SourceKind.draftSets);
+    expect(
+      mtgjson.endpoint.toString(),
+      'https://mtgjson.com/api/v5/SetList.json.gz',
+      reason: 'the list is read through the gzip it is served in',
+    );
+    final local = knownSources.singleWhere((s) => s.id == 'local_file');
+    expect(local.available, isTrue);
+    expect(local.endpoint, isNull);
+  });
 }

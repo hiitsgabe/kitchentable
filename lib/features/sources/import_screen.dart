@@ -62,7 +62,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
           fraction: s.phase == ImportPhase.downloading ? 0 : s.indexFraction,
           trailing: s.phase == ImportPhase.downloading
               ? 'waiting'
-              : '${s.indexed} cards',
+              : '${s.indexed} ${s.what}',
           dimmed: s.phase == ImportPhase.downloading,
         ),
         if (s.phase == ImportPhase.failed)
@@ -76,7 +76,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
           MenuRow(
             key: const Key('import-done'),
             title: 'Done',
-            subtitle: '${s.indexed} cards are on this device now',
+            subtitle: '${s.indexed} ${s.what} are on this device now',
             icon: Icons.check_rounded,
             tone: SlabTone.choice,
             metrics: m,

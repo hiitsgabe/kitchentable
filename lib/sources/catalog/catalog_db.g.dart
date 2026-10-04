@@ -1735,17 +1735,970 @@ class DeckCardsCompanion extends UpdateCompanion<DeckCardRow> {
   }
 }
 
+class $DraftSetsTable extends DraftSets
+    with TableInfo<$DraftSetsTable, DraftSetRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DraftSetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _codeMeta = const VerificationMeta('code');
+  @override
+  late final GeneratedColumn<String> code = GeneratedColumn<String>(
+    'code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _releaseDateMeta = const VerificationMeta(
+    'releaseDate',
+  );
+  @override
+  late final GeneratedColumn<String> releaseDate = GeneratedColumn<String>(
+    'release_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _baseSetSizeMeta = const VerificationMeta(
+    'baseSetSize',
+  );
+  @override
+  late final GeneratedColumn<int> baseSetSize = GeneratedColumn<int>(
+    'base_set_size',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _totalSetSizeMeta = const VerificationMeta(
+    'totalSetSize',
+  );
+  @override
+  late final GeneratedColumn<int> totalSetSize = GeneratedColumn<int>(
+    'total_set_size',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _onlineOnlyMeta = const VerificationMeta(
+    'onlineOnly',
+  );
+  @override
+  late final GeneratedColumn<bool> onlineOnly = GeneratedColumn<bool>(
+    'online_only',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("online_only" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _boosterMeta = const VerificationMeta(
+    'booster',
+  );
+  @override
+  late final GeneratedColumn<String> booster = GeneratedColumn<String>(
+    'booster',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    code,
+    name,
+    type,
+    releaseDate,
+    baseSetSize,
+    totalSetSize,
+    onlineOnly,
+    booster,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'draft_sets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DraftSetRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('code')) {
+      context.handle(
+        _codeMeta,
+        code.isAcceptableOrUnknown(data['code']!, _codeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_codeMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('release_date')) {
+      context.handle(
+        _releaseDateMeta,
+        releaseDate.isAcceptableOrUnknown(
+          data['release_date']!,
+          _releaseDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_releaseDateMeta);
+    }
+    if (data.containsKey('base_set_size')) {
+      context.handle(
+        _baseSetSizeMeta,
+        baseSetSize.isAcceptableOrUnknown(
+          data['base_set_size']!,
+          _baseSetSizeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_baseSetSizeMeta);
+    }
+    if (data.containsKey('total_set_size')) {
+      context.handle(
+        _totalSetSizeMeta,
+        totalSetSize.isAcceptableOrUnknown(
+          data['total_set_size']!,
+          _totalSetSizeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_totalSetSizeMeta);
+    }
+    if (data.containsKey('online_only')) {
+      context.handle(
+        _onlineOnlyMeta,
+        onlineOnly.isAcceptableOrUnknown(data['online_only']!, _onlineOnlyMeta),
+      );
+    }
+    if (data.containsKey('booster')) {
+      context.handle(
+        _boosterMeta,
+        booster.isAcceptableOrUnknown(data['booster']!, _boosterMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {code};
+  @override
+  DraftSetRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DraftSetRow(
+      code: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}code'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      releaseDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}release_date'],
+      )!,
+      baseSetSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}base_set_size'],
+      )!,
+      totalSetSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_set_size'],
+      )!,
+      onlineOnly: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}online_only'],
+      )!,
+      booster: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}booster'],
+      ),
+    );
+  }
+
+  @override
+  $DraftSetsTable createAlias(String alias) {
+    return $DraftSetsTable(attachedDatabase, alias);
+  }
+}
+
+class DraftSetRow extends DataClass implements Insertable<DraftSetRow> {
+  final String code;
+  final String name;
+  final String type;
+  final String releaseDate;
+  final int baseSetSize;
+  final int totalSetSize;
+  final bool onlineOnly;
+  final String? booster;
+  const DraftSetRow({
+    required this.code,
+    required this.name,
+    required this.type,
+    required this.releaseDate,
+    required this.baseSetSize,
+    required this.totalSetSize,
+    required this.onlineOnly,
+    this.booster,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['code'] = Variable<String>(code);
+    map['name'] = Variable<String>(name);
+    map['type'] = Variable<String>(type);
+    map['release_date'] = Variable<String>(releaseDate);
+    map['base_set_size'] = Variable<int>(baseSetSize);
+    map['total_set_size'] = Variable<int>(totalSetSize);
+    map['online_only'] = Variable<bool>(onlineOnly);
+    if (!nullToAbsent || booster != null) {
+      map['booster'] = Variable<String>(booster);
+    }
+    return map;
+  }
+
+  DraftSetsCompanion toCompanion(bool nullToAbsent) {
+    return DraftSetsCompanion(
+      code: Value(code),
+      name: Value(name),
+      type: Value(type),
+      releaseDate: Value(releaseDate),
+      baseSetSize: Value(baseSetSize),
+      totalSetSize: Value(totalSetSize),
+      onlineOnly: Value(onlineOnly),
+      booster: booster == null && nullToAbsent
+          ? const Value.absent()
+          : Value(booster),
+    );
+  }
+
+  factory DraftSetRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DraftSetRow(
+      code: serializer.fromJson<String>(json['code']),
+      name: serializer.fromJson<String>(json['name']),
+      type: serializer.fromJson<String>(json['type']),
+      releaseDate: serializer.fromJson<String>(json['releaseDate']),
+      baseSetSize: serializer.fromJson<int>(json['baseSetSize']),
+      totalSetSize: serializer.fromJson<int>(json['totalSetSize']),
+      onlineOnly: serializer.fromJson<bool>(json['onlineOnly']),
+      booster: serializer.fromJson<String?>(json['booster']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'code': serializer.toJson<String>(code),
+      'name': serializer.toJson<String>(name),
+      'type': serializer.toJson<String>(type),
+      'releaseDate': serializer.toJson<String>(releaseDate),
+      'baseSetSize': serializer.toJson<int>(baseSetSize),
+      'totalSetSize': serializer.toJson<int>(totalSetSize),
+      'onlineOnly': serializer.toJson<bool>(onlineOnly),
+      'booster': serializer.toJson<String?>(booster),
+    };
+  }
+
+  DraftSetRow copyWith({
+    String? code,
+    String? name,
+    String? type,
+    String? releaseDate,
+    int? baseSetSize,
+    int? totalSetSize,
+    bool? onlineOnly,
+    Value<String?> booster = const Value.absent(),
+  }) => DraftSetRow(
+    code: code ?? this.code,
+    name: name ?? this.name,
+    type: type ?? this.type,
+    releaseDate: releaseDate ?? this.releaseDate,
+    baseSetSize: baseSetSize ?? this.baseSetSize,
+    totalSetSize: totalSetSize ?? this.totalSetSize,
+    onlineOnly: onlineOnly ?? this.onlineOnly,
+    booster: booster.present ? booster.value : this.booster,
+  );
+  DraftSetRow copyWithCompanion(DraftSetsCompanion data) {
+    return DraftSetRow(
+      code: data.code.present ? data.code.value : this.code,
+      name: data.name.present ? data.name.value : this.name,
+      type: data.type.present ? data.type.value : this.type,
+      releaseDate: data.releaseDate.present
+          ? data.releaseDate.value
+          : this.releaseDate,
+      baseSetSize: data.baseSetSize.present
+          ? data.baseSetSize.value
+          : this.baseSetSize,
+      totalSetSize: data.totalSetSize.present
+          ? data.totalSetSize.value
+          : this.totalSetSize,
+      onlineOnly: data.onlineOnly.present
+          ? data.onlineOnly.value
+          : this.onlineOnly,
+      booster: data.booster.present ? data.booster.value : this.booster,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DraftSetRow(')
+          ..write('code: $code, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('releaseDate: $releaseDate, ')
+          ..write('baseSetSize: $baseSetSize, ')
+          ..write('totalSetSize: $totalSetSize, ')
+          ..write('onlineOnly: $onlineOnly, ')
+          ..write('booster: $booster')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    code,
+    name,
+    type,
+    releaseDate,
+    baseSetSize,
+    totalSetSize,
+    onlineOnly,
+    booster,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DraftSetRow &&
+          other.code == this.code &&
+          other.name == this.name &&
+          other.type == this.type &&
+          other.releaseDate == this.releaseDate &&
+          other.baseSetSize == this.baseSetSize &&
+          other.totalSetSize == this.totalSetSize &&
+          other.onlineOnly == this.onlineOnly &&
+          other.booster == this.booster);
+}
+
+class DraftSetsCompanion extends UpdateCompanion<DraftSetRow> {
+  final Value<String> code;
+  final Value<String> name;
+  final Value<String> type;
+  final Value<String> releaseDate;
+  final Value<int> baseSetSize;
+  final Value<int> totalSetSize;
+  final Value<bool> onlineOnly;
+  final Value<String?> booster;
+  final Value<int> rowid;
+  const DraftSetsCompanion({
+    this.code = const Value.absent(),
+    this.name = const Value.absent(),
+    this.type = const Value.absent(),
+    this.releaseDate = const Value.absent(),
+    this.baseSetSize = const Value.absent(),
+    this.totalSetSize = const Value.absent(),
+    this.onlineOnly = const Value.absent(),
+    this.booster = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DraftSetsCompanion.insert({
+    required String code,
+    required String name,
+    required String type,
+    required String releaseDate,
+    required int baseSetSize,
+    required int totalSetSize,
+    this.onlineOnly = const Value.absent(),
+    this.booster = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : code = Value(code),
+       name = Value(name),
+       type = Value(type),
+       releaseDate = Value(releaseDate),
+       baseSetSize = Value(baseSetSize),
+       totalSetSize = Value(totalSetSize);
+  static Insertable<DraftSetRow> custom({
+    Expression<String>? code,
+    Expression<String>? name,
+    Expression<String>? type,
+    Expression<String>? releaseDate,
+    Expression<int>? baseSetSize,
+    Expression<int>? totalSetSize,
+    Expression<bool>? onlineOnly,
+    Expression<String>? booster,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (code != null) 'code': code,
+      if (name != null) 'name': name,
+      if (type != null) 'type': type,
+      if (releaseDate != null) 'release_date': releaseDate,
+      if (baseSetSize != null) 'base_set_size': baseSetSize,
+      if (totalSetSize != null) 'total_set_size': totalSetSize,
+      if (onlineOnly != null) 'online_only': onlineOnly,
+      if (booster != null) 'booster': booster,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DraftSetsCompanion copyWith({
+    Value<String>? code,
+    Value<String>? name,
+    Value<String>? type,
+    Value<String>? releaseDate,
+    Value<int>? baseSetSize,
+    Value<int>? totalSetSize,
+    Value<bool>? onlineOnly,
+    Value<String?>? booster,
+    Value<int>? rowid,
+  }) {
+    return DraftSetsCompanion(
+      code: code ?? this.code,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      releaseDate: releaseDate ?? this.releaseDate,
+      baseSetSize: baseSetSize ?? this.baseSetSize,
+      totalSetSize: totalSetSize ?? this.totalSetSize,
+      onlineOnly: onlineOnly ?? this.onlineOnly,
+      booster: booster ?? this.booster,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (code.present) {
+      map['code'] = Variable<String>(code.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (releaseDate.present) {
+      map['release_date'] = Variable<String>(releaseDate.value);
+    }
+    if (baseSetSize.present) {
+      map['base_set_size'] = Variable<int>(baseSetSize.value);
+    }
+    if (totalSetSize.present) {
+      map['total_set_size'] = Variable<int>(totalSetSize.value);
+    }
+    if (onlineOnly.present) {
+      map['online_only'] = Variable<bool>(onlineOnly.value);
+    }
+    if (booster.present) {
+      map['booster'] = Variable<String>(booster.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DraftSetsCompanion(')
+          ..write('code: $code, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('releaseDate: $releaseDate, ')
+          ..write('baseSetSize: $baseSetSize, ')
+          ..write('totalSetSize: $totalSetSize, ')
+          ..write('onlineOnly: $onlineOnly, ')
+          ..write('booster: $booster, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DraftPrintingsTable extends DraftPrintings
+    with TableInfo<$DraftPrintingsTable, DraftPrintingRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DraftPrintingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _setCodeMeta = const VerificationMeta(
+    'setCode',
+  );
+  @override
+  late final GeneratedColumn<String> setCode = GeneratedColumn<String>(
+    'set_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _oracleIdMeta = const VerificationMeta(
+    'oracleId',
+  );
+  @override
+  late final GeneratedColumn<String> oracleId = GeneratedColumn<String>(
+    'oracle_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rarityMeta = const VerificationMeta('rarity');
+  @override
+  late final GeneratedColumn<String> rarity = GeneratedColumn<String>(
+    'rarity',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _numberMeta = const VerificationMeta('number');
+  @override
+  late final GeneratedColumn<String> number = GeneratedColumn<String>(
+    'number',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _boosterTypesMeta = const VerificationMeta(
+    'boosterTypes',
+  );
+  @override
+  late final GeneratedColumn<String> boosterTypes = GeneratedColumn<String>(
+    'booster_types',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    setCode,
+    uuid,
+    oracleId,
+    rarity,
+    number,
+    boosterTypes,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'draft_printings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DraftPrintingRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('set_code')) {
+      context.handle(
+        _setCodeMeta,
+        setCode.isAcceptableOrUnknown(data['set_code']!, _setCodeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_setCodeMeta);
+    }
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('oracle_id')) {
+      context.handle(
+        _oracleIdMeta,
+        oracleId.isAcceptableOrUnknown(data['oracle_id']!, _oracleIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_oracleIdMeta);
+    }
+    if (data.containsKey('rarity')) {
+      context.handle(
+        _rarityMeta,
+        rarity.isAcceptableOrUnknown(data['rarity']!, _rarityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_rarityMeta);
+    }
+    if (data.containsKey('number')) {
+      context.handle(
+        _numberMeta,
+        number.isAcceptableOrUnknown(data['number']!, _numberMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_numberMeta);
+    }
+    if (data.containsKey('booster_types')) {
+      context.handle(
+        _boosterTypesMeta,
+        boosterTypes.isAcceptableOrUnknown(
+          data['booster_types']!,
+          _boosterTypesMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_boosterTypesMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {uuid};
+  @override
+  DraftPrintingRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DraftPrintingRow(
+      setCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}set_code'],
+      )!,
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      oracleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}oracle_id'],
+      )!,
+      rarity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rarity'],
+      )!,
+      number: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}number'],
+      )!,
+      boosterTypes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}booster_types'],
+      )!,
+    );
+  }
+
+  @override
+  $DraftPrintingsTable createAlias(String alias) {
+    return $DraftPrintingsTable(attachedDatabase, alias);
+  }
+}
+
+class DraftPrintingRow extends DataClass
+    implements Insertable<DraftPrintingRow> {
+  final String setCode;
+  final String uuid;
+  final String oracleId;
+  final String rarity;
+  final String number;
+  final String boosterTypes;
+  const DraftPrintingRow({
+    required this.setCode,
+    required this.uuid,
+    required this.oracleId,
+    required this.rarity,
+    required this.number,
+    required this.boosterTypes,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['set_code'] = Variable<String>(setCode);
+    map['uuid'] = Variable<String>(uuid);
+    map['oracle_id'] = Variable<String>(oracleId);
+    map['rarity'] = Variable<String>(rarity);
+    map['number'] = Variable<String>(number);
+    map['booster_types'] = Variable<String>(boosterTypes);
+    return map;
+  }
+
+  DraftPrintingsCompanion toCompanion(bool nullToAbsent) {
+    return DraftPrintingsCompanion(
+      setCode: Value(setCode),
+      uuid: Value(uuid),
+      oracleId: Value(oracleId),
+      rarity: Value(rarity),
+      number: Value(number),
+      boosterTypes: Value(boosterTypes),
+    );
+  }
+
+  factory DraftPrintingRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DraftPrintingRow(
+      setCode: serializer.fromJson<String>(json['setCode']),
+      uuid: serializer.fromJson<String>(json['uuid']),
+      oracleId: serializer.fromJson<String>(json['oracleId']),
+      rarity: serializer.fromJson<String>(json['rarity']),
+      number: serializer.fromJson<String>(json['number']),
+      boosterTypes: serializer.fromJson<String>(json['boosterTypes']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'setCode': serializer.toJson<String>(setCode),
+      'uuid': serializer.toJson<String>(uuid),
+      'oracleId': serializer.toJson<String>(oracleId),
+      'rarity': serializer.toJson<String>(rarity),
+      'number': serializer.toJson<String>(number),
+      'boosterTypes': serializer.toJson<String>(boosterTypes),
+    };
+  }
+
+  DraftPrintingRow copyWith({
+    String? setCode,
+    String? uuid,
+    String? oracleId,
+    String? rarity,
+    String? number,
+    String? boosterTypes,
+  }) => DraftPrintingRow(
+    setCode: setCode ?? this.setCode,
+    uuid: uuid ?? this.uuid,
+    oracleId: oracleId ?? this.oracleId,
+    rarity: rarity ?? this.rarity,
+    number: number ?? this.number,
+    boosterTypes: boosterTypes ?? this.boosterTypes,
+  );
+  DraftPrintingRow copyWithCompanion(DraftPrintingsCompanion data) {
+    return DraftPrintingRow(
+      setCode: data.setCode.present ? data.setCode.value : this.setCode,
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      oracleId: data.oracleId.present ? data.oracleId.value : this.oracleId,
+      rarity: data.rarity.present ? data.rarity.value : this.rarity,
+      number: data.number.present ? data.number.value : this.number,
+      boosterTypes: data.boosterTypes.present
+          ? data.boosterTypes.value
+          : this.boosterTypes,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DraftPrintingRow(')
+          ..write('setCode: $setCode, ')
+          ..write('uuid: $uuid, ')
+          ..write('oracleId: $oracleId, ')
+          ..write('rarity: $rarity, ')
+          ..write('number: $number, ')
+          ..write('boosterTypes: $boosterTypes')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(setCode, uuid, oracleId, rarity, number, boosterTypes);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DraftPrintingRow &&
+          other.setCode == this.setCode &&
+          other.uuid == this.uuid &&
+          other.oracleId == this.oracleId &&
+          other.rarity == this.rarity &&
+          other.number == this.number &&
+          other.boosterTypes == this.boosterTypes);
+}
+
+class DraftPrintingsCompanion extends UpdateCompanion<DraftPrintingRow> {
+  final Value<String> setCode;
+  final Value<String> uuid;
+  final Value<String> oracleId;
+  final Value<String> rarity;
+  final Value<String> number;
+  final Value<String> boosterTypes;
+  final Value<int> rowid;
+  const DraftPrintingsCompanion({
+    this.setCode = const Value.absent(),
+    this.uuid = const Value.absent(),
+    this.oracleId = const Value.absent(),
+    this.rarity = const Value.absent(),
+    this.number = const Value.absent(),
+    this.boosterTypes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DraftPrintingsCompanion.insert({
+    required String setCode,
+    required String uuid,
+    required String oracleId,
+    required String rarity,
+    required String number,
+    required String boosterTypes,
+    this.rowid = const Value.absent(),
+  }) : setCode = Value(setCode),
+       uuid = Value(uuid),
+       oracleId = Value(oracleId),
+       rarity = Value(rarity),
+       number = Value(number),
+       boosterTypes = Value(boosterTypes);
+  static Insertable<DraftPrintingRow> custom({
+    Expression<String>? setCode,
+    Expression<String>? uuid,
+    Expression<String>? oracleId,
+    Expression<String>? rarity,
+    Expression<String>? number,
+    Expression<String>? boosterTypes,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (setCode != null) 'set_code': setCode,
+      if (uuid != null) 'uuid': uuid,
+      if (oracleId != null) 'oracle_id': oracleId,
+      if (rarity != null) 'rarity': rarity,
+      if (number != null) 'number': number,
+      if (boosterTypes != null) 'booster_types': boosterTypes,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DraftPrintingsCompanion copyWith({
+    Value<String>? setCode,
+    Value<String>? uuid,
+    Value<String>? oracleId,
+    Value<String>? rarity,
+    Value<String>? number,
+    Value<String>? boosterTypes,
+    Value<int>? rowid,
+  }) {
+    return DraftPrintingsCompanion(
+      setCode: setCode ?? this.setCode,
+      uuid: uuid ?? this.uuid,
+      oracleId: oracleId ?? this.oracleId,
+      rarity: rarity ?? this.rarity,
+      number: number ?? this.number,
+      boosterTypes: boosterTypes ?? this.boosterTypes,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (setCode.present) {
+      map['set_code'] = Variable<String>(setCode.value);
+    }
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (oracleId.present) {
+      map['oracle_id'] = Variable<String>(oracleId.value);
+    }
+    if (rarity.present) {
+      map['rarity'] = Variable<String>(rarity.value);
+    }
+    if (number.present) {
+      map['number'] = Variable<String>(number.value);
+    }
+    if (boosterTypes.present) {
+      map['booster_types'] = Variable<String>(boosterTypes.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DraftPrintingsCompanion(')
+          ..write('setCode: $setCode, ')
+          ..write('uuid: $uuid, ')
+          ..write('oracleId: $oracleId, ')
+          ..write('rarity: $rarity, ')
+          ..write('number: $number, ')
+          ..write('boosterTypes: $boosterTypes, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$CatalogDb extends GeneratedDatabase {
   _$CatalogDb(QueryExecutor e) : super(e);
   $CatalogDbManager get managers => $CatalogDbManager(this);
   late final $CardsTable cards = $CardsTable(this);
   late final $DecksTable decks = $DecksTable(this);
   late final $DeckCardsTable deckCards = $DeckCardsTable(this);
+  late final $DraftSetsTable draftSets = $DraftSetsTable(this);
+  late final $DraftPrintingsTable draftPrintings = $DraftPrintingsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [cards, decks, deckCards];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    cards,
+    decks,
+    deckCards,
+    draftSets,
+    draftPrintings,
+  ];
 }
 
 typedef $$CardsTableCreateCompanionBuilder = CardsCompanion Function({
@@ -2607,6 +3560,505 @@ typedef $$DeckCardsTableProcessedTableManager =
       DeckCardRow,
       PrefetchHooks Function()
     >;
+typedef $$DraftSetsTableCreateCompanionBuilder = DraftSetsCompanion Function({
+  required String code,
+  required String name,
+  required String type,
+  required String releaseDate,
+  required int baseSetSize,
+  required int totalSetSize,
+  Value<bool> onlineOnly,
+  Value<String?> booster,
+  Value<int> rowid,
+});
+typedef $$DraftSetsTableUpdateCompanionBuilder = DraftSetsCompanion Function({
+  Value<String> code,
+  Value<String> name,
+  Value<String> type,
+  Value<String> releaseDate,
+  Value<int> baseSetSize,
+  Value<int> totalSetSize,
+  Value<bool> onlineOnly,
+  Value<String?> booster,
+  Value<int> rowid,
+});
+
+class $$DraftSetsTableFilterComposer
+    extends Composer<_$CatalogDb, $DraftSetsTable> {
+  $$DraftSetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get releaseDate => $composableBuilder(
+    column: $table.releaseDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get baseSetSize => $composableBuilder(
+    column: $table.baseSetSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalSetSize => $composableBuilder(
+    column: $table.totalSetSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get onlineOnly => $composableBuilder(
+    column: $table.onlineOnly,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get booster => $composableBuilder(
+    column: $table.booster,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DraftSetsTableOrderingComposer
+    extends Composer<_$CatalogDb, $DraftSetsTable> {
+  $$DraftSetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get releaseDate => $composableBuilder(
+    column: $table.releaseDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get baseSetSize => $composableBuilder(
+    column: $table.baseSetSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalSetSize => $composableBuilder(
+    column: $table.totalSetSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get onlineOnly => $composableBuilder(
+    column: $table.onlineOnly,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get booster => $composableBuilder(
+    column: $table.booster,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DraftSetsTableAnnotationComposer
+    extends Composer<_$CatalogDb, $DraftSetsTable> {
+  $$DraftSetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get code =>
+      $composableBuilder(column: $table.code, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get releaseDate => $composableBuilder(
+    column: $table.releaseDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get baseSetSize => $composableBuilder(
+    column: $table.baseSetSize,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalSetSize => $composableBuilder(
+    column: $table.totalSetSize,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get onlineOnly => $composableBuilder(
+    column: $table.onlineOnly,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get booster =>
+      $composableBuilder(column: $table.booster, builder: (column) => column);
+}
+
+class $$DraftSetsTableTableManager
+    extends
+        RootTableManager<
+          _$CatalogDb,
+          $DraftSetsTable,
+          DraftSetRow,
+          $$DraftSetsTableFilterComposer,
+          $$DraftSetsTableOrderingComposer,
+          $$DraftSetsTableAnnotationComposer,
+          $$DraftSetsTableCreateCompanionBuilder,
+          $$DraftSetsTableUpdateCompanionBuilder,
+          (
+            DraftSetRow,
+            BaseReferences<_$CatalogDb, $DraftSetsTable, DraftSetRow>,
+          ),
+          DraftSetRow,
+          PrefetchHooks Function()
+        > {
+  $$DraftSetsTableTableManager(_$CatalogDb db, $DraftSetsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DraftSetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DraftSetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DraftSetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> code = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> releaseDate = const Value.absent(),
+                Value<int> baseSetSize = const Value.absent(),
+                Value<int> totalSetSize = const Value.absent(),
+                Value<bool> onlineOnly = const Value.absent(),
+                Value<String?> booster = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DraftSetsCompanion(
+                code: code,
+                name: name,
+                type: type,
+                releaseDate: releaseDate,
+                baseSetSize: baseSetSize,
+                totalSetSize: totalSetSize,
+                onlineOnly: onlineOnly,
+                booster: booster,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String code,
+                required String name,
+                required String type,
+                required String releaseDate,
+                required int baseSetSize,
+                required int totalSetSize,
+                Value<bool> onlineOnly = const Value.absent(),
+                Value<String?> booster = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DraftSetsCompanion.insert(
+                code: code,
+                name: name,
+                type: type,
+                releaseDate: releaseDate,
+                baseSetSize: baseSetSize,
+                totalSetSize: totalSetSize,
+                onlineOnly: onlineOnly,
+                booster: booster,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DraftSetsTable, DraftSetRow>(table),
+                  BaseReferences<_$CatalogDb, $DraftSetsTable, DraftSetRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DraftSetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$CatalogDb,
+      $DraftSetsTable,
+      DraftSetRow,
+      $$DraftSetsTableFilterComposer,
+      $$DraftSetsTableOrderingComposer,
+      $$DraftSetsTableAnnotationComposer,
+      $$DraftSetsTableCreateCompanionBuilder,
+      $$DraftSetsTableUpdateCompanionBuilder,
+      (DraftSetRow, BaseReferences<_$CatalogDb, $DraftSetsTable, DraftSetRow>),
+      DraftSetRow,
+      PrefetchHooks Function()
+    >;
+typedef $$DraftPrintingsTableCreateCompanionBuilder =
+    DraftPrintingsCompanion Function({
+      required String setCode,
+      required String uuid,
+      required String oracleId,
+      required String rarity,
+      required String number,
+      required String boosterTypes,
+      Value<int> rowid,
+    });
+typedef $$DraftPrintingsTableUpdateCompanionBuilder =
+    DraftPrintingsCompanion Function({
+      Value<String> setCode,
+      Value<String> uuid,
+      Value<String> oracleId,
+      Value<String> rarity,
+      Value<String> number,
+      Value<String> boosterTypes,
+      Value<int> rowid,
+    });
+
+class $$DraftPrintingsTableFilterComposer
+    extends Composer<_$CatalogDb, $DraftPrintingsTable> {
+  $$DraftPrintingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get setCode => $composableBuilder(
+    column: $table.setCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get oracleId => $composableBuilder(
+    column: $table.oracleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rarity => $composableBuilder(
+    column: $table.rarity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get number => $composableBuilder(
+    column: $table.number,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get boosterTypes => $composableBuilder(
+    column: $table.boosterTypes,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DraftPrintingsTableOrderingComposer
+    extends Composer<_$CatalogDb, $DraftPrintingsTable> {
+  $$DraftPrintingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get setCode => $composableBuilder(
+    column: $table.setCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get oracleId => $composableBuilder(
+    column: $table.oracleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rarity => $composableBuilder(
+    column: $table.rarity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get number => $composableBuilder(
+    column: $table.number,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get boosterTypes => $composableBuilder(
+    column: $table.boosterTypes,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DraftPrintingsTableAnnotationComposer
+    extends Composer<_$CatalogDb, $DraftPrintingsTable> {
+  $$DraftPrintingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get setCode =>
+      $composableBuilder(column: $table.setCode, builder: (column) => column);
+
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<String> get oracleId =>
+      $composableBuilder(column: $table.oracleId, builder: (column) => column);
+
+  GeneratedColumn<String> get rarity =>
+      $composableBuilder(column: $table.rarity, builder: (column) => column);
+
+  GeneratedColumn<String> get number =>
+      $composableBuilder(column: $table.number, builder: (column) => column);
+
+  GeneratedColumn<String> get boosterTypes => $composableBuilder(
+    column: $table.boosterTypes,
+    builder: (column) => column,
+  );
+}
+
+class $$DraftPrintingsTableTableManager
+    extends
+        RootTableManager<
+          _$CatalogDb,
+          $DraftPrintingsTable,
+          DraftPrintingRow,
+          $$DraftPrintingsTableFilterComposer,
+          $$DraftPrintingsTableOrderingComposer,
+          $$DraftPrintingsTableAnnotationComposer,
+          $$DraftPrintingsTableCreateCompanionBuilder,
+          $$DraftPrintingsTableUpdateCompanionBuilder,
+          (
+            DraftPrintingRow,
+            BaseReferences<_$CatalogDb, $DraftPrintingsTable, DraftPrintingRow>,
+          ),
+          DraftPrintingRow,
+          PrefetchHooks Function()
+        > {
+  $$DraftPrintingsTableTableManager(_$CatalogDb db, $DraftPrintingsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DraftPrintingsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DraftPrintingsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DraftPrintingsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> setCode = const Value.absent(),
+                Value<String> uuid = const Value.absent(),
+                Value<String> oracleId = const Value.absent(),
+                Value<String> rarity = const Value.absent(),
+                Value<String> number = const Value.absent(),
+                Value<String> boosterTypes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DraftPrintingsCompanion(
+                setCode: setCode,
+                uuid: uuid,
+                oracleId: oracleId,
+                rarity: rarity,
+                number: number,
+                boosterTypes: boosterTypes,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String setCode,
+                required String uuid,
+                required String oracleId,
+                required String rarity,
+                required String number,
+                required String boosterTypes,
+                Value<int> rowid = const Value.absent(),
+              }) => DraftPrintingsCompanion.insert(
+                setCode: setCode,
+                uuid: uuid,
+                oracleId: oracleId,
+                rarity: rarity,
+                number: number,
+                boosterTypes: boosterTypes,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DraftPrintingsTable, DraftPrintingRow>(table),
+                  BaseReferences<
+                    _$CatalogDb,
+                    $DraftPrintingsTable,
+                    DraftPrintingRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DraftPrintingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$CatalogDb,
+      $DraftPrintingsTable,
+      DraftPrintingRow,
+      $$DraftPrintingsTableFilterComposer,
+      $$DraftPrintingsTableOrderingComposer,
+      $$DraftPrintingsTableAnnotationComposer,
+      $$DraftPrintingsTableCreateCompanionBuilder,
+      $$DraftPrintingsTableUpdateCompanionBuilder,
+      (
+        DraftPrintingRow,
+        BaseReferences<_$CatalogDb, $DraftPrintingsTable, DraftPrintingRow>,
+      ),
+      DraftPrintingRow,
+      PrefetchHooks Function()
+    >;
 
 class $CatalogDbManager {
   final _$CatalogDb _db;
@@ -2617,4 +4069,8 @@ class $CatalogDbManager {
       $$DecksTableTableManager(_db, _db.decks);
   $$DeckCardsTableTableManager get deckCards =>
       $$DeckCardsTableTableManager(_db, _db.deckCards);
+  $$DraftSetsTableTableManager get draftSets =>
+      $$DraftSetsTableTableManager(_db, _db.draftSets);
+  $$DraftPrintingsTableTableManager get draftPrintings =>
+      $$DraftPrintingsTableTableManager(_db, _db.draftPrintings);
 }

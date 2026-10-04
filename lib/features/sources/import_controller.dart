@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../sources/catalog/catalog_db.dart';
 import '../../sources/import/local_file_importer.dart';
+import '../../sources/import/mtgjson_importer.dart';
 import '../../sources/import/pokemon_importer.dart';
 import '../../sources/import/scryfall_importer.dart';
 import '../../sources/model/source_def.dart';
@@ -22,6 +23,7 @@ class ImportState {
     this.indexed = 0,
     this.estimatedRecords = 36000,
     this.error,
+    this.what = 'cards',
   });
 
   final ImportPhase phase;
@@ -30,6 +32,9 @@ class ImportState {
   final int indexed;
   final int estimatedRecords;
   final String? error;
+
+  /// What [indexed] counts: cards for a catalog, sets for the draft list.
+  final String what;
 
   /// Null means indeterminate. A server that sends no content length gets an
   /// honest spinner rather than a fake percentage.
@@ -52,8 +57,10 @@ class ImportState {
     int? indexed,
     int? estimatedRecords,
     String? error,
+    String? what,
   }) => ImportState(
     phase: phase ?? this.phase,
+    what: what ?? this.what,
     received: received ?? this.received,
     total: total ?? this.total,
     indexed: indexed ?? this.indexed,
@@ -85,7 +92,9 @@ class ImportNotifier extends Notifier<ImportState> {
         await _scryfall(source, db);
       case SourceKind.localFile:
         await _localFile(source, db);
-      case SourceKind.draftSets || SourceKind.url:
+      case SourceKind.draftSets:
+        await _mtgjson(source, db);
+      case SourceKind.url:
         return;
     }
   }
@@ -118,6 +127,39 @@ class ImportNotifier extends Notifier<ImportState> {
         approximateTotal: source.approximateBytes,
         onBytes: (received, total) {
           state = state.copyWith(received: received, total: total);
+        },
+        onIndexed: (indexed) {
+          state = state.copyWith(phase: ImportPhase.indexing, indexed: indexed);
+        },
+      );
+      await _finish(source);
+    } catch (e) {
+      state = state.copyWith(phase: ImportPhase.failed, error: '$e');
+    } finally {
+      importer.dispose();
+    }
+  }
+
+  /// The list of sets, for the draft. A set's packs come later, one set at
+  /// a time, when a draft asks for them.
+  Future<void> _mtgjson(SourceDef source, CatalogDb db) async {
+    final endpoint = source.endpoint;
+    if (endpoint == null) return;
+    final importer = MtgjsonImporter(db: db);
+    state = ImportState(
+      phase: ImportPhase.downloading,
+      total: source.approximateBytes,
+      estimatedRecords: 900,
+      what: 'sets',
+    );
+    try {
+      await importer.downloadSetList(
+        endpoint,
+        onBytes: (received, total) {
+          state = state.copyWith(
+            received: received,
+            total: total ?? source.approximateBytes,
+          );
         },
         onIndexed: (indexed) {
           state = state.copyWith(phase: ImportPhase.indexing, indexed: indexed);

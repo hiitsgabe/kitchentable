@@ -42,9 +42,10 @@ arrives on your device came from you asking for it.
 ## Where the cards come from
 
 Nowhere, until you say so. Settings has a list of sources, each off until you
-run it: [Scryfall](https://scryfall.com/) and [MTGJSON](https://mtgjson.com/)
-for Magic, [pokemon-tcg-data](https://github.com/PokemonTCG/pokemon-tcg-data)
-for Pokemon, and a file of your own. An import is a download onto your device
+run it: [Scryfall](https://scryfall.com/) for the Magic cards,
+[MTGJSON](https://mtgjson.com/) for the sets a draft is made of,
+[pokemon-tcg-data](https://github.com/PokemonTCG/pokemon-tcg-data) for
+Pokemon, and a file of your own. An import is a download onto your device
 and nothing else; the list says what size it is before you start.
 
 This is also why the app survives its data sources. The Pokemon TCG API is
