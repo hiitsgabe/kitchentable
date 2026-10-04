@@ -50,6 +50,9 @@ bool launchDemoFresh() => RegExp(r'fresh=1').hasMatch(web.window.location.href);
 /// This seeds a conversation so the drawer can be looked at.
 bool launchDemoChat() => RegExp(r'chat=1').hasMatch(web.window.location.href);
 
+/// Whether a `#demo=N` launch should pretend the host turned voice on.
+bool launchDemoVoice() => RegExp(r'voice=1').hasMatch(web.window.location.href);
+
 /// How many chairs a `#demoroom=N` launch sets up, or null. The host's
 /// waiting room, opened without a card source, so the screen people wait on
 /// can be looked at and screenshotted the way `#demo=N` does the table.
