@@ -69,6 +69,7 @@ class Slab extends StatefulWidget {
 
 class _SlabState extends State<Slab> {
   bool _focused = false;
+  bool _hovered = false;
   bool _down = false;
 
   void _activate() {
@@ -91,7 +92,13 @@ class _SlabState extends State<Slab> {
     final m = widget.metrics;
     final depth = widget.depth ?? m.scaled(5);
     var face = _face(context);
-    if (_focused) face = Color.lerp(face, Colors.white, 0.16)!;
+    // Lit when focused, lit a little when hovered: the mouse sees what the
+    // pad sees, fainter, and neither needs a word to say so.
+    if (_focused) {
+      face = Color.lerp(face, Colors.white, 0.16)!;
+    } else if (_hovered) {
+      face = Color.lerp(face, Colors.white, 0.08)!;
+    }
 
     return FocusableActionDetector(
       focusNode: widget.focusNode,
@@ -99,6 +106,7 @@ class _SlabState extends State<Slab> {
       enabled: widget.enabled,
       descendantsAreFocusable: false,
       onFocusChange: (v) => setState(() => _focused = v),
+      onShowHoverHighlight: (v) => setState(() => _hovered = v),
       actions: <Type, Action<Intent>>{
         ActivateIntent: CallbackAction<ActivateIntent>(
           onInvoke: (_) {
