@@ -49,6 +49,10 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>kitchentable uses the camera to scan the QR code that takes you to a friend's table.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>kitchentable uses the microphone so you can talk to the other players at your table.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

@@ -7,6 +7,7 @@ import '../../sources/model/catalog_card.dart';
 import '../../table/actions/table_action.dart';
 import '../../table/model/seat_owner.dart';
 import '../play/chat.dart';
+import '../play/voice.dart';
 import '../play/play_controller.dart';
 import '../play/play_screen.dart';
 import '../play/renderers/renderer_choice.dart';
@@ -25,6 +26,7 @@ class DemoTable extends ConsumerStatefulWidget {
     this.view,
     this.fresh = false,
     this.chat = false,
+    this.voice = false,
   });
 
   final int seats;
@@ -41,6 +43,10 @@ class DemoTable extends ConsumerStatefulWidget {
   /// to talk to, and a demo table is several seats on one device with
   /// nobody at the other end of anything.
   final bool chat;
+
+  /// Pretends the host turned voice on, which is a room setting and a demo
+  /// has no room.
+  final bool voice;
 
   /// grid, focus or split, read with the seats before the address bar is
   /// cleared; null is the default.
@@ -88,6 +94,7 @@ class _DemoTableState extends ConsumerState<DemoTable> {
           seed: 'demo',
         );
     if (widget.chat) _talk();
+    if (widget.voice) ref.read(tableTalksProvider.notifier).pretend();
     if (widget.fresh) return;
 
     // A few cards out on every battlefield, so the boards are not empty.

@@ -69,6 +69,7 @@ dependencies:
   # sits in between. One plugin for every platform, web included, which is
   # why it is this one and not a per platform pair.
   flutter_webrtc: ^1.6.2
+  mobile_scanner: ^7.4.2
 
 dev_dependencies:
   flutter_test:

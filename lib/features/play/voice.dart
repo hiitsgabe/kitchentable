@@ -7,6 +7,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../net/link.dart';
 import '../../net/mesh.dart';
 import '../../net/voice_link.dart';
+import '../lobby/lobby.dart';
 import '../settings/network.dart';
 
 /// Where this phone's microphone is up to.
@@ -261,3 +262,24 @@ class VoiceRoom extends Notifier<Voice> {
 }
 
 final voiceProvider = NotifierProvider<VoiceRoom, Voice>(VoiceRoom.new);
+
+/// Whether this table offers microphones at all.
+///
+/// Read off the room the host set up, which is where the decision belongs.
+/// A provider rather than a read inside the screen so that the demo link
+/// can hold it open without the screen knowing what a demo is.
+class TableTalks extends Notifier<bool> {
+  bool? _pretend;
+
+  @override
+  bool build() =>
+      _pretend ?? (ref.watch(lobbyProvider)?.config?.voice ?? false);
+
+  /// For `#demo=N&voice=1`, which has no host and no room.
+  void pretend() {
+    _pretend = true;
+    ref.invalidateSelf();
+  }
+}
+
+final tableTalksProvider = NotifierProvider<TableTalks, bool>(TableTalks.new);

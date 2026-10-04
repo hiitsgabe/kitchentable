@@ -20,5 +20,7 @@ bool launchDemoFresh() => false;
 
 bool launchDemoChat() => false;
 
+bool launchDemoVoice() => false;
+
 /// No address bar, no demo.
 int? launchDemoRoomSeats() => null;

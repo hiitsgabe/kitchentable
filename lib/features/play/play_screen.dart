@@ -114,7 +114,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     final chat = ref.watch(chatProvider);
     // Whether this table talks at all is the host's setting, and it arrives
     // over the mesh like everything else the host decided.
-    final roomTalks = ref.watch(lobbyProvider)?.config?.voice ?? false;
+    final roomTalks = ref.watch(tableTalksProvider);
     final voice = ref.watch(voiceProvider);
     final play = ref.read(playProvider.notifier);
     final cardScale = ref.watch(cardScaleProvider);

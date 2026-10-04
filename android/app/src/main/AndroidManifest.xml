@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Scanning the QR that takes you to a table, and talking at it. Both
+         are asked for at the moment somebody taps the thing that needs
+         them, never at launch. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <application
         android:label="kitchentable"
         android:name="${applicationName}"
