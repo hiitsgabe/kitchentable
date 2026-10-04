@@ -12,7 +12,7 @@ import 'tumble.dart';
 /// In this order because it is the order a player says them in, and the key on
 /// each one names its sides rather than its number: the number changes every
 /// roll and a key that moved with it would point at a different die each time.
-final _dice = [
+final trayDice = [
   (sides: 20, solid: Polyhedron.d20),
   (sides: 12, solid: Polyhedron.d12),
   (sides: 6, solid: Polyhedron.d6),
@@ -126,7 +126,7 @@ class _DiceTrayState extends State<DiceTray>
   /// phone has it; a tray that rolled its own would show four tables four
   /// different numbers.
   void _tumble(int i, int to) {
-    if (i < 0 || i >= _dice.length) return;
+    if (i < 0 || i >= trayDice.length) return;
     setState(() {
       _airborne = i;
       _landing = to;
@@ -139,14 +139,14 @@ class _DiceTrayState extends State<DiceTray>
   /// What die `i` is resting on: its own result, or its highest face on a
   /// table where nothing has been thrown yet.
   int _numberOn(int i) =>
-      i < widget.showing.length ? widget.showing[i] : _dice[i].sides;
+      i < widget.showing.length ? widget.showing[i] : trayDice[i].sides;
 
   void _throwIt(int i) {
-    final rolled = rollOne(_dice[i].solid, _random);
+    final rolled = rollOne(trayDice[i].solid, _random);
     _tumble(i, rolled);
 
     widget.onRoll(i, [
-      for (var at = 0; at < _dice.length; at++)
+      for (var at = 0; at < trayDice.length; at++)
         at == i ? rolled : _numberOn(at),
     ]);
   }
@@ -160,7 +160,7 @@ class _DiceTrayState extends State<DiceTray>
     // eight point die made the column 41 wide where a card was 32, and the
     // card on the board went from 32.2 to 29.1 to pay for it.
     final side = widget.width / 3.2;
-    final gap = (widget.width - side * _dice.length) / (_dice.length - 1);
+    final gap = (widget.width - side * trayDice.length) / (trayDice.length - 1);
 
     return SizedBox(
       width: widget.width,
@@ -168,7 +168,7 @@ class _DiceTrayState extends State<DiceTray>
         animation: _roll,
         builder: (context, _) => Row(
           children: [
-            for (final (i, die) in _dice.indexed) ...[
+            for (final (i, die) in trayDice.indexed) ...[
               if (i > 0) SizedBox(width: gap),
               _Die(
                 key: Key('die-${die.sides}'),
@@ -252,6 +252,72 @@ class _Die extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// One die, thrown once, landing on [to], and then resting there.
+///
+/// For the toast that says somebody else rolled. A line of text with the
+/// number in it is accurate and it is not a die being thrown, and the
+/// person at the other end of the call watched theirs tumble: this is the
+/// same throw, the same spin and the same seven tenths of a second, drawn
+/// where the news arrives rather than in a tray that may not be open.
+///
+/// Owns its own controller rather than borrowing the tray's, because the
+/// tray may not be on screen and a toast must not depend on it.
+class RollingDie extends StatefulWidget {
+  const RollingDie({
+    super.key,
+    required this.solid,
+    required this.to,
+    required this.size,
+  });
+
+  final Polyhedron solid;
+
+  /// The number it lands on, which was agreed on by everybody before this
+  /// was built. Nothing here rolls anything: it acts out a throw that
+  /// already happened.
+  final int to;
+
+  final double size;
+
+  @override
+  State<RollingDie> createState() => _RollingDieState();
+}
+
+class _RollingDieState extends State<RollingDie>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _roll = AnimationController(
+    vsync: this,
+    duration: _throw,
+  )..forward();
+
+  @override
+  void dispose() {
+    _roll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final face = (widget.to - 1).clamp(0, widget.solid.sides - 1);
+    return AnimatedBuilder(
+      animation: _roll,
+      builder: (context, _) => DieView(
+        die: widget.solid,
+        showing: face,
+        turn: _roll.isCompleted
+            ? widget.solid.settle(face)
+            : tumble(
+                die: widget.solid,
+                face: face,
+                spin: _spin,
+                at: _roll.value,
+              ),
+        size: widget.size,
       ),
     );
   }

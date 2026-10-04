@@ -2,17 +2,51 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/features/menu/menu_controller.dart';
+import 'package:kitchentable/features/sources/imported.dart';
 import 'package:kitchentable/features/sources/sources_screen.dart';
 
+/// A device that has already run some sources, without a disk to say so.
+class _Marked extends ImportedSources {
+  _Marked(this.ids);
+  final Set<String> ids;
+  @override
+  Set<String> build() => ids;
+}
+
 void main() {
-  testWidgets('it lists the known sources and says none has run', (tester) async {
-    await tester.pumpWidget(ProviderScope(
-      // This screen asks the catalog whether its pictures are stale. These
-      // cases are about the source list, so there is nothing for a real
-      // database to answer and opening one warns about a second CatalogDb.
-      overrides: [catalogDbProvider.overrideWithValue(null)],
-      child: MaterialApp(home: SourcesScreen()),
-    ));
+  testWidgets('a source that has been imported says so on its row', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          catalogDbProvider.overrideWithValue(null),
+          importedSourcesProvider.overrideWith(
+            () => _Marked({'scryfall_oracle'}),
+          ),
+        ],
+        child: MaterialApp(home: SourcesScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // After an import finished, this list used to draw Scryfall exactly as
+    // it had before, which read as the import not having happened.
+    expect(find.text('imported, on this device'), findsOneWidget);
+  });
+
+  testWidgets('it lists the known sources and says none has run', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        // This screen asks the catalog whether its pictures are stale. These
+        // cases are about the source list, so there is nothing for a real
+        // database to answer and opening one warns about a second CatalogDb.
+        overrides: [catalogDbProvider.overrideWithValue(null)],
+        child: MaterialApp(home: SourcesScreen()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Scryfall'), findsOneWidget);
@@ -20,29 +54,35 @@ void main() {
     expect(find.textContaining('NOTHING HAS LEFT THIS DEVICE'), findsOneWidget);
   });
 
-  testWidgets('a source that downloads states its size up front',
-      (tester) async {
-    await tester.pumpWidget(ProviderScope(
-      // This screen asks the catalog whether its pictures are stale. These
-      // cases are about the source list, so there is nothing for a real
-      // database to answer and opening one warns about a second CatalogDb.
-      overrides: [catalogDbProvider.overrideWithValue(null)],
-      child: MaterialApp(home: SourcesScreen()),
-    ));
+  testWidgets('a source that downloads states its size up front', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        // This screen asks the catalog whether its pictures are stale. These
+        // cases are about the source list, so there is nothing for a real
+        // database to answer and opening one warns about a second CatalogDb.
+        overrides: [catalogDbProvider.overrideWithValue(null)],
+        child: MaterialApp(home: SourcesScreen()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.textContaining('23.6 MB'), findsOneWidget);
   });
 
-  testWidgets('a source we have not built says so instead of pretending',
-      (tester) async {
-    await tester.pumpWidget(ProviderScope(
-      // This screen asks the catalog whether its pictures are stale. These
-      // cases are about the source list, so there is nothing for a real
-      // database to answer and opening one warns about a second CatalogDb.
-      overrides: [catalogDbProvider.overrideWithValue(null)],
-      child: MaterialApp(home: SourcesScreen()),
-    ));
+  testWidgets('a source we have not built says so instead of pretending', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        // This screen asks the catalog whether its pictures are stale. These
+        // cases are about the source list, so there is nothing for a real
+        // database to answer and opening one warns about a second CatalogDb.
+        overrides: [catalogDbProvider.overrideWithValue(null)],
+        child: MaterialApp(home: SourcesScreen()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.textContaining('not ready yet'), findsWidgets);

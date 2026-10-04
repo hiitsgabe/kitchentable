@@ -12,6 +12,9 @@ import 'package:kitchentable/features/lobby/lobby.dart';
 import 'package:kitchentable/features/play/play_controller.dart';
 import 'package:kitchentable/features/menu/menu_controller.dart';
 import 'package:kitchentable/features/play/play_screen.dart';
+import 'package:kitchentable/features/play/chat.dart';
+import 'package:kitchentable/features/play/table_news.dart';
+import 'package:kitchentable/features/play/dice/dice_tray.dart';
 import 'package:kitchentable/features/play/renderers/focus_view.dart';
 import 'package:kitchentable/features/play/renderers/grid_view.dart';
 import 'package:kitchentable/features/play/renderers/renderer_choice.dart';
@@ -201,6 +204,84 @@ void main() {
   // does not reproduce now. A guard against an order dependent failure
   // cannot be pinned by a suite that runs in one order.
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets('the keyboard lifts the chat instead of covering it', (
+    tester,
+  ) async {
+    final container = await _seatedFromRoom(tester);
+    // One line said, so the table has a chat to open. Without a mesh the
+    // controller is not at a table with anybody, and the pill stays away.
+    container
+        .read(chatProvider.notifier)
+        .heard(
+          by: 'ana',
+          text: 'go',
+          table: container.read(playProvider),
+          me: 'host',
+        );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('talk')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat-box')), findsOneWidget);
+
+    // A phone's keyboard, as the engine reports it: so much of the bottom
+    // of the window is covered. Tapping the box used to make the whole
+    // sheet vanish under it in the same second.
+    tester.view.viewInsets = const FakeViewPadding(bottom: 400);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('chat-box')), findsOneWidget);
+    final box = tester.getRect(find.byKey(const Key('chat-box')));
+    expect(
+      box.bottom,
+      lessThanOrEqualTo(844 - 400),
+      reason: 'the box is under the keyboard',
+    );
+    expect(box.top, greaterThan(0));
+  });
+
+  testWidgets("another player's throw is acted out, not read about", (
+    tester,
+  ) async {
+    final container = await _seatedFromRoom(tester);
+
+    container
+        .read(tableNewsProvider.notifier)
+        .say(
+          by: 'ana',
+          action: const RollDice([20, 12, 4], die: 2),
+          table: container.read(playProvider),
+        );
+    await tester.pump();
+
+    // A die tumbling in the line, the way the thrower's did, and the
+    // number it stops on. A sentence with the number in it is what reading
+    // about a throw looks like.
+    expect(find.byType(RollingDie), findsOneWidget);
+    expect(find.textContaining('rolled 4'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.byType(RollingDie), findsNothing, reason: 'it goes quiet');
+  });
+
+  testWidgets('your own throw is not acted out twice', (tester) async {
+    final container = await _seatedFromRoom(tester);
+
+    container
+        .read(tableNewsProvider.notifier)
+        .say(
+          by: 'host',
+          action: const RollDice([20, 12, 4], die: 2),
+          table: container.read(playProvider),
+        );
+    await tester.pump();
+
+    // The tray that was tapped has already started turning.
+    expect(find.byType(RollingDie), findsNothing);
+    expect(find.textContaining('rolled'), findsNothing);
+    await tester.pump(const Duration(seconds: 3));
+  });
 
   testWidgets('an empty table says so instead of drawing nothing', (
     tester,

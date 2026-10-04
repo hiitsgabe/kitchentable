@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../sources/model/source_def.dart';
 import '../../ui/atoms/progress_track.dart';
+import '../../ui/atoms/menu_row.dart';
+import '../../ui/atoms/slab.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
@@ -64,8 +66,22 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
         ),
         if (s.phase == ImportPhase.failed)
           _Note(metrics: m, text: s.error, bad: true),
+        // A way forward, and in the colour the player picked, because this
+        // is the thing to press now. It used to be a note and the frame's
+        // orange Back, which is what every other screen ends with, and so
+        // finishing read exactly like not having started. One pop, back to
+        // whichever screen opened this, and that screen now knows.
         if (s.phase == ImportPhase.done)
-          _Note(metrics: m, text: 'Done. ${s.indexed} cards.'),
+          MenuRow(
+            key: const Key('import-done'),
+            title: 'Done',
+            subtitle: '${s.indexed} cards are on this device now',
+            icon: Icons.check_rounded,
+            tone: SlabTone.choice,
+            metrics: m,
+            autofocus: true,
+            onActivate: () => Navigator.of(context).maybePop(),
+          ),
         if (s.phase == ImportPhase.downloading ||
             s.phase == ImportPhase.indexing)
           _Note(

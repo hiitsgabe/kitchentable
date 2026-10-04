@@ -281,7 +281,24 @@ void main() {
     expect(moved?.to, 5);
   });
 
-  testWidgets('playing a card from an open hand puts the hand down', (
+  testWidgets('playing a card from a hand you opened puts the hand down', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_host(cards: 3, open: false));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('hand-handle')));
+    await tester.pumpAndSettle();
+
+    final open = tester.getSize(find.byType(HandSheet)).height;
+    await tester.tap(find.byType(TableCard).first);
+    await tester.pumpAndSettle();
+
+    // Otherwise the card goes onto a board that is half the height it was and
+    // you go looking for it, which is worse than the strip ever was.
+    expect(tester.getSize(find.byType(HandSheet)).height, lessThan(open / 2));
+  });
+
+  testWidgets('playing a card from a hand that started open leaves it open', (
     tester,
   ) async {
     await tester.pumpWidget(_host(cards: 3));
@@ -291,9 +308,10 @@ void main() {
     await tester.tap(find.byType(TableCard).first);
     await tester.pumpAndSettle();
 
-    // Otherwise the card goes onto a board that is half the height it was and
-    // you go looking for it, which is worse than the strip ever was.
-    expect(tester.getSize(find.byType(HandSheet)).height, lessThan(open / 2));
+    // A hand that started open is one this screen has room for. Putting it
+    // down anyway left a strip of cut cards after every play, on exactly the
+    // screens where the strip buys nothing.
+    expect(tester.getSize(find.byType(HandSheet)).height, open);
   });
 
   testWidgets('a card in hand is drawn on the game s own back', (tester) async {

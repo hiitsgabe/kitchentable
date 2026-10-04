@@ -9,6 +9,7 @@ import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import 'import_controller.dart';
+import 'imported.dart';
 import 'import_screen.dart';
 
 String formatMegabytes(int bytes) =>
@@ -26,6 +27,7 @@ class SourcesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final imported = ref.watch(importedSourcesProvider);
     final media = MediaQuery.of(context);
     final m = Metrics.of(
       classifyDevice(
@@ -44,11 +46,22 @@ class SourcesScreen extends ConsumerWidget {
         for (final source in knownSources)
           MenuRow(
             title: source.name,
-            subtitle: _subtitleFor(source),
-            icon: _iconFor(source.kind),
+            subtitle: imported.contains(source.id)
+                ? 'imported, on this device'
+                : _subtitleFor(source),
+            icon: imported.contains(source.id)
+                ? Icons.check_rounded
+                : _iconFor(source.kind),
             // The ones that work carry a colour and the ones that do not stay
             // grey, so the list says which is which before the subtitle does.
-            tone: source.available ? SlabTone.cool : SlabTone.plain,
+            // One that has already come in goes quiet with a check on it:
+            // this list used to draw Scryfall exactly the same before and
+            // after an import, which read as the import not having happened.
+            tone: imported.contains(source.id)
+                ? SlabTone.plain
+                : source.available
+                ? SlabTone.cool
+                : SlabTone.plain,
             enabled: source.available,
             metrics: m,
             autofocus: source.id == knownSources.first.id,

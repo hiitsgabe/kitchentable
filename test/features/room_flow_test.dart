@@ -44,21 +44,21 @@ import '../net/fake_transport.dart';
 const _origin = 'https://example.test/app';
 
 Deck _deck(String id) => Deck(
-      id: id,
-      name: 'deck $id',
-      format: DeckFormat.commander,
-      slots: [
-        DeckSlot(
-          card: const CatalogCard(
-            oracleId: 'mountain',
-            name: 'Mountain',
-            typeLine: 'Basic Land - Mountain',
-            cmc: 0,
-          ),
-          quantity: 60,
-        ),
-      ],
-    );
+  id: id,
+  name: 'deck $id',
+  format: DeckFormat.commander,
+  slots: [
+    DeckSlot(
+      card: const CatalogCard(
+        oracleId: 'mountain',
+        name: 'Mountain',
+        typeLine: 'Basic Land - Mountain',
+        cmc: 0,
+      ),
+      quantity: 60,
+    ),
+  ],
+);
 
 /// The Play list with decks in it and no database underneath, the same stand in
 /// the deck picker's own tests use: the list is read without cards and the
@@ -70,14 +70,14 @@ class _Shelf implements DeckRepository {
 
   @override
   Future<List<Deck>> list() async => [
-        for (final deck in full)
-          Deck(
-            id: deck.id,
-            name: deck.name,
-            format: deck.format,
-            knownCardCount: deck.cardCount,
-          ),
-      ];
+    for (final deck in full)
+      Deck(
+        id: deck.id,
+        name: deck.name,
+        format: deck.format,
+        knownCardCount: deck.cardCount,
+      ),
+  ];
 
   @override
   Future<Deck?> load(String id) async =>
@@ -88,12 +88,12 @@ class _Shelf implements DeckRepository {
 }
 
 RoomConfig _config({int seats = 4, int? life}) => RoomConfig(
-      format: DeckFormat.commander,
-      seats: seats,
-      life: life,
-      hostName: 'kit',
-      roomName: 'the kitchen',
-    );
+  format: DeckFormat.commander,
+  seats: seats,
+  life: life,
+  hostName: 'kit',
+  roomName: 'the kitchen',
+);
 
 ProviderContainer _container({
   String? origin = _origin,
@@ -190,7 +190,9 @@ String _rowAt(WidgetTester tester, String key) {
   final finder = find.byKey(Key(key));
   expect(finder, findsOneWidget, reason: 'no row at $key');
   return tester
-      .widgetList<Text>(find.descendant(of: finder, matching: find.byType(Text)))
+      .widgetList<Text>(
+        find.descendant(of: finder, matching: find.byType(Text)),
+      )
       .map((t) => t.data ?? '')
       .join(' ')
       .trim();
@@ -216,8 +218,11 @@ void main() {
 
       expect(ids, contains(MenuEntryId.play));
       expect(ids, contains(MenuEntryId.join));
-      expect(state.initialFocus, MenuEntryId.play,
-          reason: 'the first thing to do is make a place to play in');
+      expect(
+        state.initialFocus,
+        MenuEntryId.play,
+        reason: 'the first thing to do is make a place to play in',
+      );
 
       final play = state.entries.firstWhere((e) => e.id == MenuEntryId.play);
       final join = state.entries.firstWhere((e) => e.id == MenuEntryId.join);
@@ -233,9 +238,13 @@ void main() {
     // read, or a rename, would satisfy the absence above on its own.
     test('no door on the menu opens a deck picker', () {
       final source = File('lib/features/menu/menu_screen.dart');
-      expect(source.existsSync(), isTrue,
-          reason: 'this reads the source, so it has to run from the package '
-              'root. cwd is ${Directory.current.path}');
+      expect(
+        source.existsSync(),
+        isTrue,
+        reason:
+            'this reads the source, so it has to run from the package '
+            'root. cwd is ${Directory.current.path}',
+      );
       final text = source.readAsStringSync();
 
       expect(text, isNot(contains('PlayDecksScreen')));
@@ -276,8 +285,11 @@ void main() {
       final code = container.read(roomProvider)!.code;
       expect(code, matches(roomCodePattern));
       expect(container.read(roomProvider)!.hosting, isTrue);
-      expect(find.byKey(const Key('room-code')), findsNothing,
-          reason: 'a room is a link; the code is noise beside it');
+      expect(
+        find.byKey(const Key('room-code')),
+        findsNothing,
+        reason: 'a room is a link; the code is noise beside it',
+      );
 
       // The link and the QR are asserted apart on purpose. They are built from
       // the same code and a QR is not readable by eye, so a room screen that
@@ -288,8 +300,11 @@ void main() {
         tester.widget<RoomQr>(find.byKey(const Key('room-qr'))).link,
         linkFor(code, origin: _origin),
       );
-      expect(find.byType(QrImageView), findsOneWidget,
-          reason: 'and the square is a real QR of it, not a placeholder');
+      expect(
+        find.byType(QrImageView),
+        findsOneWidget,
+        reason: 'and the square is a real QR of it, not a placeholder',
+      );
     });
 
     testWidgets('what the host typed is what the room is', (tester) async {
@@ -308,58 +323,80 @@ void main() {
       expect(config.roomName, 'the kitchen');
       expect(config.life, 30);
       expect(roomSeatChoices, contains(config.seats));
-      expect(config.seats, isNot(roomSeatChoices.first),
-          reason: 'plus was pressed once, so it moved off the fewest');
+      expect(
+        config.seats,
+        isNot(roomSeatChoices.first),
+        reason: 'plus was pressed once, so it moved off the fewest',
+      );
     });
 
-    testWidgets('the format is picked off the list rather than cycled through',
-        (tester) async {
-      final container = _container();
-      await _pump(tester, container, const StartScreen());
+    testWidgets(
+      'the format is picked off the list rather than cycled through',
+      (tester) async {
+        final container = _container();
+        await _pump(tester, container, const StartScreen());
 
-      // A select and not an open list: the choices exist only while you are
-      // choosing. Five rows laid open on the screen read as a list to browse
-      // rather than a setting with a value.
-      for (final format in DeckFormat.values) {
-        expect(find.byKey(Key('format-${format.name}')), findsNothing,
-            reason: '${format.name} is laid open before anybody asked');
-      }
+        // A select and not an open list: the choices exist only while you are
+        // choosing. Five rows laid open on the screen read as a list to browse
+        // rather than a setting with a value.
+        for (final format in DeckFormat.values) {
+          expect(
+            find.byKey(Key('format-${format.name}')),
+            findsNothing,
+            reason: '${format.name} is laid open before anybody asked',
+          );
+        }
 
-      await tester.tap(find.byKey(const Key('format-select')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('format-select')));
+        await tester.pumpAndSettle();
 
-      // Derived from the enum, not from a list typed in here. A case holding
-      // its own five names could only ever look for the formats somebody
-      // remembered, and a sixth added to the app would leave it green.
-      for (final format in DeckFormat.values) {
-        expect(find.byKey(Key('format-${format.name}')), findsOneWidget,
-            reason: 'no way to pick ${format.name}');
-      }
+        // Derived from the enum, not from a list typed in here. A case holding
+        // its own five names could only ever look for the formats somebody
+        // remembered, and a sixth added to the app would leave it green.
+        for (final format in DeckFormat.values) {
+          expect(
+            find.byKey(Key('format-${format.name}')),
+            findsOneWidget,
+            reason: 'no way to pick ${format.name}',
+          );
+        }
 
-      MenuRow select() =>
-          tester.widget<MenuRow>(find.byKey(const Key('format-select')));
+        MenuRow select() =>
+            tester.widget<MenuRow>(find.byKey(const Key('format-select')));
 
-      final wanted = DeckFormat.values.last;
-      expect(select().title, isNot(wanted.label),
-          reason: 'the tap below has to be a change, and this is the guard '
-              'against pressing the one the screen opened on');
+        final wanted = DeckFormat.values.last;
+        expect(
+          select().title,
+          isNot(wanted.label),
+          reason:
+              'the tap below has to be a change, and this is the guard '
+              'against pressing the one the screen opened on',
+        );
 
-      await tester.tap(find.byKey(Key('format-${wanted.name}')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(Key('format-${wanted.name}')));
+        await tester.pumpAndSettle();
 
-      expect(select().title, wanted.label,
-          reason: 'the select says which one is chosen');
-      expect(find.byKey(Key('format-${wanted.name}')), findsNothing,
-          reason: 'choosing closes the choices');
+        expect(
+          select().title,
+          wanted.label,
+          reason: 'the select says which one is chosen',
+        );
+        expect(
+          find.byKey(Key('format-${wanted.name}')),
+          findsNothing,
+          reason: 'choosing closes the choices',
+        );
 
-      await tester.tap(find.byKey(const Key('make-room')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('make-room')));
+        await tester.pumpAndSettle();
 
-      expect(container.read(roomProvider)!.config!.format, wanted);
-    });
+        expect(container.read(roomProvider)!.config!.format, wanted);
+      },
+    );
 
-    testWidgets('the chairs stepper stops at both ends instead of wrapping',
-        (tester) async {
+    testWidgets('the chairs stepper stops at both ends instead of wrapping', (
+      tester,
+    ) async {
       // Wrapping is the failure to watch for. A row you tap to cycle wraps by
       // nature and a stepper must not: somebody pressing minus at the fewest
       // chairs and landing on the most has been lied to.
@@ -368,15 +405,20 @@ void main() {
 
       int shown() => int.parse(_textAt(tester, 'seats-count'));
       double dimming(String key) => tester
-          .widget<Opacity>(find.descendant(
-            of: find.byKey(Key(key)),
-            matching: find.byType(Opacity),
-          ))
+          .widget<Opacity>(
+            find.descendant(
+              of: find.byKey(Key(key)),
+              matching: find.byType(Opacity),
+            ),
+          )
           .opacity;
 
       expect(shown(), roomSeatChoices.first);
-      expect(dimming('seats-down'), lessThan(1),
-          reason: 'minus is drawn dead at the fewest chairs');
+      expect(
+        dimming('seats-down'),
+        lessThan(1),
+        reason: 'minus is drawn dead at the fewest chairs',
+      );
       expect(dimming('seats-up'), 1.0);
 
       final atFewest = _textAt(tester, 'seats-note');
@@ -385,9 +427,13 @@ void main() {
 
       await tester.tap(find.byKey(const Key('seats-down')));
       await tester.pump();
-      expect(shown(), roomSeatChoices.first,
-          reason: 'minus at ${roomSeatChoices.first} chairs must not wrap '
-              'round to ${roomSeatChoices.last}');
+      expect(
+        shown(),
+        roomSeatChoices.first,
+        reason:
+            'minus at ${roomSeatChoices.first} chairs must not wrap '
+            'round to ${roomSeatChoices.last}',
+      );
 
       // Exactly enough to land on the last and not one more, so that the press
       // past the end below is the only thing the last assertion can be about.
@@ -399,30 +445,44 @@ void main() {
       }
 
       expect(shown(), roomSeatChoices.last);
-      expect(dimming('seats-up'), lessThan(1),
-          reason: 'and plus is drawn dead at the most');
+      expect(
+        dimming('seats-up'),
+        lessThan(1),
+        reason: 'and plus is drawn dead at the most',
+      );
       expect(dimming('seats-down'), 1.0);
 
       final atMost = _textAt(tester, 'seats-note');
       expect(atMost, contains('${roomSeatChoices.last}'));
       expect(atMost, contains('as many as'));
-      expect(atMost, isNot(atFewest),
-          reason: 'both ends say when they have stopped, in their own words');
+      expect(
+        atMost,
+        isNot(atFewest),
+        reason: 'both ends say when they have stopped, in their own words',
+      );
 
       await tester.tap(find.byKey(const Key('seats-up')));
       await tester.pump();
-      expect(shown(), roomSeatChoices.last,
-          reason: 'plus at ${roomSeatChoices.last} chairs must not wrap round '
-              'to ${roomSeatChoices.first}');
+      expect(
+        shown(),
+        roomSeatChoices.last,
+        reason:
+            'plus at ${roomSeatChoices.last} chairs must not wrap round '
+            'to ${roomSeatChoices.first}',
+      );
 
       await tester.tap(find.byKey(const Key('make-room')));
       await tester.pumpAndSettle();
-      expect(container.read(roomProvider)!.config!.seats, roomSeatChoices.last,
-          reason: 'and the room is made with the number on the screen');
+      expect(
+        container.read(roomProvider)!.config!.seats,
+        roomSeatChoices.last,
+        reason: 'and the room is made with the number on the screen',
+      );
     });
 
-    testWidgets('your name comes off the device and the room never asks',
-        (tester) async {
+    testWidgets('your name comes off the device and the room never asks', (
+      tester,
+    ) async {
       // A name is a property of the person: it is the same in every room they
       // ever join, so a room that asks again is asking somebody to repeat
       // themselves and making a second place it can disagree from.
@@ -441,8 +501,9 @@ void main() {
       expect(container.read(roomProvider)!.config!.hostName, 'kit');
     });
 
-    testWidgets('a room made by somebody who never said their name',
-        (tester) async {
+    testWidgets('a room made by somebody who never said their name', (
+      tester,
+    ) async {
       // No override here, so this runs the real chain: an empty store, the
       // provider that puts the fallback in front of it, and the screen reading
       // it. An override handing the screen `you` would prove only the reading.
@@ -452,12 +513,16 @@ void main() {
       await tester.tap(find.byKey(const Key('make-room')));
       await tester.pumpAndSettle();
 
-      expect(container.read(roomProvider)!.config!.hostName, namelessPlayer,
-          reason: 'which is where the old empty box landed too');
+      expect(
+        container.read(roomProvider)!.config!.hostName,
+        namelessPlayer,
+        reason: 'which is where the old empty box landed too',
+      );
     });
 
-    testWidgets('a build told nowhere it lives says so, and offers nothing',
-        (tester) async {
+    testWidgets('a build told nowhere it lives says so, and offers nothing', (
+      tester,
+    ) async {
       // A phone hosting has no address of its own: the link points at
       // wherever the web build is served, and a build that was not told
       // where that is has nothing to point at. Inventing a URL here would
@@ -514,9 +579,13 @@ void main() {
       // could hide in one a case never draws; the second line is the positive
       // control, because a file that failed to read satisfies the first.
       final source = File('lib/features/room/room_screen.dart');
-      expect(source.existsSync(), isTrue,
-          reason: 'this reads the source, so it has to run from the package '
-              'root. cwd is ${Directory.current.path}');
+      expect(
+        source.existsSync(),
+        isTrue,
+        reason:
+            'this reads the source, so it has to run from the package '
+            'root. cwd is ${Directory.current.path}',
+      );
       final text = source.readAsStringSync();
 
       expect(text, isNot(contains('room-reach')));
@@ -551,8 +620,11 @@ void main() {
 
       net.drop('ana');
       await _settle(tester, net);
-      expect(_rowAt(tester, 'room-chair-2'), contains('Empty'),
-          reason: 'a friend who leaves gives the chair back');
+      expect(
+        _rowAt(tester, 'room-chair-2'),
+        contains('Empty'),
+        reason: 'a friend who leaves gives the chair back',
+      );
     });
 
     testWidgets('the connection is one line while it works, and says more '
@@ -567,7 +639,9 @@ void main() {
       expect(find.byKey(const Key('room-peer-ana')), findsNothing);
 
       final reach = container.read(reachProvider.notifier);
-      reach.note(const RendezvousStep(SignalingStatus(SignalingStep.announced)));
+      reach.note(
+        const RendezvousStep(SignalingStatus(SignalingStep.announced)),
+      );
       await tester.pump();
 
       // A relay that took the room is not news, so the line goes away.
@@ -577,10 +651,15 @@ void main() {
       // card, which is where a host looks for who has arrived.
       reach.note(const LinkStep(LinkStatus(LinkStage.opened, peer: 'ana')));
       await tester.pump();
-      expect(_rowAt(tester, 'room-peer-ana').toLowerCase(),
-          contains('picking a deck'));
-      expect(_rowAt(tester, 'room-peer-ana'), isNot(contains('ana')),
-          reason: 'the name is not known until the deck arrives');
+      expect(
+        _rowAt(tester, 'room-peer-ana').toLowerCase(),
+        contains('picking a deck'),
+      );
+      expect(
+        _rowAt(tester, 'room-peer-ana'),
+        isNot(contains('ana')),
+        reason: 'the name is not known until the deck arrives',
+      );
 
       // Once the deck lands they have a chair, and the chair-less row goes.
       _friend(net, 'ana').bring(deck: _deck('anas'), name: 'ana');
@@ -589,12 +668,14 @@ void main() {
       expect(_rowAt(tester, 'room-chair-2'), contains('ana'));
 
       // A relay that cannot be reached at all is news again.
-      reach.note(const RendezvousStep(
-        SignalingStatus(SignalingStep.relayUnreachable),
-      ));
+      reach.note(
+        const RendezvousStep(SignalingStatus(SignalingStep.relayUnreachable)),
+      );
       await tester.pump();
-      expect(_textAt(tester, 'room-relay').toLowerCase(),
-          contains('no relay could be reached'));
+      expect(
+        _textAt(tester, 'room-relay').toLowerCase(),
+        contains('no relay could be reached'),
+      );
     });
 
     testWidgets('a peer that was heard shows before it connects, and a failure '
@@ -609,20 +690,24 @@ void main() {
       // "chair 2: empty" with no hint anybody had been seen. Heard is a fact
       // worth a line before it becomes a chair.
       expect(find.byKey(const Key('room-seen-ana')), findsNothing);
-      reach.note(const RendezvousStep(
-        SignalingStatus(SignalingStep.peerHere, peer: 'ana'),
-      ));
+      reach.note(
+        const RendezvousStep(
+          SignalingStatus(SignalingStep.peerHere, peer: 'ana'),
+        ),
+      );
       await tester.pump();
-      expect(_textAt(tester, 'room-seen-ana').toLowerCase(),
-          contains('connecting'));
+      expect(
+        _textAt(tester, 'room-seen-ana').toLowerCase(),
+        contains('connecting'),
+      );
 
       // And carries the link's last word about itself, so a screenshot of
       // this line says where it stopped.
-      reach.note(const LinkStep(LinkStatus(
-        LinkStage.progress,
-        peer: 'ana',
-        detail: 'ice checking',
-      )));
+      reach.note(
+        const LinkStep(
+          LinkStatus(LinkStage.progress, peer: 'ana', detail: 'ice checking'),
+        ),
+      );
       await tester.pump();
       expect(_textAt(tester, 'room-seen-ana'), contains('ice checking'));
 
@@ -631,26 +716,37 @@ void main() {
       await tester.pump();
       expect(find.byKey(const Key('room-seen-ana')), findsNothing);
       expect(find.byKey(const Key('room-peer-ana')), findsOneWidget);
-      expect(_rowAt(tester, 'room-peer-ana').toLowerCase(),
-          contains('picking a deck'));
+      expect(
+        _rowAt(tester, 'room-peer-ana').toLowerCase(),
+        contains('picking a deck'),
+      );
 
       // A failure that a TURN server would not fix used to be invisible: no
       // turn line, no peer line, nothing. Now it says why.
-      reach.note(LinkStep(LinkStatus(
-        LinkStage.failed,
-        peer: 'ana',
-        failure: const LinkFailure(
-          peer: 'ana',
-          reason: 'the other side closed before the channel opened',
-          needsTurn: false,
+      reach.note(
+        LinkStep(
+          LinkStatus(
+            LinkStage.failed,
+            peer: 'ana',
+            failure: const LinkFailure(
+              peer: 'ana',
+              reason: 'the other side closed before the channel opened',
+              needsTurn: false,
+            ),
+          ),
         ),
-      )));
+      );
       await tester.pump();
       expect(find.byKey(const Key('room-peer-ana')), findsNothing);
-      expect(find.byKey(const Key('room-turn')), findsNothing,
-          reason: 'this is not the TURN case');
-      expect(_textAt(tester, 'room-failed-ana'),
-          contains('closed before the channel opened'));
+      expect(
+        find.byKey(const Key('room-turn')),
+        findsNothing,
+        reason: 'this is not the TURN case',
+      );
+      expect(
+        _textAt(tester, 'room-failed-ana'),
+        contains('closed before the channel opened'),
+      );
     });
 
     testWidgets('a link that needs a relay is said in words, and where to '
@@ -663,35 +759,47 @@ void main() {
 
       final reach = container.read(reachProvider.notifier);
       // A failure that a relay would not fix says nothing about relays.
-      reach.note(const LinkStep(LinkStatus(
-        LinkStage.failed,
-        peer: 'bo',
-        failure: LinkFailure(peer: 'bo', reason: 'their offer was garbage'),
-      )));
+      reach.note(
+        const LinkStep(
+          LinkStatus(
+            LinkStage.failed,
+            peer: 'bo',
+            failure: LinkFailure(peer: 'bo', reason: 'their offer was garbage'),
+          ),
+        ),
+      );
       await tester.pump();
       expect(find.byKey(const Key('room-turn')), findsNothing);
 
-      reach.note(const LinkStep(LinkStatus(
-        LinkStage.failed,
-        peer: 'ana',
-        failure: LinkFailure(
-          peer: 'ana',
-          reason: 'ICE completed with no candidate pair',
-          needsTurn: true,
+      reach.note(
+        const LinkStep(
+          LinkStatus(
+            LinkStage.failed,
+            peer: 'ana',
+            failure: LinkFailure(
+              peer: 'ana',
+              reason: 'ICE completed with no candidate pair',
+              needsTurn: true,
+            ),
+          ),
         ),
-      )));
+      );
       await tester.pump();
 
       final line = _textAt(tester, 'room-turn');
       expect(line, contains('TURN'));
       expect(line, contains('Settings'));
       expect(line.toLowerCase(), contains('could not be reached directly'));
-      expect(line, isNot(contains('ICE')),
-          reason: 'in words, not in the words of the protocol');
+      expect(
+        line,
+        isNot(contains('ICE')),
+        reason: 'in words, not in the words of the protocol',
+      );
     });
 
-    testWidgets('the fill row hides once a real person is seated',
-        (tester) async {
+    testWidgets('the fill row hides once a real person is seated', (
+      tester,
+    ) async {
       final net = FakeNetwork();
       final container = _hosting(net, seats: 3);
       await _pump(tester, container, const RoomScreen());
@@ -700,14 +808,20 @@ void main() {
 
       final ana = _friend(net, 'ana');
       await _settle(tester, net);
-      expect(find.byKey(const Key('room-fill')), findsOneWidget,
-          reason: 'connected and not seated is not a person in a chair');
+      expect(
+        find.byKey(const Key('room-fill')),
+        findsOneWidget,
+        reason: 'connected and not seated is not a person in a chair',
+      );
 
       ana.bring(deck: _deck('anas'), name: 'ana');
       await _settle(tester, net);
       expect(find.byKey(const Key('room-fill')), findsNothing);
-      expect(find.byKey(const Key('room-deck')), findsOneWidget,
-          reason: 'the positive control: the host still picks its own deck');
+      expect(
+        find.byKey(const Key('room-deck')),
+        findsOneWidget,
+        reason: 'the positive control: the host still picks its own deck',
+      );
     });
 
     testWidgets('the host starts only with every chair full, and the button '
@@ -728,8 +842,11 @@ void main() {
       await tester.tap(find.byKey(const Key('deck-row-0')));
       await tester.pumpAndSettle();
       expect(find.byType(PlayDecksScreen), findsNothing);
-      expect(find.byType(PlayScreen), findsNothing,
-          reason: 'sitting down is not dealing');
+      expect(
+        find.byType(PlayScreen),
+        findsNothing,
+        reason: 'sitting down is not dealing',
+      );
       expect(start().enabled, isFalse);
       expect(start().subtitle, contains('chairs 2 and 3'));
 
@@ -764,11 +881,17 @@ void main() {
       // And the host looks out of its own seat, found by its key on the
       // transport: every seat is keyed now, so a controller that never asked
       // the transport who it is would open this table as a spectator.
-      expect(container.read(viewerSeatProvider), table.seats.first.id,
-          reason: "the host's seat is the one under its own key");
+      expect(
+        container.read(viewerSeatProvider),
+        table.seats.first.id,
+        reason: "the host's seat is the one under its own key",
+      );
       final viewer = container.read(viewerSeatProvider.notifier);
-      expect(viewer.look(table.seats[1].id), isFalse,
-          reason: "ana's seat is ana's, on the host's phone too");
+      expect(
+        viewer.look(table.seats[1].id),
+        isFalse,
+        reason: "ana's seat is ana's, on the host's phone too",
+      );
       expect(viewer.look(table.seats.first.id), isTrue);
       // And the lobby's last word went to both guests. Read off the wire and
       // not settled through to them: settling runs for real, and the table
@@ -794,19 +917,30 @@ void main() {
       container.read(roomProvider.notifier).arrive(freshRoomCode());
       await _pump(tester, container, const RoomScreen());
 
-      expect(_textAt(tester, 'room-answer').toLowerCase(),
-          contains('waiting for the host'));
-      expect(find.byKey(const Key('room-chairs')), findsNothing,
-          reason: 'a guest cannot count chairs it has not been told about');
+      expect(
+        _textAt(tester, 'room-answer').toLowerCase(),
+        contains('waiting for the host'),
+      );
+      expect(
+        find.byKey(const Key('room-chairs')),
+        findsNothing,
+        reason: 'a guest cannot count chairs it has not been told about',
+      );
       expect(find.byKey(const Key('room-start')), findsNothing);
 
       await _settle(tester, net);
-      expect(find.byKey(const Key('room-answer')), findsNothing,
-          reason: 'the host answered, so there is nothing to wait for');
+      expect(
+        find.byKey(const Key('room-answer')),
+        findsNothing,
+        reason: 'the host answered, so there is nothing to wait for',
+      );
       expect(_rowAt(tester, 'room-chair-1'), contains('host'));
       expect(_rowAt(tester, 'room-chair-2'), contains('Empty'));
-      expect(find.byKey(const Key('room-fill')), findsNothing,
-          reason: 'the other chairs are other people\'s');
+      expect(
+        find.byKey(const Key('room-fill')),
+        findsNothing,
+        reason: 'the other chairs are other people\'s',
+      );
 
       await tester.tap(find.byKey(const Key('room-deck')));
       await tester.pumpAndSettle();
@@ -821,6 +955,11 @@ void main() {
       expect(_rowAt(tester, 'room-chair-1'), contains('kit'));
       expect(find.byKey(const Key('room-dealt')), findsNothing);
       expect(find.byType(PlayScreen), findsNothing);
+      expect(
+        find.byKey(const Key('room-back-to-table')),
+        findsNothing,
+        reason: 'there is no table to go back to yet',
+      );
 
       final mesh = host.start(
         (players) => sitDownTogether(players: players, seed: 'seed'),
@@ -835,27 +974,37 @@ void main() {
       // The route is pushed from a listener, so it is on screen a frame
       // after the table arrived and not in the same one.
       await tester.pumpAndSettle();
-      expect(find.byType(PlayScreen), findsOneWidget,
-          reason: 'the guest reaches the table the moment it is dealt');
+      expect(
+        find.byType(PlayScreen),
+        findsOneWidget,
+        reason: 'the guest reaches the table the moment it is dealt',
+      );
       final table = container.read(playProvider)!;
       expect(table.seats.map((s) => s.owner), [
         const SeatOwner.peer('kit'),
         const SeatOwner.peer('me'),
       ]);
-      expect(container.read(viewerSeatProvider), 's2',
-          reason: "the guest's seat is the one under its own key");
+      expect(
+        container.read(viewerSeatProvider),
+        's2',
+        reason: "the guest's seat is the one under its own key",
+      );
       // Its own hand, face up: seven cards in the sheet. The host's is a
       // count on a band and never a card.
-      expect(tester.widget<HandSheet>(find.byType(HandSheet)).cards,
-          hasLength(7));
+      expect(
+        tester.widget<HandSheet>(find.byType(HandSheet)).cards,
+        hasLength(7),
+      );
 
       // A card the host moves lands here, at the same spot.
       final card = mesh.table!.zone('hand-s1')!.cards.first;
-      mesh.run(MoveCard(
-        cardId: card.id,
-        toZoneId: 'battlefield-s1',
-        position: (x: 0.25, y: 0.75),
-      ));
+      mesh.run(
+        MoveCard(
+          cardId: card.id,
+          toZoneId: 'battlefield-s1',
+          position: (x: 0.25, y: 0.75),
+        ),
+      );
       await _settle(tester, net);
       await tester.pumpAndSettle();
       final landed = container.read(playProvider)!.locate(card.id)!;
@@ -867,9 +1016,26 @@ void main() {
       final drawn = find.byWidgetPredicate(
         (w) => w is TableCard && w.instance.id == card.id,
       );
-      expect(drawn, findsOneWidget,
-          reason: "the host's card is on this screen once it moved");
+      expect(
+        drawn,
+        findsOneWidget,
+        reason: "the host's card is on this screen once it moved",
+      );
       expect(tester.widget<TableCard>(drawn).printing?.name, 'Mountain');
+
+      // Stepping back into the lobby by accident is not leaving the game,
+      // so the table is one row away. It used to be nowhere: the only way
+      // back was to rejoin.
+      tester.state<NavigatorState>(find.byType(Navigator)).pop();
+      await tester.pumpAndSettle();
+      expect(find.byType(PlayScreen), findsNothing);
+      await tester.tap(find.byKey(const Key('room-back-to-table')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byType(PlayScreen),
+        findsOneWidget,
+        reason: 'the game was still going',
+      );
     });
 
     testWidgets('the deck is picked from inside the room', (tester) async {
@@ -877,8 +1043,11 @@ void main() {
       container.read(roomProvider.notifier).open(_config());
       await _pump(tester, container, const RoomScreen());
 
-      expect(find.byType(PlayDecksScreen), findsNothing,
-          reason: 'the room exists before anybody has a deck');
+      expect(
+        find.byType(PlayDecksScreen),
+        findsNothing,
+        reason: 'the room exists before anybody has a deck',
+      );
 
       await tester.tap(find.byKey(const Key('room-deck')));
       await tester.pumpAndSettle();
@@ -886,8 +1055,9 @@ void main() {
       expect(find.byType(PlayDecksScreen), findsOneWidget);
     });
 
-    testWidgets('the picker opened from a room picks one deck and no more',
-        (tester) async {
+    testWidgets('the picker opened from a room picks one deck and no more', (
+      tester,
+    ) async {
       // Collecting several decks and dealing them as one table is nonsense
       // twice over from inside a room: the room already said how many chairs,
       // and seats are meant to fill with people.
@@ -899,15 +1069,19 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('add-seat')), findsNothing);
-      expect(find.byKey(const Key('deal')), findsNothing,
-          reason: 'nothing to deal together, because nothing is collected');
+      expect(
+        find.byKey(const Key('deal')),
+        findsNothing,
+        reason: 'nothing to deal together, because nothing is collected',
+      );
       // The positive control: this is the deck picker with a deck on it, so an
       // empty or broken screen cannot satisfy the two lines above.
       expect(find.byKey(const Key('deck-row-0')), findsOneWidget);
     });
 
-    testWidgets('the room offers to fill the other chairs from this device',
-        (tester) async {
+    testWidgets('the room offers to fill the other chairs from this device', (
+      tester,
+    ) async {
       final container = _container();
       container.read(roomProvider.notifier).open(_config(seats: 4));
       await _pump(tester, container, const RoomScreen());
@@ -927,8 +1101,9 @@ void main() {
       );
     });
 
-    testWidgets('filling them opens a picker that takes a deck per chair',
-        (tester) async {
+    testWidgets('filling them opens a picker that takes a deck per chair', (
+      tester,
+    ) async {
       // Deliberately kept rather than deleted. With no transport, this is the
       // only way to see a table with more than one seat at all, and the pod
       // renderers are unreachable without it.
@@ -948,12 +1123,16 @@ void main() {
 
       final table = container.read(playProvider);
       expect(table!.seats, hasLength(2));
-      expect(table.seats.every((s) => s.owner.actableHere(me: 'me')), isTrue,
-          reason: 'every chair is held by this device');
+      expect(
+        table.seats.every((s) => s.owner.actableHere(me: 'me')),
+        isTrue,
+        reason: 'every chair is held by this device',
+      );
     });
 
-    testWidgets('it will not collect more decks than the room has chairs',
-        (tester) async {
+    testWidgets('it will not collect more decks than the room has chairs', (
+      tester,
+    ) async {
       // The room said how many chairs. A picker that let somebody collect a
       // fifth deck in a four chair room would deal a table the room does not
       // describe, which is the same lie in the other direction.
@@ -962,9 +1141,13 @@ void main() {
       container.read(roomProvider.notifier).open(_config(seats: seats));
       await _pump(tester, container, const RoomScreen());
 
-      expect(find.byKey(const Key('room-fill')), findsOneWidget,
-          reason: 'the fewest chairs a room has is $seats, and one of them is '
-              'somebody else\'s, so there is something to fill');
+      expect(
+        find.byKey(const Key('room-fill')),
+        findsOneWidget,
+        reason:
+            'the fewest chairs a room has is $seats, and one of them is '
+            'somebody else\'s, so there is something to fill',
+      );
 
       await tester.tap(find.byKey(const Key('room-fill')));
       await tester.pumpAndSettle();
@@ -979,8 +1162,9 @@ void main() {
       expect(container.read(playProvider)!.seats, hasLength(seats));
     });
 
-    testWidgets('a room that cannot say how many chairs does not offer it',
-        (tester) async {
+    testWidgets('a room that cannot say how many chairs does not offer it', (
+      tester,
+    ) async {
       // A guest has a code and none of the host's settings, because those
       // travel over a mesh that does not exist yet. Offering to fill chairs it
       // cannot count would be a control working off its own guess.
@@ -1014,8 +1198,9 @@ void main() {
   });
 
   group('joining one', () {
-    testWidgets('a link pasted in lands on the room with that code',
-        (tester) async {
+    testWidgets('a link pasted in lands on the room with that code', (
+      tester,
+    ) async {
       final container = _container();
       final code = freshRoomCode();
 
@@ -1046,12 +1231,16 @@ void main() {
       await tester.tap(find.byKey(const Key('join-go')));
       await tester.pumpAndSettle();
 
-      expect(container.read(roomProvider)?.code, code,
-          reason: 'a code inside a link has no case of its own');
+      expect(
+        container.read(roomProvider)?.code,
+        code,
+        reason: 'a code inside a link has no case of its own',
+      );
     });
 
-    testWidgets('a bare code still works, it is just never asked for',
-        (tester) async {
+    testWidgets('a bare code still works, it is just never asked for', (
+      tester,
+    ) async {
       // The screen asks for a link or a QR, because seven characters have
       // no destination in them. Being lenient about what arrives costs
       // nothing, so one is still taken if somebody has one.
@@ -1067,13 +1256,13 @@ void main() {
       expect(container.read(roomProvider)?.code, code);
     });
 
-    testWidgets('there is nothing to join until there is a code',
-        (tester) async {
+    testWidgets('there is nothing to join until there is a code', (
+      tester,
+    ) async {
       final container = _container();
       await _pump(tester, container, const JoinScreen());
 
-      MenuRow go() =>
-          tester.widget<MenuRow>(find.byKey(const Key('join-go')));
+      MenuRow go() => tester.widget<MenuRow>(find.byKey(const Key('join-go')));
 
       expect(go().enabled, isFalse, reason: 'an empty box is not a room');
 
@@ -1088,26 +1277,35 @@ void main() {
       expect(go().enabled, isFalse);
 
       await tester.enterText(
-          find.byKey(const Key('join-input')), freshRoomCode());
+        find.byKey(const Key('join-input')),
+        freshRoomCode(),
+      );
       await tester.pump();
       expect(go().enabled, isTrue);
 
-      expect(container.read(roomProvider), isNull,
-          reason: 'nothing has been joined, only typed');
+      expect(
+        container.read(roomProvider),
+        isNull,
+        reason: 'nothing has been joined, only typed',
+      );
     });
   });
 
   group('a link opened on the web', () {
-    testWidgets('goes straight to the room and never to the menu',
-        (tester) async {
+    testWidgets('goes straight to the room and never to the menu', (
+      tester,
+    ) async {
       final code = freshRoomCode();
       final container = _container(launchCode: code);
 
       await _pump(tester, container, const Entry());
 
       expect(find.byType(RoomScreen), findsOneWidget);
-      expect(find.byType(MenuScreen), findsNothing,
-          reason: 'a link that opens the menu is a link that did not work');
+      expect(
+        find.byType(MenuScreen),
+        findsNothing,
+        reason: 'a link that opens the menu is a link that did not work',
+      );
       expect(container.read(roomProvider)!.code, code);
       expect(container.read(roomProvider)!.hosting, isFalse);
     });
@@ -1123,8 +1321,10 @@ void main() {
 
       expect(find.byType(RoomScreen), findsOneWidget);
       expect(container.read(roomProvider)!.code, 'aaaa-aaa');
-      expect(_textAt(tester, 'room-answer').toLowerCase(),
-          contains('waiting for the host'));
+      expect(
+        _textAt(tester, 'room-answer').toLowerCase(),
+        contains('waiting for the host'),
+      );
     });
 
     testWidgets('the first run is a wizard, not the menu', (tester) async {
@@ -1162,8 +1362,9 @@ void main() {
       expect(container.read(roomProvider)!.code, code);
     });
 
-    testWidgets('the wizard is run once, and the menu after that',
-        (tester) async {
+    testWidgets('the wizard is run once, and the menu after that', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues({});
       final container = _container();
       await _pump(tester, container, const Entry());

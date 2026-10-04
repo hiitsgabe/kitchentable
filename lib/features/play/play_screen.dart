@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -135,10 +137,29 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     // other end of a call used to be a number that quietly read differently.
     ref.listen(tableNewsProvider, (_, news) {
       if (news == null) return;
-      final line = saidOutLoud(news, me: ref.read(transportProvider)?.me);
-      if (line != null) {
-        Toast.show(context, line, icon: Icons.casino_rounded);
+      final me = ref.read(transportProvider)?.me;
+      final line = saidOutLoud(news, me: me);
+      if (line == null) return;
+      // A throw is shown as a throw. The die in the toast tumbles the way
+      // the thrower's did and stops on the number everybody agreed on,
+      // which is what watching somebody roll looks like; a sentence with
+      // the number in it is what reading about it looks like.
+      final roll = announcedRoll(news, me: me);
+      if (roll != null && roll.die < trayDice.length) {
+        Toast.announce(
+          context,
+          '${news.name} rolled ${roll.value}',
+          leading: RollingDie(
+            key: ValueKey('rolled-${roll.turn}'),
+            solid: trayDice[roll.die].solid,
+            to: roll.value,
+            size: m.scaled(30),
+          ),
+          lasts: const Duration(milliseconds: 2800),
+        );
+        return;
       }
+      Toast.show(context, line, icon: Icons.casino_rounded);
     });
 
     if (table == null) {
@@ -486,19 +507,33 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
       context: context,
       backgroundColor: Palette.tray,
       isScrollControlled: true,
-      // A quarter of the screen, which is the cap Board Game Arena puts on
-      // its own four player chat for the same reason: the table is what
-      // people came for.
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.42,
-      ),
-      builder: (sheet) => Consumer(
-        builder: (context, ref, _) => ChatSheet(
-          metrics: m,
-          room: ref.watch(chatProvider),
-          onSay: (text) => ref.read(playProvider.notifier).say(text),
-        ),
-      ),
+      builder: (sheet) {
+        // Sized from the room above the keyboard, not from the screen. It
+        // used to be capped at a share of the screen with the keyboard's
+        // inset padded inside that cap, so the moment a phone's keyboard
+        // came up the input was pushed below the sheet's own bottom edge
+        // and vanished the instant somebody tapped it. The cap is still a
+        // share of the screen, the way Board Game Arena caps its own chat,
+        // because the table is what people came for; it is just measured
+        // from what is left once the keyboard has taken its part.
+        final keyboard = MediaQuery.viewInsetsOf(sheet).bottom;
+        final height = MediaQuery.sizeOf(sheet).height;
+        final room = math.min(height * 0.42, height - keyboard - m.scaled(24));
+        return AnimatedPadding(
+          duration: const Duration(milliseconds: 120),
+          padding: EdgeInsets.only(bottom: keyboard),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: math.max(room, 0)),
+            child: Consumer(
+              builder: (context, ref, _) => ChatSheet(
+                metrics: m,
+                room: ref.watch(chatProvider),
+                onSay: (text) => ref.read(playProvider.notifier).say(text),
+              ),
+            ),
+          ),
+        );
+      },
     );
     if (mounted) ref.read(chatProvider.notifier).seen();
   }
