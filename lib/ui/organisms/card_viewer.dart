@@ -608,10 +608,14 @@ class _Card extends StatelessWidget {
     final showingBack = light.showingBack;
     final openness = light.openness;
     final frontUrl = card.imageNormal ?? card.imageSmall;
-    // A card with only one face turns over onto its game's back, which is
-    // the same one the pile in front of you is drawn with. There used to be
-    // a second copy of the Magic URL here.
-    final backUrl = card.imageBack ?? backFor(Game.magic);
+    // A card with only one face turns over onto its own game's back, which
+    // is the one the pile in front of you is drawn with. It used to turn
+    // onto Magic's whatever game it was from, so every Pokemon card had a
+    // Magic back.
+    final backUrl = card.imageBack ?? backFor(card.game);
+    final paintedBack = card.imageBack == null && card.game == Game.pokemon
+        ? const PokemonBack()
+        : null;
 
     return Stack(
       alignment: Alignment.center,
@@ -680,7 +684,11 @@ class _Card extends StatelessWidget {
                             ),
                             Opacity(
                               opacity: showingBack ? 1 : 0,
-                              child: _Side(url: backUrl, name: card.name),
+                              child: _Side(
+                                url: backUrl,
+                                name: card.name,
+                                painted: paintedBack,
+                              ),
                             ),
 
                             // Gloss. A narrow band of white that slides across the
@@ -756,13 +764,17 @@ class _Card extends StatelessWidget {
 
 /// One face of the card. Always built, sometimes invisible.
 class _Side extends StatelessWidget {
-  const _Side({required this.url, required this.name});
+  const _Side({required this.url, required this.name, this.painted});
 
   final String? url;
   final String name;
 
+  /// A side that is drawn rather than fetched: a Pokemon back.
+  final Widget? painted;
+
   @override
   Widget build(BuildContext context) {
+    if (painted != null) return SizedBox.expand(child: painted);
     final blank = ColoredBox(
       color: Palette.tile,
       child: Center(

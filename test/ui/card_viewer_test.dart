@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 import 'package:kitchentable/ui/atoms/card_image.dart';
 import 'package:kitchentable/ui/organisms/card_viewer.dart';
@@ -64,6 +65,32 @@ void main() {
         .toList();
 
     expect(urls.any((u) => u.contains('backs.scryfall.io')), isTrue);
+  });
+
+  testWidgets('a Pokemon card turns over onto its own back, painted', (
+    tester,
+  ) async {
+    const charizard = CatalogCard(
+      oracleId: 'base1-4',
+      name: 'Charizard',
+      typeLine: 'Pokémon · Stage 2 · Fire',
+      cmc: 0,
+      game: Game.pokemon,
+      imageNormal: 'https://example.invalid/charizard.png',
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: CardViewer(card: charizard)),
+    );
+    await tester.pump();
+
+    // Every Pokemon card wore Magic's back for a while: the viewer only
+    // knew one back and turned everything onto it.
+    expect(find.byKey(const Key('pokemon-back')), findsOneWidget);
+    final urls = tester
+        .widgetList<CardImage>(find.byType(CardImage))
+        .map((w) => w.url)
+        .toList();
+    expect(urls.any((u) => u.contains('backs.scryfall.io')), isFalse);
   });
 
   testWidgets('it draws the card', (tester) async {

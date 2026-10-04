@@ -74,6 +74,7 @@ Map<String, Object?> _cardToJson(CatalogCard card) => {
   'imageNormal': card.imageNormal,
   'imageLarge': card.imageLarge,
   'imageBack': card.imageBack,
+  'game': card.game.name,
 };
 
 CatalogCard _cardFrom(Map<String, Object?> json) => CatalogCard(
@@ -93,6 +94,8 @@ CatalogCard _cardFrom(Map<String, Object?> json) => CatalogCard(
   imageNormal: _stringOrNull(json, 'imageNormal'),
   imageLarge: _stringOrNull(json, 'imageLarge'),
   imageBack: _stringOrNull(json, 'imageBack'),
+  // Absent on a card written before cards had a game, which was Magic.
+  game: _gameOrMagic(json),
 );
 
 DeckFormat _formatFrom(String name) {
@@ -103,6 +106,12 @@ DeckFormat _formatFrom(String name) {
     'a deck is in the format "$name", which is not one this build knows: '
     '${DeckFormat.values.map((f) => f.name).join(', ')}',
   );
+}
+
+/// A card's own game, for the back it turns over onto. Magic when absent.
+Game _gameOrMagic(Map<String, Object?> json) {
+  final name = _stringOrNull(json, 'game');
+  return name == null ? Game.magic : _gameFrom(name);
 }
 
 Game _gameFrom(String name) {
