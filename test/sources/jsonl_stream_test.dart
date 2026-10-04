@@ -19,25 +19,20 @@ void main() {
   });
 
   test('a record split across two chunks still arrives whole', () async {
-    final out = await decodeJsonl(
-      _chunks(['{"name":"Sol ', 'Ring"}\n']),
-    ).toList();
+    final out = await decodeJsonl(_chunks(['{"name":"Sol ', 'Ring"}\n']))
+        .toList();
 
     expect(out.single['name'], 'Sol Ring');
   });
 
   test('a last line with no trailing newline is not dropped', () async {
-    final out = await decodeJsonl(
-      _chunks(['{"a":1}\n{"b":2}']),
-    ).toList();
+    final out = await decodeJsonl(_chunks(['{"a":1}\n{"b":2}'])).toList();
 
     expect(out.length, 2);
   });
 
   test('blank lines are skipped rather than throwing', () async {
-    final out = await decodeJsonl(
-      _chunks(['{"a":1}\n\n\n{"b":2}\n']),
-    ).toList();
+    final out = await decodeJsonl(_chunks(['{"a":1}\n\n\n{"b":2}\n'])).toList();
 
     expect(out.length, 2);
   });

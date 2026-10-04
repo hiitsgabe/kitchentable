@@ -27,10 +27,13 @@ void main() {
     final mine = magicZonesFor('s1', DeckFormat.commander);
     final theirs = magicZonesFor('s2', DeckFormat.commander);
 
-    expect(mine.map((z) => z.id).toSet().intersection(
-          theirs.map((z) => z.id).toSet(),
-        ),
-        isEmpty);
+    expect(
+      mine
+          .map((z) => z.id)
+          .toSet()
+          .intersection(theirs.map((z) => z.id).toSet()),
+      isEmpty,
+    );
   });
 
   test('a library is hidden from everybody, a hand from everybody else', () {

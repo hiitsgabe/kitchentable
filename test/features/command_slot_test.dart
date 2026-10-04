@@ -55,10 +55,14 @@ void main() {
   });
 
   testWidgets('two commanders both fit', (tester) async {
-    await tester.pumpWidget(_host(cards: const [
-      CardInstance(id: 'c0', oracleId: 'A'),
-      CardInstance(id: 'c1', oracleId: 'B'),
-    ]));
+    await tester.pumpWidget(
+      _host(
+        cards: const [
+          CardInstance(id: 'c0', oracleId: 'A'),
+          CardInstance(id: 'c1', oracleId: 'B'),
+        ],
+      ),
+    );
 
     // Partner exists, and so does Background. Two is a real hand of cards.
     expect(find.byType(TableCard), findsNWidgets(2));
@@ -76,31 +80,37 @@ void main() {
 
   testWidgets('a card dropped on the corner is reported', (tester) async {
     CardInstance? sent;
-    await tester.pumpWidget(ProviderScope(
-      child: MaterialApp(
-        home: Scaffold(
-          body: Column(
-            children: [
-              DraggableCard(
-                card: const CardInstance(id: 'x', oracleId: 'General'),
-                child: const SizedBox(key: Key('loose'), width: 40, height: 56),
-              ),
-              Expanded(
-                child: CommandSlot(
-                  metrics: Metrics.of(DeviceClass.handheld),
-                  cards: const [],
-                  printings: const {},
-                  width: 60,
-                  onTap: (_) {},
-                  onInspect: (_) {},
-                  onSendHome: (c) => sent = c,
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                DraggableCard(
+                  card: const CardInstance(id: 'x', oracleId: 'General'),
+                  child: const SizedBox(
+                    key: Key('loose'),
+                    width: 40,
+                    height: 56,
+                  ),
                 ),
-              ),
-            ],
+                Expanded(
+                  child: CommandSlot(
+                    metrics: Metrics.of(DeviceClass.handheld),
+                    cards: const [],
+                    printings: const {},
+                    width: 60,
+                    onTap: (_) {},
+                    onInspect: (_) {},
+                    onSendHome: (c) => sent = c,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ));
+    );
     await tester.pump();
 
     final to = tester.getCenter(find.byType(CommandSlot));

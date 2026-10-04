@@ -54,7 +54,6 @@ class DeckScreen extends ConsumerWidget {
         SizedBox(height: m.scaled(18)),
         MenuRow(
           title: 'Rename',
-          subtitle: 'it is called "${deck.name}"',
           icon: Icons.edit_rounded,
           metrics: m,
           onActivate: () => Navigator.of(context).push(
@@ -63,7 +62,6 @@ class DeckScreen extends ConsumerWidget {
         ),
         MenuRow(
           title: 'Add cards',
-          subtitle: 'search the catalog and tap to add',
           icon: Icons.search_rounded,
           metrics: m,
           autofocus: true,
@@ -74,7 +72,7 @@ class DeckScreen extends ConsumerWidget {
         if (deck.game == Game.magic)
           MenuRow(
             title: 'Add lands',
-            subtitle: 'the tedious third of a deck, in one tap',
+            subtitle: 'basics, split by colour',
             icon: Icons.terrain_rounded,
             metrics: m,
             onActivate: () => Navigator.of(context).push(
@@ -83,7 +81,6 @@ class DeckScreen extends ConsumerWidget {
           ),
         MenuRow(
           title: 'Paste a list',
-          subtitle: 'the format shops and deck sites give you',
           icon: Icons.content_paste_rounded,
           metrics: m,
           onActivate: () => Navigator.of(context).push(

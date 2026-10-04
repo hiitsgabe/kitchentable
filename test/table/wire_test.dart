@@ -59,7 +59,8 @@ Set<String> _declaredVerbs() {
   expect(
     source.existsSync(),
     isTrue,
-    reason: 'this reads the source, so it has to run from the package root. '
+    reason:
+        'this reads the source, so it has to run from the package root. '
         'cwd is ${Directory.current.path}',
   );
 
@@ -224,7 +225,11 @@ void main() {
     // its version, so the version is the only thing the refusal can be about.
     expect(
       () => fromWire(
-        jsonEncode({'v': wireVersion + 1, 'type': 'RollDice', 'results': [6]}),
+        jsonEncode({
+          'v': wireVersion + 1,
+          'type': 'RollDice',
+          'results': [6],
+        }),
       ),
       throwsA(
         isA<WireError>().having(
@@ -287,8 +292,8 @@ void main() {
     // The spec's verbs have no turn in them and no screen decides anything by
     // one. A field that travels and means nothing is a field that will be
     // wrong one day with nobody to notice, so it is not on the wire at all.
-    final json = jsonDecode(stateToWire(_aTableInProgress()))
-        as Map<String, Object?>;
+    final json =
+        jsonDecode(stateToWire(_aTableInProgress())) as Map<String, Object?>;
     expect(json.keys, isNot(contains('turnSeatId')));
 
     // And a build that still sends one is refused in words that name it,
@@ -312,7 +317,13 @@ void main() {
     // says so to a peer still on the old build. Literal 1 rather than
     // `wireVersion - 1`: the case is that this build is not that one.
     expect(
-      () => fromWire(jsonEncode({'v': 1, 'type': 'RollDice', 'results': [6]})),
+      () => fromWire(
+        jsonEncode({
+          'v': 1,
+          'type': 'RollDice',
+          'results': [6],
+        }),
+      ),
       throwsA(
         isA<WireError>().having(
           (e) => e.message,
@@ -322,8 +333,8 @@ void main() {
       ),
     );
 
-    final old = jsonDecode(stateToWire(_aTableInProgress()))
-        as Map<String, Object?>;
+    final old =
+        jsonDecode(stateToWire(_aTableInProgress())) as Map<String, Object?>;
     old['v'] = 1;
     expect(
       () => stateFromWire(jsonEncode(old)),
@@ -342,8 +353,8 @@ void main() {
     // `v` in it: that one is missing every other field as well, so it throws
     // about the first field it reaches and passes this case while saying
     // nothing about the version at all.
-    final newer = jsonDecode(stateToWire(_aTableInProgress()))
-        as Map<String, Object?>;
+    final newer =
+        jsonDecode(stateToWire(_aTableInProgress())) as Map<String, Object?>;
     newer['v'] = wireVersion + 1;
 
     expect(
@@ -392,10 +403,16 @@ void main() {
 
     final onAnasPhone = stateFromWire(stateToWire(table));
 
-    expect(onAnasPhone.seat('s1')!.owner.actableHere(me: 'ana-key'), isFalse,
-        reason: "the host's seat is not ana's to play");
-    expect(onAnasPhone.seat('s2')!.owner.actableHere(me: 'ana-key'), isTrue,
-        reason: "ana's seat is ana's on ana's phone");
+    expect(
+      onAnasPhone.seat('s1')!.owner.actableHere(me: 'ana-key'),
+      isFalse,
+      reason: "the host's seat is not ana's to play",
+    );
+    expect(
+      onAnasPhone.seat('s2')!.owner.actableHere(me: 'ana-key'),
+      isTrue,
+      reason: "ana's seat is ana's on ana's phone",
+    );
     expect(onAnasPhone.seat('s3')!.owner.actableHere(me: 'ana-key'), isFalse);
     expect(
       onAnasPhone.seats.where((s) => s.owner.actableHere(me: 'ana-key')).length,
@@ -413,19 +430,15 @@ void main() {
     // whoever reads it. It is refused in words that name it, rather than read
     // as anybody's, because a table with no transport under it is the only
     // place a `here` belongs and that table never encodes itself for a peer.
-    final json = jsonDecode(stateToWire(_aTableInProgress()))
-        as Map<String, Object?>;
+    final json =
+        jsonDecode(stateToWire(_aTableInProgress())) as Map<String, Object?>;
     final seats = json['seats']! as List<Object?>;
     (seats.first! as Map<String, Object?>)['owner'] = 'here';
 
     expect(
       () => stateFromWire(jsonEncode(json)),
       throwsA(
-        isA<WireError>().having(
-          (e) => e.message,
-          'message',
-          contains('here'),
-        ),
+        isA<WireError>().having((e) => e.message, 'message', contains('here')),
       ),
     );
   });
@@ -434,7 +447,13 @@ void main() {
     // Version 2 carried the host's seat as the word `here`. Literal 2 rather
     // than `wireVersion - 1`: the case is that this build is not that one.
     expect(
-      () => fromWire(jsonEncode({'v': 2, 'type': 'RollDice', 'results': [6]})),
+      () => fromWire(
+        jsonEncode({
+          'v': 2,
+          'type': 'RollDice',
+          'results': [6],
+        }),
+      ),
       throwsA(
         isA<WireError>().having(
           (e) => e.message,
@@ -444,8 +463,8 @@ void main() {
       ),
     );
 
-    final old = jsonDecode(stateToWire(_aTableInProgress()))
-        as Map<String, Object?>;
+    final old =
+        jsonDecode(stateToWire(_aTableInProgress())) as Map<String, Object?>;
     old['v'] = 2;
     expect(
       () => stateFromWire(jsonEncode(old)),

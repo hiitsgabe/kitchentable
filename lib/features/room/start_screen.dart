@@ -86,7 +86,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
     return ScreenFrame(
       metrics: m,
       title: 'Start a table',
-      label: 'the room comes first',
+      label: 'name it, pick a format',
       onBack: () => Navigator.of(context).maybePop(),
       children: [
         _Field(
@@ -141,9 +141,6 @@ class _StartScreenState extends ConsumerState<StartScreen> {
             key: const Key('voice-toggle'),
             metrics: m,
             title: 'Voice chat',
-            subtitle: _voice
-                ? 'everybody at the table can turn their microphone on'
-                : 'nobody can turn a microphone on in this room',
             icon: Icons.mic_none_rounded,
             on: _voice,
             onChanged: (on) => setState(() => _voice = on),
@@ -152,9 +149,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
         MenuRow(
           key: const Key('make-room'),
           title: 'Make the room',
-          subtitle: life == null
-              ? 'starting life has to be a number'
-              : 'and get a link to hand out',
+          subtitle: life == null ? 'starting life has to be a number' : null,
           icon: Icons.meeting_room_rounded,
           // The one dominant action on this screen, the way Play is on the
           // menu. Everything above it is a choice about the room; this is the
@@ -350,15 +345,12 @@ class _Chairs extends StatelessWidget {
   /// believing it, so the end says so in words as well.
   String get _note {
     if (seats <= roomSeatChoices.first) {
-      return '${roomSeatChoices.first} is as few as a table gets, '
-          'and it goes up to ${roomSeatChoices.last}';
+      return '${roomSeatChoices.first} is the fewest';
     }
     if (seats >= roomSeatChoices.last) {
-      return '${roomSeatChoices.last} is as many as fits, '
-          'and it goes down to ${roomSeatChoices.first}';
+      return '${roomSeatChoices.last} is the most';
     }
-    return 'anything from ${roomSeatChoices.first} '
-        'to ${roomSeatChoices.last} chairs';
+    return '${roomSeatChoices.first} to ${roomSeatChoices.last} chairs';
   }
 }
 

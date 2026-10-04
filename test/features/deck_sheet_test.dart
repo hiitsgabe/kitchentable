@@ -8,14 +8,28 @@ import 'package:kitchentable/sources/model/catalog_card.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
 List<CardInstance> _top(int n) => [
-      for (var i = 0; i < n; i++)
-        CardInstance(id: 'c$i', oracleId: 'card$i'),
-    ];
+  for (var i = 0; i < n; i++) CardInstance(id: 'c$i', oracleId: 'card$i'),
+];
 
 const _named = {
-  'card0': CatalogCard(oracleId: 'card0', name: 'Sol Ring', typeLine: 'A', cmc: 1),
-  'card1': CatalogCard(oracleId: 'card1', name: 'Demonic Tutor', typeLine: 'S', cmc: 2),
-  'card2': CatalogCard(oracleId: 'card2', name: 'Sol Talisman', typeLine: 'A', cmc: 2),
+  'card0': CatalogCard(
+    oracleId: 'card0',
+    name: 'Sol Ring',
+    typeLine: 'A',
+    cmc: 1,
+  ),
+  'card1': CatalogCard(
+    oracleId: 'card1',
+    name: 'Demonic Tutor',
+    typeLine: 'S',
+    cmc: 2,
+  ),
+  'card2': CatalogCard(
+    oracleId: 'card2',
+    name: 'Sol Talisman',
+    typeLine: 'A',
+    cmc: 2,
+  ),
 };
 
 Widget _host({
@@ -24,19 +38,18 @@ Widget _host({
   VoidCallback? onShuffle,
   void Function(List<Placement>)? onArrange,
   Future<List<CardInstance>> Function(int)? peek,
-}) =>
-    MaterialApp(
-      home: Scaffold(
-        body: DeckSheet(
-          metrics: Metrics.of(DeviceClass.handheld),
-          count: count,
-          printings: printings,
-          peek: peek ?? (n) async => _top(n),
-          onShuffle: onShuffle ?? () {},
-          onArrange: onArrange ?? (_) {},
-        ),
-      ),
-    );
+}) => MaterialApp(
+  home: Scaffold(
+    body: DeckSheet(
+      metrics: Metrics.of(DeviceClass.handheld),
+      count: count,
+      printings: printings,
+      peek: peek ?? (n) async => _top(n),
+      onShuffle: onShuffle ?? () {},
+      onArrange: onArrange ?? (_) {},
+    ),
+  ),
+);
 
 void main() {
   testWidgets('it opens on the choices, not on the cards', (tester) async {
@@ -94,8 +107,9 @@ void main() {
     expect(find.byKey(const Key('peeked-c1')), findsOneWidget);
   });
 
-  testWidgets('each card gets a destination and the choices come back',
-      (tester) async {
+  testWidgets('each card gets a destination and the choices come back', (
+    tester,
+  ) async {
     List<Placement>? arranged;
     await tester.pumpWidget(_host(onArrange: (p) => arranged = p));
     await tester.pump();
@@ -116,8 +130,9 @@ void main() {
     expect(arranged!.last, (cardId: 'c1', to: Landing.top));
   });
 
-  testWidgets('looking at a deck with fewer cards than asked for',
-      (tester) async {
+  testWidgets('looking at a deck with fewer cards than asked for', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(count: 1, peek: (n) async => _top(1)));
     await tester.pump();
 
@@ -139,12 +154,14 @@ void main() {
   testWidgets('the deck can be searched for a card by name', (tester) async {
     final arranged = <List<Placement>>[];
     var shuffled = 0;
-    await tester.pumpWidget(_host(
-      count: 3,
-      printings: _named,
-      onArrange: arranged.add,
-      onShuffle: () => shuffled++,
-    ));
+    await tester.pumpWidget(
+      _host(
+        count: 3,
+        printings: _named,
+        onArrange: arranged.add,
+        onShuffle: () => shuffled++,
+      ),
+    );
     await tester.pump();
 
     // "Search your library for a card" is on hundreds of cards and there was
@@ -174,8 +191,10 @@ void main() {
     // Reading the row's own state and not the placements it ends up sending:
     // sending the right thing while showing every card lit up as going to the
     // top is exactly what this looked like, and no case here could tell.
-    expect(tester.widget<CardRow>(find.byKey(const Key('peeked-c1'))).chosen,
-        isNull);
+    expect(
+      tester.widget<CardRow>(find.byKey(const Key('peeked-c1'))).chosen,
+      isNull,
+    );
 
     await tester.tap(find.byKey(const Key('hand-c1')));
     await tester.pumpAndSettle();
@@ -225,8 +244,10 @@ void main() {
 
     // And the other way round: looking does open with the top lit, which is
     // the behaviour the search case above is the exception to.
-    expect(tester.widget<CardRow>(find.byKey(const Key('peeked-c0'))).chosen,
-        Landing.top);
+    expect(
+      tester.widget<CardRow>(find.byKey(const Key('peeked-c0'))).chosen,
+      Landing.top,
+    );
 
     await tester.tap(find.byKey(const Key('deck-done')));
     await tester.pumpAndSettle();

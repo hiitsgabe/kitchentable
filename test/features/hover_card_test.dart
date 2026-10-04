@@ -15,25 +15,21 @@ const _printing = CatalogCard(
 );
 
 Widget _host({bool faceDown = false}) => MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: HoverCard(
-            metrics: Metrics.of(DeviceClass.handheld),
-            instance: CardInstance(
-              id: 'a',
-              oracleId: 'o',
-              faceDown: faceDown,
-            ),
-            printing: _printing,
-            width: 60,
-            // Without a child the widget has no size at all, so there is
-            // nothing for a pointer to be over and every case below would
-            // pass for the wrong reason.
-            child: const SizedBox(width: 60, height: 84),
-          ),
-        ),
+  home: Scaffold(
+    body: Center(
+      child: HoverCard(
+        metrics: Metrics.of(DeviceClass.handheld),
+        instance: CardInstance(id: 'a', oracleId: 'o', faceDown: faceDown),
+        printing: _printing,
+        width: 60,
+        // Without a child the widget has no size at all, so there is
+        // nothing for a pointer to be over and every case below would
+        // pass for the wrong reason.
+        child: const SizedBox(width: 60, height: 84),
       ),
-    );
+    ),
+  ),
+);
 
 /// The same app without the card, so pumping this over [_host] takes the
 /// card out of the tree while the overlay it drew into stays.
@@ -47,8 +43,7 @@ void main() {
     expect(find.byKey(const Key('hover-preview')), findsNothing);
   });
 
-  testWidgets('a pointer over the card brings up a bigger one',
-      (tester) async {
+  testWidgets('a pointer over the card brings up a bigger one', (tester) async {
     await tester.pumpWidget(_host());
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -94,8 +89,7 @@ void main() {
     expect(find.byKey(const Key('hover-preview')), findsNothing);
   });
 
-  testWidgets('a preview leaves with the card that raised it',
-      (tester) async {
+  testWidgets('a preview leaves with the card that raised it', (tester) async {
     await tester.pumpWidget(_host());
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);

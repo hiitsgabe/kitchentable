@@ -79,10 +79,7 @@ class SlabSwitch extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Palette.trayWell,
                 borderRadius: BorderRadius.circular(m.scaled(7)),
-                border: Border.all(
-                  color: Palette.outline,
-                  width: m.scaled(2),
-                ),
+                border: Border.all(color: Palette.outline, width: m.scaled(2)),
               ),
               child: Text(
                 on ? 'ON' : 'OFF',

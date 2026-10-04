@@ -8,18 +8,40 @@ void main() {
     // Straight off the photograph. Four power and four toughness is a +4/+4,
     // not four +1/+1s in a pile, which is the whole reason these are
     // denominations and not a count.
-    expect(names, containsAll(
-        ['+1/+1', '+2/+2', '+4/+4', '-1/-1', '+1/+0', '+2/+0', '+0/+1']));
+    expect(
+      names,
+      containsAll([
+        '+1/+1',
+        '+2/+2',
+        '+4/+4',
+        '-1/-1',
+        '+1/+0',
+        '+2/+0',
+        '+0/+1',
+      ]),
+    );
   });
 
   test('the keyword counters are there too', () {
     final names = counterPieces.map((p) => p.name).toList();
 
-    expect(names, containsAll([
-      'flying', 'haste', 'trample', 'vigilance', 'menace', 'deathtouch',
-      'lifelink', 'hexproof', 'first strike', 'double strike',
-      'indestructible', 'reach',
-    ]));
+    expect(
+      names,
+      containsAll([
+        'flying',
+        'haste',
+        'trample',
+        'vigilance',
+        'menace',
+        'deathtouch',
+        'lifelink',
+        'hexproof',
+        'first strike',
+        'double strike',
+        'indestructible',
+        'reach',
+      ]),
+    );
   });
 
   test('every piece has its own colour', () {

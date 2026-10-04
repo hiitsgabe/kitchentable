@@ -5,26 +5,24 @@ import 'package:kitchentable/table/model/table_state.dart';
 import 'package:kitchentable/table/model/zone.dart';
 
 Zone _zone(String id, {List<CardInstance> cards = const []}) => Zone(
-      id: id,
-      seatId: 's1',
-      label: id,
-      visibility: ZoneVisibility.public,
-      ordered: true,
-      cards: cards,
-    );
+  id: id,
+  seatId: 's1',
+  label: id,
+  visibility: ZoneVisibility.public,
+  ordered: true,
+  cards: cards,
+);
 
-Seat _seat({List<Zone> zones = const []}) => Seat(
-      id: 's1',
-      name: 'you',
-      life: 40,
-      zones: zones,
-    );
+Seat _seat({List<Zone> zones = const []}) =>
+    Seat(id: 's1', name: 'you', life: 40, zones: zones);
 
 void main() {
   test('a table finds a zone wherever it is', () {
-    final table = TableState(seats: [
-      _seat(zones: [_zone('hand'), _zone('library')]),
-    ]);
+    final table = TableState(
+      seats: [
+        _seat(zones: [_zone('hand'), _zone('library')]),
+      ],
+    );
 
     expect(table.zone('library')?.id, 'library');
     expect(table.zone('nowhere'), isNull);
@@ -32,9 +30,16 @@ void main() {
 
   test('a table finds a card wherever it is', () {
     const card = CardInstance(id: 'c1', oracleId: 'sol ring');
-    final table = TableState(seats: [
-      _seat(zones: [_zone('hand'), _zone('battlefield', cards: [card])]),
-    ]);
+    final table = TableState(
+      seats: [
+        _seat(
+          zones: [
+            _zone('hand'),
+            _zone('battlefield', cards: [card]),
+          ],
+        ),
+      ],
+    );
 
     final found = table.locate('c1');
     expect(found?.zone.id, 'battlefield');
@@ -43,12 +48,17 @@ void main() {
   });
 
   test('replacing a zone leaves the others alone', () {
-    final table = TableState(seats: [
-      _seat(zones: [_zone('hand'), _zone('library')]),
-    ]);
+    final table = TableState(
+      seats: [
+        _seat(zones: [_zone('hand'), _zone('library')]),
+      ],
+    );
 
     final next = table.withZone(
-      _zone('hand', cards: const [CardInstance(id: 'c1', oracleId: 'x')]),
+      _zone(
+        'hand',
+        cards: const [CardInstance(id: 'c1', oracleId: 'x')],
+      ),
     );
 
     expect(next.zone('hand')!.size, 1);

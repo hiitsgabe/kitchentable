@@ -6,9 +6,7 @@ import '../../ui/atoms/slab.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../settings/settings_parts.dart';
 import '../../ui/organisms/screen_frame.dart';
-import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
-import '../../ui/tokens/palette.dart';
 import 'room_controller.dart';
 import 'scan_screen.dart';
 import 'room_screen.dart';
@@ -63,7 +61,6 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
           MenuRow(
             key: const Key('join-scan'),
             title: 'Scan their QR code',
-            subtitle: 'point your camera at the other screen',
             icon: Icons.qr_code_scanner_rounded,
             tone: SlabTone.choice,
             metrics: m,
@@ -83,24 +80,10 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
           onChanged: (_) => setState(() {}),
           onSubmitted: (_) => _join(),
         ),
-        SizedBox(height: m.scaled(10)),
-        Text(
-          'The link pasted whole, or just the code under their QR. The app '
-          'finds the room either way.',
-          style: pixel(
-            size: m.scaled(11),
-            weight: 500,
-            height: 1.4,
-            color: Palette.inkFaint,
-          ),
-        ),
         SizedBox(height: m.scaled(16)),
         MenuRow(
           key: const Key('join-go'),
           title: 'Join',
-          subtitle: ready
-              ? 'go to that room'
-              : 'paste a link or type a code first',
           icon: Icons.meeting_room_rounded,
           enabled: ready,
           tone: canScan ? SlabTone.plain : SlabTone.choice,

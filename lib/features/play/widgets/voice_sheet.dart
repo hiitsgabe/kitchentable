@@ -75,8 +75,7 @@ class VoiceSheet extends StatelessWidget {
             // here has not spent the one prompt the browser gives, so the
             // offer can be made again later.
             Text(
-              'Your microphone is not on. Turning it on lets the others at '
-              'this table hear you, and nothing is recorded anywhere.',
+              'Join and the table hears you. Nothing is recorded.',
               style: pixel(
                 size: m.scaled(12),
                 weight: 500,
@@ -104,9 +103,6 @@ class VoiceSheet extends StatelessWidget {
               key: const Key('voice-mute'),
               metrics: m,
               title: 'Microphone',
-              subtitle: voice.muted
-                  ? 'nobody can hear you'
-                  : 'the table can hear you',
               icon: voice.muted ? Icons.mic_off_rounded : Icons.mic_rounded,
               on: !voice.muted,
               onChanged: (on) => onMute(!on),

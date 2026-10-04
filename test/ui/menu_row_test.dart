@@ -5,7 +5,9 @@ import 'package:kitchentable/ui/atoms/menu_row.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
 Widget _host(Widget child, {NavigationMode? navigationMode}) {
-  final app = MaterialApp(home: Scaffold(body: Column(children: [child])));
+  final app = MaterialApp(
+    home: Scaffold(body: Column(children: [child])),
+  );
   if (navigationMode == null) return app;
   return MediaQuery(
     data: MediaQueryData(navigationMode: navigationMode),
@@ -18,15 +20,14 @@ MenuRow _row({
   bool enabled = true,
   FocusNode? focusNode,
   required VoidCallback onActivate,
-}) =>
-    MenuRow(
-      title: title,
-      subtitle: 'start here',
-      enabled: enabled,
-      focusNode: focusNode,
-      metrics: Metrics.of(DeviceClass.handheld),
-      onActivate: onActivate,
-    );
+}) => MenuRow(
+  title: title,
+  subtitle: 'start here',
+  enabled: enabled,
+  focusNode: focusNode,
+  metrics: Metrics.of(DeviceClass.handheld),
+  onActivate: onActivate,
+);
 
 void main() {
   testWidgets('an enabled row takes focus', (tester) async {
@@ -50,8 +51,9 @@ void main() {
     expect(fired, 1);
   });
 
-  testWidgets('an enabled row fires when the select button is pressed',
-      (tester) async {
+  testWidgets('an enabled row fires when the select button is pressed', (
+    tester,
+  ) async {
     var fired = 0;
     final node = FocusNode();
     addTearDown(node.dispose);
@@ -68,8 +70,9 @@ void main() {
     expect(fired, 1);
   });
 
-  testWidgets('an enabled row fires when the gamepad A button is pressed',
-      (tester) async {
+  testWidgets('an enabled row fires when the gamepad A button is pressed', (
+    tester,
+  ) async {
     var fired = 0;
     final node = FocusNode();
     addTearDown(node.dispose);
@@ -98,43 +101,53 @@ void main() {
     expect(fired, 0);
   });
 
-  testWidgets('a D-pad can reach a disabled row so its reason can be read',
-      (tester) async {
+  testWidgets('a D-pad can reach a disabled row so its reason can be read', (
+    tester,
+  ) async {
     final node = FocusNode();
     addTearDown(node.dispose);
 
-    await tester.pumpWidget(_host(
-      _row(title: 'Play', enabled: false, focusNode: node, onActivate: () {}),
-      navigationMode: NavigationMode.directional,
-    ));
-    node.requestFocus();
-    await tester.pump();
-
-    expect(node.hasFocus, isTrue,
-        reason: 'the subtitle on a dead row is how a player learns what to do');
-  });
-
-  testWidgets('a disabled row does not fire when the select button is pressed',
-      (tester) async {
-    var fired = 0;
-    final node = FocusNode();
-    addTearDown(node.dispose);
-
-    await tester.pumpWidget(_host(
-      _row(
-        title: 'Play',
-        enabled: false,
-        focusNode: node,
-        onActivate: () => fired++,
+    await tester.pumpWidget(
+      _host(
+        _row(title: 'Play', enabled: false, focusNode: node, onActivate: () {}),
+        navigationMode: NavigationMode.directional,
       ),
-      navigationMode: NavigationMode.directional,
-    ));
+    );
     node.requestFocus();
     await tester.pump();
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.select);
-    await tester.pump();
-
-    expect(fired, 0);
+    expect(
+      node.hasFocus,
+      isTrue,
+      reason: 'the subtitle on a dead row is how a player learns what to do',
+    );
   });
+
+  testWidgets(
+    'a disabled row does not fire when the select button is pressed',
+    (tester) async {
+      var fired = 0;
+      final node = FocusNode();
+      addTearDown(node.dispose);
+
+      await tester.pumpWidget(
+        _host(
+          _row(
+            title: 'Play',
+            enabled: false,
+            focusNode: node,
+            onActivate: () => fired++,
+          ),
+          navigationMode: NavigationMode.directional,
+        ),
+      );
+      node.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pump();
+
+      expect(fired, 0);
+    },
+  );
 }

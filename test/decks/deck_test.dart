@@ -11,14 +11,13 @@ CatalogCard _card(
     'standard': 'legal',
     'pauper': 'legal',
   },
-}) =>
-    CatalogCard(
-      oracleId: name,
-      name: name,
-      typeLine: typeLine,
-      cmc: 1,
-      legalities: legalities,
-    );
+}) => CatalogCard(
+  oracleId: name,
+  name: name,
+  typeLine: typeLine,
+  cmc: 1,
+  legalities: legalities,
+);
 
 Deck _deck(DeckFormat format, List<DeckSlot> slots) =>
     Deck(id: 'd', name: 'a deck', format: format, slots: slots);
@@ -31,7 +30,9 @@ void main() {
 
   test('Commander refuses a second copy', () {
     final sol = _card('Sol Ring');
-    final deck = _deck(DeckFormat.commander, [DeckSlot(card: sol, quantity: 1)]);
+    final deck = _deck(DeckFormat.commander, [
+      DeckSlot(card: sol, quantity: 1),
+    ]);
 
     final complaint = complainAbout(deck, sol);
     expect(complaint, isNotNull);
@@ -41,8 +42,12 @@ void main() {
 
   test('Standard allows four and refuses the fifth', () {
     final bolt = _card('Lightning Bolt');
-    final four = _deck(DeckFormat.standard, [DeckSlot(card: bolt, quantity: 4)]);
-    final three = _deck(DeckFormat.standard, [DeckSlot(card: bolt, quantity: 3)]);
+    final four = _deck(DeckFormat.standard, [
+      DeckSlot(card: bolt, quantity: 4),
+    ]);
+    final three = _deck(DeckFormat.standard, [
+      DeckSlot(card: bolt, quantity: 3),
+    ]);
 
     expect(complainAbout(three, bolt), isNull);
     expect(complainAbout(four, bolt)?.message, contains('4 copies'));
@@ -62,24 +67,26 @@ void main() {
 
   test('basic lands never run out, even in Commander', () {
     final mountain = _card('Mountain', typeLine: 'Basic Land - Mountain');
-    final deck = _deck(
-      DeckFormat.commander,
-      [DeckSlot(card: mountain, quantity: 37)],
-    );
+    final deck = _deck(DeckFormat.commander, [
+      DeckSlot(card: mountain, quantity: 37),
+    ]);
     expect(complainAbout(deck, mountain), isNull);
   });
 
   test('an illegal card is allowed in, and said out loud', () {
-    final banned = _card('Black Lotus', legalities: const {
-      'commander': 'banned',
-      'standard': 'not_legal',
-    });
+    final banned = _card(
+      'Black Lotus',
+      legalities: const {'commander': 'banned', 'standard': 'not_legal'},
+    );
     final deck = _deck(DeckFormat.commander, const []);
 
     final complaint = complainAbout(deck, banned);
     expect(complaint, isNotNull);
-    expect(complaint!.blocking, isFalse,
-        reason: 'a kitchen table deck is allowed to be illegal');
+    expect(
+      complaint!.blocking,
+      isFalse,
+      reason: 'a kitchen table deck is allowed to be illegal',
+    );
     expect(complaint.message, contains('Commander'));
   });
 

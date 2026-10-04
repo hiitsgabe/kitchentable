@@ -36,9 +36,7 @@ Widget _host({
               Expanded(
                 child: CardDropTarget(
                   onDrop: onDrop ?? (_, _) {},
-                  child: const SizedBox.expand(
-                    key: Key('the-target'),
-                  ),
+                  child: const SizedBox.expand(key: Key('the-target')),
                 ),
               ),
             ],
@@ -67,8 +65,9 @@ void main() {
     expect(dropped?.id, 'a');
   });
 
-  testWidgets('where it was let go is reported in the target s own space',
-      (tester) async {
+  testWidgets('where it was let go is reported in the target s own space', (
+    tester,
+  ) async {
     Offset? at;
     await tester.pumpWidget(_host(onDrop: (_, where) => at = where));
     await tester.pump();
@@ -77,8 +76,11 @@ void main() {
     final from = tester.getCenter(find.byKey(const Key('the-card')));
     final to = target.topLeft + const Offset(40, 30);
 
-    await tester.drag(find.byKey(const Key('the-card')), to - from,
-        warnIfMissed: false);
+    await tester.drag(
+      find.byKey(const Key('the-card')),
+      to - from,
+      warnIfMissed: false,
+    );
     await tester.pumpAndSettle();
 
     // Local to the target, so a mat can normalise it without knowing where on
@@ -97,11 +99,15 @@ void main() {
   testWidgets('a card nobody may move does not move', (tester) async {
     CardInstance? dropped;
     await tester.pumpWidget(
-        _host(canDrag: false, onDrop: (c, _) => dropped = c));
+      _host(canDrag: false, onDrop: (c, _) => dropped = c),
+    );
     await tester.pump();
 
-    await tester.drag(find.byKey(const Key('the-card')), const Offset(0, 200),
-        warnIfMissed: false);
+    await tester.drag(
+      find.byKey(const Key('the-card')),
+      const Offset(0, 200),
+      warnIfMissed: false,
+    );
     await tester.pumpAndSettle();
 
     // Somebody else's card on somebody else's mat.

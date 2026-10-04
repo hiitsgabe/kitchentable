@@ -48,13 +48,13 @@ class _Phone {
     Duration? openWithin,
     TurnServer? turn,
   }) : transport = WebRtcTransport(
-        relay: _client(relay),
-        keys: keys,
-        code: _code,
-        links: links,
-        openWithin: openWithin ?? const Duration(seconds: 20),
-        turn: turn,
-      ) {
+         relay: _client(relay),
+         keys: keys,
+         code: _code,
+         links: links,
+         openWithin: openWithin ?? const Duration(seconds: 20),
+         turn: turn,
+       ) {
     transport.steps.listen(steps.add);
     transport.incoming.listen(got.add);
     transport.presence.listen(saw.add);
@@ -83,8 +83,7 @@ Future<_Phone> _phone(
   FakeLinks links, [
   Keys? keys,
   Duration? openWithin,
-]) async =>
-    _Phone(relay, links, keys ?? Keys.mint(), openWithin: openWithin);
+]) async => _Phone(relay, links, keys ?? Keys.mint(), openWithin: openWithin);
 
 /// [n] phones under one code, joined and every link between them open.
 Future<List<_Phone>> _phones(int n, {FakeLinks? links}) async {
@@ -518,7 +517,8 @@ void main() {
   });
   test('candidates are counted by type and family, out of a description or '
       'one at a time', () {
-    const sdp = 'v=0\r\n'
+    const sdp =
+        'v=0\r\n'
         'a=candidate:1 1 udp 2113937151 3f2a9b1c-6d.local 51234 typ host generation 0\r\n'
         'a=candidate:2 1 udp 1677729535 203.0.113.9 51234 typ srflx raddr 0.0.0.0 rport 0\r\n'
         'a=candidate:3 1 udp 1677729535 2001:db8::9 51234 typ srflx raddr :: rport 0\r\n'
@@ -527,10 +527,7 @@ void main() {
     final lines = candidateLines(sdp);
     expect(lines, hasLength(4));
     expect(lines.first, startsWith('candidate:1 '));
-    expect(
-      candidatesInWords(lines),
-      '2 host mdns, 1 srflx v4, 1 srflx v6',
-    );
+    expect(candidatesInWords(lines), '2 host mdns, 1 srflx v4, 1 srflx v6');
     expect(candidatesInWords([]), 'none');
     // The third check: a phone on 5G and a laptop at home. Each side's
     // hosts are mDNS names the other cannot resolve, and their srflx
@@ -627,15 +624,24 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 20));
     }
 
-    expect(low.failures, hasLength(1),
-        reason: 'the deadline never turned the stall into a failure');
+    expect(
+      low.failures,
+      hasLength(1),
+      reason: 'the deadline never turned the stall into a failure',
+    );
     final failure = low.failures.single;
     expect(failure.peer, high.me);
     expect(failure.reason, contains('nothing changed'));
-    expect(failure.reason, contains('States: ice connected 1.2s'),
-        reason: 'a deadline with no state is a deadline nobody can read');
-    expect(failure.needsTurn, isFalse,
-        reason: 'never finishing is not the same verdict as no pair');
+    expect(
+      failure.reason,
+      contains('States: ice connected 1.2s'),
+      reason: 'a deadline with no state is a deadline nobody can read',
+    );
+    expect(
+      failure.needsTurn,
+      isFalse,
+      reason: 'never finishing is not the same verdict as no pair',
+    );
     expect(low.peers, isEmpty);
     expect(low.link.map((s) => s.stage), isNot(contains(LinkStage.opened)));
   });
@@ -727,37 +733,47 @@ void main() {
       theirs.found('candidate $i from high');
     }
     final taken = links.between(low.me, high.me)!.candidatesTaken;
-    expect(taken.where((c) => c.startsWith('candidate ')), isNotEmpty,
-        reason: 'the candidates never crossed, so nothing was exercised');
+    expect(
+      taken.where((c) => c.startsWith('candidate ')),
+      isNotEmpty,
+      reason: 'the candidates never crossed, so nothing was exercised',
+    );
     expect(low.failures, isEmpty, reason: 'failed a link taking candidates');
     await Future<void>.delayed(deadline * 2);
     expect(low.failures, hasLength(1));
   });
-  test('a link that failed is tried again when the peer announces again',
-      () async {
-    // The first two-phone check left the host with one failed link and no
-    // way back: the phone went on announcing and every announcement was a
-    // repeat. Forgetting the peer on failure is what makes the next one
-    // count.
-    final keys = _pair();
-    final links = FakeLinks(unreachable: {keys.high.public});
-    final relay = await _relay();
-    final low = await _phone(relay, links, keys.low);
-    final high = await _phone(relay, links, keys.high);
-    await Future.wait([low.transport.join(), high.transport.join()]);
-    await _eventually(() => low.failures.isNotEmpty, 'the first failure');
-    expect(low.peers, isEmpty);
+  test(
+    'a link that failed is tried again when the peer announces again',
+    () async {
+      // The first two-phone check left the host with one failed link and no
+      // way back: the phone went on announcing and every announcement was a
+      // repeat. Forgetting the peer on failure is what makes the next one
+      // count.
+      final keys = _pair();
+      final links = FakeLinks(unreachable: {keys.high.public});
+      final relay = await _relay();
+      final low = await _phone(relay, links, keys.low);
+      final high = await _phone(relay, links, keys.high);
+      await Future.wait([low.transport.join(), high.transport.join()]);
+      await _eventually(() => low.failures.isNotEmpty, 'the first failure');
+      expect(low.peers, isEmpty);
 
-    // The phone becomes reachable and announces once more.
-    links.unreachable.remove(keys.high.public);
-    await high.transport.close();
-    final again = await _phone(relay, links, keys.high);
-    await again.transport.join();
-    await _eventually(() => low.peers.contains(again.me),
-        'a fresh link after the failure');
-    expect(low.failures, hasLength(1),
-        reason: 'the retry opened; nothing failed a second time');
-  });
+      // The phone becomes reachable and announces once more.
+      links.unreachable.remove(keys.high.public);
+      await high.transport.close();
+      final again = await _phone(relay, links, keys.high);
+      await again.transport.join();
+      await _eventually(
+        () => low.peers.contains(again.me),
+        'a fresh link after the failure',
+      );
+      expect(
+        low.failures,
+        hasLength(1),
+        reason: 'the retry opened; nothing failed a second time',
+      );
+    },
+  );
 
   test('what a link says about its own state reaches the steps', () async {
     final keys = _pair();

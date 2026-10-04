@@ -5,7 +5,9 @@ import 'package:kitchentable/ui/tokens/theme.dart';
 
 Widget _host({Color? accent, double size = 120}) => MaterialApp(
   theme: kitchentableTheme(accent: accent),
-  home: Scaffold(body: Center(child: KitchentableMark(size: size))),
+  home: Scaffold(
+    body: Center(child: KitchentableMark(size: size)),
+  ),
 );
 
 Iterable<Color> _fills(WidgetTester tester) => tester

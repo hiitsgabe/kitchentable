@@ -35,9 +35,13 @@ void main() {
     second.read(playerNameProvider);
     await Future<void>.delayed(Duration.zero);
 
-    expect(second.read(playerNameProvider), name,
-        reason: 'a name that changed every launch is a different person '
-            'every evening');
+    expect(
+      second.read(playerNameProvider),
+      name,
+      reason:
+          'a name that changed every launch is a different person '
+          'every evening',
+    );
   });
 
   test('a name somebody typed is never replaced', () async {

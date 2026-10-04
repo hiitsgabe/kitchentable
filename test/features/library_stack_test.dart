@@ -13,27 +13,27 @@ Widget _host({
   Game? game,
   VoidCallback? onDraw,
   VoidCallback? onWork,
-}) =>
-    MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: LibraryStack(
-            metrics: Metrics.of(DeviceClass.handheld),
-            count: count,
-            of: of,
-          label: label,
-            width: width,
-            game: game,
-            onDraw: onDraw ?? () {},
-            onWork: onWork ?? () {},
-          ),
-        ),
+}) => MaterialApp(
+  home: Scaffold(
+    body: Center(
+      child: LibraryStack(
+        metrics: Metrics.of(DeviceClass.handheld),
+        count: count,
+        of: of,
+        label: label,
+        width: width,
+        game: game,
+        onDraw: onDraw ?? () {},
+        onWork: onWork ?? () {},
       ),
-    );
+    ),
+  ),
+);
 
 void main() {
-  testWidgets('the label never makes the pile wider than a card',
-      (tester) async {
+  testWidgets('the label never makes the pile wider than a card', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(count: 53, label: 'Graveyard'));
     await tester.pump();
 
@@ -77,19 +77,24 @@ void main() {
     expect(fat, greaterThan(thin));
   });
 
-  testWidgets('an empty library is drawn as nothing, not as one card',
-      (tester) async {
+  testWidgets('an empty library is drawn as nothing, not as one card', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(count: 0));
 
     expect(find.text('0'), findsOneWidget);
-    expect(find.byKey(const Key('library-draw')), findsNothing,
-        reason: 'there is nothing to draw, so nothing offers to');
+    expect(
+      find.byKey(const Key('library-draw')),
+      findsNothing,
+      reason: 'there is nothing to draw, so nothing offers to',
+    );
   });
 
   testWidgets('the stack stops growing long before a hundred', (tester) async {
     await tester.pumpWidget(_host(count: 100));
-    final hundred =
-        tester.getSize(find.byKey(const Key('library-stack'))).height;
+    final hundred = tester
+        .getSize(find.byKey(const Key('library-stack')))
+        .height;
 
     await tester.pumpWidget(_host(count: 250));
     await tester.pump();
@@ -101,8 +106,9 @@ void main() {
     expect(many, hundred);
   });
 
-  testWidgets('there is a way into the deck that is not drawing',
-      (tester) async {
+  testWidgets('there is a way into the deck that is not drawing', (
+    tester,
+  ) async {
     var worked = 0;
     await tester.pumpWidget(_host(onWork: () => worked++));
 
@@ -124,8 +130,9 @@ void main() {
     expect(find.byKey(const Key('card-back-art')), findsNWidgets(9));
   });
 
-  testWidgets('drawing from a full deck makes it visibly thinner',
-      (tester) async {
+  testWidgets('drawing from a full deck makes it visibly thinner', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(count: 92, of: 100));
     await tester.pump();
     final full = tester.getSize(find.byKey(const Key('library-stack'))).height;
@@ -136,8 +143,9 @@ void main() {
 
     await tester.pumpWidget(_host(count: 4, of: 100));
     await tester.pump();
-    final nearly =
-        tester.getSize(find.byKey(const Key('library-stack'))).height;
+    final nearly = tester
+        .getSize(find.byKey(const Key('library-stack')))
+        .height;
 
     // The thickness used to saturate at twelve cards, so a Commander deck sat
     // at its full height from 100 all the way down to 12 and then dropped.
@@ -146,16 +154,18 @@ void main() {
     expect(nearly, lessThan(half));
   });
 
-  testWidgets('a deck of sixty and a deck of a hundred both start full',
-      (tester) async {
+  testWidgets('a deck of sixty and a deck of a hundred both start full', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(count: 60, of: 60));
     await tester.pump();
     final sixty = tester.getSize(find.byKey(const Key('library-stack'))).height;
 
     await tester.pumpWidget(_host(count: 100, of: 100));
     await tester.pump();
-    final hundred =
-        tester.getSize(find.byKey(const Key('library-stack'))).height;
+    final hundred = tester
+        .getSize(find.byKey(const Key('library-stack')))
+        .height;
 
     // Thickness is how much is left of what there was, not an absolute count.
     // A Pauper deck at sixty is a full deck and should look like one.

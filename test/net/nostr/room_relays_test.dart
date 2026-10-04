@@ -74,9 +74,7 @@ void main() {
     });
 
     test('two rooms almost never share one', () {
-      final kinds = {
-        for (var i = 0; i < 200; i++) roomDataKindFor('room-$i'),
-      };
+      final kinds = {for (var i = 0; i < 200; i++) roomDataKindFor('room-$i')};
 
       // Across two hundred rooms in a range of ten thousand, a handful of
       // collisions is birthday arithmetic and not a bug. A dozen would mean

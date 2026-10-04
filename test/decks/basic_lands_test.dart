@@ -5,20 +5,22 @@ import 'package:kitchentable/decks/model/deck_format.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 
 CatalogCard _card(String name, List<String> identity) => CatalogCard(
-      oracleId: name.toLowerCase(),
-      name: name,
-      typeLine: 'Creature',
-      cmc: 1,
-      colorIdentity: identity,
-    );
+  oracleId: name.toLowerCase(),
+  name: name,
+  typeLine: 'Creature',
+  cmc: 1,
+  colorIdentity: identity,
+);
 
 Deck _deck(DeckFormat f, List<DeckSlot> slots) =>
     Deck(id: 'd', name: 'x', format: f, slots: slots);
 
 void main() {
   test('an empty deck is offered all five', () {
-    expect(suggestedLandsFor(_deck(DeckFormat.commander, const [])),
-        basicLandNames);
+    expect(
+      suggestedLandsFor(_deck(DeckFormat.commander, const [])),
+      basicLandNames,
+    );
   });
 
   test('a deck is read for the colours it actually contains', () {

@@ -18,30 +18,31 @@ Widget _host(
   Game? game,
   void Function(CardInstance)? onTap,
   void Function(CardInstance)? onInspect,
-}) =>
-    MaterialApp(
-      home: Scaffold(
-        body: TableCard(
-          metrics: Metrics.of(DeviceClass.handheld),
-          instance: instance,
-          printing: null,
-          width: 90,
-          game: game,
-          onTap: onTap == null ? null : () => onTap(instance),
-          onLongPress: onInspect == null ? null : () => onInspect(instance),
-        ),
-      ),
-    );
+}) => MaterialApp(
+  home: Scaffold(
+    body: TableCard(
+      metrics: Metrics.of(DeviceClass.handheld),
+      instance: instance,
+      printing: null,
+      width: 90,
+      game: game,
+      onTap: onTap == null ? null : () => onTap(instance),
+      onLongPress: onInspect == null ? null : () => onInspect(instance),
+    ),
+  ),
+);
 
 void main() {
   testWidgets('two kinds of counter are told apart', (tester) async {
-    await tester.pumpWidget(_host(
-      const CardInstance(
-        id: 'a',
-        oracleId: 'o',
-        counters: {'+1/+1': 2, 'damage': 3},
+    await tester.pumpWidget(
+      _host(
+        const CardInstance(
+          id: 'a',
+          oracleId: 'o',
+          counters: {'+1/+1': 2, 'damage': 3},
+        ),
       ),
-    ));
+    );
     await tester.pump();
 
     // Still the same thing this case has always said: a Pokemon takes damage
@@ -59,10 +60,12 @@ void main() {
   });
 
   testWidgets('a face down card shows the game s own back', (tester) async {
-    await tester.pumpWidget(_host(
-      const CardInstance(id: 'a', oracleId: 'o', faceDown: true),
-      game: Game.magic,
-    ));
+    await tester.pumpWidget(
+      _host(
+        const CardInstance(id: 'a', oracleId: 'o', faceDown: true),
+        game: Game.magic,
+      ),
+    );
     await tester.pump();
 
     // The real back, not the outlined box a CardBack draws when it does not
@@ -72,9 +75,9 @@ void main() {
   });
 
   testWidgets('a card of no game still draws something', (tester) async {
-    await tester.pumpWidget(_host(
-      const CardInstance(id: 'a', oracleId: 'o', faceDown: true),
-    ));
+    await tester.pumpWidget(
+      _host(const CardInstance(id: 'a', oracleId: 'o', faceDown: true)),
+    );
     await tester.pump();
 
     expect(find.byType(CardBack), findsOneWidget);
@@ -82,42 +85,52 @@ void main() {
   });
 
   testWidgets('a card wearing counters shows the pieces', (tester) async {
-    await tester.pumpWidget(_host(
-      const CardInstance(
-        id: 'a',
-        oracleId: 'o',
-        counters: {'+4/+4': 1, 'flying': 1},
+    await tester.pumpWidget(
+      _host(
+        const CardInstance(
+          id: 'a',
+          oracleId: 'o',
+          counters: {'+4/+4': 1, 'flying': 1},
+        ),
       ),
-    ));
+    );
     await tester.pump();
 
     expect(find.byType(CounterPieceView), findsNWidgets(2));
   });
 
-  testWidgets('the marker takes the colour of the piece it equals',
-      (tester) async {
-    Color colourOf(String key) => tester
-        .widget<CounterPieceView>(find.byKey(Key(key)))
-        .piece
-        .colour;
+  testWidgets('the marker takes the colour of the piece it equals', (
+    tester,
+  ) async {
+    Color colourOf(String key) =>
+        tester.widget<CounterPieceView>(find.byKey(Key(key))).piece.colour;
 
     // Three branches, asserted against each other and not against the
     // production function that produced them. Comparing a marker's colour to
     // `pieceNamed('+2/+2')!.colour` would move both sides at once: a mutation
     // giving every piece one colour keeps that green. These fail under that
     // mutation and under "always black" alike.
-    await tester.pumpWidget(_host(const CardInstance(
-      id: 'a', oracleId: 'o', counters: {'+1/+1': 2})));
+    await tester.pumpWidget(
+      _host(const CardInstance(id: 'a', oracleId: 'o', counters: {'+1/+1': 2})),
+    );
     await tester.pump();
     final printed = colourOf('counter-+2/+2');
 
-    await tester.pumpWidget(_host(const CardInstance(
-      id: 'a', oracleId: 'o', counters: {'+4/+4': 1, '+0/+1': 4})));
+    await tester.pumpWidget(
+      _host(
+        const CardInstance(
+          id: 'a',
+          oracleId: 'o',
+          counters: {'+4/+4': 1, '+0/+1': 4},
+        ),
+      ),
+    );
     await tester.pump();
     final unprinted = colourOf('counter-+4/+8');
 
-    await tester.pumpWidget(_host(const CardInstance(
-      id: 'a', oracleId: 'o', counters: {'-1/-1': 2})));
+    await tester.pumpWidget(
+      _host(const CardInstance(id: 'a', oracleId: 'o', counters: {'-1/-1': 2})),
+    );
     await tester.pump();
     final negative = colourOf('counter--2/-2');
 
@@ -134,13 +147,15 @@ void main() {
   });
 
   testWidgets('a pile of numbers reads as one marker', (tester) async {
-    await tester.pumpWidget(_host(
-      const CardInstance(
-        id: 'a',
-        oracleId: 'o',
-        counters: {'+4/+4': 1, '+0/+1': 4, 'flying': 1},
+    await tester.pumpWidget(
+      _host(
+        const CardInstance(
+          id: 'a',
+          oracleId: 'o',
+          counters: {'+4/+4': 1, '+0/+1': 4, 'flying': 1},
+        ),
       ),
-    ));
+    );
     await tester.pump();
 
     // Five objects to add up by eye is what the raw map looked like. One
@@ -158,13 +173,15 @@ void main() {
   });
 
   testWidgets('a kind nobody printed is stamped like the rest', (tester) async {
-    await tester.pumpWidget(_host(
-      const CardInstance(
-        id: 'a',
-        oracleId: 'o',
-        counters: {'+1/+1': 2, 'charge': 3},
+    await tester.pumpWidget(
+      _host(
+        const CardInstance(
+          id: 'a',
+          oracleId: 'o',
+          counters: {'+1/+1': 2, 'charge': 3},
+        ),
       ),
-    ));
+    );
     await tester.pump();
 
     // `charge` does nothing to power or toughness, so it cannot join the sum
@@ -179,10 +196,12 @@ void main() {
   testWidgets('a right click opens what a hold opens', (tester) async {
     CardInstance? held;
     CardInstance? clicked;
-    await tester.pumpWidget(_host(
-      const CardInstance(id: 'a', oracleId: 'o'),
-      onInspect: (c) => held = c,
-    ));
+    await tester.pumpWidget(
+      _host(
+        const CardInstance(id: 'a', oracleId: 'o'),
+        onInspect: (c) => held = c,
+      ),
+    );
     await tester.pump();
 
     await tester.longPress(find.byType(TableCard));
@@ -202,11 +221,13 @@ void main() {
   testWidgets('a left click still turns the card', (tester) async {
     CardInstance? turned;
     CardInstance? inspected;
-    await tester.pumpWidget(_host(
-      const CardInstance(id: 'a', oracleId: 'o'),
-      onTap: (c) => turned = c,
-      onInspect: (c) => inspected = c,
-    ));
+    await tester.pumpWidget(
+      _host(
+        const CardInstance(id: 'a', oracleId: 'o'),
+        onTap: (c) => turned = c,
+        onInspect: (c) => inspected = c,
+      ),
+    );
     await tester.pump();
 
     await tester.tap(find.byType(TableCard));
@@ -216,15 +237,18 @@ void main() {
     expect(inspected, isNull, reason: 'a tap opened the menu as well');
   });
 
-  testWidgets('a row of counters interlocks rather than overlapping',
-      (tester) async {
-    await tester.pumpWidget(_host(
-      const CardInstance(
-        id: 'a',
-        oracleId: 'o',
-        counters: {'flying': 1, 'vigilance': 1},
+  testWidgets('a row of counters interlocks rather than overlapping', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        const CardInstance(
+          id: 'a',
+          oracleId: 'o',
+          counters: {'flying': 1, 'vigilance': 1},
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     final first = tester.getRect(find.byKey(const Key('counter-flying')));

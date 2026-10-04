@@ -91,9 +91,7 @@ class _PasteListScreenState extends ConsumerState<PasteListScreen> {
         SizedBox(height: m.scaled(14)),
         MenuRow(
           title: preview == null ? 'Check the list' : 'Add them to the deck',
-          subtitle: preview == null
-              ? 'nothing is added until you have seen what it found'
-              : '${preview.slots.length} entries',
+          subtitle: preview == null ? null : '${preview.slots.length} entries',
           icon: preview == null
               ? Icons.fact_check_rounded
               : Icons.playlist_add_rounded,
@@ -107,7 +105,7 @@ class _PasteListScreenState extends ConsumerState<PasteListScreen> {
             _Problem(
               metrics: m,
               title: 'Not in the catalog',
-              detail: 'A typo, or a card from a source you have not imported.',
+              detail: 'Not in any source you have imported.',
               lines: preview.notFound,
             ),
           if (preview.ignoredLines.isNotEmpty)

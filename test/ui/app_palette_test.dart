@@ -9,16 +9,16 @@ import 'package:kitchentable/ui/tokens/theme.dart';
 const _teal = Color(0xFF00E0A4);
 
 Widget _host(Color? accent) => MaterialApp(
-      theme: kitchentableTheme(accent: accent),
-      home: Scaffold(
-        body: MenuRow(
-          title: 'Play',
-          metrics: Metrics.of(DeviceClass.handheld),
-          autofocus: true,
-          onActivate: () {},
-        ),
-      ),
-    );
+  theme: kitchentableTheme(accent: accent),
+  home: Scaffold(
+    body: MenuRow(
+      title: 'Play',
+      metrics: Metrics.of(DeviceClass.handheld),
+      autofocus: true,
+      onActivate: () {},
+    ),
+  ),
+);
 
 void main() {
   test('the accent family is derived from the one colour', () {
@@ -44,8 +44,9 @@ void main() {
     expect(context.palette.accent, isNot(Palette.accent));
   });
 
-  testWidgets('with no theme up, it is the pink the app ships with',
-      (tester) async {
+  testWidgets('with no theme up, it is the pink the app ships with', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(null));
     await tester.pumpAndSettle();
 

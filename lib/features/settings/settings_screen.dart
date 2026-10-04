@@ -89,8 +89,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         SettingsCaption(
           metrics: m,
           text:
-              'The people at your table see this, and it is the only thing '
-              'here that leaves the device. Left empty you are $namelessPlayer.',
+              'What the others see on your chair. Left empty, $namelessPlayer.',
         ),
 
         // Four groups, which is the benchmark's number, each a subscreen of
@@ -99,7 +98,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         MenuRow(
           key: const Key('settings-look'),
           title: 'Look',
-          subtitle: '${backdrop.kind.label}, and the colour it is drawn in',
+          subtitle: backdrop.kind.label,
           icon: Icons.palette_rounded,
           tone: SlabTone.choice,
           metrics: m,
@@ -111,7 +110,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         MenuRow(
           key: const Key('settings-sources'),
           title: 'Sources',
-          subtitle: 'where the cards come from',
           icon: Icons.download_rounded,
           tone: SlabTone.cool,
           metrics: m,
@@ -122,9 +120,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         MenuRow(
           key: const Key('settings-network'),
           title: 'Network',
-          subtitle: turn == null
-              ? 'a relay, for two phones that cannot reach each other'
-              : 'a relay is set',
+          subtitle: turn == null ? null : 'a relay is set',
           icon: Icons.lan_rounded,
           metrics: m,
           onActivate: () => Navigator.of(context).push(
@@ -133,8 +129,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         MenuRow(
           key: const Key('settings-setup'),
-          title: 'Run the first-run setup again',
-          subtitle: 'your name, a source, a deck',
+          title: 'Run the setup again',
           icon: Icons.restart_alt_rounded,
           metrics: m,
           onActivate: () async {

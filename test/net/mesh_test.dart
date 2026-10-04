@@ -735,9 +735,6 @@ void main() {
     );
     await seats.net.settle();
 
-    expect(
-      seats.refused['host']!.join(' '),
-      contains('singing'),
-    );
+    expect(seats.refused['host']!.join(' '), contains('singing'));
   });
 }

@@ -17,8 +17,11 @@ void main() {
 
     for (var i = 0; i < mats.length; i++) {
       for (var j = i + 1; j < mats.length; j++) {
-        expect(mats[i].overlaps(mats[j]), isFalse,
-            reason: 'mat $i overlaps mat $j');
+        expect(
+          mats[i].overlaps(mats[j]),
+          isFalse,
+          reason: 'mat $i overlaps mat $j',
+        );
       }
     }
     expect(mats[2].top, greaterThan(mats[0].bottom));
@@ -35,8 +38,10 @@ void main() {
     // The strips beside the mat are the seat's too, so one seat's surface is a
     // mat plus a strip on each side rather than a mat exactly. It was
     // `matSize` on the nose until the furniture came off the mat.
-    expect(matFor(0, 1),
-        Rect.fromLTWH(matAside, 0, matSize.width, matSize.height));
+    expect(
+      matFor(0, 1),
+      Rect.fromLTWH(matAside, 0, matSize.width, matSize.height),
+    );
     expect(surfaceFor(1), Size(matSize.width + matAside * 2, matSize.height));
   });
 
@@ -45,10 +50,16 @@ void main() {
       final surface = surfaceFor(count);
       for (var i = 0; i < count; i++) {
         final mat = matFor(i, count);
-        expect(mat.right, lessThanOrEqualTo(surface.width),
-            reason: 'mat $i of $count runs off the right');
-        expect(mat.bottom, lessThanOrEqualTo(surface.height),
-            reason: 'mat $i of $count runs off the bottom');
+        expect(
+          mat.right,
+          lessThanOrEqualTo(surface.width),
+          reason: 'mat $i of $count runs off the right',
+        );
+        expect(
+          mat.bottom,
+          lessThanOrEqualTo(surface.height),
+          reason: 'mat $i of $count runs off the bottom',
+        );
       }
     }
   });
@@ -98,7 +109,8 @@ void main() {
 
   test('the flow wraps rather than running off the mat', () {
     final spots = [
-      for (var i = 0; i < 20; i++) spotFor(position: null, index: i, card: card),
+      for (var i = 0; i < 20; i++)
+        spotFor(position: null, index: i, card: card),
     ];
 
     expect(spots.last.dy, greaterThan(spots.first.dy));
@@ -166,10 +178,16 @@ void main() {
       final surface = surfaceFor(count);
       for (var i = 0; i < count; i++) {
         final station = stationFor(i, count);
-        expect(station.right, lessThanOrEqualTo(surface.width),
-            reason: 'station $i of $count runs off the right');
-        expect(station.bottom, lessThanOrEqualTo(surface.height),
-            reason: 'station $i of $count runs off the bottom');
+        expect(
+          station.right,
+          lessThanOrEqualTo(surface.width),
+          reason: 'station $i of $count runs off the right',
+        );
+        expect(
+          station.bottom,
+          lessThanOrEqualTo(surface.height),
+          reason: 'station $i of $count runs off the bottom',
+        );
       }
     }
   });
@@ -178,8 +196,11 @@ void main() {
     final stations = [for (var i = 0; i < 4; i++) stationFor(i, 4)];
     for (var i = 0; i < stations.length; i++) {
       for (var j = i + 1; j < stations.length; j++) {
-        expect(stations[i].overlaps(stations[j]), isFalse,
-            reason: 'station $i overlaps station $j');
+        expect(
+          stations[i].overlaps(stations[j]),
+          isFalse,
+          reason: 'station $i overlaps station $j',
+        );
       }
     }
   });

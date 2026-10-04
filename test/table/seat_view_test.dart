@@ -5,27 +5,27 @@ import 'package:kitchentable/table/model/zone.dart';
 import 'package:kitchentable/table/view/seat_view.dart';
 
 Zone _zone(String id, String seatId, ZoneVisibility v, int n) => Zone(
-      id: '$id-$seatId',
-      seatId: seatId,
-      label: id,
-      visibility: v,
-      ordered: true,
-      cards: [
-        for (var i = 0; i < n; i++)
-          CardInstance(id: '$seatId-$id-$i', oracleId: 'card$i'),
-      ],
-    );
+  id: '$id-$seatId',
+  seatId: seatId,
+  label: id,
+  visibility: v,
+  ordered: true,
+  cards: [
+    for (var i = 0; i < n; i++)
+      CardInstance(id: '$seatId-$id-$i', oracleId: 'card$i'),
+  ],
+);
 
 Seat _seat(String id) => Seat(
-      id: id,
-      name: id,
-      life: 40,
-      zones: [
-        _zone('library', id, ZoneVisibility.hidden, 53),
-        _zone('hand', id, ZoneVisibility.owner, 7),
-        _zone('battlefield', id, ZoneVisibility.public, 3),
-      ],
-    );
+  id: id,
+  name: id,
+  life: 40,
+  zones: [
+    _zone('library', id, ZoneVisibility.hidden, 53),
+    _zone('hand', id, ZoneVisibility.owner, 7),
+    _zone('battlefield', id, ZoneVisibility.public, 3),
+  ],
+);
 
 void main() {
   test('you see the cards in your own hand', () {

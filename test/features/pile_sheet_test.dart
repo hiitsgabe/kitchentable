@@ -6,25 +6,23 @@ import 'package:kitchentable/table/model/card_instance.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
 List<CardInstance> _cards(int n) => [
-      for (var i = 0; i < n; i++)
-        CardInstance(id: 'c$i', oracleId: 'card$i'),
-    ];
+  for (var i = 0; i < n; i++) CardInstance(id: 'c$i', oracleId: 'card$i'),
+];
 
 Widget _host({
   List<CardInstance> cards = const [],
   void Function(List<Placement>)? onArrange,
-}) =>
-    MaterialApp(
-      home: Scaffold(
-        body: PileSheet(
-          metrics: Metrics.of(DeviceClass.handheld),
-          label: 'Graveyard',
-          cards: cards,
-          printings: const {},
-          onArrange: onArrange ?? (_) {},
-        ),
-      ),
-    );
+}) => MaterialApp(
+  home: Scaffold(
+    body: PileSheet(
+      metrics: Metrics.of(DeviceClass.handheld),
+      label: 'Graveyard',
+      cards: cards,
+      printings: const {},
+      onArrange: onArrange ?? (_) {},
+    ),
+  ),
+);
 
 void main() {
   testWidgets('everything in the pile is there to read', (tester) async {
@@ -76,8 +74,9 @@ void main() {
     expect(arranged, isEmpty);
   });
 
-  testWidgets('a card can go to the top of the deck or to the bottom',
-      (tester) async {
+  testWidgets('a card can go to the top of the deck or to the bottom', (
+    tester,
+  ) async {
     List<Placement>? arranged;
     await tester.pumpWidget(
       _host(cards: _cards(2), onArrange: (p) => arranged = p),
@@ -126,8 +125,9 @@ void main() {
     expect(find.byKey(const Key('pile-back')), findsNothing);
   });
 
-  testWidgets('a choice made on one page survives turning to another',
-      (tester) async {
+  testWidgets('a choice made on one page survives turning to another', (
+    tester,
+  ) async {
     List<Placement>? arranged;
     await tester.pumpWidget(
       _host(cards: _cards(30), onArrange: (p) => arranged = p),

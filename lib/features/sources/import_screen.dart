@@ -85,12 +85,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
           ),
         if (s.phase == ImportPhase.downloading ||
             s.phase == ImportPhase.indexing)
-          _Note(
-            metrics: m,
-            text:
-                'You can leave this screen. It keeps going and tells you when '
-                'it is finished.',
-          ),
+          _Note(metrics: m, text: 'You can leave. It keeps going.'),
       ],
     );
   }

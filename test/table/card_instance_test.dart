@@ -16,8 +16,11 @@ void main() {
     const a = CardInstance(id: 'i1', oracleId: 'mountain');
     const b = CardInstance(id: 'i2', oracleId: 'mountain');
 
-    expect(a == b, isFalse,
-        reason: 'thirty seven Mountains are thirty seven things on a table');
+    expect(
+      a == b,
+      isFalse,
+      reason: 'thirty seven Mountains are thirty seven things on a table',
+    );
   });
 
   test('counters add up and clear away', () {
@@ -27,8 +30,11 @@ void main() {
     expect(loaded.counters['+1/+1'], 3);
 
     final cleared = loaded.withCounter('+1/+1', -3);
-    expect(cleared.counters.containsKey('+1/+1'), isFalse,
-        reason: 'a counter at zero is not a counter');
+    expect(
+      cleared.counters.containsKey('+1/+1'),
+      isFalse,
+      reason: 'a counter at zero is not a counter',
+    );
   });
 
   test('a counter can go negative, because some of them do', () {
@@ -57,7 +63,10 @@ void main() {
     const card = CardInstance(id: 'c', oracleId: 'o');
 
     expect(card.turnedTo(180).rotation, 180);
-    expect(card.turnedTo(180).turnedTo(180).rotation, 180,
-        reason: 'setting an angle is not a toggle');
+    expect(
+      card.turnedTo(180).turnedTo(180).rotation,
+      180,
+      reason: 'setting an angle is not a toggle',
+    );
   });
 }

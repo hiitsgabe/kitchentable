@@ -4,12 +4,12 @@ import 'package:kitchentable/sources/catalog/catalog_db.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 
 CatalogCard _card(String id, String name) => CatalogCard(
-      oracleId: id,
-      name: name,
-      typeLine: 'Creature - Elf',
-      cmc: 2,
-      legalities: const {'commander': 'legal', 'standard': 'not_legal'},
-    );
+  oracleId: id,
+  name: name,
+  typeLine: 'Creature - Elf',
+  cmc: 2,
+  legalities: const {'commander': 'legal', 'standard': 'not_legal'},
+);
 
 void main() {
   late CatalogDb db;
@@ -26,12 +26,14 @@ void main() {
     expect(await db.cardCount(), 2);
   });
 
-  test('inserting the same oracle id twice replaces rather than duplicates',
-      () async {
-    await db.insertAll([_card('a', 'Llanowar Elves')]);
-    await db.insertAll([_card('a', 'Llanowar Elves')]);
-    expect(await db.cardCount(), 1);
-  });
+  test(
+    'inserting the same oracle id twice replaces rather than duplicates',
+    () async {
+      await db.insertAll([_card('a', 'Llanowar Elves')]);
+      await db.insertAll([_card('a', 'Llanowar Elves')]);
+      expect(await db.cardCount(), 1);
+    },
+  );
 
   test('search finds by part of the name, ignoring case', () async {
     await db.insertAll([_card('a', 'Llanowar Elves'), _card('b', 'Sol Ring')]);

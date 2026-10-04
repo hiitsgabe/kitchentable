@@ -27,8 +27,9 @@ void main() {
     expect(find.byType(CardImage), findsNWidgets(2));
   });
 
-  testWidgets('a card with a second face shows that, not the generic back',
-      (tester) async {
+  testWidgets('a card with a second face shows that, not the generic back', (
+    tester,
+  ) async {
     const twoFaced = CatalogCard(
       oracleId: 'b',
       name: 'Delver of Secrets',
@@ -52,8 +53,9 @@ void main() {
     expect(urls, contains('https://example.invalid/back.jpg'));
   });
 
-  testWidgets('a one faced card turns over onto the generic back',
-      (tester) async {
+  testWidgets('a one faced card turns over onto the generic back', (
+    tester,
+  ) async {
     await _open(tester);
 
     final urls = tester

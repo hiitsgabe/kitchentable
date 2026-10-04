@@ -53,7 +53,7 @@ class GamesScreen extends ConsumerWidget {
   }
 
   static String _subtitle(Game game, int count) {
-    if (!game.hasCatalog) return 'needs a source, none imported yet';
+    if (!game.hasCatalog) return 'needs a source';
     if (count == 0) return 'no decks yet';
     return count == 1 ? '1 deck' : '$count decks';
   }

@@ -10,8 +10,10 @@ void main() {
 
   test('the x form every shop uses', () {
     expect(parseDecklist('4x Lightning Bolt').entries.single.quantity, 4);
-    expect(parseDecklist('4 x Lightning Bolt').entries.single.name,
-        'Lightning Bolt');
+    expect(
+      parseDecklist('4 x Lightning Bolt').entries.single.name,
+      'Lightning Bolt',
+    );
   });
 
   test('no count at all means one', () {
@@ -27,14 +29,18 @@ void main() {
   });
 
   test('a name with a number in it survives', () {
-    expect(parseDecklist('2 Borrowing 100,000 Arrows').entries.single.name,
-        'Borrowing 100,000 Arrows');
+    expect(
+      parseDecklist('2 Borrowing 100,000 Arrows').entries.single.name,
+      'Borrowing 100,000 Arrows',
+    );
   });
 
   test('a name with a comma and an apostrophe survives', () {
     final r = parseDecklist("1 Urza's Saga\n1 Jace, the Mind Sculptor");
-    expect(r.entries.map((e) => e.name),
-        ["Urza's Saga", 'Jace, the Mind Sculptor']);
+    expect(r.entries.map((e) => e.name), [
+      "Urza's Saga",
+      'Jace, the Mind Sculptor',
+    ]);
   });
 
   test('blank lines and comments are skipped without complaint', () {
@@ -117,8 +123,11 @@ Sideboard (15)
     // for a header, so the version of this test that had one proved nothing.
     final r = parseDecklist("Sideboard\nCommander's Sphere\n1 Pyroblast");
     expect(r.entries.map((e) => e.name), ["Commander's Sphere", 'Pyroblast']);
-    expect(r.entries.every((e) => e.sideboard), isTrue,
-        reason: 'the Sphere must not have switched the section back to deck');
+    expect(
+      r.entries.every((e) => e.sideboard),
+      isTrue,
+      reason: 'the Sphere must not have switched the section back to deck',
+    );
   });
 
   test('windows line endings do not glue themselves to the last name', () {

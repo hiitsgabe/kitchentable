@@ -36,19 +36,21 @@ void main() {
     expect(seat.owner.isEmpty, isTrue);
   });
 
-  test('a seat with no transport under it may be acted for by anybody here',
-      () {
-    const here = SeatOwner.here();
-    const nobody = SeatOwner.empty();
+  test(
+    'a seat with no transport under it may be acted for by anybody here',
+    () {
+      const here = SeatOwner.here();
+      const nobody = SeatOwner.empty();
 
-    // Solo and the pod on one tablet: there is no key to compare with, and
-    // every chair is this device's, so the question has one answer whatever
-    // key is asked about, a null included.
-    expect(here.actableHere(me: null), isTrue);
-    expect(here.actableHere(me: 'abc'), isTrue);
-    expect(nobody.actableHere(me: null), isFalse);
-    expect(nobody.actableHere(me: 'abc'), isFalse);
-  });
+      // Solo and the pod on one tablet: there is no key to compare with, and
+      // every chair is this device's, so the question has one answer whatever
+      // key is asked about, a null included.
+      expect(here.actableHere(me: null), isTrue);
+      expect(here.actableHere(me: 'abc'), isTrue);
+      expect(nobody.actableHere(me: null), isFalse);
+      expect(nobody.actableHere(me: 'abc'), isFalse);
+    },
+  );
 
   test('a keyed seat may be acted for by its own key and nobody else', () {
     const theirs = SeatOwner.peer('abc');
@@ -59,7 +61,10 @@ void main() {
     // guest's.
     expect(theirs.actableHere(me: 'abc'), isTrue);
     expect(theirs.actableHere(me: 'xyz'), isFalse);
-    expect(theirs.actableHere(me: null), isFalse,
-        reason: 'a phone with no key is not the phone that holds this seat');
+    expect(
+      theirs.actableHere(me: null),
+      isFalse,
+      reason: 'a phone with no key is not the phone that holds this seat',
+    );
   });
 }

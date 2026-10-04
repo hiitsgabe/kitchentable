@@ -11,11 +11,11 @@ CatalogCard _card(String name) =>
     CatalogCard(oracleId: name, name: name, typeLine: 'Instant', cmc: 1);
 
 Deck _deck(String name) => Deck(
-      id: name,
-      name: name,
-      format: DeckFormat.commander,
-      slots: [DeckSlot(card: _card('$name-card'), quantity: 60)],
-    );
+  id: name,
+  name: name,
+  format: DeckFormat.commander,
+  slots: [DeckSlot(card: _card('$name-card'), quantity: 60)],
+);
 
 Player _here(String name) =>
     (deck: _deck(name), name: name, owner: const SeatOwner.here());

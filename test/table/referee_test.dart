@@ -23,8 +23,11 @@ void main() {
   test('it knows no legal targets, and says so rather than guessing', () {
     const referee = PermissiveReferee();
 
-    expect(referee.legalTargets(_table, 'c1'), isNull,
-        reason: 'null is I do not know, an empty list would be there are none');
+    expect(
+      referee.legalTargets(_table, 'c1'),
+      isNull,
+      reason: 'null is I do not know, an empty list would be there are none',
+    );
   });
 
   test('a refusal carries a reason a player can act on', () {

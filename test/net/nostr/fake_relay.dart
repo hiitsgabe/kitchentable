@@ -57,8 +57,9 @@ class FakeRelay {
   int get connections => _clients.length;
 
   /// Subscription ids open right now, across every socket.
-  List<String> get subscriptions =>
-      [for (final c in _clients) ...c.filters.keys];
+  List<String> get subscriptions => [
+    for (final c in _clients) ...c.filters.keys,
+  ];
 
   /// The relay goes away under the client: every socket is closed from this
   /// side. The server keeps listening, so a client that comes back finds it.
@@ -136,7 +137,10 @@ class FakeRelay {
   /// matches when every field it names matches, a field matches when the
   /// event's value is one of the listed ones, and for a tag filter when any
   /// of the event's tags of that name has a listed value.
-  static bool _matches(Map<String, dynamic> filter, Map<String, dynamic> event) {
+  static bool _matches(
+    Map<String, dynamic> filter,
+    Map<String, dynamic> event,
+  ) {
     final kinds = filter['kinds'] as List<dynamic>?;
     if (kinds != null && !kinds.contains(event['kind'])) return false;
     final tags = (event['tags'] as List<dynamic>).cast<List<dynamic>>();

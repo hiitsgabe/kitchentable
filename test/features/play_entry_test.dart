@@ -11,21 +11,21 @@ import 'package:kitchentable/features/play/play_controller.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 
 Deck _deck(String id) => Deck(
-      id: id,
-      name: 'deck $id',
-      format: DeckFormat.commander,
-      slots: [
-        DeckSlot(
-          card: const CatalogCard(
-            oracleId: 'mountain',
-            name: 'Mountain',
-            typeLine: 'Basic Land - Mountain',
-            cmc: 0,
-          ),
-          quantity: 60,
-        ),
-      ],
-    );
+  id: id,
+  name: 'deck $id',
+  format: DeckFormat.commander,
+  slots: [
+    DeckSlot(
+      card: const CatalogCard(
+        oracleId: 'mountain',
+        name: 'Mountain',
+        typeLine: 'Basic Land - Mountain',
+        cmc: 0,
+      ),
+      quantity: 60,
+    ),
+  ],
+);
 
 /// The Play list with decks in it and no database underneath.
 ///
@@ -39,14 +39,14 @@ class _Shelf implements DeckRepository {
 
   @override
   Future<List<Deck>> list() async => [
-        for (final deck in full)
-          Deck(
-            id: deck.id,
-            name: deck.name,
-            format: deck.format,
-            knownCardCount: deck.cardCount,
-          ),
-      ];
+    for (final deck in full)
+      Deck(
+        id: deck.id,
+        name: deck.name,
+        format: deck.format,
+        knownCardCount: deck.cardCount,
+      ),
+  ];
 
   @override
   Future<Deck?> load(String id) async =>
@@ -125,7 +125,10 @@ void main() {
 
     final table = container.read(playProvider);
     expect(table!.seats, hasLength(2));
-    expect(table.seats.every((s) => s.owner.actableHere(me: null)), isTrue,
-        reason: 'a pod on one device holds every chair itself');
+    expect(
+      table.seats.every((s) => s.owner.actableHere(me: null)),
+      isTrue,
+      reason: 'a pod on one device holds every chair itself',
+    );
   });
 }

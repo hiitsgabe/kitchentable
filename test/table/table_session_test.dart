@@ -7,34 +7,33 @@ import 'package:kitchentable/table/model/zone.dart';
 import 'package:kitchentable/table/table_session.dart';
 
 TableState _table() => TableState(
-      seats: [
-        Seat(
-          id: 's1',
-          name: 'you',
-          life: 40,
-          zones: [
-            Zone(
-              id: 'library',
-              seatId: 's1',
-              label: 'Library',
-              visibility: ZoneVisibility.hidden,
-              ordered: true,
-              cards: [
-                for (var i = 0; i < 5; i++)
-                  CardInstance(id: 'c$i', oracleId: 'x'),
-              ],
-            ),
-            const Zone(
-              id: 'hand',
-              seatId: 's1',
-              label: 'Hand',
-              visibility: ZoneVisibility.owner,
-              ordered: false,
-            ),
+  seats: [
+    Seat(
+      id: 's1',
+      name: 'you',
+      life: 40,
+      zones: [
+        Zone(
+          id: 'library',
+          seatId: 's1',
+          label: 'Library',
+          visibility: ZoneVisibility.hidden,
+          ordered: true,
+          cards: [
+            for (var i = 0; i < 5; i++) CardInstance(id: 'c$i', oracleId: 'x'),
           ],
         ),
+        const Zone(
+          id: 'hand',
+          seatId: 's1',
+          label: 'Hand',
+          visibility: ZoneVisibility.owner,
+          ordered: false,
+        ),
       ],
-    );
+    ),
+  ],
+);
 
 void main() {
   test('a fresh session has nothing to undo', () {
@@ -44,11 +43,9 @@ void main() {
 
   test('undo puts the table back exactly as it was', () {
     final session = TableSession(_table());
-    session.run(const DrawCards(
-      fromZoneId: 'library',
-      toZoneId: 'hand',
-      count: 3,
-    ));
+    session.run(
+      const DrawCards(fromZoneId: 'library', toZoneId: 'hand', count: 3),
+    );
 
     expect(session.state.zone('hand')!.size, 3);
 
@@ -106,7 +103,10 @@ void main() {
       session.undo();
     }
 
-    expect(session.state.seat('s1')!.life, 33,
-        reason: 'three steps back from thirty, and no further');
+    expect(
+      session.state.seat('s1')!.life,
+      33,
+      reason: 'three steps back from thirty, and no further',
+    );
   });
 }

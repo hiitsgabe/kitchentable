@@ -114,7 +114,6 @@ class RoomScreen extends ConsumerWidget {
         MenuRow(
           key: const Key('room-copy'),
           title: 'Send the link',
-          subtitle: 'copies it, to paste into any chat',
           icon: Icons.ios_share_rounded,
           tone: SlabTone.cool,
           metrics: m,
@@ -136,8 +135,7 @@ class RoomScreen extends ConsumerWidget {
               : 'Pick your deck',
           subtitle: lobby != null && lobby.seatedHere
               ? 'you are sitting in chair ${_chairOf(lobby)}'
-              : 'everybody brings their own. Yours takes a chair, and the '
-                    'game starts once every chair has one',
+              : 'to sit down',
           icon: Icons.style_rounded,
           // The one thing the host has to do before anything else can happen,
           // so it carries the colour the way Play does on the menu.
@@ -171,7 +169,6 @@ class RoomScreen extends ConsumerWidget {
           MenuRow(
             key: const Key('room-back-to-table'),
             title: 'Back to the table',
-            subtitle: 'the game is still going',
             icon: Icons.table_restaurant_rounded,
             tone: SlabTone.choice,
             metrics: m,
@@ -276,8 +273,8 @@ class RoomScreen extends ConsumerWidget {
           metrics: m,
           id: 'room-openness',
           text:
-              'Everybody here can see everything, hands and decks '
-              'included. Fine for friends; not safe against cheating.',
+              'Everybody can see every hand and every deck. Fine for '
+              'friends.',
         ),
       ],
     );
@@ -628,7 +625,7 @@ class _Invite extends StatelessWidget {
             RoomQr(key: const Key('room-qr'), metrics: m, link: link),
             SizedBox(height: m.scaled(10)),
             Text(
-              'or let somebody at the table scan this, or give them the code',
+              'scan it, or type the code',
               textAlign: TextAlign.center,
               style: pixel(
                 size: m.scaled(12),

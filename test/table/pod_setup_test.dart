@@ -9,11 +9,11 @@ CatalogCard _card(String n) =>
     CatalogCard(oracleId: n, name: n, typeLine: 'Instant', cmc: 1);
 
 Deck _deck(String name, {int cards = 60}) => Deck(
-      id: name,
-      name: name,
-      format: DeckFormat.commander,
-      slots: [DeckSlot(card: _card('$name-card'), quantity: cards)],
-    );
+  id: name,
+  name: name,
+  format: DeckFormat.commander,
+  slots: [DeckSlot(card: _card('$name-card'), quantity: cards)],
+);
 
 void main() {
   test('a pod seats everybody who brought a deck', () {
@@ -75,29 +75,36 @@ void main() {
     // three cards that are not the same fifty three, which is a mismatch about
     // the draw rather than about the shuffle.
     List<String> wholeDeck(String seatId) => [
-          ...table.zone('library-$seatId')!.cards,
-          ...table.zone('hand-$seatId')!.cards,
-        ].map((c) => c.oracleId).toList();
+      ...table.zone('library-$seatId')!.cards,
+      ...table.zone('hand-$seatId')!.cards,
+    ].map((c) => c.oracleId).toList();
 
     final mine = wholeDeck('s1');
     final theirs = wholeDeck('s2');
 
     expect(mine, hasLength(60));
-    expect(mine.toSet(), theirs.toSet(),
-        reason: 'the same decklist, so the same sixty cards are in there');
-    expect(mine, isNot(theirs),
-        reason: 'two people with the same list drawing the same seven cards '
-            'would be absurd, and that is what one seed for the table gives');
+    expect(
+      mine.toSet(),
+      theirs.toSet(),
+      reason: 'the same decklist, so the same sixty cards are in there',
+    );
+    expect(
+      mine,
+      isNot(theirs),
+      reason:
+          'two people with the same list drawing the same seven cards '
+          'would be absurd, and that is what one seed for the table gives',
+    );
   });
 
   test('the same table seed deals the same pod twice', () {
     List<String> handsFor(String seed) => sitDownTogether(
-          players: [
-            (deck: _deck('a'), name: 'you', owner: const SeatOwner.here()),
-            (deck: _deck('b'), name: 'Carla', owner: const SeatOwner.here()),
-          ],
-          seed: seed,
-        ).allZones.expand((z) => z.cards).map((c) => c.id).toList();
+      players: [
+        (deck: _deck('a'), name: 'you', owner: const SeatOwner.here()),
+        (deck: _deck('b'), name: 'Carla', owner: const SeatOwner.here()),
+      ],
+      seed: seed,
+    ).allZones.expand((z) => z.cards).map((c) => c.id).toList();
 
     expect(handsFor('abc'), handsFor('abc'));
     expect(handsFor('abc'), isNot(handsFor('xyz')));

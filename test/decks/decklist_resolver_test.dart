@@ -6,11 +6,11 @@ import 'package:kitchentable/sources/catalog/catalog_db.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 
 CatalogCard _card(String name) => CatalogCard(
-      oracleId: name.toLowerCase(),
-      name: name,
-      typeLine: 'Instant',
-      cmc: 1,
-    );
+  oracleId: name.toLowerCase(),
+  name: name,
+  typeLine: 'Instant',
+  cmc: 1,
+);
 
 void main() {
   late CatalogDb db;

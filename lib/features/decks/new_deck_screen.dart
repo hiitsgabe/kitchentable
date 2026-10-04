@@ -32,7 +32,7 @@ class NewDeckScreen extends ConsumerWidget {
     return ScreenFrame(
       metrics: m,
       title: 'New ${game.label} deck',
-      label: 'the format decides the rules',
+      label: 'pick a format',
       onBack: () => Navigator.of(context).maybePop(),
       home: true,
       children: [

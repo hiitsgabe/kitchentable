@@ -53,46 +53,47 @@ const _bear = CatalogCard(
 );
 
 Deck _deck(String id, {List<DeckSlot>? slots}) => Deck(
-      id: id,
-      name: 'deck $id',
-      format: DeckFormat.commander,
-      game: Game.magic,
-      slots: slots ??
-          const [
-            DeckSlot(card: _bear, quantity: 1, commander: true),
-            DeckSlot(card: _bolt, quantity: 40),
-          ],
-    );
+  id: id,
+  name: 'deck $id',
+  format: DeckFormat.commander,
+  game: Game.magic,
+  slots:
+      slots ??
+      const [
+        DeckSlot(card: _bear, quantity: 1, commander: true),
+        DeckSlot(card: _bolt, quantity: 40),
+      ],
+);
 
 RoomConfig _config({int seats = 3, int? life}) => RoomConfig(
-      format: DeckFormat.commander,
-      seats: seats,
-      life: life,
-      hostName: 'kit',
-      roomName: 'the kitchen',
-    );
+  format: DeckFormat.commander,
+  seats: seats,
+  life: life,
+  hostName: 'kit',
+  roomName: 'the kitchen',
+);
 
 /// The printing fields, in one place, so a case that compares two cards
 /// compares all of them and a field added to [CatalogCard] shows up here as
 /// a missing line rather than silently not compared.
 Map<String, Object?> _fields(CatalogCard c) => {
-      'oracleId': c.oracleId,
-      'name': c.name,
-      'typeLine': c.typeLine,
-      'cmc': c.cmc,
-      'manaCost': c.manaCost,
-      'oracleText': c.oracleText,
-      'power': c.power,
-      'toughness': c.toughness,
-      'colorIdentity': c.colorIdentity,
-      'rarity': c.rarity,
-      'setCode': c.setCode,
-      'legalities': c.legalities,
-      'imageSmall': c.imageSmall,
-      'imageNormal': c.imageNormal,
-      'imageLarge': c.imageLarge,
-      'imageBack': c.imageBack,
-    };
+  'oracleId': c.oracleId,
+  'name': c.name,
+  'typeLine': c.typeLine,
+  'cmc': c.cmc,
+  'manaCost': c.manaCost,
+  'oracleText': c.oracleText,
+  'power': c.power,
+  'toughness': c.toughness,
+  'colorIdentity': c.colorIdentity,
+  'rarity': c.rarity,
+  'setCode': c.setCode,
+  'legalities': c.legalities,
+  'imageSmall': c.imageSmall,
+  'imageNormal': c.imageNormal,
+  'imageLarge': c.imageLarge,
+  'imageBack': c.imageBack,
+};
 
 TableState _deal(List<Player> players) =>
     sitDownTogether(players: players, seed: 'seed');
@@ -123,16 +124,22 @@ class _Room {
 void main() {
   group('a deck on the wire', () {
     test('a deck comes back with every printing field it went out with', () {
-      final deck = _deck('d1', slots: const [
-        DeckSlot(card: _bear, quantity: 1, commander: true),
-        DeckSlot(card: _bolt, quantity: 4),
-        DeckSlot(card: _bolt, quantity: 3, sideboard: true),
-      ]);
+      final deck = _deck(
+        'd1',
+        slots: const [
+          DeckSlot(card: _bear, quantity: 1, commander: true),
+          DeckSlot(card: _bolt, quantity: 4),
+          DeckSlot(card: _bolt, quantity: 3, sideboard: true),
+        ],
+      );
 
       final wire = deckToWire(deck);
       final json = jsonDecode(wire) as Map<String, Object?>;
-      expect(json['v'], wireVersion,
-          reason: 'the same number the table speaks, not a second one');
+      expect(
+        json['v'],
+        wireVersion,
+        reason: 'the same number the table speaks, not a second one',
+      );
 
       final back = deckFromWire(wire);
       expect(back.id, 'd1');
@@ -157,11 +164,13 @@ void main() {
 
       expect(
         () => deckFromWire(jsonEncode(json)),
-        throwsA(isA<WireError>().having(
-          (e) => e.message,
-          'message',
-          contains('${wireVersion + 1}'),
-        )),
+        throwsA(
+          isA<WireError>().having(
+            (e) => e.message,
+            'message',
+            contains('${wireVersion + 1}'),
+          ),
+        ),
       );
     });
 
@@ -172,11 +181,13 @@ void main() {
 
       expect(
         () => deckFromWire(jsonEncode(json)),
-        throwsA(isA<WireError>().having(
-          (e) => e.message,
-          'message',
-          contains('typeLine'),
-        )),
+        throwsA(
+          isA<WireError>().having(
+            (e) => e.message,
+            'message',
+            contains('typeLine'),
+          ),
+        ),
       );
     });
 
@@ -196,15 +207,21 @@ void main() {
       // Before a deck, ana is a connection and not a person at the table.
       expect(room.host.seated, isEmpty);
       expect(ana.host, 'host', reason: 'the host answered her knock');
-      expect(ana.config, room.config,
-          reason: 'and told her what the room is, since she cannot guess');
+      expect(
+        ana.config,
+        room.config,
+        reason: 'and told her what the room is, since she cannot guess',
+      );
 
       ana.bring(deck: _deck('anas'), name: 'ana');
       await room.settle();
 
       expect(room.host.seated, [(peer: 'ana', name: 'ana')]);
-      expect(ana.seated, room.host.seated,
-          reason: 'everybody sees the same chairs');
+      expect(
+        ana.seated,
+        room.host.seated,
+        reason: 'everybody sees the same chairs',
+      );
       expect(ana.seatedHere, isTrue);
     });
 
@@ -226,31 +243,33 @@ void main() {
       expect(deck.commanders.single.card.oracleId, 'bear');
     });
 
-    test('the host cannot start with an empty chair and can with all full',
-        () async {
-      final room = _Room(seats: 3);
-      final ana = room.arrive('ana');
-      await room.settle();
-      room.host.sit(deck: _deck('hosts'), name: 'kit');
-      ana.bring(deck: _deck('anas'), name: 'ana');
-      await room.settle();
+    test(
+      'the host cannot start with an empty chair and can with all full',
+      () async {
+        final room = _Room(seats: 3);
+        final ana = room.arrive('ana');
+        await room.settle();
+        room.host.sit(deck: _deck('hosts'), name: 'kit');
+        ana.bring(deck: _deck('anas'), name: 'ana');
+        await room.settle();
 
-      expect(room.host.emptyChairs, [3]);
-      expect(room.host.canStart, isFalse);
-      expect(() => room.host.start(_deal), throwsStateError);
-      await room.settle();
-      expect(room.host.mesh, isNull, reason: 'nothing was handed over');
-      expect(ana.dealt, isFalse, reason: 'and nobody was told otherwise');
+        expect(room.host.emptyChairs, [3]);
+        expect(room.host.canStart, isFalse);
+        expect(() => room.host.start(_deal), throwsStateError);
+        await room.settle();
+        expect(room.host.mesh, isNull, reason: 'nothing was handed over');
+        expect(ana.dealt, isFalse, reason: 'and nobody was told otherwise');
 
-      final bo = room.arrive('bo');
-      await room.settle();
-      bo.bring(deck: _deck('bos'), name: 'bo');
-      await room.settle();
+        final bo = room.arrive('bo');
+        await room.settle();
+        bo.bring(deck: _deck('bos'), name: 'bo');
+        await room.settle();
 
-      expect(room.host.emptyChairs, isEmpty);
-      expect(room.host.canStart, isTrue);
-      expect(room.host.start(_deal), isA<Mesh>());
-    });
+        expect(room.host.emptyChairs, isEmpty);
+        expect(room.host.canStart, isTrue);
+        expect(room.host.start(_deal), isA<Mesh>());
+      },
+    );
 
     test("the host's own chair is the first one, and it counts", () async {
       final room = _Room(seats: 2);
@@ -259,8 +278,9 @@ void main() {
       ana.bring(deck: _deck('anas'), name: 'ana');
       await room.settle();
 
-      expect(room.host.emptyChairs, [1],
-          reason: 'the guest is in chair 2 and the host has not sat down');
+      expect(room.host.emptyChairs, [
+        1,
+      ], reason: 'the guest is in chair 2 and the host has not sat down');
       expect(room.host.canStart, isFalse);
 
       room.host.sit(deck: _deck('hosts'), name: 'kit');
@@ -271,83 +291,106 @@ void main() {
       expect(room.host.canStart, isTrue);
     });
 
-    test('start deals one seat per person, each owned by that person', () async {
-      final room = _Room(seats: 3);
-      final ana = room.arrive('ana');
-      final bo = room.arrive('bo');
-      await room.settle();
-      ana.bring(deck: _deck('anas'), name: 'ana');
-      bo.bring(deck: _deck('bos'), name: 'bo');
-      await room.settle();
-      room.host.sit(deck: _deck('hosts'), name: 'kit');
+    test(
+      'start deals one seat per person, each owned by that person',
+      () async {
+        final room = _Room(seats: 3);
+        final ana = room.arrive('ana');
+        final bo = room.arrive('bo');
+        await room.settle();
+        ana.bring(deck: _deck('anas'), name: 'ana');
+        bo.bring(deck: _deck('bos'), name: 'bo');
+        await room.settle();
+        room.host.sit(deck: _deck('hosts'), name: 'kit');
 
-      List<Player>? dealt;
-      final mesh = room.host.start((players) {
-        dealt = players;
-        return _deal(players);
-      });
+        List<Player>? dealt;
+        final mesh = room.host.start((players) {
+          dealt = players;
+          return _deal(players);
+        });
 
-      expect(dealt, isNotNull);
-      expect(dealt!.map((p) => p.name), ['kit', 'ana', 'bo']);
-      expect(dealt!.map((p) => p.deck.id), ['hosts', 'anas', 'bos']);
-      expect(dealt![0].owner, const SeatOwner.peer('host'),
-          reason: "the host's seat is keyed like everybody else's: `here` is "
-              'true on one phone only and this list is read on every phone');
-      expect(dealt![1].owner, const SeatOwner.peer('ana'),
-          reason: "ana's hand is ana's, on ana's phone");
-      expect(dealt![2].owner, const SeatOwner.peer('bo'));
+        expect(dealt, isNotNull);
+        expect(dealt!.map((p) => p.name), ['kit', 'ana', 'bo']);
+        expect(dealt!.map((p) => p.deck.id), ['hosts', 'anas', 'bos']);
+        expect(
+          dealt![0].owner,
+          const SeatOwner.peer('host'),
+          reason:
+              "the host's seat is keyed like everybody else's: `here` is "
+              'true on one phone only and this list is read on every phone',
+        );
+        expect(
+          dealt![1].owner,
+          const SeatOwner.peer('ana'),
+          reason: "ana's hand is ana's, on ana's phone",
+        );
+        expect(dealt![2].owner, const SeatOwner.peer('bo'));
 
-      final table = mesh.table!;
-      expect(table.seats.map((s) => s.name), ['kit', 'ana', 'bo']);
-      expect(table.seats.map((s) => s.owner), [
-        const SeatOwner.peer('host'),
-        const SeatOwner.peer('ana'),
-        const SeatOwner.peer('bo'),
-      ]);
-    });
+        final table = mesh.table!;
+        expect(table.seats.map((s) => s.name), ['kit', 'ana', 'bo']);
+        expect(table.seats.map((s) => s.owner), [
+          const SeatOwner.peer('host'),
+          const SeatOwner.peer('ana'),
+          const SeatOwner.peer('bo'),
+        ]);
+      },
+    );
 
-    test('the printings at the table are every deck\'s, the guests\' included',
-        () async {
-      // A guest's deck arrived over the wire with every printing field, and
-      // the catalog on the host may never have imported it. The screen draws
-      // a card from here first, so what is here has to be every deck at the
-      // table with every field a printing carries.
-      const anasOnly = CatalogCard(
-        oracleId: 'anas-only',
-        name: "Ana's Only Card",
-        typeLine: 'Sorcery',
-        cmc: 3,
-        manaCost: '{2}{B}',
-        oracleText: 'Nobody but ana has ever heard of this.',
-        colorIdentity: ['B'],
-        rarity: 'rare',
-        setCode: 'ana',
-        imageNormal: 'https://img.test/anas-only/normal.jpg',
-      );
-      final room = _Room(seats: 2);
-      final ana = room.arrive('ana');
-      await room.settle();
-      ana.bring(
-        deck: _deck('anas', slots: const [
-          DeckSlot(card: anasOnly, quantity: 1, commander: true),
-          DeckSlot(card: _bolt, quantity: 40),
-        ]),
-        name: 'ana',
-      );
-      await room.settle();
-      room.host.sit(deck: _deck('hosts'), name: 'kit');
+    test(
+      'the printings at the table are every deck\'s, the guests\' included',
+      () async {
+        // A guest's deck arrived over the wire with every printing field, and
+        // the catalog on the host may never have imported it. The screen draws
+        // a card from here first, so what is here has to be every deck at the
+        // table with every field a printing carries.
+        const anasOnly = CatalogCard(
+          oracleId: 'anas-only',
+          name: "Ana's Only Card",
+          typeLine: 'Sorcery',
+          cmc: 3,
+          manaCost: '{2}{B}',
+          oracleText: 'Nobody but ana has ever heard of this.',
+          colorIdentity: ['B'],
+          rarity: 'rare',
+          setCode: 'ana',
+          imageNormal: 'https://img.test/anas-only/normal.jpg',
+        );
+        final room = _Room(seats: 2);
+        final ana = room.arrive('ana');
+        await room.settle();
+        ana.bring(
+          deck: _deck(
+            'anas',
+            slots: const [
+              DeckSlot(card: anasOnly, quantity: 1, commander: true),
+              DeckSlot(card: _bolt, quantity: 40),
+            ],
+          ),
+          name: 'ana',
+        );
+        await room.settle();
+        room.host.sit(deck: _deck('hosts'), name: 'kit');
 
-      expect(room.host.printings.keys.toSet(), {'bear', 'bolt', 'anas-only'},
-          reason: "the host's two and ana's one, once");
-      expect(_fields(room.host.printings['anas-only']!), _fields(anasOnly),
-          reason: 'every field the wire carried is here to draw from');
-      expect(_fields(room.host.printings['bear']!), _fields(_bear));
+        expect(room.host.printings.keys.toSet(), {
+          'bear',
+          'bolt',
+          'anas-only',
+        }, reason: "the host's two and ana's one, once");
+        expect(
+          _fields(room.host.printings['anas-only']!),
+          _fields(anasOnly),
+          reason: 'every field the wire carried is here to draw from',
+        );
+        expect(_fields(room.host.printings['bear']!), _fields(_bear));
 
-      // And on ana's phone, her own deck: nobody sent her anybody else's, and
-      // the screen there falls back to her catalog for the rest.
-      expect(ana.printings.keys.toSet(), {'anas-only', 'bolt'},
-          reason: 'a guest holds the deck it brought');
-    });
+        // And on ana's phone, her own deck: nobody sent her anybody else's, and
+        // the screen there falls back to her catalog for the rest.
+        expect(ana.printings.keys.toSet(), {
+          'anas-only',
+          'bolt',
+        }, reason: 'a guest holds the deck it brought');
+      },
+    );
 
     test('the decks this phone holds are keyed by who brought them', () async {
       // What the controller takes when it sits down at a table dealt on
@@ -362,50 +405,65 @@ void main() {
 
       expect(room.host.decks.keys.toSet(), {'host', 'ana'});
       expect(room.host.decks['ana']!.id, 'anas');
-      expect(ana.decks.keys.toSet(), {'ana'},
-          reason: 'nobody sent her the host\'s');
-      expect(() => ana.decks['x'] = _deck('x'), throwsUnsupportedError,
-          reason: 'a view of what the lobby holds, not a copy to write to');
+      expect(ana.decks.keys.toSet(), {
+        'ana',
+      }, reason: 'nobody sent her the host\'s');
+      expect(
+        () => ana.decks['x'] = _deck('x'),
+        throwsUnsupportedError,
+        reason: 'a view of what the lobby holds, not a copy to write to',
+      );
     });
 
-    test('after start the lobby has stopped and the mesh has the transport',
-        () async {
-      final room = _Room(seats: 2);
-      final ana = room.arrive('ana');
-      await room.settle();
-      ana.bring(deck: _deck('anas'), name: 'ana');
-      await room.settle();
-      room.host.sit(deck: _deck('hosts'), name: 'kit');
+    test(
+      'after start the lobby has stopped and the mesh has the transport',
+      () async {
+        final room = _Room(seats: 2);
+        final ana = room.arrive('ana');
+        await room.settle();
+        ana.bring(deck: _deck('anas'), name: 'ana');
+        await room.settle();
+        room.host.sit(deck: _deck('hosts'), name: 'kit');
 
-      final mesh = room.host.start(_deal);
-      await room.settle();
+        final mesh = room.host.start(_deal);
+        await room.settle();
 
-      expect(ana.dealt, isTrue);
-      expect(ana.mesh, isNotNull);
-      expect(ana.mesh!.table, isNotNull,
-          reason: 'the mesh handed her the table');
-      expect(stateToWire(ana.mesh!.table!), stateToWire(mesh.table!));
-      expect(ana.mesh!.hostId, 'host');
+        expect(ana.dealt, isTrue);
+        expect(ana.mesh, isNotNull);
+        expect(
+          ana.mesh!.table,
+          isNotNull,
+          reason: 'the mesh handed her the table',
+        );
+        expect(stateToWire(ana.mesh!.table!), stateToWire(mesh.table!));
+        expect(ana.mesh!.hostId, 'host');
 
-      // What the host said after handing over: nothing in the lobby's voice.
-      // Counted on the transport, because a lobby left listening would answer
-      // the next knock with the chairs, and that is one message too many.
-      final transport = room.net.join('host');
-      int chairsSaid() => transport.sent
-          .where((s) => (jsonDecode(s.body) as Map)['kind'] == 'chairs')
-          .length;
-      final before = chairsSaid();
+        // What the host said after handing over: nothing in the lobby's voice.
+        // Counted on the transport, because a lobby left listening would answer
+        // the next knock with the chairs, and that is one message too many.
+        final transport = room.net.join('host');
+        int chairsSaid() => transport.sent
+            .where((s) => (jsonDecode(s.body) as Map)['kind'] == 'chairs')
+            .length;
+        final before = chairsSaid();
 
-      final late = room.arrive('late');
-      await room.settle();
-      late.bring(deck: _deck('lates'), name: 'late');
-      await room.settle();
+        final late = room.arrive('late');
+        await room.settle();
+        late.bring(deck: _deck('lates'), name: 'late');
+        await room.settle();
 
-      expect(chairsSaid(), before,
-          reason: 'the lobby answered a knock after handing over');
-      expect(room.host.seated, hasLength(2),
-          reason: 'a deck brought after start finds no lobby to take it');
-    });
+        expect(
+          chairsSaid(),
+          before,
+          reason: 'the lobby answered a knock after handing over',
+        );
+        expect(
+          room.host.seated,
+          hasLength(2),
+          reason: 'a deck brought after start finds no lobby to take it',
+        );
+      },
+    );
 
     test('a guest who arrives after start is handed the table by the mesh and '
         'not by the lobby', () async {
@@ -448,40 +506,49 @@ void main() {
       expect(room.host.emptyChairs, [1, 2]);
     });
 
-    test('one person more than the room has chairs is told it is full',
-        () async {
-      final room = _Room(seats: 2);
-      final ana = room.arrive('ana');
-      final bo = room.arrive('bo');
-      await room.settle();
-      ana.bring(deck: _deck('anas'), name: 'ana');
-      await room.settle();
-      bo.bring(deck: _deck('bos'), name: 'bo');
-      await room.settle();
+    test(
+      'one person more than the room has chairs is told it is full',
+      () async {
+        final room = _Room(seats: 2);
+        final ana = room.arrive('ana');
+        final bo = room.arrive('bo');
+        await room.settle();
+        ana.bring(deck: _deck('anas'), name: 'ana');
+        await room.settle();
+        bo.bring(deck: _deck('bos'), name: 'bo');
+        await room.settle();
 
-      expect(room.host.seated.map((s) => s.peer), ['ana']);
-      expect(bo.seatedHere, isFalse);
-      expect(bo.full, isTrue);
-      expect(ana.full, isFalse, reason: 'ana has a chair, so it is not full '
-          'for her');
-    });
+        expect(room.host.seated.map((s) => s.peer), ['ana']);
+        expect(bo.seatedHere, isFalse);
+        expect(bo.full, isTrue);
+        expect(
+          ana.full,
+          isFalse,
+          reason:
+              'ana has a chair, so it is not full '
+              'for her',
+        );
+      },
+    );
 
-    test('a message the lobby cannot read is counted and never thrown',
-        () async {
-      final room = _Room();
-      room.arrive('ana');
-      await room.settle();
+    test(
+      'a message the lobby cannot read is counted and never thrown',
+      () async {
+        final room = _Room();
+        room.arrive('ana');
+        await room.settle();
 
-      room.net.forge(from: 'ana', to: 'host', body: 'not json');
-      room.net.forge(
-        from: 'ana',
-        to: 'host',
-        body: jsonEncode({'v': wireVersion, 'kind': 'bring', 'name': 7}),
-      );
-      await room.settle();
+        room.net.forge(from: 'ana', to: 'host', body: 'not json');
+        room.net.forge(
+          from: 'ana',
+          to: 'host',
+          body: jsonEncode({'v': wireVersion, 'kind': 'bring', 'name': 7}),
+        );
+        await room.settle();
 
-      expect(room.host.refused, 2);
-      expect(room.host.seated, isEmpty);
-    });
+        expect(room.host.refused, 2);
+        expect(room.host.seated, isEmpty);
+      },
+    );
   });
 }

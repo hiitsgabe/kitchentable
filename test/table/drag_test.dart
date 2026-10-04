@@ -7,28 +7,28 @@ import 'package:kitchentable/table/model/table_state.dart';
 import 'package:kitchentable/table/model/zone.dart';
 
 TableState _table() => TableState(
-      seats: [
-        Seat(
-          id: 's1',
-          name: 'you',
-          life: 40,
-          zones: [
-            Zone(
-              id: 'battlefield-s1',
-              seatId: 's1',
-              label: 'Battlefield',
-              visibility: ZoneVisibility.public,
-              ordered: false,
-              cards: const [
-                CardInstance(id: 'a', oracleId: 'o'),
-                CardInstance(id: 'b', oracleId: 'o'),
-                CardInstance(id: 'c', oracleId: 'o'),
-              ],
-            ),
+  seats: [
+    Seat(
+      id: 's1',
+      name: 'you',
+      life: 40,
+      zones: [
+        Zone(
+          id: 'battlefield-s1',
+          seatId: 's1',
+          label: 'Battlefield',
+          visibility: ZoneVisibility.public,
+          ordered: false,
+          cards: const [
+            CardInstance(id: 'a', oracleId: 'o'),
+            CardInstance(id: 'b', oracleId: 'o'),
+            CardInstance(id: 'c', oracleId: 'o'),
           ],
         ),
       ],
-    );
+    ),
+  ],
+);
 
 void main() {
   test('a drag puts a card where it was dropped', () {
@@ -59,8 +59,11 @@ void main() {
     // Zone.add inserts at the front by default, so a drag that forgot `at`
     // would send the card to index 0 and make every other card jump. The
     // D-pad cursor walks this list by index, so it would jump too.
-    expect(next.zone('battlefield-s1')!.cards.map((c) => c.id),
-        ['a', 'b', 'c']);
+    expect(next.zone('battlefield-s1')!.cards.map((c) => c.id), [
+      'a',
+      'b',
+      'c',
+    ]);
   });
 
   test('a drag leaves the other cards alone', () {
@@ -81,16 +84,18 @@ void main() {
   test('a move to another pile still clears the position', () {
     final table = _table().copyWith(
       seats: [
-        _table().seats.single.copyWith(zones: [
-          ..._table().seats.single.zones,
-          const Zone(
-            id: 'graveyard-s1',
-            seatId: 's1',
-            label: 'Graveyard',
-            visibility: ZoneVisibility.public,
-            ordered: true,
-          ),
-        ]),
+        _table().seats.single.copyWith(
+          zones: [
+            ..._table().seats.single.zones,
+            const Zone(
+              id: 'graveyard-s1',
+              seatId: 's1',
+              label: 'Graveyard',
+              visibility: ZoneVisibility.public,
+              ordered: true,
+            ),
+          ],
+        ),
       ],
     );
 

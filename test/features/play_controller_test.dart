@@ -14,19 +14,15 @@ import 'package:kitchentable/table/view/seat_view.dart';
 
 import '../net/fake_transport.dart';
 
-CatalogCard _card(String name) => CatalogCard(
-      oracleId: name,
-      name: name,
-      typeLine: 'Instant',
-      cmc: 1,
-    );
+CatalogCard _card(String name) =>
+    CatalogCard(oracleId: name, name: name, typeLine: 'Instant', cmc: 1);
 
 Deck _deck() => Deck(
-      id: 'd1',
-      name: 'a deck',
-      format: DeckFormat.commander,
-      slots: [DeckSlot(card: _card('Mountain'), quantity: 60)],
-    );
+  id: 'd1',
+  name: 'a deck',
+  format: DeckFormat.commander,
+  slots: [DeckSlot(card: _card('Mountain'), quantity: 60)],
+);
 
 void main() {
   late ProviderContainer container;
@@ -119,11 +115,8 @@ void main() {
         ],
         seed: 'abc',
       );
-      hostMesh = Mesh(
-        transport: hostLine,
-        table: tableOn(host),
-        creator: true,
-      )..start();
+      hostMesh = Mesh(transport: hostLine, table: tableOn(host), creator: true)
+        ..start();
       playOn(host).follow(hostMesh);
 
       final anaMesh = Mesh(transport: anaLine)..start();
@@ -137,45 +130,57 @@ void main() {
       ana.dispose();
     });
 
-    test('a card moved on the host lands at the same spot on the guest',
-        () async {
-      final card = tableOn(host).zone('hand-s1')!.cards.first;
+    test(
+      'a card moved on the host lands at the same spot on the guest',
+      () async {
+        final card = tableOn(host).zone('hand-s1')!.cards.first;
 
-      playOn(host).run(MoveCard(
-        cardId: card.id,
-        toZoneId: 'battlefield-s1',
-        position: (x: 0.25, y: 0.75),
-      ));
-      await net.settle();
+        playOn(host).run(
+          MoveCard(
+            cardId: card.id,
+            toZoneId: 'battlefield-s1',
+            position: (x: 0.25, y: 0.75),
+          ),
+        );
+        await net.settle();
 
-      // The host first, then the guest, so a failure says which phone the
-      // card never reached.
-      final onHost = tableOn(host).locate(card.id)!;
-      expect(onHost.zone.id, 'battlefield-s1', reason: "on the host's phone");
-      expect(onHost.card.position, (x: 0.25, y: 0.75),
-          reason: "on the host's phone");
-      final onAna = tableOn(ana).locate(card.id)!;
-      expect(onAna.zone.id, 'battlefield-s1', reason: "on ana's phone");
-      expect(onAna.card.position, (x: 0.25, y: 0.75),
-          reason: "on ana's phone");
-    });
+        // The host first, then the guest, so a failure says which phone the
+        // card never reached.
+        final onHost = tableOn(host).locate(card.id)!;
+        expect(onHost.zone.id, 'battlefield-s1', reason: "on the host's phone");
+        expect(onHost.card.position, (
+          x: 0.25,
+          y: 0.75,
+        ), reason: "on the host's phone");
+        final onAna = tableOn(ana).locate(card.id)!;
+        expect(onAna.zone.id, 'battlefield-s1', reason: "on ana's phone");
+        expect(onAna.card.position, (
+          x: 0.25,
+          y: 0.75,
+        ), reason: "on ana's phone");
+      },
+    );
 
     test('and one moved on the guest lands on the host', () async {
       final card = tableOn(ana).zone('hand-s2')!.cards.first;
 
-      playOn(ana).run(MoveCard(
-        cardId: card.id,
-        toZoneId: 'battlefield-s2',
-        position: (x: 0.5, y: 0.5),
-      ));
+      playOn(ana).run(
+        MoveCard(
+          cardId: card.id,
+          toZoneId: 'battlefield-s2',
+          position: (x: 0.5, y: 0.5),
+        ),
+      );
       await net.settle();
 
       final onAna = tableOn(ana).locate(card.id)!;
       expect(onAna.zone.id, 'battlefield-s2', reason: "on ana's phone");
       final onHost = tableOn(host).locate(card.id)!;
       expect(onHost.zone.id, 'battlefield-s2', reason: "on the host's phone");
-      expect(onHost.card.position, (x: 0.5, y: 0.5),
-          reason: "on the host's phone");
+      expect(onHost.card.position, (
+        x: 0.5,
+        y: 0.5,
+      ), reason: "on the host's phone");
     });
 
     test("the guest's hand is face up on the guest's phone and face down on "
@@ -192,26 +197,40 @@ void main() {
       final onHost = SeatView.of(tableOn(host).seat('s2')!, viewer: 's1');
       expect(onHost.pile('hand')!.readable, isFalse);
       expect(onHost.pile('hand')!.cards, isEmpty);
-      expect(onHost.pile('hand')!.count, 7,
-          reason: 'how many she holds is public, what they are is not');
+      expect(
+        onHost.pile('hand')!.count,
+        7,
+        reason: 'how many she holds is public, what they are is not',
+      );
     });
 
-    test('undo is refused in words while the mesh is up, and the table stays',
-        () async {
-      playOn(host).run(const ChangeLife(seatId: 's1', by: -5));
-      await net.settle();
-      expect(tableOn(host).seat('s1')!.life, 35);
-      expect(tableOn(ana).seat('s1')!.life, 35);
+    test(
+      'undo is refused in words while the mesh is up, and the table stays',
+      () async {
+        playOn(host).run(const ChangeLife(seatId: 's1', by: -5));
+        await net.settle();
+        expect(tableOn(host).seat('s1')!.life, 35);
+        expect(tableOn(ana).seat('s1')!.life, 35);
 
-      expect(playOn(host).canUndo, isFalse);
-      playOn(host).undo();
+        expect(playOn(host).canUndo, isFalse);
+        playOn(host).undo();
 
-      expect(tableOn(host).seat('s1')!.life, 35,
-          reason: 'undo did not move the table');
-      expect(playOn(host).lastRefusal, isNotNull,
-          reason: 'refused out loud, not silently ignored');
-      expect(playOn(host).lastRefusal!.reason.toLowerCase(), contains('undo'));
-    });
+        expect(
+          tableOn(host).seat('s1')!.life,
+          35,
+          reason: 'undo did not move the table',
+        );
+        expect(
+          playOn(host).lastRefusal,
+          isNotNull,
+          reason: 'refused out loud, not silently ignored',
+        );
+        expect(
+          playOn(host).lastRefusal!.reason.toLowerCase(),
+          contains('undo'),
+        );
+      },
+    );
 
     test('a referee still reviews a verb before it travels', () async {
       playOn(host).useReferee(const _GrumpyReferee());
@@ -222,8 +241,11 @@ void main() {
 
       expect(tableOn(host).seat('s1')!.life, 40);
       expect(tableOn(ana).seat('s1')!.life, 40);
-      expect(hostLine.sent.length, sentBefore,
-          reason: 'a refused verb never reaches the wire');
+      expect(
+        hostLine.sent.length,
+        sentBefore,
+        reason: 'a refused verb never reaches the wire',
+      );
       expect(playOn(host).lastRefusal?.reason, 'no');
     });
   });

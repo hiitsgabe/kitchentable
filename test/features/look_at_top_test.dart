@@ -8,52 +8,50 @@ import 'package:kitchentable/table/model/table_state.dart';
 import 'package:kitchentable/table/model/zone.dart';
 
 TableState _table() => TableState(
-      seats: [
-        Seat(
-          id: 's1',
-          name: 'you',
-          life: 40,
-          zones: [
-            Zone(
-              id: 'library-s1',
-              seatId: 's1',
-              label: 'Library',
-              visibility: ZoneVisibility.hidden,
-              ordered: true,
-              cards: const [
-                CardInstance(id: 'a', oracleId: 'A'),
-                CardInstance(id: 'b', oracleId: 'B'),
-                CardInstance(id: 'c', oracleId: 'C'),
-                CardInstance(id: 'd', oracleId: 'D'),
-              ],
-            ),
-            const Zone(
-              id: 'graveyard-s1',
-              seatId: 's1',
-              label: 'Graveyard',
-              visibility: ZoneVisibility.public,
-              ordered: true,
-            ),
-            const Zone(
-              id: 'hand-s1',
-              seatId: 's1',
-              label: 'Hand',
-              visibility: ZoneVisibility.owner,
-              ordered: false,
-            ),
+  seats: [
+    Seat(
+      id: 's1',
+      name: 'you',
+      life: 40,
+      zones: [
+        Zone(
+          id: 'library-s1',
+          seatId: 's1',
+          label: 'Library',
+          visibility: ZoneVisibility.hidden,
+          ordered: true,
+          cards: const [
+            CardInstance(id: 'a', oracleId: 'A'),
+            CardInstance(id: 'b', oracleId: 'B'),
+            CardInstance(id: 'c', oracleId: 'C'),
+            CardInstance(id: 'd', oracleId: 'D'),
           ],
         ),
+        const Zone(
+          id: 'graveyard-s1',
+          seatId: 's1',
+          label: 'Graveyard',
+          visibility: ZoneVisibility.public,
+          ordered: true,
+        ),
+        const Zone(
+          id: 'hand-s1',
+          seatId: 's1',
+          label: 'Hand',
+          visibility: ZoneVisibility.owner,
+          ordered: false,
+        ),
       ],
-    );
+    ),
+  ],
+);
 
 /// The same table with one card already in the graveyard, which is where the
 /// pile sheet's cards come from.
 TableState _withOneDead() {
   final table = _table();
   final pile = table.zone('graveyard-s1')!;
-  return table.withZone(
-    pile.add(const CardInstance(id: 'g', oracleId: 'G')),
-  );
+  return table.withZone(pile.add(const CardInstance(id: 'g', oracleId: 'G')));
 }
 
 List<String> _library(TableState t) =>
@@ -170,11 +168,7 @@ void main() {
   test('nothing chosen changes nothing', () {
     final next = _run(
       _table(),
-      arrange(
-        libraryId: 'library-s1',
-        placements: const [],
-        librarySize: 4,
-      ),
+      arrange(libraryId: 'library-s1', placements: const [], librarySize: 4),
     );
 
     expect(_library(next), ['a', 'b', 'c', 'd']);
