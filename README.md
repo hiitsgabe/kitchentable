@@ -8,6 +8,8 @@ connection. Nobody runs a server, nobody makes an account, and nothing is sold.
 **Play it now: [hiitsgabe.github.io/kitchentable](https://hiitsgabe.github.io/kitchentable/)**
 in any browser, phone or desktop. Android packages are on the
 [releases page](https://github.com/hiitsgabe/kitchentable/releases/latest).
+[Privacy](https://hiitsgabe.github.io/kitchentable/privacy.html) and
+[support](https://hiitsgabe.github.io/kitchentable/support.html).
 
 ## The idea
 

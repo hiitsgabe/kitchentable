@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kitchentable privacy</title>
+<link rel="icon" href="favicon.png">
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #1c1f24; color: #e8e8ea; font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  main { max-width: 680px; margin: 0 auto; padding: 40px 20px 80px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+  header img { width: 44px; height: 44px; }
+  header a { color: inherit; text-decoration: none; font-weight: 700; font-size: 20px; }
+  h1 { font-size: 28px; margin: 0 0 6px; }
+  .when { color: #9a9ea6; margin: 0 0 28px; }
+  h2 { font-size: 18px; margin: 32px 0 8px; }
+  p, li { color: #d3d5da; }
+  code { background: #2a2e35; padding: 1px 5px; border-radius: 4px; font-size: 14px; }
+  a { color: #ff4fa3; }
+  nav a { margin-right: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icons/Icon-192.png" alt="">
+    <a href="./">kitchentable</a>
+  </header>
+  <nav><a href="privacy.html">Privacy</a><a href="support.html">Support</a><a href="https://github.com/hiitsgabe/kitchentable">Source</a></nav>
+
+  <h1>Privacy</h1>
+  <p class="when">Last changed 4 October 2026.</p>
+
+  <p>kitchentable is a card table for playing with friends who are somewhere else. There is no account, no server of ours, and nothing is sold. This page says exactly what the app keeps, what leaves your device, and who can see it.</p>
+
+  <h2>What we collect</h2>
+  <p>Nothing. The app has no analytics, no crash reporting, no advertising and no account. We run no server and receive no data from the app, ever.</p>
+
+  <h2>What stays on your device</h2>
+  <ul>
+    <li>The card catalog you chose to import, your decks, your name, your settings and your room history are stored on your device only.</li>
+    <li>In the browser version this storage belongs to the browser and can be cleared by it.</li>
+  </ul>
+
+  <h2>What leaves your device, and to whom</h2>
+  <ul>
+    <li><strong>To the people at your table.</strong> The name you typed, the cards you play, dice, counters, chat messages and, if you turn it on, your voice. Everyone at the table sees every hand and every deck: the app has no hidden information and says so in the room.</li>
+    <li><strong>Through public relays.</strong> Game moves and chat travel over public Nostr relays, which are servers run by other people on the open internet. A relay sees the traffic it carries: your room code, your table's moves and chat, and your device's network address. The app picks five relays out of a fixed list for each room; the list is in the source code. Messages are signed by a key the app makes for each room and throws away afterwards.</li>
+    <li><strong>Voice goes direct.</strong> Voice chat is a direct connection between the devices at the table (WebRTC). The relays carry only the introduction. If you enter a TURN server in Settings, your audio passes through that server; the app uses none unless you add one.</li>
+    <li><strong>Card data and pictures.</strong> When you run a source, the app downloads card data from that source: Scryfall, MTGJSON, or the pokemon-tcg-data repository on GitHub. Card pictures are loaded from Scryfall and from images.pokemontcg.io when they are shown. Those sites see ordinary web requests from your device, under their own privacy policies.</li>
+  </ul>
+
+  <h2>Camera and microphone</h2>
+  <ul>
+    <li>The camera is used only to read a room's QR code, on your device. No picture is stored or sent.</li>
+    <li>The microphone is used only for voice chat, only after you join it, and only while you are in it. Nothing is recorded by the app.</li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>The app collects nothing from anyone, children included. A table is whoever you share the link with.</p>
+
+  <h2>Card games and their owners</h2>
+  <p>kitchentable is not affiliated with, endorsed by or approved by Wizards of the Coast, Hasbro, The Pokemon Company or Nintendo. Card names, text and images belong to their publishers; the app shows what you chose to download from the sources above.</p>
+
+  <h2>Changes and contact</h2>
+  <p>If this page changes, the date at the top changes. The app is open source; the whole of what it does is at <a href="https://github.com/hiitsgabe/kitchentable">github.com/hiitsgabe/kitchentable</a>, and questions go to the <a href="https://github.com/hiitsgabe/kitchentable/issues">issues page</a>.</p>
+</main>
+</body>
+</html>
