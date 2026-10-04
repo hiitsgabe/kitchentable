@@ -32,8 +32,11 @@ void main() {
             points.reduce((a, b) => a + b) / points.length.toDouble();
         final normal = die.normalOf(face);
         for (final p in points) {
-          expect((p - centre).dot(normal).abs(), lessThan(1e-9),
-              reason: 'a face of a ${die.sides} sided die is not flat');
+          expect(
+            (p - centre).dot(normal).abs(),
+            lessThan(1e-9),
+            reason: 'a face of a ${die.sides} sided die is not flat',
+          );
         }
       }
     }
@@ -61,9 +64,13 @@ void main() {
           final a = points[i];
           final b = points[(i + 1) % points.length];
           final c = points[(i + 2) % points.length];
-          expect((b - a).cross(c - b).dot(normal), greaterThan(0),
-              reason: 'a face of a ${die.sides} sided die turns back '
-                  'on itself');
+          expect(
+            (b - a).cross(c - b).dot(normal),
+            greaterThan(0),
+            reason:
+                'a face of a ${die.sides} sided die turns back '
+                'on itself',
+          );
         }
       }
     }
@@ -84,9 +91,13 @@ void main() {
         final landed = die.settle(i).rotated(die.normalOf(die.faces[i]));
         expect(landed.x.abs(), lessThan(1e-9));
         expect(landed.y.abs(), lessThan(1e-9));
-        expect(landed.z, closeTo(1, 1e-9),
-            reason: 'face $i of a ${die.sides} sided die landed away '
-                'from you');
+        expect(
+          landed.z,
+          closeTo(1, 1e-9),
+          reason:
+              'face $i of a ${die.sides} sided die landed away '
+              'from you',
+        );
       }
     }
   });
@@ -114,8 +125,7 @@ void main() {
     // The other degenerate axis: opposite vectors also cross to zero, and
     // this one needs half a turn about any perpendicular rather than none.
     final landed = die.settle(away).rotated(die.normalOf(die.faces[away]));
-    expect(landed.z, closeTo(1, 1e-9),
-        reason: 'the far face never came round');
+    expect(landed.z, closeTo(1, 1e-9), reason: 'the far face never came round');
   });
 
   test('a die has as many faces as it has sides', () {

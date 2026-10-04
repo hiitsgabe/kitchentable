@@ -24,14 +24,13 @@ RoomConfig _config({
   DeckFormat format = DeckFormat.commander,
   int seats = 4,
   int? life,
-}) =>
-    RoomConfig(
-      format: format,
-      seats: seats,
-      life: life,
-      hostName: 'kit',
-      roomName: 'the kitchen',
-    );
+}) => RoomConfig(
+  format: format,
+  seats: seats,
+  life: life,
+  hostName: 'kit',
+  roomName: 'the kitchen',
+);
 
 void main() {
   test('a code is typable out loud', () {
@@ -61,7 +60,8 @@ void main() {
     expect(
       source.existsSync(),
       isTrue,
-      reason: 'this reads the source, so it has to run from the package root. '
+      reason:
+          'this reads the source, so it has to run from the package root. '
           'cwd is ${Directory.current.path}',
     );
 
@@ -71,7 +71,8 @@ void main() {
           .map((m) => m.group(0))
           .toSet(),
       {'Random.secure'},
-      reason: 'the code is the whole of the invitation: there is nothing '
+      reason:
+          'the code is the whole of the invitation: there is nothing '
           'behind it, so a generator somebody can predict is a room somebody '
           'can walk into',
     );
@@ -83,8 +84,11 @@ void main() {
 
     expect(link, 'https://example.test/app/#room=$code');
     expect(codeFrom(link), code);
-    expect(codeFrom('https://example.test/app/#room=${code.toUpperCase()}'),
-        code, reason: 'a code read out and typed back in has a case');
+    expect(
+      codeFrom('https://example.test/app/#room=${code.toUpperCase()}'),
+      code,
+      reason: 'a code read out and typed back in has a case',
+    );
     expect(codeFrom('https://example.test/app/'), isNull);
     expect(codeFrom('nonsense'), isNull);
   });
@@ -145,9 +149,10 @@ void main() {
     // And changing the format leaves a life somebody typed alone, which is the
     // reason the default lives in the constructor and not in `copyWith`.
     expect(
-      _config(format: DeckFormat.standard, life: 15)
-          .copyWith(format: DeckFormat.commander)
-          .life,
+      _config(
+        format: DeckFormat.standard,
+        life: 15,
+      ).copyWith(format: DeckFormat.commander).life,
       15,
     );
   });
@@ -170,9 +175,6 @@ void main() {
     expect(_config(), _config());
     expect(_config(life: 30), isNot(_config(life: 31)));
     expect(_config(seats: 2), isNot(_config(seats: 3)));
-    expect(
-      _config(),
-      isNot(_config().copyWith(roomName: 'the shed')),
-    );
+    expect(_config(), isNot(_config().copyWith(roomName: 'the shed')));
   });
 }

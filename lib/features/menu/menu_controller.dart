@@ -9,13 +9,16 @@ class MenuEntry {
   const MenuEntry({
     required this.id,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     required this.enabled,
   });
 
   final MenuEntryId id;
   final String title;
-  final String subtitle;
+
+  /// Why a row cannot be pressed, and nothing else. A row that can be
+  /// pressed is its own word: the menu used to explain every one.
+  final String? subtitle;
   final bool enabled;
 }
 
@@ -30,9 +33,6 @@ class MenuState {
 
   bool get hasCatalog => cardCount > 0;
 
-  String get headline =>
-      hasCatalog ? '$cardCount CARDS' : 'NO SOURCES CONFIGURED';
-
   /// Always Play. It was the first thing you could not press on a fresh
   /// install, which is why the first run is a wizard now and not a wall.
   MenuEntryId get initialFocus => MenuEntryId.play;
@@ -41,30 +41,15 @@ class MenuState {
   /// client in the benchmark says the same thing: one dominant action, and
   /// a menu of five equal rows has none.
   List<MenuEntry> get entries => [
-    MenuEntry(
-      id: MenuEntryId.play,
-      title: 'Play',
-      subtitle: 'make a table and invite people',
-      enabled: true,
-    ),
-    MenuEntry(
-      id: MenuEntryId.join,
-      title: 'Join',
-      subtitle: 'scan their QR, paste their link, or type their code',
-      enabled: true,
-    ),
+    MenuEntry(id: MenuEntryId.play, title: 'Play', enabled: true),
+    MenuEntry(id: MenuEntryId.join, title: 'Join', enabled: true),
     MenuEntry(
       id: MenuEntryId.decks,
       title: 'Decks',
-      subtitle: hasCatalog ? 'build one, or change one' : 'needs a source',
+      subtitle: hasCatalog ? null : 'needs a source',
       enabled: hasCatalog,
     ),
-    const MenuEntry(
-      id: MenuEntryId.settings,
-      title: 'Settings',
-      subtitle: 'your name, sources, network',
-      enabled: true,
-    ),
+    const MenuEntry(id: MenuEntryId.settings, title: 'Settings', enabled: true),
   ];
 }
 

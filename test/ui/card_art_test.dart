@@ -55,26 +55,33 @@ void main() {
   });
 
   test('a card with no pictures at all returns nothing', () {
-    const bare =
-        CatalogCard(oracleId: 'o', name: 'Token', typeLine: 'Token', cmc: 0);
+    const bare = CatalogCard(
+      oracleId: 'o',
+      name: 'Token',
+      typeLine: 'Token',
+      cmc: 0,
+    );
 
     expect(artFor(bare, width: 340, pixelRatio: 2), isNull);
   });
 
-  testWidgets('a card drawn bigger than it asked for takes a bigger file',
-      (tester) async {
+  testWidgets('a card drawn bigger than it asked for takes a bigger file', (
+    tester,
+  ) async {
     Future<String> urlUnder(Widget Function(Widget) wrap) async {
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: wrap(
-            const CardArt(
-              metrics: Metrics(scale: 1, safeInset: 16, focusRing: 2),
-              card: _full,
-              width: 90,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: wrap(
+              const CardArt(
+                metrics: Metrics(scale: 1, safeInset: 16, focusRing: 2),
+                card: _full,
+                width: 90,
+              ),
             ),
           ),
         ),
-      ));
+      );
       await tester.pump();
       return tester.widget<CardImage>(find.byType(CardImage)).url;
     }
@@ -91,9 +98,6 @@ void main() {
     // used to go on asking for the file its own width deserved however far it
     // was zoomed, which is what "a qualidade da imagem das cartas diminui" was
     // on the view with everybody's mat in it.
-    expect(
-      await urlUnder((c) => ArtScale(scale: 2, child: c)),
-      'normal.jpg',
-    );
+    expect(await urlUnder((c) => ArtScale(scale: 2, child: c)), 'normal.jpg');
   });
 }

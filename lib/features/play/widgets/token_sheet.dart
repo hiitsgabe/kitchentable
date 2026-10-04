@@ -115,11 +115,7 @@ class _TokenSheetState extends State<TokenSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SheetHeading(
-              metrics: m,
-              text: 'Make a token',
-              note: 'out of a card in the catalog',
-            ),
+            SheetHeading(metrics: m, text: 'Make a token'),
             SizedBox(height: m.scaled(12)),
             TextFieldBox(
               metrics: m,
@@ -136,9 +132,8 @@ class _TokenSheetState extends State<TokenSheet> {
             // to anybody not reading the type lines.
             if (_results.isNotEmpty && !_results.any(_isToken)) ...[
               Text(
-                'No tokens by that name, only real cards. Tokens come in '
-                'with the cards, so importing a source that carries them is '
-                'the fix.',
+                'No tokens by that name. They come in with a source that '
+                'carries them.',
                 style: TextStyle(
                   fontSize: m.scaled(12),
                   color: Palette.inkFaint,
@@ -148,8 +143,7 @@ class _TokenSheetState extends State<TokenSheet> {
             ],
             if (_results.isEmpty && _searched.isNotEmpty)
               Text(
-                'Nothing by that name in the catalog. Tokens come in with '
-                'the cards, so importing a source again is the fix.',
+                'Nothing by that name in the catalog.',
                 style: TextStyle(
                   fontSize: m.scaled(12),
                   color: Palette.inkFaint,

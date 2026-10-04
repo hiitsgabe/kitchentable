@@ -6,14 +6,14 @@ import 'package:kitchentable/sources/catalog/catalog_db.dart';
 import 'package:kitchentable/sources/import/scryfall_importer.dart';
 
 String _record(String id, String name) => jsonEncode({
-      'oracle_id': id,
-      'name': name,
-      'type_line': 'Creature - Elf',
-      'cmc': 2,
-      'color_identity': ['G'],
-      'legalities': {'commander': 'legal'},
-      'image_uris': {'small': 'https://example.invalid/$id.jpg'},
-    });
+  'oracle_id': id,
+  'name': name,
+  'type_line': 'Creature - Elf',
+  'cmc': 2,
+  'color_identity': ['G'],
+  'legalities': {'commander': 'legal'},
+  'image_uris': {'small': 'https://example.invalid/$id.jpg'},
+});
 
 void main() {
   late CatalogDb db;
@@ -24,11 +24,15 @@ void main() {
   test('it indexes every record it is handed', () async {
     final importer = ScryfallImporter(db: db, batchSize: 2);
 
-    await importer.indexFrom(Stream.fromIterable([
-      utf8.encode('${_record('a', 'Llanowar Elves')}\n'
+    await importer.indexFrom(
+      Stream.fromIterable([
+        utf8.encode(
+          '${_record('a', 'Llanowar Elves')}\n'
           '${_record('b', 'Sol Ring')}\n'
-          '${_record('c', 'Birds of Paradise')}\n'),
-    ]));
+          '${_record('c', 'Birds of Paradise')}\n',
+        ),
+      ]),
+    );
 
     expect(await db.cardCount(), 3);
   });
@@ -39,8 +43,10 @@ void main() {
 
     await importer.indexFrom(
       Stream.fromIterable([
-        utf8.encode('${_record('a', 'A')}\n${_record('b', 'B')}\n'
-            '${_record('c', 'C')}\n'),
+        utf8.encode(
+          '${_record('a', 'A')}\n${_record('b', 'B')}\n'
+          '${_record('c', 'C')}\n',
+        ),
       ]),
       onIndexed: seen.add,
     );
@@ -53,19 +59,25 @@ void main() {
     expect(seen, [2, 3]);
   });
 
-  test('a record missing oracle_id is skipped rather than killing the import',
-      () async {
-    final importer = ScryfallImporter(db: db, batchSize: 10);
+  test(
+    'a record missing oracle_id is skipped rather than killing the import',
+    () async {
+      final importer = ScryfallImporter(db: db, batchSize: 10);
 
-    await importer.indexFrom(Stream.fromIterable([
-      utf8.encode('${_record('a', 'A')}\n'
-          '${jsonEncode({'name': 'no id here'})}\n'
-          '${_record('b', 'B')}\n'),
-    ]));
+      await importer.indexFrom(
+        Stream.fromIterable([
+          utf8.encode(
+            '${_record('a', 'A')}\n'
+            '${jsonEncode({'name': 'no id here'})}\n'
+            '${_record('b', 'B')}\n',
+          ),
+        ]),
+      );
 
-    expect(await db.cardCount(), 2);
-    expect(importer.skipped, 1);
-  });
+      expect(await db.cardCount(), 2);
+      expect(importer.skipped, 1);
+    },
+  );
 
   test('it finds the jsonl url in a bulk object', () {
     final url = ScryfallImporter.jsonlUrlFrom({

@@ -4,18 +4,13 @@ import 'package:kitchentable/decks/model/deck_format.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 import 'package:kitchentable/table/setup.dart';
 
-CatalogCard _card(String name) => CatalogCard(
-      oracleId: name,
-      name: name,
-      typeLine: 'Instant',
-      cmc: 1,
-    );
+CatalogCard _card(String name) =>
+    CatalogCard(oracleId: name, name: name, typeLine: 'Instant', cmc: 1);
 
 Deck _deck({
   DeckFormat format = DeckFormat.commander,
   List<DeckSlot> slots = const [],
-}) =>
-    Deck(id: 'd1', name: 'a deck', format: format, slots: slots);
+}) => Deck(id: 'd1', name: 'a deck', format: format, slots: slots);
 
 void main() {
   test('every copy of a card becomes its own card on the table', () {
@@ -25,8 +20,9 @@ void main() {
       seed: 'abc',
     );
 
-    final library = table.seats.single.zones
-        .firstWhere((z) => z.id.startsWith('library'));
+    final library = table.seats.single.zones.firstWhere(
+      (z) => z.id.startsWith('library'),
+    );
 
     expect(library.size, 30, reason: '37 dealt, 7 drawn');
     expect(
@@ -43,18 +39,21 @@ void main() {
       seed: 'abc',
     );
 
-    final hand =
-        table.seats.single.zones.firstWhere((z) => z.id.startsWith('hand'));
+    final hand = table.seats.single.zones.firstWhere(
+      (z) => z.id.startsWith('hand'),
+    );
 
     expect(hand.size, 7);
   });
 
   test('a commander starts in the command zone, not the library', () {
     final table = sitDown(
-      deck: _deck(slots: [
-        DeckSlot(card: _card('Atraxa'), quantity: 1, commander: true),
-        DeckSlot(card: _card('Mountain'), quantity: 99),
-      ]),
+      deck: _deck(
+        slots: [
+          DeckSlot(card: _card('Atraxa'), quantity: 1, commander: true),
+          DeckSlot(card: _card('Mountain'), quantity: 99),
+        ],
+      ),
       seatName: 'you',
       seed: 'abc',
     );
@@ -70,10 +69,13 @@ void main() {
 
   test('the sideboard does not come to the table', () {
     final table = sitDown(
-      deck: _deck(format: DeckFormat.standard, slots: [
-        DeckSlot(card: _card('Bolt'), quantity: 60),
-        DeckSlot(card: _card('Pyroblast'), quantity: 15, sideboard: true),
-      ]),
+      deck: _deck(
+        format: DeckFormat.standard,
+        slots: [
+          DeckSlot(card: _card('Bolt'), quantity: 60),
+          DeckSlot(card: _card('Pyroblast'), quantity: 15, sideboard: true),
+        ],
+      ),
       seatName: 'you',
       seed: 'abc',
     );
@@ -105,10 +107,12 @@ void main() {
   test('the same seed seats you with the same opening hand', () {
     List<String> handFor(String seed) {
       final table = sitDown(
-        deck: _deck(slots: [
-          for (var i = 0; i < 60; i++)
-            DeckSlot(card: _card('card$i'), quantity: 1),
-        ]),
+        deck: _deck(
+          slots: [
+            for (var i = 0; i < 60; i++)
+              DeckSlot(card: _card('card$i'), quantity: 1),
+          ],
+        ),
         seatName: 'you',
         seed: seed,
       );
@@ -130,10 +134,12 @@ void main() {
 
   test('a commander is out of the deck before a shuffle can touch it', () {
     final table = sitDown(
-      deck: _deck(slots: [
-        DeckSlot(card: _card('General'), quantity: 1, commander: true),
-        DeckSlot(card: _card('Mountain'), quantity: 99),
-      ]),
+      deck: _deck(
+        slots: [
+          DeckSlot(card: _card('General'), quantity: 1, commander: true),
+          DeckSlot(card: _card('Mountain'), quantity: 99),
+        ],
+      ),
       seatName: 'you',
       seed: 'abc',
     );
@@ -142,9 +148,14 @@ void main() {
     final library = table.zone('library-s1')!;
 
     expect(command.cards, hasLength(1));
-    expect(library.cards.any((c) => c.oracleId == 'General'), isFalse,
-        reason: 'the commander must never be in the deck');
-    expect(table.zone('hand-s1')!.cards.any((c) => c.oracleId == 'General'),
-        isFalse);
+    expect(
+      library.cards.any((c) => c.oracleId == 'General'),
+      isFalse,
+      reason: 'the commander must never be in the deck',
+    );
+    expect(
+      table.zone('hand-s1')!.cards.any((c) => c.oracleId == 'General'),
+      isFalse,
+    );
   });
 }

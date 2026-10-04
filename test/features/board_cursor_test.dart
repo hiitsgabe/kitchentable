@@ -74,8 +74,11 @@ void main() {
     final cursor = BoardCursor.start(only)!.step(1, zones: only);
 
     expect(cursor.changeZone(1, zones: only).zoneId, 'battlefield-s1');
-    expect(cursor.changeZone(1, zones: only).index, 1,
-        reason: 'a pile change that changes nothing must not move the ring');
+    expect(
+      cursor.changeZone(1, zones: only).index,
+      1,
+      reason: 'a pile change that changes nothing must not move the ring',
+    );
   });
 
   test('a pile that shrank under the cursor pulls it back', () {

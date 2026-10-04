@@ -3,9 +3,8 @@ import 'package:kitchentable/table/model/card_instance.dart';
 import 'package:kitchentable/table/shuffle.dart';
 
 List<CardInstance> _deck(int n) => [
-      for (var i = 0; i < n; i++)
-        CardInstance(id: 'c$i', oracleId: 'card$i'),
-    ];
+  for (var i = 0; i < n; i++) CardInstance(id: 'c$i', oracleId: 'card$i'),
+];
 
 void main() {
   test('the same seed gives the same order, every time', () {
@@ -53,8 +52,11 @@ void main() {
 
   test('a commitment gives nothing away about the seed', () {
     expect(commitToSeed('abc'), isNot(contains('abc')));
-    expect(commitToSeed('abc').length, 64,
-        reason: 'a sha256 in hex, whatever the seed was');
+    expect(
+      commitToSeed('abc').length,
+      64,
+      reason: 'a sha256 in hex, whatever the seed was',
+    );
   });
 
   test('the seed becomes a number every platform agrees on', () {
@@ -78,9 +80,13 @@ void main() {
   test('the number is one dart2js can hold exactly', () {
     for (final seed in ['abc', '', 'a much longer seed than that one']) {
       final n = seedToInt(seed);
-      expect(n, inInclusiveRange(0, 0xFFFFFFFF),
-          reason: 'past 2^53 a browser starts rounding and the two platforms '
-              'stop agreeing again');
+      expect(
+        n,
+        inInclusiveRange(0, 0xFFFFFFFF),
+        reason:
+            'past 2^53 a browser starts rounding and the two platforms '
+            'stop agreeing again',
+      );
     }
   });
 

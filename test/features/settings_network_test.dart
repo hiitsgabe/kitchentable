@@ -33,7 +33,11 @@ void main() {
     turn.set(url: '  ', username: 'kit', credential: 'hunter2');
     expect(container.read(turnProvider), isNull);
 
-    turn.set(url: ' turn:turn.example.net:3478 ', username: 'kit ', credential: ' hunter2');
+    turn.set(
+      url: ' turn:turn.example.net:3478 ',
+      username: 'kit ',
+      credential: ' hunter2',
+    );
     final server = container.read(turnProvider)!;
     expect(server.url, 'turn:turn.example.net:3478');
     expect(server.username, 'kit');
@@ -70,10 +74,12 @@ void main() {
     await _pump(tester, container);
 
     String text(String key) => tester
-        .widget<TextField>(find.descendant(
-          of: find.byKey(Key(key)),
-          matching: find.byType(TextField),
-        ))
+        .widget<TextField>(
+          find.descendant(
+            of: find.byKey(Key(key)),
+            matching: find.byType(TextField),
+          ),
+        )
         .controller!
         .text;
     expect(text('turn-url'), 'turn:turn.example.net:3478');
@@ -83,7 +89,9 @@ void main() {
 
   test('it is remembered', () async {
     final first = ProviderContainer();
-    await first.read(turnProvider.notifier).set(
+    await first
+        .read(turnProvider.notifier)
+        .set(
           url: 'turn:turn.example.net:3478',
           username: 'kit',
           credential: 'hunter2',

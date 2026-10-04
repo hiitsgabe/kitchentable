@@ -64,8 +64,11 @@ void main() {
           nearest = f;
         }
       }
-      expect(nearest, rolled,
-          reason: 'a ${die.sides} sided die showing $rolled points elsewhere');
+      expect(
+        nearest,
+        rolled,
+        reason: 'a ${die.sides} sided die showing $rolled points elsewhere',
+      );
     }
   });
 

@@ -27,7 +27,6 @@ void main() {
 
     expect(state.cardCount, 0);
     expect(state.hasCatalog, isFalse);
-    expect(state.headline, 'NO SOURCES CONFIGURED');
   });
 
   test('without a catalog the menu still opens, and Decks is the one shut '
@@ -50,7 +49,9 @@ void main() {
   test('importing without a catalog fails with a readable reason', () async {
     final container = _containerWithoutCatalog();
 
-    await container.read(importProvider.notifier).run(
+    await container
+        .read(importProvider.notifier)
+        .run(
           SourceDef(
             id: 'scryfall_oracle',
             name: 'Scryfall',
@@ -69,7 +70,9 @@ void main() {
   test('a failed import never reports progress it did not make', () async {
     final container = _containerWithoutCatalog();
 
-    await container.read(importProvider.notifier).run(
+    await container
+        .read(importProvider.notifier)
+        .run(
           SourceDef(
             id: 'scryfall_oracle',
             name: 'Scryfall',

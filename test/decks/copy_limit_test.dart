@@ -7,14 +7,13 @@ CatalogCard _card({
   String name = 'Lightning Bolt',
   String typeLine = 'Instant',
   String? oracleText,
-}) =>
-    CatalogCard(
-      oracleId: name,
-      name: name,
-      typeLine: typeLine,
-      cmc: 1,
-      oracleText: oracleText,
-    );
+}) => CatalogCard(
+  oracleId: name,
+  name: name,
+  typeLine: typeLine,
+  cmc: 1,
+  oracleText: oracleText,
+);
 
 void main() {
   group('copy limits', () {
@@ -26,12 +25,18 @@ void main() {
     });
 
     test('a basic land escapes the limit even in Commander', () {
-      final mountain = _card(name: 'Mountain', typeLine: 'Basic Land - Mountain');
+      final mountain = _card(
+        name: 'Mountain',
+        typeLine: 'Basic Land - Mountain',
+      );
       expect(copyLimitFor(mountain, DeckFormat.commander), greaterThan(99));
     });
 
     test('a nonbasic land does not escape it', () {
-      final saga = _card(name: "Urza's Saga", typeLine: 'Enchantment Land - Urza');
+      final saga = _card(
+        name: "Urza's Saga",
+        typeLine: 'Enchantment Land - Urza',
+      );
       expect(copyLimitFor(saga, DeckFormat.commander), 1);
     });
 
@@ -39,7 +44,8 @@ void main() {
       final rats = _card(
         name: 'Relentless Rats',
         typeLine: 'Creature - Rat',
-        oracleText: 'Relentless Rats gets +1/+1 for each other creature you '
+        oracleText:
+            'Relentless Rats gets +1/+1 for each other creature you '
             'control named Relentless Rats.\nA deck can have any number of '
             'cards named Relentless Rats.',
       );
@@ -69,7 +75,10 @@ void main() {
 
     test('Standard and Pauper are the same shape, different filter', () {
       expect(DeckFormat.standard.deckSize, DeckFormat.pauper.deckSize);
-      expect(DeckFormat.standard.sideboardSize, DeckFormat.pauper.sideboardSize);
+      expect(
+        DeckFormat.standard.sideboardSize,
+        DeckFormat.pauper.sideboardSize,
+      );
       expect(DeckFormat.standard.startingLife, DeckFormat.pauper.startingLife);
       expect(DeckFormat.standard.legalityKey, 'standard');
       expect(DeckFormat.pauper.legalityKey, 'pauper');

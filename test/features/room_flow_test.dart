@@ -177,7 +177,7 @@ Future<void> _pump(
 
 /// What the frame says under the title, before it is set in capitals.
 String _label(WidgetTester tester) =>
-    tester.widget<ScreenFrame>(find.byType(ScreenFrame)).label;
+    tester.widget<ScreenFrame>(find.byType(ScreenFrame)).label ?? '';
 
 /// The text under a key, and a named failure when there is none.
 ///
@@ -226,8 +226,8 @@ void main() {
 
       final play = state.entries.firstWhere((e) => e.id == MenuEntryId.play);
       final join = state.entries.firstWhere((e) => e.id == MenuEntryId.join);
-      expect(play.subtitle, contains('invite'));
-      expect(join.subtitle, contains('link'));
+      expect(play.subtitle, isNull);
+      expect(join.subtitle, isNull);
     });
 
     // The whole of this task in one case. Not a hand written list of the rows
@@ -421,7 +421,7 @@ void main() {
 
       final atFewest = _textAt(tester, 'seats-note');
       expect(atFewest, contains('${roomSeatChoices.first}'));
-      expect(atFewest, contains('as few as'));
+      expect(atFewest, contains('fewest'));
 
       await tester.tap(find.byKey(const Key('seats-down')));
       await tester.pump();
@@ -452,7 +452,7 @@ void main() {
 
       final atMost = _textAt(tester, 'seats-note');
       expect(atMost, contains('${roomSeatChoices.last}'));
-      expect(atMost, contains('as many as'));
+      expect(atMost, contains('most'));
       expect(
         atMost,
         isNot(atFewest),

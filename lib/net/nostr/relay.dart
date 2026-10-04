@@ -466,9 +466,7 @@ class _Socket {
       return;
     }
     if (!reason.startsWith('rate-limited:')) return;
-    _rest = _rest == Duration.zero
-        ? _relay.restAfterFlood
-        : _rest * 2;
+    _rest = _rest == Duration.zero ? _relay.restAfterFlood : _rest * 2;
     if (_rest > _relay.restAtMost) _rest = _relay.restAtMost;
     _restUntil = DateTime.now().add(_rest);
   }

@@ -48,8 +48,11 @@ void main() {
     final (taken, rest) = library.takeFromTop(7);
 
     expect(taken.length, 1);
-    expect(rest.cards, isEmpty,
-        reason: 'drawing from an empty library is a rule, not a crash');
+    expect(
+      rest.cards,
+      isEmpty,
+      reason: 'drawing from an empty library is a rule, not a crash',
+    );
   });
 
   test('an unordered zone still holds what it is given', () {
@@ -63,8 +66,11 @@ void main() {
     );
 
     expect(battlefield.cards.single.id, 'a');
-    expect(battlefield.top, isNull,
-        reason: 'an unordered pile has no top to speak of');
+    expect(
+      battlefield.top,
+      isNull,
+      reason: 'an unordered pile has no top to speak of',
+    );
   });
 
   test('adding puts a card where the zone says it goes', () {
@@ -77,15 +83,20 @@ void main() {
       cards: [_card('a')],
     );
 
-    expect(graveyard.add(_card('b')).cards.map((c) => c.id), ['b', 'a'],
-        reason: 'the last card into a graveyard is the one on top');
+    expect(graveyard.add(_card('b')).cards.map((c) => c.id), [
+      'b',
+      'a',
+    ], reason: 'the last card into a graveyard is the one on top');
   });
 
   test('a zone knows who may look at it', () {
     expect(ZoneVisibility.public.seenBy('s1', owner: 's2'), isTrue);
     expect(ZoneVisibility.owner.seenBy('s1', owner: 's2'), isFalse);
     expect(ZoneVisibility.owner.seenBy('s2', owner: 's2'), isTrue);
-    expect(ZoneVisibility.hidden.seenBy('s2', owner: 's2'), isFalse,
-        reason: 'not even its owner reads their own library');
+    expect(
+      ZoneVisibility.hidden.seenBy('s2', owner: 's2'),
+      isFalse,
+      reason: 'not even its owner reads their own library',
+    );
   });
 }

@@ -31,9 +31,9 @@ void main() {
     // Which is the same thing said without a product, so the two readings
     // cannot both be true.
     expect(
-        ((aboutZ * aboutX).rotated(v) - aboutX.rotated(aboutZ.rotated(v)))
-            .length,
-        lessThan(1e-12));
+      ((aboutZ * aboutX).rotated(v) - aboutX.rotated(aboutZ.rotated(v))).length,
+      lessThan(1e-12),
+    );
 
     // So `tumble` has to put the settle on the left, and that is observable
     // rather than a matter of taste. With the settle first the spin is a turn
@@ -46,11 +46,12 @@ void main() {
       final held = die.settle(face).inverted().rotated(tumbleAxis);
       for (final at in [0.0, 0.2, 0.5, 0.9, 1.0]) {
         expect(
-            (tumble(die: die, face: face, spin: 3, at: at).rotated(held) -
-                    tumbleAxis)
-                .length,
-            lessThan(1e-9),
-            reason: 'face $face at $at turns about somewhere else');
+          (tumble(die: die, face: face, spin: 3, at: at).rotated(held) -
+                  tumbleAxis)
+              .length,
+          lessThan(1e-9),
+          reason: 'face $face at $at turns about somewhere else',
+        );
       }
     }
   });
@@ -58,15 +59,20 @@ void main() {
   test('a tumble ends exactly where the die settles', () {
     for (final die in [Polyhedron.d6, Polyhedron.d12, Polyhedron.d20]) {
       for (var face = 0; face < die.faces.length; face++) {
-        final landed =
-            tumble(die: die, face: face, spin: 3, at: 1).rotated(
-          die.normalOf(die.faces[face]),
-        );
+        final landed = tumble(
+          die: die,
+          face: face,
+          spin: 3,
+          at: 1,
+        ).rotated(die.normalOf(die.faces[face]));
 
         // Not close to the camera. On it. A die that settles a degree out
         // reads as a die resting on an edge.
-        expect(landed.z, closeTo(1, 1e-9),
-            reason: 'face $face of a ${die.sides} sided die did not land');
+        expect(
+          landed.z,
+          closeTo(1, 1e-9),
+          reason: 'face $face of a ${die.sides} sided die did not land',
+        );
       }
     }
   });
@@ -78,10 +84,11 @@ void main() {
 
     // A "tumble" that is the settle all the way through is a die that
     // teleports to its answer, which is what a still picture looks like.
-    expect((middle.rotated(Vector3(0, 0, 1)) -
-                settled.rotated(Vector3(0, 0, 1)))
-            .length,
-        greaterThan(0.1));
+    expect(
+      (middle.rotated(Vector3(0, 0, 1)) - settled.rotated(Vector3(0, 0, 1)))
+          .length,
+      greaterThan(0.1),
+    );
   });
 
   test('more spin is more turning', () {
@@ -112,8 +119,10 @@ void main() {
     // No randomness inside. What is random is the number, which is rolled by
     // the caller, because `apply` has to be a function or replaying a game
     // gives a different game.
-    expect((once.rotated(Vector3(1, 2, 3)) - twice.rotated(Vector3(1, 2, 3)))
-        .length, lessThan(1e-12));
+    expect(
+      (once.rotated(Vector3(1, 2, 3)) - twice.rotated(Vector3(1, 2, 3))).length,
+      lessThan(1e-12),
+    );
   });
 
   test('a roll is a number on the die', () {

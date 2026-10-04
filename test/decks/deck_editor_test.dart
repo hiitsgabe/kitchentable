@@ -10,11 +10,11 @@ import 'package:kitchentable/sources/catalog/catalog_db.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 
 CatalogCard _card(String name, {String typeLine = 'Instant'}) => CatalogCard(
-      oracleId: name.toLowerCase(),
-      name: name,
-      typeLine: typeLine,
-      cmc: 1,
-    );
+  oracleId: name.toLowerCase(),
+  name: name,
+  typeLine: typeLine,
+  cmc: 1,
+);
 
 void main() {
   late CatalogDb db;
@@ -30,11 +30,9 @@ void main() {
     container = ProviderContainer(
       overrides: [catalogDbProvider.overrideWithValue(db)],
     );
-    await DeckRepository(db).save(const Deck(
-      id: 'd1',
-      name: 'pod deck',
-      format: DeckFormat.commander,
-    ));
+    await DeckRepository(db).save(
+      const Deck(id: 'd1', name: 'pod deck', format: DeckFormat.commander),
+    );
     await container.read(deckEditorProvider.notifier).open('d1');
   });
   tearDown(() {
@@ -95,8 +93,11 @@ void main() {
     expect(deck().commanders.single.card.name, 'Atraxa');
 
     await editor().makeCommander(sol);
-    expect(deck().commanders.single.card.name, 'Sol Ring',
-        reason: 'a deck has one commander, naming a second replaces the first');
+    expect(
+      deck().commanders.single.card.name,
+      'Sol Ring',
+      reason: 'a deck has one commander, naming a second replaces the first',
+    );
     expect(deck().commanders.length, 1);
   });
 
@@ -106,12 +107,18 @@ void main() {
 
     await editor().setQuantity(sol, 2);
 
-    expect(deck().quantityOf('sol ring'), 1,
-        reason: 'Commander is singleton and the button is not an exception');
+    expect(
+      deck().quantityOf('sol ring'),
+      1,
+      reason: 'Commander is singleton and the button is not an exception',
+    );
   });
 
   test('the plus button still works on a basic land', () async {
-    final mountain = DeckSlot(card: _card('Mountain', typeLine: 'Basic Land - Mountain'), quantity: 1);
+    final mountain = DeckSlot(
+      card: _card('Mountain', typeLine: 'Basic Land - Mountain'),
+      quantity: 1,
+    );
     await editor().add(mountain);
 
     await editor().setQuantity(mountain, 37);
@@ -121,8 +128,11 @@ void main() {
 
   test('the limit counts the sideboard copy too', () async {
     final sol = DeckSlot(card: _card('Sol Ring'), quantity: 1);
-    final solSide =
-        DeckSlot(card: _card('Sol Ring'), quantity: 1, sideboard: true);
+    final solSide = DeckSlot(
+      card: _card('Sol Ring'),
+      quantity: 1,
+      sideboard: true,
+    );
     await editor().add(sol);
     await editor().add(solSide);
 
@@ -132,7 +142,10 @@ void main() {
   });
 
   test('going down is never refused', () async {
-    final mountain = DeckSlot(card: _card('Mountain', typeLine: 'Basic Land - Mountain'), quantity: 10);
+    final mountain = DeckSlot(
+      card: _card('Mountain', typeLine: 'Basic Land - Mountain'),
+      quantity: 10,
+    );
     await editor().add(mountain);
 
     await editor().setQuantity(mountain, 4);
@@ -146,8 +159,11 @@ void main() {
     editor().close();
     await editor().open('d1');
 
-    expect(deck().name, 'Atraxa superfriends',
-        reason: 'the name is on the deck, not on the screen that set it');
+    expect(
+      deck().name,
+      'Atraxa superfriends',
+      reason: 'the name is on the deck, not on the screen that set it',
+    );
   });
 
   test('renaming leaves the cards alone', () async {
@@ -167,8 +183,11 @@ void main() {
     await editor().standDownCommander();
 
     expect(deck().commanders, isEmpty);
-    expect(deck().quantityOf('atraxa'), 1,
-        reason: 'standing down returns the card, it does not destroy it');
+    expect(
+      deck().quantityOf('atraxa'),
+      1,
+      reason: 'standing down returns the card, it does not destroy it',
+    );
   });
 
   test('promoting a commander survives closing the deck', () async {
@@ -179,23 +198,30 @@ void main() {
     editor().close();
     await editor().open('d1');
 
-    expect(deck().commanders.single.card.name, 'Atraxa',
-        reason: 'the job is on the deck, not on the screen that assigned it');
+    expect(
+      deck().commanders.single.card.name,
+      'Atraxa',
+      reason: 'the job is on the deck, not on the screen that assigned it',
+    );
   });
 
   test('a commander counts inside the hundred, not beside it', () async {
     await editor().addAll([
       DeckSlot(card: _card('Atraxa'), quantity: 1),
-      DeckSlot(card: _card('Mountain', typeLine: 'Basic Land - Mountain'), quantity: 9),
+      DeckSlot(
+        card: _card('Mountain', typeLine: 'Basic Land - Mountain'),
+        quantity: 9,
+      ),
     ]);
     final before = deck().mainCount;
 
-    await editor().makeCommander(
-      DeckSlot(card: _card('Atraxa'), quantity: 1),
-    );
+    await editor().makeCommander(DeckSlot(card: _card('Atraxa'), quantity: 1));
 
-    expect(deck().mainCount, before,
-        reason: 'promoting moves a card between piles, it does not add one');
+    expect(
+      deck().mainCount,
+      before,
+      reason: 'promoting moves a card between piles, it does not add one',
+    );
   });
 
   test('a pasted list is written once, not once per card', () async {

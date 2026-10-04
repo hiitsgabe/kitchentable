@@ -50,7 +50,7 @@ class _BackdropScreenState extends ConsumerState<BackdropScreen> {
     return ScreenFrame(
       metrics: m,
       title: 'Background',
-      label: '${style.kind.label} · it changes as you pick',
+      label: style.kind.label,
       onBack: () => Navigator.of(context).maybePop(),
       home: true,
       children: [
@@ -90,9 +90,6 @@ class _BackdropScreenState extends ConsumerState<BackdropScreen> {
               title: style.imageData == null
                   ? 'Choose a picture'
                   : 'Choose a different picture',
-              subtitle: _picking
-                  ? 'waiting for you to pick one'
-                  : 'it is shrunk and kept on this device',
               icon: Icons.image_search_rounded,
               tone: SlabTone.cool,
               metrics: m,
@@ -116,7 +113,6 @@ class _BackdropScreenState extends ConsumerState<BackdropScreen> {
             MenuRow(
               key: const Key('backdrop-clear'),
               title: 'Remove the picture',
-              subtitle: 'back to the colours below',
               icon: Icons.delete_outline_rounded,
               metrics: m,
               onActivate: () =>
@@ -128,9 +124,8 @@ class _BackdropScreenState extends ConsumerState<BackdropScreen> {
         _Said(
           metrics: m,
           text:
-              'It is the background, and everything the app draws to point '
-              'at something: borders, the focus ring, your own board, the '
-              'buttons you press.',
+              'The background, and the colour of everything that points at '
+              'something.',
         ),
         Wrap(
           spacing: m.scaled(10),

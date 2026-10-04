@@ -7,29 +7,29 @@ import 'package:kitchentable/table/model/table_state.dart';
 import 'package:kitchentable/table/model/zone.dart';
 
 Zone _zone(String id, ZoneVisibility v, bool ordered, List<String> ids) => Zone(
-      id: id,
-      seatId: 's1',
-      label: id,
-      visibility: v,
-      ordered: ordered,
-      cards: [for (final i in ids) CardInstance(id: i, oracleId: 'card-$i')],
-    );
+  id: id,
+  seatId: 's1',
+  label: id,
+  visibility: v,
+  ordered: ordered,
+  cards: [for (final i in ids) CardInstance(id: i, oracleId: 'card-$i')],
+);
 
 TableState _table() => TableState(
-      seats: [
-        Seat(
-          id: 's1',
-          name: 'you',
-          life: 40,
-          zones: [
-            _zone('library', ZoneVisibility.hidden, true, ['a', 'b', 'c']),
-            _zone('hand', ZoneVisibility.owner, false, []),
-            _zone('battlefield', ZoneVisibility.public, false, []),
-            _zone('graveyard', ZoneVisibility.public, true, []),
-          ],
-        ),
+  seats: [
+    Seat(
+      id: 's1',
+      name: 'you',
+      life: 40,
+      zones: [
+        _zone('library', ZoneVisibility.hidden, true, ['a', 'b', 'c']),
+        _zone('hand', ZoneVisibility.owner, false, []),
+        _zone('battlefield', ZoneVisibility.public, false, []),
+        _zone('graveyard', ZoneVisibility.public, true, []),
       ],
-    );
+    ),
+  ],
+);
 
 void main() {
   test('moving takes a card out of one pile and puts it in another', () {
@@ -40,12 +40,18 @@ void main() {
   });
 
   test('moving a card into the zone it is already in does not lose it', () {
-    final next = apply(_table(), const MoveCard(cardId: 'a', toZoneId: 'library'));
+    final next = apply(
+      _table(),
+      const MoveCard(cardId: 'a', toZoneId: 'library'),
+    );
 
     // A card can be moved within its own pile, to reorder it. It must still
     // be there afterwards, not vanish because it was briefly present twice.
-    expect(next.zone('library')!.cards.map((c) => c.id).toSet(),
-        {'a', 'b', 'c'});
+    expect(next.zone('library')!.cards.map((c) => c.id).toSet(), {
+      'a',
+      'b',
+      'c',
+    });
     expect(next.zone('library')!.size, 3);
   });
 
@@ -121,7 +127,10 @@ void main() {
   });
 
   test('rotating a card turns only that card', () {
-    final table = apply(_table(), const MoveCard(cardId: 'a', toZoneId: 'battlefield'));
+    final table = apply(
+      _table(),
+      const MoveCard(cardId: 'a', toZoneId: 'battlefield'),
+    );
     final next = apply(table, const RotateCard('a'));
 
     expect(next.locate('a')!.card.rotation, 90);
@@ -129,7 +138,10 @@ void main() {
   });
 
   test('counters land on the right card', () {
-    final table = apply(_table(), const MoveCard(cardId: 'a', toZoneId: 'battlefield'));
+    final table = apply(
+      _table(),
+      const MoveCard(cardId: 'a', toZoneId: 'battlefield'),
+    );
     final next = apply(
       table,
       const ChangeCounter(cardId: 'a', kind: '+1/+1', by: 2),
@@ -139,7 +151,10 @@ void main() {
   });
 
   test('attaching points one card at another, and detaching lets go', () {
-    var table = apply(_table(), const MoveCard(cardId: 'a', toZoneId: 'battlefield'));
+    var table = apply(
+      _table(),
+      const MoveCard(cardId: 'a', toZoneId: 'battlefield'),
+    );
     table = apply(table, const MoveCard(cardId: 'b', toZoneId: 'battlefield'));
 
     final on = apply(table, const AttachCard(cardId: 'b', toCardId: 'a'));
@@ -155,8 +170,11 @@ void main() {
       const ShuffleZone(zoneId: 'library', seed: 'abc'),
     );
 
-    expect(next.zone('library')!.cards.map((c) => c.id).toSet(),
-        {'a', 'b', 'c'});
+    expect(next.zone('library')!.cards.map((c) => c.id).toSet(), {
+      'a',
+      'b',
+      'c',
+    });
   });
 
   test('a token arrives on the battlefield with the id it was given', () {
@@ -186,11 +204,10 @@ void main() {
 
   test('every action leaves the one it was given alone', () {
     final before = _table();
-    apply(before, const DrawCards(
-      fromZoneId: 'library',
-      toZoneId: 'hand',
-      count: 3,
-    ));
+    apply(
+      before,
+      const DrawCards(fromZoneId: 'library', toZoneId: 'hand', count: 3),
+    );
 
     // The point of an immutable state: plan 3 keeps old ones around for undo
     // and for replay, and a reducer that edited in place would corrupt both.
@@ -199,7 +216,10 @@ void main() {
   });
 
   test('rotating twice leaves a card where it started', () {
-    final table = apply(_table(), const MoveCard(cardId: 'a', toZoneId: 'battlefield'));
+    final table = apply(
+      _table(),
+      const MoveCard(cardId: 'a', toZoneId: 'battlefield'),
+    );
     final once = apply(table, const RotateCard('a'));
     final twice = apply(once, const RotateCard('a'));
 
@@ -208,7 +228,10 @@ void main() {
   });
 
   test('rotating to an angle sets it', () {
-    final table = apply(_table(), const MoveCard(cardId: 'a', toZoneId: 'battlefield'));
+    final table = apply(
+      _table(),
+      const MoveCard(cardId: 'a', toZoneId: 'battlefield'),
+    );
     final next = apply(table, const RotateCard('a', to: 180));
 
     expect(next.locate('a')!.card.rotation, 180);

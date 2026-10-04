@@ -43,7 +43,6 @@ class DecksScreen extends ConsumerWidget {
       children: [
         MenuRow(
           title: 'New deck',
-          subtitle: 'pick a format first, it decides the rules',
           icon: Icons.add_rounded,
           metrics: m,
           autofocus: true,

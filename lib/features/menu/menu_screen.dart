@@ -78,7 +78,6 @@ class _Menu extends StatelessWidget {
       metrics: metrics,
       wordmark: true,
       title: 'kitchentable',
-      label: state.headline,
       children: [
         for (final entry in state.entries)
           if (entry.id == MenuEntryId.play)
@@ -86,7 +85,6 @@ class _Menu extends StatelessWidget {
               key: const Key('menu-play'),
               metrics: metrics,
               title: entry.title,
-              subtitle: entry.subtitle,
               onActivate: () => _open(context, entry.id),
             )
           else
@@ -127,13 +125,11 @@ class _PlayRow extends StatelessWidget {
     super.key,
     required this.metrics,
     required this.title,
-    required this.subtitle,
     required this.onActivate,
   });
 
   final Metrics metrics;
   final String title;
-  final String subtitle;
   final VoidCallback onActivate;
 
   @override
@@ -148,7 +144,7 @@ class _PlayRow extends StatelessWidget {
         autofocus: true,
         depth: m.scaled(7),
         onActivate: onActivate,
-        semanticLabel: '$title. $subtitle',
+        semanticLabel: title,
         padding: EdgeInsets.symmetric(
           horizontal: m.scaled(18),
           vertical: m.scaled(18),
@@ -166,15 +162,6 @@ class _PlayRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title.toUpperCase(), style: slabText(m.scaled(30))),
-                  SizedBox(height: m.scaled(4)),
-                  Text(
-                    subtitle,
-                    style: pixel(
-                      size: m.scaled(13),
-                      weight: 500,
-                      color: const Color(0xE0FFFFFF),
-                    ),
-                  ),
                 ],
               ),
             ),

@@ -18,11 +18,7 @@ const _printing = CatalogCard(
 /// it is that it is not one.
 const _card = 50.0;
 
-Widget _host({
-  int count = 0,
-  CatalogCard? face,
-  VoidCallback? onTap,
-}) =>
+Widget _host({int count = 0, CatalogCard? face, VoidCallback? onTap}) =>
     ProviderScope(
       child: MaterialApp(
         home: Scaffold(

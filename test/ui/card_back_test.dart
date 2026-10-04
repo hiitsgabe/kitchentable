@@ -19,29 +19,27 @@ void main() {
   });
 
   testWidgets('a back with a picture draws it', (tester) async {
-    await tester.pumpWidget(const MaterialApp(
-      home: Scaffold(
-        body: CardBack(width: 60, game: Game.magic),
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: CardBack(width: 60, game: Game.magic)),
       ),
-    ));
+    );
     await tester.pump();
 
     expect(find.byKey(const Key('card-back-art')), findsOneWidget);
   });
 
-  testWidgets('a back with no picture is still a card shaped box',
-      (tester) async {
-    await tester.pumpWidget(const MaterialApp(
-      home: Scaffold(body: CardBack(width: 60)),
-    ));
+  testWidgets('a back with no picture is still a card shaped box', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: CardBack(width: 60))),
+    );
     await tester.pump();
 
     // No game means no back to fetch, which is a token or a card the table
     // knows nothing about. It still has to occupy a card's worth of space.
     expect(find.byKey(const Key('card-back-art')), findsNothing);
-    expect(
-      tester.getSize(find.byType(CardBack)),
-      const Size(60, 60 * 88 / 63),
-    );
+    expect(tester.getSize(find.byType(CardBack)), const Size(60, 60 * 88 / 63));
   });
 }

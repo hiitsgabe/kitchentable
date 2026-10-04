@@ -17,16 +17,16 @@ Deck _deck() => Deck(
   name: 'sixty',
   format: DeckFormat.commander,
   slots: [
-    for (var i = 0; i < 60; i++)
-      DeckSlot(card: _card('Card $i'), quantity: 1),
+    for (var i = 0; i < 60; i++) DeckSlot(card: _card('Card $i'), quantity: 1),
   ],
 );
 
 TableState _table({String seed = 'one'}) =>
     sitDown(deck: _deck(), seatName: 'you', seed: seed);
 
-List<String> _hand(TableState table) =>
-    [for (final c in table.zone('hand-s1')!.cards) c.oracleId];
+List<String> _hand(TableState table) => [
+  for (final c in table.zone('hand-s1')!.cards) c.oracleId,
+];
 
 void main() {
   test('a mulligan puts the hand back and deals the same number again', () {
@@ -98,10 +98,7 @@ void main() {
       var table = _table();
       table = apply(table, const TakeMulligan(seatId: 's1', seed: 'a'));
       final card = table.zone('hand-s1')!.cards.first;
-      table = apply(
-        table,
-        MoveCard(cardId: card.id, toZoneId: 'library-s1'),
-      );
+      table = apply(table, MoveCard(cardId: card.id, toZoneId: 'library-s1'));
 
       expect(stillChoosingAHand(table, 's1', deckSize: size), isTrue);
     });
@@ -133,10 +130,7 @@ void main() {
     test('and so does discarding one', () {
       var table = _table();
       final card = table.zone('hand-s1')!.cards.first;
-      table = apply(
-        table,
-        MoveCard(cardId: card.id, toZoneId: 'graveyard-s1'),
-      );
+      table = apply(table, MoveCard(cardId: card.id, toZoneId: 'graveyard-s1'));
 
       expect(stillChoosingAHand(table, 's1', deckSize: size), isFalse);
     });

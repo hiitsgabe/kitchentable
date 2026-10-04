@@ -40,9 +40,13 @@ void main() {
   });
 
   test('television metrics are bigger than handheld metrics', () {
-    expect(Metrics.of(DeviceClass.tv).scale,
-        greaterThan(Metrics.of(DeviceClass.handheld).scale));
-    expect(Metrics.of(DeviceClass.tv).safeInset,
-        greaterThan(Metrics.of(DeviceClass.handheld).safeInset));
+    expect(
+      Metrics.of(DeviceClass.tv).scale,
+      greaterThan(Metrics.of(DeviceClass.handheld).scale),
+    );
+    expect(
+      Metrics.of(DeviceClass.tv).safeInset,
+      greaterThan(Metrics.of(DeviceClass.handheld).safeInset),
+    );
   });
 }

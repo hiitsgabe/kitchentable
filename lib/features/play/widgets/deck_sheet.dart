@@ -202,8 +202,7 @@ class _DeckSheetState extends State<DeckSheet> {
     SheetHeading(metrics: m, text: 'Shuffle the deck?'),
     SizedBox(height: m.scaled(8)),
     Text(
-      'Whatever you have set up on top goes with it. This is the one '
-      'thing here that looking cannot undo.',
+      'Anything set up on top goes with it.',
       style: TextStyle(
         fontSize: m.scaled(13),
         height: 1.35,

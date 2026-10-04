@@ -91,12 +91,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   }
 
   List<Widget> _name_(Metrics m) => [
-    _Said(
-      metrics: m,
-      text:
-          'What should the others call you? It goes on your chair at the '
-          'table, and it is the only thing here that ever leaves this device.',
-    ),
+    _Said(metrics: m, text: 'What should the others call you?'),
     TextFieldBox(
       key: const Key('setup-name'),
       metrics: m,
@@ -124,11 +119,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       _Said(
         metrics: m,
         text: cards > 0
-            ? 'Done: $cards cards on this device. You can add another source '
-                  'later from Settings.'
-            : 'The app ships with no cards. Pick where they come from and it '
-                  'downloads them once, onto this device; nothing is sent '
-                  'anywhere.',
+            ? 'Done: $cards cards on this device.'
+            : 'Pick where the cards come from. They download once, onto '
+                  'this device.',
       ),
       for (final source in knownSources)
         MenuRow(
@@ -178,16 +171,13 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     _Said(
       metrics: m,
       text: cards == 0
-          ? 'A deck needs cards, and there are none yet. You can come back to '
-                'this from Decks once a source is in.'
-          : 'Build one now, or later. You can sit down at a table without '
-                'one and pick it there.',
+          ? 'No cards yet, so no deck yet. Decks, once a source is in.'
+          : 'Now or later: a table lets you pick one when you sit down.',
     ),
     if (cards > 0)
       MenuRow(
         key: const Key('setup-deck'),
         title: 'Build a deck',
-        subtitle: 'pick a game, then put cards in it',
         icon: Icons.style_rounded,
         metrics: m,
         autofocus: true,

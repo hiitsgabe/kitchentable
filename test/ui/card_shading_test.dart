@@ -20,8 +20,11 @@ void main() {
   test('half a turn shows the back, and shows it fully open', () {
     final s = CardShading(yaw: math.pi, pitch: 0);
     expect(s.showingBack, isTrue);
-    expect(s.openness, closeTo(1, 0.001),
-        reason: 'the back is as square to you as the front was');
+    expect(
+      s.openness,
+      closeTo(1, 0.001),
+      reason: 'the back is as square to you as the front was',
+    );
   });
 
   test('a full turn is the same as no turn', () {
@@ -58,8 +61,11 @@ void main() {
           ('groundAlpha', s.groundAlpha),
         ]) {
           expect(v.isNaN, isFalse, reason: '$name was NaN at yaw $yaw');
-          expect(v, inInclusiveRange(0.0, 1.0),
-              reason: '$name was $v at yaw $yaw');
+          expect(
+            v,
+            inInclusiveRange(0.0, 1.0),
+            reason: '$name was $v at yaw $yaw',
+          );
         }
       }
     }
@@ -68,8 +74,11 @@ void main() {
   test('the turn never drifts outside one revolution', () {
     for (var i = -500; i <= 500; i++) {
       final s = CardShading(yaw: i.toDouble(), pitch: 0);
-      expect(s.yaw.abs(), lessThanOrEqualTo(math.pi + 0.0001),
-          reason: 'yaw ${i.toDouble()} wrapped to ${s.yaw}');
+      expect(
+        s.yaw.abs(),
+        lessThanOrEqualTo(math.pi + 0.0001),
+        reason: 'yaw ${i.toDouble()} wrapped to ${s.yaw}',
+      );
     }
   });
 }

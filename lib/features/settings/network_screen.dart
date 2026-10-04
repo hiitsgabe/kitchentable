@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
-import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
-import '../../ui/tokens/palette.dart';
 import 'network.dart';
 import 'settings_parts.dart';
 
@@ -82,10 +80,8 @@ class _NetworkScreenState extends ConsumerState<NetworkScreen> {
         SettingsCaption(
           metrics: m,
           text:
-              'Only for when two phones on different networks cannot reach '
-              'each other, which the room says when it happens. A relay for '
-              'the connection itself: a friend running one, or a public one. '
-              'Left empty, none is used.',
+              'For two phones that cannot reach each other. The room says when '
+              'that happens. Left empty, none is used.',
         ),
         SettingsLabel(metrics: m, text: 'a TURN server'),
         TextFieldBox(
@@ -110,17 +106,6 @@ class _NetworkScreenState extends ConsumerState<NetworkScreen> {
           controller: _credential,
           hint: 'password',
           onChanged: (_) => _set(),
-        ),
-        SizedBox(height: m.scaled(16)),
-        Text(
-          'deploy/coturn in the repository runs one, if nobody at the table '
-          'has one already.',
-          style: pixel(
-            size: m.scaled(11),
-            weight: 500,
-            height: 1.45,
-            color: Palette.inkFaint,
-          ),
         ),
       ],
     );

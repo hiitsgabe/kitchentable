@@ -14,10 +14,6 @@ void main() {
     // Configuration, touched once, and it used to be the brightest thing on
     // the first screen. It lives in Settings now.
     expect(state.entries.map((e) => e.title), isNot(contains('Sources')));
-    expect(
-      state.entries.firstWhere((e) => e.id == MenuEntryId.settings).subtitle,
-      contains('sources'),
-    );
   });
 
   test('playing and joining are open with no catalog, because the first run '
@@ -46,10 +42,14 @@ void main() {
   });
 
   test('focus is always on the way in', () {
-    expect(const MenuState(cardCount: 0, enabledSources: 0).initialFocus,
-        MenuEntryId.play);
-    expect(const MenuState(cardCount: 36079, enabledSources: 1).initialFocus,
-        MenuEntryId.play);
+    expect(
+      const MenuState(cardCount: 0, enabledSources: 0).initialFocus,
+      MenuEntryId.play,
+    );
+    expect(
+      const MenuState(cardCount: 36079, enabledSources: 1).initialFocus,
+      MenuEntryId.play,
+    );
   });
 
   test('playing and joining are two doors into the same room', () {
@@ -58,23 +58,11 @@ void main() {
     final join = state.entries.firstWhere((e) => e.id == MenuEntryId.join);
     final decks = state.entries.firstWhere((e) => e.id == MenuEntryId.decks);
 
-    // Neither of the two doors says anything about dealing: a room is made
-    // first and the cards come out inside it. Decks is still the editor.
-    expect(play.subtitle, isNot(join.subtitle));
-    expect(play.subtitle, contains('table'));
-    // Not "the code": seven characters have no destination in them, so the
-    // menu names the two things somebody can actually be handed.
-    expect(join.subtitle, contains('link'));
-    expect(decks.subtitle, contains('build'));
-    for (final entry in state.entries) {
-      expect(entry.subtitle, isNot(contains('deals')), reason: entry.title);
-    }
-  });
-
-  test('the header counts the real catalog', () {
-    expect(const MenuState(cardCount: 0, enabledSources: 0).headline,
-        'NO SOURCES CONFIGURED');
-    expect(const MenuState(cardCount: 36079, enabledSources: 1).headline,
-        '36079 CARDS');
+    // Four bare words, the way the reference title screen has them. A row
+    // that can be pressed explains nothing; only a shut one says why.
+    expect(play.subtitle, isNull);
+    expect(join.subtitle, isNull);
+    expect(decks.subtitle, isNull);
+    expect(play.title, isNot(join.title));
   });
 }

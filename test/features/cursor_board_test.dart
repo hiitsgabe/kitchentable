@@ -120,8 +120,9 @@ void main() {
     expect(acted?.id, 'b1');
   });
 
-  testWidgets('a tap acts on the card touched, not the one ringed',
-      (tester) async {
+  testWidgets('a tap acts on the card touched, not the one ringed', (
+    tester,
+  ) async {
     CardInstance? acted;
     await tester.pumpWidget(_host(onActivate: (c) => acted = c));
     await tester.pump();
@@ -139,10 +140,9 @@ void main() {
   testWidgets('a long press inspects rather than acts', (tester) async {
     CardInstance? acted;
     CardInstance? inspected;
-    await tester.pumpWidget(_host(
-      onActivate: (c) => acted = c,
-      onInspect: (c) => inspected = c,
-    ));
+    await tester.pumpWidget(
+      _host(onActivate: (c) => acted = c, onInspect: (c) => inspected = c),
+    );
     await tester.pump();
 
     await tester.longPress(find.byType(TableCard).at(1));
@@ -152,8 +152,9 @@ void main() {
     expect(acted, isNull, reason: 'a long press must not also turn the card');
   });
 
-  testWidgets('an empty board draws no ring and does not crash',
-      (tester) async {
+  testWidgets('an empty board draws no ring and does not crash', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(board: 0));
     await tester.pump();
 
@@ -164,9 +165,7 @@ void main() {
   });
 
   testWidgets('a card with a position sits where it says', (tester) async {
-    await tester.pumpWidget(_host(placed: {
-      'b1': (x: 0.8, y: 0.2),
-    }));
+    await tester.pumpWidget(_host(placed: {'b1': (x: 0.8, y: 0.2)}));
     await tester.pump();
 
     final placed = tester.getRect(find.byType(TableCard).at(1));
@@ -177,9 +176,13 @@ void main() {
 
   testWidgets('dragging a card reports where it was dropped', (tester) async {
     ({String id, double x, double y})? dropped;
-    await tester.pumpWidget(_host(onPlace: (_, id, x, y) {
-      dropped = (id: id, x: x, y: y);
-    }));
+    await tester.pumpWidget(
+      _host(
+        onPlace: (_, id, x, y) {
+          dropped = (id: id, x: x, y: y);
+        },
+      ),
+    );
     await tester.pump();
 
     await tester.drag(find.byType(TableCard).first, const Offset(120, 90));
@@ -190,12 +193,15 @@ void main() {
     expect(dropped!.y, greaterThan(0));
   });
 
-  testWidgets('a drop is reported normalized, never in pixels',
-      (tester) async {
+  testWidgets('a drop is reported normalized, never in pixels', (tester) async {
     ({String id, double x, double y})? dropped;
-    await tester.pumpWidget(_host(onPlace: (_, id, x, y) {
-      dropped = (id: id, x: x, y: y);
-    }));
+    await tester.pumpWidget(
+      _host(
+        onPlace: (_, id, x, y) {
+          dropped = (id: id, x: x, y: y);
+        },
+      ),
+    );
     await tester.pump();
 
     await tester.drag(find.byType(TableCard).first, const Offset(60, 40));
@@ -214,8 +220,9 @@ void main() {
     expect(dropped!.x, greaterThan(0));
   });
 
-  testWidgets('a longer drag lands further along than a shorter one',
-      (tester) async {
+  testWidgets('a longer drag lands further along than a shorter one', (
+    tester,
+  ) async {
     Future<double> dropAfter(double dx) async {
       double? x;
       await tester.pumpWidget(_host(onPlace: (_, _, at, _) => x = at));
@@ -234,8 +241,9 @@ void main() {
     expect(long, greaterThan(short));
   });
 
-  testWidgets('a card lands where the finger let go, not short of it',
-      (tester) async {
+  testWidgets('a card lands where the finger let go, not short of it', (
+    tester,
+  ) async {
     double? x;
     await tester.pumpWidget(_host(onPlace: (_, _, at, _) => x = at));
     await tester.pump();
@@ -261,10 +269,9 @@ void main() {
 
   testWidgets('a drag does not also activate the card', (tester) async {
     CardInstance? acted;
-    await tester.pumpWidget(_host(
-      onActivate: (c) => acted = c,
-      onPlace: (_, _, _, _) {},
-    ));
+    await tester.pumpWidget(
+      _host(onActivate: (c) => acted = c, onPlace: (_, _, _, _) {}),
+    );
     await tester.pump();
 
     await tester.drag(find.byType(TableCard).first, const Offset(100, 60));
@@ -273,8 +280,9 @@ void main() {
     expect(acted, isNull, reason: 'dragging a card must not turn it');
   });
 
-  testWidgets('the mat is the board, whatever shape the board is',
-      (tester) async {
+  testWidgets('the mat is the board, whatever shape the board is', (
+    tester,
+  ) async {
     for (final window in [const Size(1900, 800), const Size(390, 1200)]) {
       tester.view.physicalSize = window;
       tester.view.devicePixelRatio = 1;
@@ -295,15 +303,22 @@ void main() {
       // The card is sized on its own now, so it has no opinion about the shape
       // of the table and the table can be the shape of the screen. Nothing is
       // outside the board, in either direction, on a window of either shape.
-      expect(mat.width, closeTo(board.width, 1),
-          reason: 'the mat is not the width of the board at $window');
-      expect(mat.height, lessThanOrEqualTo(board.height + 1),
-          reason: 'the mat runs off the bottom at $window');
+      expect(
+        mat.width,
+        closeTo(board.width, 1),
+        reason: 'the mat is not the width of the board at $window',
+      );
+      expect(
+        mat.height,
+        lessThanOrEqualTo(board.height + 1),
+        reason: 'the mat runs off the bottom at $window',
+      );
     }
   });
 
-  testWidgets('a card is readable before the board is wide, and grows after',
-      (tester) async {
+  testWidgets('a card is readable before the board is wide, and grows after', (
+    tester,
+  ) async {
     // The rule that replaced the fit: a card is 72 points, or a seventh of
     // the board, whichever is bigger. A phone shows about five across and a
     // desktop about seven, with no breakpoint between them; 504 is where
@@ -315,8 +330,9 @@ void main() {
     expect(cardWidthFor(1248), greaterThan(readableCard));
   });
 
-  testWidgets('a card on the battlefield does not grow under the pointer',
-      (tester) async {
+  testWidgets('a card on the battlefield does not grow under the pointer', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(printings: const {'card0': _printing}));
     await tester.pump();
 
@@ -334,8 +350,9 @@ void main() {
     expect(find.byKey(const Key('hover-preview')), findsNothing);
   });
 
-  testWidgets('a card on the board is drawn on the game s own back',
-      (tester) async {
+  testWidgets('a card on the board is drawn on the game s own back', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(board: 1, game: Game.magic));
     await tester.pump();
 

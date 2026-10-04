@@ -31,7 +31,7 @@ class ScreenFrame extends StatelessWidget {
     super.key,
     required this.metrics,
     required this.title,
-    required this.label,
+    this.label,
     required this.children,
     this.wordmark = false,
     this.onBack,
@@ -45,8 +45,9 @@ class ScreenFrame extends StatelessWidget {
   final String title;
 
   /// The small line of capitals. It says what is true at this moment, not what
-  /// the screen is called.
-  final String label;
+  /// the screen is called. Null draws none: the menu has nothing true to say
+  /// that four bare words do not already.
+  final String? label;
 
   /// The list the screen is made of.
   final List<Widget> children;
@@ -95,12 +96,14 @@ class ScreenFrame extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _Heading(metrics: m, title: title, wordmark: wordmark),
-                      SizedBox(height: m.scaled(7)),
-                      TrayLabel(
-                        metrics: m,
-                        text: label,
-                        align: TextAlign.center,
-                      ),
+                      if (label != null) ...[
+                        SizedBox(height: m.scaled(7)),
+                        TrayLabel(
+                          metrics: m,
+                          text: label!,
+                          align: TextAlign.center,
+                        ),
+                      ],
                       SizedBox(height: m.scaled(16)),
                       // Flexible with a shrink-wrapping list, not Expanded: a
                       // tray has to end where its contents end. Stretched to

@@ -10,17 +10,17 @@ CatalogCard _card(String name, {String type = 'Token'}) =>
 Widget _host({
   Future<List<CatalogCard>> Function(String)? search,
   void Function(CatalogCard)? onPick,
-}) =>
-    MaterialApp(
-      home: Scaffold(
-        body: TokenSheet(
-          metrics: Metrics.of(DeviceClass.handheld),
-          search: search ??
-              (term) async => [_card('Goblin'), _card('Goblin Chieftain')],
-          onPick: onPick ?? (_) {},
-        ),
-      ),
-    );
+}) => MaterialApp(
+  home: Scaffold(
+    body: TokenSheet(
+      metrics: Metrics.of(DeviceClass.handheld),
+      search:
+          search ??
+          (term) async => [_card('Goblin'), _card('Goblin Chieftain')],
+      onPick: onPick ?? (_) {},
+    ),
+  ),
+);
 
 void main() {
   testWidgets('it opens empty, with nothing searched for yet', (tester) async {
@@ -54,8 +54,9 @@ void main() {
     expect(picked?.name, 'Goblin');
   });
 
-  testWidgets('a catalog with nothing in it says so rather than nothing',
-      (tester) async {
+  testWidgets('a catalog with nothing in it says so rather than nothing', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(search: (term) async => []));
     await tester.pump();
 
@@ -69,10 +70,14 @@ void main() {
   });
 
   testWidgets('it offers tokens first', (tester) async {
-    await tester.pumpWidget(_host(search: (term) async => [
+    await tester.pumpWidget(
+      _host(
+        search: (term) async => [
           _card('Goblin Chieftain', type: 'Creature - Goblin'),
           _card('Goblin', type: 'Token Creature - Goblin'),
-        ]));
+        ],
+      ),
+    );
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'gob');
@@ -98,9 +103,13 @@ void main() {
   });
 
   testWidgets('a catalog with no tokens in it says why', (tester) async {
-    await tester.pumpWidget(_host(search: (term) async => [
+    await tester.pumpWidget(
+      _host(
+        search: (term) async => [
           _card('Goblin Chieftain', type: 'Creature - Goblin'),
-        ]));
+        ],
+      ),
+    );
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'gob');
