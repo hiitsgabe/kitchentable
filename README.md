@@ -57,8 +57,9 @@ compromise here, it is the robust option.
 There is no server of ours. What there is instead:
 
 1. **The room is a code.** Whoever starts a game gets a short random code.
-   The link and the QR on the room screen carry it, and that is the whole
-   invitation: send it however you already talk to your friends.
+   The room screen shows it three ways: a link to send, a QR to scan across
+   the table, and the seven characters themselves to type or read out. That
+   is the whole invitation.
 2. **The code says where to meet.** From the code alone, every phone works
    out the same five public relays (shuffled out of a pool of eighteen) and
    the same channel on them. Nobody is told where to look; everybody arrives

@@ -13,18 +13,11 @@ import 'room_controller.dart';
 import 'scan_screen.dart';
 import 'room_screen.dart';
 
-/// The two ways into somebody else's table: their link, or their QR.
+/// The ways into somebody else's table: their QR, their link, or their code.
 ///
-/// Those are the two things the room screen hands out, and it hands out
-/// nothing else. It used to show a seven character code as well, and this
-/// screen still led with "the code somebody read out" long after there was
-/// no code on screen to read out, which is an instruction to do something
-/// the app no longer lets anybody do.
-///
-/// A bare code is not one of them any more. Seven characters are nothing to
-/// anybody who does not already have the app open at this screen, and
-/// nowhere in the app hands one out, so there was nowhere for one to come
-/// from.
+/// All three are the same seven characters. The code is the room, and the
+/// room screen shows it under the QR, so somebody who already has the app
+/// open here can type what the host reads out and never touch a link.
 class JoinScreen extends ConsumerStatefulWidget {
   const JoinScreen({super.key, this.code});
 
@@ -60,7 +53,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
     return ScreenFrame(
       metrics: m,
       title: 'Join a table',
-      label: 'their link, or their QR code',
+      label: 'their QR, their link, or their code',
       onBack: () => Navigator.of(context).maybePop(),
       children: [
         // The camera first, because it is the one that needs nothing typed
@@ -77,20 +70,23 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
             autofocus: true,
             onActivate: _scan,
           ),
-        SettingsLabel(metrics: m, text: 'or paste their link'),
+        SettingsLabel(
+          metrics: m,
+          text: 'or paste their link, or type their code',
+        ),
         TextFieldBox(
           key: const Key('join-input'),
           metrics: m,
           controller: _typed,
-          hint: 'the link they sent you',
+          hint: 'the link, or the seven characters',
           autofocus: !canScan,
           onChanged: (_) => setState(() {}),
           onSubmitted: (_) => _join(),
         ),
         SizedBox(height: m.scaled(10)),
         Text(
-          'Whatever they sent you, pasted whole. The app finds the room in '
-          'it.',
+          'The link pasted whole, or just the code under their QR. The app '
+          'finds the room either way.',
           style: pixel(
             size: m.scaled(11),
             weight: 500,
@@ -102,7 +98,9 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
         MenuRow(
           key: const Key('join-go'),
           title: 'Join',
-          subtitle: ready ? 'go to that room' : 'paste their link first',
+          subtitle: ready
+              ? 'go to that room'
+              : 'paste a link or type a code first',
           icon: Icons.meeting_room_rounded,
           enabled: ready,
           tone: canScan ? SlabTone.plain : SlabTone.choice,

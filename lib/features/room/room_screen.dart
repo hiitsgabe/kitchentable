@@ -66,8 +66,7 @@ class RoomScreen extends ConsumerWidget {
       );
     }
 
-    final origin = ref.watch(roomOriginProvider);
-    final link = origin == null ? null : linkFor(room.code, origin: origin);
+    final link = linkFor(room.code, origin: ref.watch(roomOriginProvider));
     final lobby = ref.watch(lobbyProvider);
     final reach = ref.watch(reachProvider);
     // The host's own, or what the host said when it answered: a guest has no
@@ -106,34 +105,27 @@ class RoomScreen extends ConsumerWidget {
                 .toList(),
           ),
 
-        // The two ways of bringing somebody in: send the link, or let the
-        // person opposite you scan it. There used to be a third, the code
-        // read out loud, and it is gone. Seven characters mean nothing to
-        // anybody who has not already got the app open at the right screen,
-        // and the link does the whole job: it opens the app and arrives at
-        // the room.
-        if (link != null) ...[
-          MenuRow(
-            key: const Key('room-copy'),
-            title: 'Send the link',
-            subtitle: 'copies it, to paste into any chat',
-            icon: Icons.ios_share_rounded,
-            tone: SlabTone.cool,
-            metrics: m,
-            onActivate: () => _copy(context, link),
-          ),
-          _Invite(metrics: m, link: link),
-        ] else ...[
-          _Note(
-            metrics: m,
-            id: 'room-no-link',
-            colour: Palette.attention,
-            text:
-                'This build cannot make an invite, because it was not told '
-                'where the app is served. Whoever built it passes that in '
-                'with HOME_URL.',
-          ),
-        ],
+        // Three ways of bringing somebody in, and they are all the same
+        // seven characters. The code is the room: it is what every phone
+        // turns into the same relays and the same channel. The link carries
+        // it to somebody who does not have the app open, the QR carries it
+        // across a table, and the code itself is for somebody who already
+        // has the app open at Join.
+        MenuRow(
+          key: const Key('room-copy'),
+          title: 'Send the link',
+          subtitle: 'copies it, to paste into any chat',
+          icon: Icons.ios_share_rounded,
+          tone: SlabTone.cool,
+          metrics: m,
+          onActivate: () => _copy(context, link),
+        ),
+        _Invite(
+          metrics: m,
+          link: link,
+          code: room.code,
+          onCopyCode: () => _copyCode(context, room.code),
+        ),
 
         // What you do now, said once. The deck is the thing a player has to
         // understand here and it was the nineteenth block on the screen.
@@ -184,9 +176,9 @@ class RoomScreen extends ConsumerWidget {
             tone: SlabTone.choice,
             metrics: m,
             autofocus: true,
-            onActivate: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
-            ),
+            onActivate: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const PlayScreen())),
           ),
         if (lobby != null && !lobby.hosting && lobby.host == null)
           _Fact(
@@ -315,6 +307,11 @@ class RoomScreen extends ConsumerWidget {
   void _copy(BuildContext context, String link) {
     Clipboard.setData(ClipboardData(text: link));
     Toast.show(context, 'Link copied', icon: Icons.check_rounded);
+  }
+
+  void _copyCode(BuildContext context, String code) {
+    Clipboard.setData(ClipboardData(text: code));
+    Toast.show(context, 'Code copied', icon: Icons.check_rounded);
   }
 
   /// Deals everybody in, on this phone, and opens the table. The lobby hands
@@ -598,17 +595,25 @@ class _Fact extends StatelessWidget {
   }
 }
 
-/// The square, with a word about what it is for.
+/// The square, and the code under it.
 ///
-/// No code beside it. A room is a link: you send it, or somebody scans it,
-/// and a seven character string is a third way in that nobody uses when the
-/// first two are there. It is kept only where there is no link to send,
-/// which is a build nobody is serving.
+/// The code went away once, on the grounds that a link does the whole job.
+/// It came back because the code is the room and the link is only one way
+/// of carrying it: somebody across the table scans the square, somebody
+/// with the app already open at Join types the seven characters, and
+/// somebody on the phone reads them out. Tapping the code copies it.
 class _Invite extends StatelessWidget {
-  const _Invite({required this.metrics, required this.link});
+  const _Invite({
+    required this.metrics,
+    required this.link,
+    required this.code,
+    required this.onCopyCode,
+  });
 
   final Metrics metrics;
   final String link;
+  final String code;
+  final VoidCallback onCopyCode;
 
   @override
   Widget build(BuildContext context) {
@@ -623,13 +628,34 @@ class _Invite extends StatelessWidget {
             RoomQr(key: const Key('room-qr'), metrics: m, link: link),
             SizedBox(height: m.scaled(10)),
             Text(
-              'or let somebody at the table scan this',
+              'or let somebody at the table scan this, or give them the code',
               textAlign: TextAlign.center,
               style: pixel(
                 size: m.scaled(12),
                 weight: 500,
                 height: 1.4,
                 color: Palette.inkFaint,
+              ),
+            ),
+            SizedBox(height: m.scaled(8)),
+            GestureDetector(
+              onTap: onCopyCode,
+              behavior: HitTestBehavior.opaque,
+              child: Semantics(
+                button: true,
+                label: 'Room code $code. Tap to copy',
+                child: Text(
+                  code,
+                  key: const Key('room-code'),
+                  textAlign: TextAlign.center,
+                  style: pixel(
+                    size: m.scaled(28),
+                    weight: 700,
+                    color: Palette.ink,
+                    letterSpacing: 4,
+                    outlined: true,
+                  ),
+                ),
               ),
             ),
           ],
@@ -709,44 +735,6 @@ class _Aside extends StatelessWidget {
                 decoration: TextDecoration.underline,
                 decorationColor: Palette.inkFaint.withValues(alpha: 0.4),
               ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A paragraph the player is meant to read rather than press.
-class _Note extends StatelessWidget {
-  const _Note({
-    required this.metrics,
-    required this.id,
-    required this.text,
-    required this.colour,
-  });
-
-  final Metrics metrics;
-  final String id;
-  final String text;
-  final Color colour;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = metrics;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: m.scaled(14)),
-      child: Well(
-        metrics: m,
-        edge: colour,
-        child: Text(
-          text,
-          key: Key(id),
-          style: pixel(
-            size: m.scaled(12),
-            weight: 500,
-            height: 1.5,
-            color: Palette.inkMuted,
-          ),
         ),
       ),
     );
