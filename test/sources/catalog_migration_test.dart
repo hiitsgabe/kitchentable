@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/sources/catalog/catalog_db.dart';
 
 void main() {
@@ -44,4 +45,25 @@ void main() {
     final names = tables.map((r) => r.read<String>('name')).toSet();
     expect(names, containsAll(['decks', 'deck_cards']));
   });
+
+  test(
+    'a catalog from before games were a column reads every card as Magic',
+    () async {
+      final db = CatalogDb.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      // A version five catalog: the column is not there yet.
+      await db.customStatement('ALTER TABLE cards DROP COLUMN game');
+      await db.customStatement(
+        "INSERT INTO cards (oracle_id, name, name_folded, type_line, cmc, "
+        "color_identity, legalities) VALUES ('m1', 'Bolt', 'bolt', 'Instant', 1, '', '{}')",
+      );
+
+      await db.migration.onUpgrade(Migrator(db), 5, db.schemaVersion);
+      // Run twice on purpose: the upgrade has to survive a lost version.
+      await db.migration.onUpgrade(Migrator(db), 5, db.schemaVersion);
+
+      expect((await db.cardsByOracleIds(['m1'])).single.game, Game.magic);
+      expect(await db.gamesWithCards(), {Game.magic});
+    },
+  );
 }

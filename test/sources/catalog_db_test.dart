@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/sources/catalog/catalog_db.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 
@@ -12,6 +13,57 @@ CatalogCard _card(String id, String name) => CatalogCard(
 );
 
 void main() {
+  test(
+    'a search can be held to one game, and the games are what is there',
+    () async {
+      final db = CatalogDb.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      expect(await db.gamesWithCards(), isEmpty);
+
+      await db.insertAll(const [
+        CatalogCard(
+          oracleId: 'm1',
+          name: 'Charizard, Cousin',
+          typeLine: 'Creature',
+          cmc: 4,
+        ),
+        CatalogCard(
+          oracleId: 'base1-4',
+          name: 'Charizard',
+          typeLine: 'Pokémon',
+          cmc: 0,
+          game: Game.pokemon,
+        ),
+      ]);
+
+      expect(
+        (await db.searchByName('chariz')).map((c) => c.oracleId),
+        unorderedEquals(['m1', 'base1-4']),
+      );
+      expect(
+        (await db.searchByName(
+          'chariz',
+          game: Game.pokemon,
+        )).map((c) => c.oracleId),
+        ['base1-4'],
+      );
+      expect(
+        (await db.searchByName(
+          'chariz',
+          game: Game.magic,
+        )).map((c) => c.oracleId),
+        ['m1'],
+      );
+      expect(await db.cardCount(game: Game.pokemon), 1);
+      expect(await db.gamesWithCards(), {Game.magic, Game.pokemon});
+      // The game comes back off the row, not off a default.
+      expect(
+        (await db.cardsByOracleIds(['base1-4'])).single.game,
+        Game.pokemon,
+      );
+    },
+  );
+
   late CatalogDb db;
 
   setUp(() => db = CatalogDb.forTesting(NativeDatabase.memory()));

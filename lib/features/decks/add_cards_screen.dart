@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/deck.dart';
+import '../../decks/model/game.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../ui/atoms/card_art.dart';
 import '../../ui/atoms/toast.dart';
@@ -45,7 +46,8 @@ class _AddCardsScreenState extends ConsumerState<AddCardsScreen> {
         if (mounted) setState(() => _results = const []);
         return;
       }
-      final found = await db.searchByName(term.trim());
+      final game = ref.read(deckEditorProvider)?.game ?? Game.magic;
+      final found = await db.searchByName(term.trim(), game: game);
       if (mounted) setState(() => _results = found);
     });
   }

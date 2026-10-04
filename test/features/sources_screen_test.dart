@@ -50,7 +50,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Scryfall'), findsOneWidget);
-    expect(find.text('MTGJSON'), findsOneWidget);
+    expect(find.text('Pokemon'), findsOneWidget);
+    expect(find.text('Local file'), findsOneWidget);
+    expect(
+      find.text('MTGJSON'),
+      findsNothing,
+      reason: 'there is no draft to feed it yet',
+    );
     expect(find.textContaining('NOTHING HAS LEFT THIS DEVICE'), findsOneWidget);
     // Two screens below the menu, so Home stands beside Back.
     expect(find.byKey(const Key('home')), findsOneWidget);
@@ -73,9 +79,7 @@ void main() {
     expect(find.textContaining('23.6 MB'), findsOneWidget);
   });
 
-  testWidgets('a source we have not built says so instead of pretending', (
-    tester,
-  ) async {
+  testWidgets('every source listed can be run', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         // This screen asks the catalog whether its pictures are stale. These
@@ -87,6 +91,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('not ready yet'), findsWidgets);
+    // The list used to carry rows for sources the app had not built,
+    // each saying so. Every row is a real road now.
+    expect(find.textContaining('not ready yet'), findsNothing);
   });
 }

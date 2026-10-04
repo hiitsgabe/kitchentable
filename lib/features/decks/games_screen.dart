@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../menu/menu_controller.dart';
+
 import '../../decks/model/game.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -24,6 +26,9 @@ class GamesScreen extends ConsumerWidget {
       ),
     );
     final decks = ref.watch(decksProvider);
+    // Which games have cards on this device. Pokemon was shut by a constant
+    // until its catalog existed; now both read the same answer.
+    final ready = ref.watch(gamesWithCardsProvider).value ?? const <Game>{};
 
     int countFor(Game game) => switch (decks) {
       AsyncData(:final value) => value.where((d) => d.game == game).length,
@@ -39,9 +44,9 @@ class GamesScreen extends ConsumerWidget {
         for (final game in Game.values)
           MenuRow(
             title: game.label,
-            subtitle: _subtitle(game, countFor(game)),
+            subtitle: _subtitle(game, countFor(game), ready.contains(game)),
             icon: _iconFor(game),
-            enabled: game.hasCatalog,
+            enabled: ready.contains(game),
             metrics: m,
             autofocus: game == Game.magic,
             onActivate: () => Navigator.of(context).push(
@@ -52,8 +57,8 @@ class GamesScreen extends ConsumerWidget {
     );
   }
 
-  static String _subtitle(Game game, int count) {
-    if (!game.hasCatalog) return 'needs a source';
+  static String _subtitle(Game game, int count, bool ready) {
+    if (!ready) return 'needs a source';
     if (count == 0) return 'no decks yet';
     return count == 1 ? '1 deck' : '$count decks';
   }
