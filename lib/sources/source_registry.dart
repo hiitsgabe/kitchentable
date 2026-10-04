@@ -1,11 +1,8 @@
 import 'model/source_def.dart';
 
 /// Sizes checked against the live endpoints on 2026 09 21 (Scryfall) and
-/// 2026 10 04 (pokemon-tcg-data, the sum of its 176 set files).
-///
-/// No MTGJSON row any more. It was "sets for draft", and there is no draft
-/// to feed: a source nothing reads is a download that changes nothing,
-/// which is a worse row than none. It comes back with the draft.
+/// 2026 10 04 (pokemon-tcg-data, the sum of its 176 set files, and the
+/// gzipped MTGJSON set list).
 ///
 /// This is `final` rather than `const` because `Uri` has no const constructor,
 /// so a SourceDef carrying an endpoint can never be a compile time constant.
@@ -35,6 +32,20 @@ final knownSources = <SourceDef>[
       path: '/PokemonTCG/pokemon-tcg-data/master/sets/en.json',
     ),
     approximateBytes: 26659752,
+  ),
+  SourceDef(
+    id: 'mtgjson_sets',
+    name: 'MTGJSON',
+    subtitle: 'the sets, for draft',
+    kind: SourceKind.draftSets,
+    // The list of every set. A set's packs are read from beside it, one
+    // file per set, when a draft asks for that set.
+    endpoint: Uri(
+      scheme: 'https',
+      host: 'mtgjson.com',
+      path: '/api/v5/SetList.json.gz',
+    ),
+    approximateBytes: 2486786,
   ),
   SourceDef(
     id: 'local_file',

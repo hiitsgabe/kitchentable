@@ -52,11 +52,7 @@ void main() {
     expect(find.text('Scryfall'), findsOneWidget);
     expect(find.text('Pokemon'), findsOneWidget);
     expect(find.text('Local file'), findsOneWidget);
-    expect(
-      find.text('MTGJSON'),
-      findsNothing,
-      reason: 'there is no draft to feed it yet',
-    );
+    expect(find.text('MTGJSON'), findsOneWidget);
     expect(find.textContaining('NOTHING HAS LEFT THIS DEVICE'), findsOneWidget);
     // Two screens below the menu, so Home stands beside Back.
     expect(find.byKey(const Key('home')), findsOneWidget);

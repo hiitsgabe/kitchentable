@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../../decks/model/game.dart';
 import '../model/catalog_card.dart';
+import '../model/draft_set.dart';
 import 'catalog_opener.dart';
 
 part 'catalog_db.g.dart';
@@ -63,14 +64,44 @@ class DeckCards extends Table {
   Set<Column> get primaryKey => {deckId, oracleId, sideboard};
 }
 
-@DriftDatabase(tables: [Cards, Decks, DeckCards])
+/// A set, for a draft to pick from. See [DraftSet].
+@DataClassName('DraftSetRow')
+class DraftSets extends Table {
+  TextColumn get code => text()();
+  TextColumn get name => text()();
+  TextColumn get type => text()();
+  TextColumn get releaseDate => text()();
+  IntColumn get baseSetSize => integer()();
+  IntColumn get totalSetSize => integer()();
+  BoolColumn get onlineOnly => boolean().withDefault(const Constant(false))();
+  TextColumn get booster => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {code};
+}
+
+/// A printing in a set, keyed the way a booster sheet names it.
+@DataClassName('DraftPrintingRow')
+class DraftPrintings extends Table {
+  TextColumn get setCode => text()();
+  TextColumn get uuid => text()();
+  TextColumn get oracleId => text()();
+  TextColumn get rarity => text()();
+  TextColumn get number => text()();
+  TextColumn get boosterTypes => text()();
+
+  @override
+  Set<Column> get primaryKey => {uuid};
+}
+
+@DriftDatabase(tables: [Cards, Decks, DeckCards, DraftSets, DraftPrintings])
 class CatalogDb extends _$CatalogDb {
   CatalogDb() : super(openCatalog());
 
   CatalogDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -115,6 +146,11 @@ class CatalogDb extends _$CatalogDb {
         // Magic on every existing row, by the default: there was no other
         // game to import before this column.
         await _addColumnOnce(m, cards, cards.game);
+      }
+      if (from < 7) {
+        // Two tables for the draft, both empty until MTGJSON is imported.
+        await m.createTable(draftSets);
+        await m.createTable(draftPrintings);
       }
     },
   );
@@ -188,6 +224,116 @@ class CatalogDb extends _$CatalogDb {
   }
 
   Future<void> clear() => delete(cards).go();
+
+  /// The set list, replaced whole: MTGJSON's list is the truth about what
+  /// exists, and a set already fetched keeps its packs across the replace.
+  Future<void> insertDraftSets(List<DraftSet> sets) async {
+    await batch((b) {
+      for (final s in sets) {
+        b.insert(
+          draftSets,
+          DraftSetsCompanion.insert(
+            code: s.code,
+            name: s.name,
+            type: s.type,
+            releaseDate: s.releaseDate,
+            baseSetSize: s.baseSetSize,
+            totalSetSize: s.totalSetSize,
+            onlineOnly: Value(s.onlineOnly),
+          ),
+          onConflict: DoUpdate(
+            (old) => DraftSetsCompanion(
+              name: Value(s.name),
+              type: Value(s.type),
+              releaseDate: Value(s.releaseDate),
+              baseSetSize: Value(s.baseSetSize),
+              totalSetSize: Value(s.totalSetSize),
+              onlineOnly: Value(s.onlineOnly),
+            ),
+          ),
+        );
+      }
+    });
+  }
+
+  Future<int> draftSetCount() async {
+    final count = countAll();
+    final query = selectOnly(draftSets)..addColumns([count]);
+    return await query.map((row) => row.read(count)!).getSingle();
+  }
+
+  /// Every set the list knows, newest first.
+  Future<List<DraftSet>> draftSetList() async {
+    final rows = await (select(
+      draftSets,
+    )..orderBy([(s) => OrderingTerm.desc(s.releaseDate)])).get();
+    return rows.map(_draftSetFromRow).toList();
+  }
+
+  Future<DraftSet?> draftSet(String code) async {
+    final row = await (select(
+      draftSets,
+    )..where((s) => s.code.equals(code))).getSingleOrNull();
+    return row == null ? null : _draftSetFromRow(row);
+  }
+
+  /// A set's packs and printings, from its own file. The printings are
+  /// replaced whole, so fetching a set twice leaves one copy.
+  Future<void> storeDraftSet(
+    String code,
+    String boosterJson,
+    List<DraftPrinting> printings,
+  ) async {
+    await transaction(() async {
+      await (update(draftSets)..where((s) => s.code.equals(code))).write(
+        DraftSetsCompanion(booster: Value(boosterJson)),
+      );
+      await (delete(draftPrintings)..where((p) => p.setCode.equals(code))).go();
+      await batch((b) {
+        b.insertAllOnConflictUpdate(draftPrintings, [
+          for (final p in printings)
+            DraftPrintingsCompanion.insert(
+              setCode: p.setCode,
+              uuid: p.uuid,
+              oracleId: p.oracleId,
+              rarity: p.rarity,
+              number: p.number,
+              boosterTypes: p.boosterTypes.join(','),
+            ),
+        ]);
+      });
+    });
+  }
+
+  Future<List<DraftPrinting>> draftPrintingsOf(String code) async {
+    final rows = await (select(
+      draftPrintings,
+    )..where((p) => p.setCode.equals(code))).get();
+    return [
+      for (final r in rows)
+        DraftPrinting(
+          setCode: r.setCode,
+          uuid: r.uuid,
+          oracleId: r.oracleId,
+          rarity: r.rarity,
+          number: r.number,
+          boosterTypes: r.boosterTypes.isEmpty
+              ? const []
+              : r.boosterTypes.split(','),
+        ),
+    ];
+  }
+
+  DraftSet _draftSetFromRow(DraftSetRow r) => DraftSet(
+    code: r.code,
+    name: r.name,
+    type: r.type,
+    releaseDate: r.releaseDate,
+    baseSetSize: r.baseSetSize,
+    totalSetSize: r.totalSetSize,
+    onlineOnly: r.onlineOnly,
+    booster: r.booster,
+  );
 
   Future<List<CatalogCard>> cardsByOracleIds(List<String> ids) async {
     if (ids.isEmpty) return const [];

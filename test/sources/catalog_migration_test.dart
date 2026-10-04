@@ -66,4 +66,18 @@ void main() {
       expect(await db.gamesWithCards(), {Game.magic});
     },
   );
+
+  test('a catalog from before the draft tables gets them, and keeps them on a '
+      'second run', () async {
+    final db = CatalogDb.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.customStatement('DROP TABLE draft_sets');
+    await db.customStatement('DROP TABLE draft_printings');
+
+    await db.migration.onUpgrade(Migrator(db), 6, db.schemaVersion);
+    await db.migration.onUpgrade(Migrator(db), 6, db.schemaVersion);
+
+    expect(await db.draftSetCount(), 0);
+    expect(await db.draftPrintingsOf('MKM'), isEmpty);
+  });
 }
