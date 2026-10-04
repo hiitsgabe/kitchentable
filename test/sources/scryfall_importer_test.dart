@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:kitchentable/sources/catalog/catalog_db.dart';
 import 'package:kitchentable/sources/import/scryfall_importer.dart';
 
@@ -96,4 +99,46 @@ void main() {
       throwsA(isA<FormatException>()),
     );
   });
+
+  test('the file download carries no header of ours, so no browser asks '
+      'first', () async {
+    // data.scryfall.io allows any origin a plain GET and answers a
+    // preflight with 403. A User-Agent set here made Safari report "Load
+    // failed" on the Pages build; Chrome drops that header silently, which
+    // is how it went unseen.
+    Map<String, String>? sent;
+    final client = MockClient.streaming((request, body) async {
+      sent = request.headers;
+      return http.StreamedResponse(
+        Stream.value(gzip.encode(utf8.encode(''))),
+        200,
+      );
+    });
+    final importer = ScryfallImporter(db: db, client: client);
+    await importer.downloadAndIndex(
+      Uri.parse('https://data.example/x.jsonl.gz'),
+    );
+    expect(
+      sent!.keys.map((k) => k.toLowerCase()),
+      isNot(contains('user-agent')),
+    );
+    expect(sent!.keys.map((k) => k.toLowerCase()), isNot(contains('accept')));
+  });
+
+  test(
+    'the API request still says who is asking, which the API allows',
+    () async {
+      Map<String, String>? sent;
+      final client = MockClient((request) async {
+        sent = request.headers;
+        return http.Response(
+          '{"jsonl_download_uri": "https://data.example/x"}',
+          200,
+        );
+      });
+      final importer = ScryfallImporter(db: db, client: client);
+      await importer.fetchBulkObject(Uri.parse('https://api.example/bulk'));
+      expect(sent!['User-Agent'], startsWith('kitchentable'));
+    },
+  );
 }

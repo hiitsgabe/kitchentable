@@ -15,6 +15,15 @@ const scryfallHeaders = {
   'Accept': 'application/json',
 };
 
+/// What a download of a file carries: nothing of ours.
+///
+/// Every file host this app reads from (Scryfall's CDN, GitHub's raw files,
+/// MTGJSON) allows any origin a plain request and refuses the question a
+/// browser asks before a request with a custom header on it. Empty on every
+/// platform rather than only on the web, so the one request shape is the
+/// one that is tested.
+const fileHeaders = <String, String>{};
+
 class ScryfallImporter {
   ScryfallImporter({
     required this.db,
@@ -57,13 +66,19 @@ class ScryfallImporter {
   }
 
   /// Streams the gzipped file, reporting bytes as they land.
+  ///
+  /// No header of ours on this request. The file host allows any origin a
+  /// plain GET and nothing more: a header a script sets makes a browser
+  /// ask first, the host answers that question with 403, and Safari
+  /// reports the whole thing as "Load failed". Scryfall asks for the
+  /// User-Agent on its API, which is the other request, and allows it
+  /// there. See [fileHeaders].
   Future<void> downloadAndIndex(
     Uri jsonlUrl, {
     void Function(int received, int? total)? onBytes,
     void Function(int indexed)? onIndexed,
   }) async {
-    final request = http.Request('GET', jsonlUrl)
-      ..headers.addAll({'User-Agent': scryfallHeaders['User-Agent']!});
+    final request = http.Request('GET', jsonlUrl)..headers.addAll(fileHeaders);
     final response = await _client.send(request);
 
     if (response.statusCode != 200) {

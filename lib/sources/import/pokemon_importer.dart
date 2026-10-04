@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../catalog/catalog_db.dart';
 import '../model/catalog_card.dart';
 import 'json_array_stream.dart';
+import 'scryfall_importer.dart' show fileHeaders;
 
 /// Pulls the Pokemon catalog out of pokemon-tcg-data, one set at a time.
 ///
@@ -26,7 +27,8 @@ class PokemonImporter {
   /// does not cost the player the download.
   int skipped = 0;
 
-  static const headers = {'User-Agent': 'kitchentable/0.1'};
+  /// See [fileHeaders]: a custom header here is a 403 from a browser.
+  static const headers = fileHeaders;
 
   /// The set ids in the list the endpoint points at, in its order.
   Future<List<String>> fetchSetIds(Uri setsEndpoint) async {
