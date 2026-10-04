@@ -10,6 +10,15 @@ import 'transport.dart';
 /// A verb the table applied, and whose key played it.
 typedef Played = ({String by, TableAction action});
 
+/// One step of a WebRTC introduction, on its way to or from one peer.
+///
+/// The mesh carries these and does not read them. Voice is a second
+/// connection to the same people, opened over the one that already works:
+/// the relays carry the introduction, and the audio goes straight across
+/// if it can. That is what every Nostr WebRTC draft does, and it is why
+/// nobody needs a server for the signalling half.
+typedef VoiceSignal = ({String from, Map<String, Object?> body});
+
 /// Something somebody typed, and whose key typed it.
 ///
 /// Deliberately not a [TableAction]. A line of chat is not a thing that
@@ -90,6 +99,7 @@ class Mesh {
   final _refusals = StreamController<String>.broadcast();
   final _verbs = StreamController<Played>.broadcast();
   final _chatter = StreamController<Said>.broadcast();
+  final _voice = StreamController<VoiceSignal>.broadcast();
 
   String? _saidTheHostWas;
   var _started = false;
@@ -145,8 +155,21 @@ class Mesh {
   /// listening here does not need a second path for the things it did itself.
   Stream<Played> get verbs => _verbs.stream;
 
+  /// Everybody reachable right now, by key.
+  Set<String> get peers => _transport.peers;
+
   /// Everything anybody at this table has typed, this phone included.
   Stream<Said> get chatter => _chatter.stream;
+
+  /// Introductions between microphones, which this mesh forwards and never
+  /// reads. Not fanned back to the sender: an offer is for one peer.
+  Stream<VoiceSignal> get voiceSignals => _voice.stream;
+
+  /// Hands one step of an introduction to one peer.
+  void signalVoice(String peer, Map<String, Object?> body) {
+    if (!_transport.peers.contains(peer)) return;
+    _transport.send(peer, _say('voice', {'body': body}));
+  }
 
   /// Says something to everybody at the table.
   ///
@@ -207,6 +230,7 @@ class Mesh {
     await _refusals.close();
     await _verbs.close();
     await _chatter.close();
+    await _voice.close();
   }
 
   // Asking, and being asked.
@@ -263,10 +287,15 @@ class Mesh {
         case 'chat':
           final text = json['text'];
           if (text is String) _heardSaid(message.from, text);
+        case 'voice':
+          final body = json['body'];
+          if (body is Map<String, Object?> && !_voice.isClosed) {
+            _voice.add((from: message.from, body: body));
+          }
         default:
           _refuse(
             '${message.from} sent "${json['kind']}", which is not one of the '
-            'five kinds this build speaks',
+            'six kinds this build speaks',
           );
       }
     } on WireError catch (e) {
@@ -466,10 +495,11 @@ class Mesh {
     if (!_refusals.isClosed) _refusals.add(why);
   }
 
-  // The envelope. Five kinds, a version, and a verb carried as the string
+  // The envelope. Six kinds, a version, and a verb carried as the string
   // the wire already makes rather than unpacked and repacked here: the mesh
   // moves verbs and has no business knowing what is in one. The fifth kind
-  // is chat, which is not a verb and never touches the table.
+  // is chat and the sixth is a microphone being introduced to another
+  // microphone; neither is a verb and neither ever touches the table.
 
   String _say(String kind, [Map<String, Object?> more = const {}]) =>
       jsonEncode({'v': wireVersion, 'kind': kind, ...more});

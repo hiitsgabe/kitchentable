@@ -7,6 +7,7 @@ import '../../table/room/room.dart';
 import '../../table/room/room_names.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/slab.dart';
+import '../../ui/atoms/slab_switch.dart';
 import '../../ui/atoms/tray.dart';
 import '../../ui/atoms/text_field_box.dart';
 import '../../ui/organisms/screen_frame.dart';
@@ -47,6 +48,10 @@ class _StartScreenState extends ConsumerState<StartScreen> {
   /// playing Commander to thirty is a room, and having the number snap back
   /// would read as the app arguing.
   bool _lifeIsMine = false;
+
+  /// Whether this room will offer microphones. Off, which is what every
+  /// game that has voice ships, and the host's to change.
+  var _voice = false;
 
   @override
   void initState() {
@@ -127,6 +132,21 @@ class _StartScreenState extends ConsumerState<StartScreen> {
             controller: _life,
             hint: '${_format.startingLife}',
             onChanged: (_) => setState(() => _lifeIsMine = true),
+          ),
+        ),
+        _Field(
+          metrics: m,
+          label: 'Talking',
+          child: SlabSwitch(
+            key: const Key('voice-toggle'),
+            metrics: m,
+            title: 'Voice chat',
+            subtitle: _voice
+                ? 'everybody at the table can turn their microphone on'
+                : 'nobody can turn a microphone on in this room',
+            icon: Icons.mic_none_rounded,
+            on: _voice,
+            onChanged: (on) => setState(() => _voice = on),
           ),
         ),
         MenuRow(
@@ -229,6 +249,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
     if (life == null) return;
 
     final config = RoomConfig(
+      voice: _voice,
       format: _format,
       seats: _seats,
       life: life,
