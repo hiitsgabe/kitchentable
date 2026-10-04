@@ -161,6 +161,7 @@ class _DeckSheetState extends State<DeckSheet> {
         key: const Key('deck-search'),
         icon: Icons.search_rounded,
         label: 'Search for a card',
+        autofocus: true,
         onTap: _search,
       ),
       SizedBox(height: m.scaled(10)),

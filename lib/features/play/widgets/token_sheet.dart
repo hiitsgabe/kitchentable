@@ -6,6 +6,8 @@ import '../../../ui/atoms/text_field_box.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import 'sheet_parts.dart';
+import '../../../ui/atoms/pressable.dart';
+import '../../../ui/tokens/app_palette.dart';
 
 /// Finding a card to make a token out of.
 ///
@@ -191,16 +193,23 @@ class TokenRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = metrics;
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
+    return Pressable(
+      metrics: m,
+      onPress: onTap,
+      ring: false,
+      semanticLabel: card.name,
+      builder: (context, state) => Container(
         margin: EdgeInsets.only(bottom: m.scaled(8)),
         padding: EdgeInsets.all(m.scaled(8)),
         decoration: BoxDecoration(
-          color: Palette.tile,
+          color: state.focused || state.hovered
+              ? context.palette.tileFocused
+              : Palette.tile,
           borderRadius: BorderRadius.circular(m.scaled(10)),
-          border: Border.all(color: Palette.tileEdge),
+          border: Border.all(
+            color: state.focused ? context.palette.accent : Palette.tileEdge,
+            width: state.focused ? m.focusRing : 1,
+          ),
         ),
         child: Row(
           children: [

@@ -6,6 +6,7 @@ import '../../../ui/tokens/app_palette.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import '../look_at_top.dart';
+import '../../../ui/atoms/pressable.dart';
 
 /// The parts a sheet that looks through a pile is made of.
 ///
@@ -78,12 +79,17 @@ class SheetChoice extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.loud = false,
+    this.autofocus = false,
   });
 
   final Metrics metrics;
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+
+  /// The first stop in a sheet, so the ring is somewhere the moment it
+  /// opens. A sheet with nothing focused is a sheet a pad cannot use.
+  final bool autofocus;
 
   /// The one the sheet is expecting, filled in pink.
   final bool loud;
@@ -92,16 +98,26 @@ class SheetChoice extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = metrics;
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
+    return Pressable(
+      metrics: m,
+      onPress: onTap,
+      autofocus: autofocus,
+      ring: false,
+      semanticLabel: label,
+      builder: (context, state) => Container(
         padding: EdgeInsets.symmetric(vertical: m.scaled(12)),
         decoration: BoxDecoration(
-          color: loud ? context.palette.accent : Palette.tile,
+          color: loud
+              ? context.palette.accent
+              : state.focused || state.hovered
+              ? context.palette.tileFocused
+              : Palette.tile,
           borderRadius: BorderRadius.circular(m.scaled(10)),
           border: Border.all(
-            color: loud ? context.palette.accent : Palette.tileEdge,
+            color: loud || state.focused
+                ? context.palette.accent
+                : Palette.tileEdge,
+            width: state.focused ? m.focusRing : 1,
           ),
         ),
         child: Row(
@@ -244,19 +260,26 @@ class _Where extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = metrics;
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
+    return Pressable(
+      metrics: m,
+      onPress: onTap,
+      ring: false,
+      semanticLabel: label,
+      builder: (context, state) => Container(
         padding: EdgeInsets.symmetric(
           horizontal: m.scaled(8),
           vertical: m.scaled(6),
         ),
         decoration: BoxDecoration(
-          color: chosen ? context.palette.tileFocused : Palette.surface,
+          color: chosen || state.focused || state.hovered
+              ? context.palette.tileFocused
+              : Palette.surface,
           borderRadius: BorderRadius.circular(m.scaled(8)),
           border: Border.all(
-            color: chosen ? context.palette.accent : Palette.surfaceEdge,
+            color: chosen || state.focused
+                ? context.palette.accent
+                : Palette.surfaceEdge,
+            width: state.focused ? m.focusRing : 1,
           ),
         ),
         alignment: Alignment.center,
