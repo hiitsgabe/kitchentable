@@ -12,6 +12,8 @@ import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import 'pick_image.dart';
+import '../../ui/atoms/pressable.dart';
+import '../../ui/tokens/app_palette.dart';
 
 class BackdropScreen extends ConsumerStatefulWidget {
   const BackdropScreen({super.key});
@@ -222,13 +224,13 @@ class _Swatch extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = metrics;
 
-    return Semantics(
-      button: true,
-      selected: chosen,
-      label: name,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
+    return Pressable(
+      metrics: m,
+      onPress: onTap,
+      ring: false,
+      semanticLabel: '$name${chosen ? ', on now' : ''}',
+      builder: (context, state) => Semantics(
+        selected: chosen,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -237,8 +239,14 @@ class _Swatch extends StatelessWidget {
               height: m.scaled(44),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(m.scaled(10)),
+                // The ring is the outline, which a swatch has anyway: lit
+                // when focused or hovered, white when it is the one on.
                 border: Border.all(
-                  color: chosen ? Palette.slabInk : Palette.outline,
+                  color: state.focused || state.hovered
+                      ? context.palette.accent
+                      : chosen
+                      ? Palette.slabInk
+                      : Palette.outline,
                   width: m.scaled(2),
                 ),
                 gradient: LinearGradient(

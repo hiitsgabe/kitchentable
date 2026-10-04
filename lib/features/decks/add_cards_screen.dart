@@ -16,6 +16,7 @@ import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../menu/menu_controller.dart';
 import 'decks_controller.dart';
+import '../../ui/atoms/pressable.dart';
 
 class AddCardsScreen extends ConsumerStatefulWidget {
   const AddCardsScreen({super.key});
@@ -111,68 +112,75 @@ class _CardRow extends ConsumerWidget {
     final have = deck.totalCopiesOf(card.oracleId);
     final blocked = complaint?.blocking ?? false;
 
+    // A blocked card still answers the press, it just says no. Before this
+    // it had onTap: null, so touching it was a silent nothing and looked
+    // exactly like the app having missed the tap.
+    void add() {
+      if (blocked) {
+        Toast.show(context, complaint!.message, icon: Icons.block_rounded);
+        return;
+      }
+      ref
+          .read(deckEditorProvider.notifier)
+          .add(DeckSlot(card: card, quantity: 1));
+      Toast.show(context, 'Added ${card.name}', icon: Icons.check_rounded);
+    }
+
     return Opacity(
       opacity: blocked ? 0.45 : 1,
-      child: GestureDetector(
-        // A blocked card still answers the tap, it just says no. Before this
-        // it had onTap: null, so touching it was a silent nothing and looked
-        // exactly like the app having missed the tap.
-        onTap: () {
-          if (blocked) {
-            Toast.show(context, complaint!.message, icon: Icons.block_rounded);
-            return;
-          }
-          ref
-              .read(deckEditorProvider.notifier)
-              .add(DeckSlot(card: card, quantity: 1));
-          Toast.show(context, 'Added ${card.name}', icon: Icons.check_rounded);
-        },
-        behavior: HitTestBehavior.opaque,
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: m.scaled(8)),
-          child: Row(
-            children: [
-              // The picture is the point of this row. A name alone tells you
-              // nothing about whether it is the card you meant, and half of
-              // Magic is people recognising art before they read anything.
-              GestureDetector(
-                // The picture opens the card, the rest of the row adds it.
-                // Two jobs a thumb can tell apart without a label.
-                onTap: () => CardViewer.show(context, card),
-                child: Stack(
-                  children: [
-                    CardArt(metrics: m, card: card, width: m.scaled(46)),
-                    if (have > 0)
-                      Positioned(
-                        left: 0,
-                        top: 0,
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: m.scaled(5),
-                            vertical: m.scaled(1),
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: m.scaled(8)),
+        child: Row(
+          children: [
+            // The picture is the point of this row. A name alone tells you
+            // nothing about whether it is the card you meant, and half of
+            // Magic is people recognising art before they read anything.
+            //
+            // The picture opens the card, the rest of the row adds it. Two
+            // jobs a thumb can tell apart without a label, and two stops
+            // for a pad, side by side.
+            Pressable(
+              metrics: m,
+              onPress: () => CardViewer.show(context, card),
+              semanticLabel: 'Look at ${card.name}',
+              child: Stack(
+                children: [
+                  CardArt(metrics: m, card: card, width: m.scaled(46)),
+                  if (have > 0)
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: m.scaled(5),
+                          vertical: m.scaled(1),
+                        ),
+                        decoration: BoxDecoration(
+                          color: context.palette.accent,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(m.scaled(3)),
+                            bottomRight: Radius.circular(m.scaled(6)),
                           ),
-                          decoration: BoxDecoration(
-                            color: context.palette.accent,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(m.scaled(3)),
-                              bottomRight: Radius.circular(m.scaled(6)),
-                            ),
-                          ),
-                          child: Text(
-                            '$have',
-                            style: TextStyle(
-                              fontSize: m.scaled(11),
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black,
-                            ),
+                        ),
+                        child: Text(
+                          '$have',
+                          style: TextStyle(
+                            fontSize: m.scaled(11),
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
                           ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
-              SizedBox(width: m.scaled(12)),
-              Expanded(
+            ),
+            SizedBox(width: m.scaled(12)),
+            Expanded(
+              child: Pressable(
+                metrics: m,
+                onPress: add,
+                semanticLabel: 'Add ${card.name}',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -200,14 +208,14 @@ class _CardRow extends ConsumerWidget {
                   ],
                 ),
               ),
-              if (!blocked)
-                Icon(
-                  Icons.add_rounded,
-                  size: m.scaled(20),
-                  color: Palette.inkMuted,
-                ),
-            ],
-          ),
+            ),
+            if (!blocked)
+              Icon(
+                Icons.add_rounded,
+                size: m.scaled(20),
+                color: Palette.inkMuted,
+              ),
+          ],
         ),
       ),
     );
