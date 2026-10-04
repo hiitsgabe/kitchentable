@@ -96,7 +96,7 @@ RoomConfig _config({int seats = 4, int? life}) => RoomConfig(
 );
 
 ProviderContainer _container({
-  String? origin = _origin,
+  String origin = _origin,
   String? launchCode,
   List<Deck> shelf = const [],
   String? yourName = namelessPlayer,
@@ -285,11 +285,9 @@ void main() {
       final code = container.read(roomProvider)!.code;
       expect(code, matches(roomCodePattern));
       expect(container.read(roomProvider)!.hosting, isTrue);
-      expect(
-        find.byKey(const Key('room-code')),
-        findsNothing,
-        reason: 'a room is a link; the code is noise beside it',
-      );
+      // The code itself, beside the QR: the code is the room, and somebody
+      // with the app already open at Join types it.
+      expect(_textAt(tester, 'room-code'), code);
 
       // The link and the QR are asserted apart on purpose. They are built from
       // the same code and a QR is not readable by eye, so a room screen that
@@ -520,25 +518,17 @@ void main() {
       );
     });
 
-    testWidgets('a build told nowhere it lives says so, and offers nothing', (
-      tester,
-    ) async {
-      // A phone hosting has no address of its own: the link points at
-      // wherever the web build is served, and a build that was not told
-      // where that is has nothing to point at. Inventing a URL here would
-      // hand somebody a link that goes nowhere.
-      //
-      // It used to fall back to showing the code for reading out. That is
-      // gone, so the honest answer is to say the build is missing its
-      // HOME_URL rather than to offer a way in that is no way in.
-      final container = _container(origin: null);
-      container.read(roomProvider.notifier).open(_config());
-      await _pump(tester, container, const RoomScreen());
-
-      expect(find.byKey(const Key('room-copy')), findsNothing);
-      expect(find.byType(QrImageView), findsNothing);
-      expect(find.byKey(const Key('room-no-link')), findsOneWidget);
-      expect(find.textContaining('HOME_URL'), findsOneWidget);
+    test('every link points at the published site unless the build says '
+        'otherwise', () {
+      // A phone has no address of its own and a browser's address bar is
+      // wherever this copy happened to be opened from. Neither is where a
+      // friend should land: the code is the room, and the link only has to
+      // carry it to the one site that is always there.
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      expect(container.read(roomOriginProvider), appHome);
+      expect(appHome, startsWith('https://'));
+      expect(appHome, contains('github.io/kitchentable'));
     });
   });
 
@@ -1238,7 +1228,7 @@ void main() {
       );
     });
 
-    testWidgets('a bare code still works, it is just never asked for', (
+    testWidgets('a bare code typed in lands on the room with that code', (
       tester,
     ) async {
       // The screen asks for a link or a QR, because seven characters have

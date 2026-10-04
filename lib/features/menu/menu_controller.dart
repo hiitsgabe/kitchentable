@@ -50,7 +50,7 @@ class MenuState {
     MenuEntry(
       id: MenuEntryId.join,
       title: 'Join',
-      subtitle: 'scan their QR, or paste their link',
+      subtitle: 'scan their QR, paste their link, or type their code',
       enabled: true,
     ),
     MenuEntry(

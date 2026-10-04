@@ -14,14 +14,6 @@ import '../../table/room/room.dart';
 /// the menu rather than a room that was never there.
 String? launchRoomCode() => codeFrom(web.window.location.href);
 
-/// Where this build is being served from, which is the front half of every link
-/// it hands out.
-///
-/// Origin and path, without the fragment and without the query, so a folder
-/// deploy links back to the folder and not to the root of the domain.
-String? launchOrigin() =>
-    '${web.window.location.origin}${web.window.location.pathname}';
-
 /// How many seats a `#demo=N` launch asks for, or null. A dealt table on one
 /// device with sample decks, so the table can be looked at and screenshotted
 /// without a room, a deck import, or a second phone. Web only: it is a

@@ -104,27 +104,26 @@ final roomProvider = NotifierProvider<RoomHere, Room?>(RoomHere.new);
 bool looksLikeRoom(String typed) =>
     codeFrom(typed) != null || RoomHere._bareCode(typed) != null;
 
-/// The front half of the links this build hands out, or null where it has none.
+/// The front half of the links this build hands out.
 ///
-/// A Provider and not a constant so tests can say where they are served from,
-/// and so that the one place that reads the browser is the one place that is
-/// replaced off the web.
-final roomOriginProvider = Provider<String?>(
-  (ref) => launchOrigin() ?? (appHome.isEmpty ? null : appHome),
-);
+/// A Provider and not a constant so tests can say where they are served from.
+final roomOriginProvider = Provider<String>((ref) => appHome);
 
-/// Where this app is served, for the builds that cannot ask.
+/// Where the app is published, which is where every link points.
 ///
-/// A web build reads its own address bar. A phone build has no address bar
-/// and so has nowhere to point a link, which used to mean it fell back to
-/// showing a code for somebody to read out. The code is gone, so a phone
-/// build needs to be told where the app lives:
+/// The code is the room: it is what picks the relays and the channel, and a
+/// link only carries it to somebody who does not have the app open. So the
+/// link does not point at wherever this copy happens to run, which for a
+/// phone is nowhere and for a browser is whatever address bar it was opened
+/// from; it points at the one published site, so a friend who follows it
+/// lands on the app whichever copy made the link. Somebody hosting their
+/// own copy passes their address in at build time:
 ///
-///     flutter build apk --dart-define=HOME_URL=https://example.com/
-///
-/// Empty means the build was not told, and the room says so rather than
-/// handing out a link to nowhere.
-const appHome = String.fromEnvironment('HOME_URL');
+///     flutter build web --dart-define=HOME_URL=https://example.com/
+const appHome = String.fromEnvironment(
+  'HOME_URL',
+  defaultValue: 'https://hiitsgabe.github.io/kitchentable/',
+);
 
 /// The code the app was opened on, or null.
 ///
