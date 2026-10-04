@@ -12,6 +12,7 @@ import '../menu/menu_screen.dart';
 import '../setup/setup_controller.dart';
 import '../setup/setup_screen.dart';
 import 'backdrop_screen.dart';
+import 'credits_screen.dart';
 import 'player_name.dart';
 import 'network.dart';
 import 'network_screen.dart';
@@ -138,6 +139,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               (route) => false,
             );
           },
+        ),
+
+        SettingsLabel(metrics: m, text: 'about'),
+        MenuRow(
+          key: const Key('settings-credits'),
+          title: 'Credits',
+          subtitle: 'who made it, and of what',
+          icon: Icons.favorite_rounded,
+          metrics: m,
+          onActivate: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const CreditsScreen()),
+          ),
         ),
       ],
     );
