@@ -467,6 +467,7 @@ class Lobby extends ChangeNotifier {
     'life': config.life,
     'hostName': config.hostName,
     'roomName': config.roomName,
+    'voice': config.voice,
   };
 
   static RoomConfig _configFrom(Map<String, Object?> json) {
@@ -488,6 +489,10 @@ class Lobby extends ChangeNotifier {
       life: _int(json, 'life'),
       hostName: _string(json, 'hostName'),
       roomName: _string(json, 'roomName'),
+      // Lenient, unlike the rest of this: a host built before voice existed
+      // sends a room without the field, and the honest reading of silence is
+      // that the table does not talk.
+      voice: json['voice'] == true,
     );
   }
 

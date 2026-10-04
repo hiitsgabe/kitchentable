@@ -91,6 +91,7 @@ class RoomConfig {
     required this.seats,
     required this.hostName,
     required this.roomName,
+    this.voice = false,
     int? life,
   }) : life = life ?? format.startingLife,
        assert(
@@ -117,18 +118,32 @@ class RoomConfig {
   /// see anything else.
   final String roomName;
 
+  /// Whether this room can talk.
+  ///
+  /// Off, and the host's to turn on, which is what every game that has voice
+  /// does: Roblox, Halo and Fortnite all ship it off, and nobody defaults it
+  /// on. It belongs to the room rather than to a person because it is a
+  /// property of the table everybody arrives at, and because somebody
+  /// joining a link deserves to know before they get there.
+  ///
+  /// Turning it on does not switch anybody's microphone on. It only means
+  /// the table offers to.
+  final bool voice;
+
   RoomConfig copyWith({
     DeckFormat? format,
     int? seats,
     int? life,
     String? hostName,
     String? roomName,
+    bool? voice,
   }) => RoomConfig(
     format: format ?? this.format,
     seats: seats ?? this.seats,
     life: life ?? this.life,
     hostName: hostName ?? this.hostName,
     roomName: roomName ?? this.roomName,
+    voice: voice ?? this.voice,
   );
 
   @override
@@ -137,9 +152,11 @@ class RoomConfig {
       other.format == format &&
       other.seats == seats &&
       other.life == life &&
+      other.voice == voice &&
       other.hostName == hostName &&
       other.roomName == roomName;
 
   @override
-  int get hashCode => Object.hash(format, seats, life, hostName, roomName);
+  int get hashCode =>
+      Object.hash(format, seats, life, hostName, roomName, voice);
 }

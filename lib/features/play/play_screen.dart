@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../table/actions/table_action.dart';
 import '../../table/model/card_instance.dart';
+import '../../table/model/seat.dart';
 import '../../table/model/zone.dart';
 import '../../table/opening.dart';
 import '../../table/shuffle.dart';
@@ -22,7 +23,9 @@ import 'dice/dice_tray.dart';
 import 'look_at_top.dart';
 import 'play_controller.dart';
 import 'widgets/chat_sheet.dart';
+import 'widgets/voice_sheet.dart';
 import 'chat.dart';
+import 'voice.dart';
 import 'said_out_loud.dart';
 import 'table_news.dart';
 import 'renderers/focus_view.dart';
@@ -109,6 +112,10 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     final m = Metrics.of(device);
     final table = ref.watch(playProvider);
     final chat = ref.watch(chatProvider);
+    // Whether this table talks at all is the host's setting, and it arrives
+    // over the mesh like everything else the host decided.
+    final roomTalks = ref.watch(lobbyProvider)?.config?.voice ?? false;
+    final voice = ref.watch(voiceProvider);
     final play = ref.read(playProvider.notifier);
     final cardScale = ref.watch(cardScaleProvider);
 
@@ -314,6 +321,10 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                     ? chat.unread
                     : null,
                 onTalk: () => _talk(m),
+                // Absent unless the room offers it, which is the host's
+                // decision and not this phone's.
+                voice: roomTalks ? voice : null,
+                onVoice: () => _voice(m),
                 onMore: _more,
                 onLeave: () {
                   play.leave();
@@ -429,6 +440,41 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Opens everything about the microphone.
+  Future<void> _voice(Metrics m) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Palette.tray,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.62,
+      ),
+      builder: (sheet) => Consumer(
+        builder: (context, ref, _) {
+          final voice = ref.watch(voiceProvider);
+          final table = ref.watch(playProvider);
+          final me = ref.read(transportProvider)?.me;
+          return VoiceSheet(
+            metrics: m,
+            voice: voice,
+            talkers: [
+              for (final seat in table?.seats ?? const <Seat>[])
+                if (seat.owner.peerId != null && seat.owner.peerId != me)
+                  (
+                    name: seat.name,
+                    talking: voice.talking.contains(seat.owner.peerId),
+                    reaching: voice.reaching.contains(seat.owner.peerId),
+                  ),
+            ],
+            onJoin: () => ref.read(voiceProvider.notifier).join(),
+            onLeave: () => ref.read(voiceProvider.notifier).leave(),
+            onMute: ref.read(voiceProvider.notifier).mute,
+          );
+        },
       ),
     );
   }
@@ -874,6 +920,8 @@ class _TopBar extends StatelessWidget {
     required this.onSwitchRenderer,
     required this.unread,
     required this.onTalk,
+    required this.voice,
+    required this.onVoice,
     required this.onLife,
     required this.onUndo,
     required this.onMore,
@@ -891,6 +939,11 @@ class _TopBar extends StatelessWidget {
   final int? unread;
 
   final VoidCallback onTalk;
+
+  /// What the microphone is doing, or null in a room that does not talk.
+  final Voice? voice;
+
+  final VoidCallback onVoice;
   final void Function(int) onLife;
   final VoidCallback onUndo;
   final VoidCallback onMore;
@@ -957,6 +1010,22 @@ class _TopBar extends StatelessWidget {
             onTap: onUndo,
           ),
         ),
+        if (voice case final talking?) ...[
+          SizedBox(width: m.scaled(10)),
+          _Pill(
+            metrics: m,
+            key: const Key('voice'),
+            icon: switch (talking.state) {
+              Talking.on =>
+                talking.muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+              Talking.failed => Icons.mic_off_rounded,
+              _ => Icons.mic_none_rounded,
+            },
+            onTap: onVoice,
+            lit: talking.isOn && !talking.muted,
+            warn: talking.state == Talking.failed,
+          ),
+        ],
         if (unread != null) ...[
           SizedBox(width: m.scaled(10)),
           _Pill(
@@ -986,6 +1055,8 @@ class _Pill extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.badge,
+    this.lit = false,
+    this.warn = false,
   });
 
   final Metrics metrics;
@@ -995,6 +1066,13 @@ class _Pill extends StatelessWidget {
   /// A count to draw on the corner. Zero and null draw nothing: an empty
   /// badge is a mark saying there is nothing to see.
   final int? badge;
+
+  /// On and working, which is drawn in the colour the player picked.
+  final bool lit;
+
+  /// Not working, which is drawn in the one colour reserved for a thing
+  /// somebody has to notice.
+  final bool warn;
 
   @override
   Widget build(BuildContext context) {
@@ -1011,11 +1089,25 @@ class _Pill extends StatelessWidget {
             width: m.scaled(34),
             height: m.scaled(34),
             decoration: BoxDecoration(
-              color: Palette.tile,
+              color: lit ? context.palette.tileFocused : Palette.tile,
               borderRadius: BorderRadius.circular(m.scaled(8)),
-              border: Border.all(color: Palette.tileEdge),
+              border: Border.all(
+                color: warn
+                    ? Palette.attention
+                    : lit
+                    ? context.palette.accent
+                    : Palette.tileEdge,
+              ),
             ),
-            child: Icon(icon, size: m.scaled(17), color: Palette.inkMuted),
+            child: Icon(
+              icon,
+              size: m.scaled(17),
+              color: warn
+                  ? Palette.attention
+                  : lit
+                  ? context.palette.accent
+                  : Palette.inkMuted,
+            ),
           ),
           if (count > 0)
             Positioned(

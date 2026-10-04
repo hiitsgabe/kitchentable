@@ -6,6 +6,7 @@ import '../../decks/model/deck.dart';
 import '../../decks/model/game.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../net/mesh.dart';
+import '../../net/transport.dart';
 import '../../table/actions/table_action.dart';
 import '../../table/model/seat.dart';
 import '../../table/model/seat_owner.dart';
@@ -17,6 +18,7 @@ import '../../table/table_session.dart';
 import '../lobby/lobby.dart';
 import 'chat.dart';
 import 'table_news.dart';
+import 'voice.dart';
 
 /// The table currently being played, or null when nobody is at one.
 /// Why the last action was turned down.
@@ -86,6 +88,7 @@ class PlayController extends Notifier<TableState?> {
   StreamSubscription<TableState>? _following;
   StreamSubscription<Played>? _listening;
   StreamSubscription<Said>? _hearing;
+  StreamSubscription<PeerEvent>? _watching;
   Referee _referee = const PermissiveReferee();
 
   /// Which game each seat's deck came from.
@@ -146,6 +149,7 @@ class PlayController extends Notifier<TableState?> {
       _following?.cancel();
       _listening?.cancel();
       _hearing?.cancel();
+      _watching?.cancel();
     });
     return null;
   }
@@ -256,6 +260,7 @@ class PlayController extends Notifier<TableState?> {
     _following?.cancel();
     _listening?.cancel();
     _hearing?.cancel();
+    _watching?.cancel();
     _mesh = mesh;
     _session = null;
     _following = mesh.tables.listen((table) => state = table);
@@ -268,6 +273,18 @@ class PlayController extends Notifier<TableState?> {
           .read(tableNewsProvider.notifier)
           .say(by: played.by, action: played.action, table: _table),
     );
+    // The microphones follow the same mesh, over the same wire, and are
+    // not switched on by following it.
+    ref.read(voiceProvider.notifier).follow(mesh);
+    _watching = ref.read(transportProvider)?.presence.listen((event) {
+      final voice = ref.read(voiceProvider.notifier);
+      switch (event.presence) {
+        case Presence.arrived:
+          voice.peerArrived(event.peerId);
+        case Presence.left:
+          voice.peerLeft(event.peerId);
+      }
+    });
     _hearing = mesh.chatter.listen(
       (said) => ref
           .read(chatProvider.notifier)
