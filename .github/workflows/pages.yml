@@ -1,0 +1,73 @@
+name: Deploy to GitHub Pages
+
+# The web build is the app. Every push to main puts it at
+# https://hiitsgabe.github.io/kitchentable/, which is also the address a room
+# link points at, so a phone that follows one lands on the same build.
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: "3.47.5"
+  FLUTTER_CHANNEL: "stable"
+  HOME_URL: https://hiitsgabe.github.io/kitchentable/
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # No service worker: a cached old build next to a new one is two apps
+      # that disagree about the wire. HOME_URL is what a room link starts
+      # with, and BUILD is shown in Settings so two phones can compare.
+      - name: Build web
+        run: |
+          flutter build web --release \
+            --base-href /kitchentable/ \
+            --pwa-strategy=none \
+            --dart-define=HOME_URL=${{ env.HOME_URL }} \
+            --dart-define=BUILD=${GITHUB_SHA::7}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
