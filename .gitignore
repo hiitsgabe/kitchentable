@@ -41,3 +41,7 @@
 app.*.map.json
 app.*.symbols
 migrate_working_dir/
+
+# Working notes: benchmarks, specs and plans. They live in the history up to
+# e14b265 and are not part of the app.
+/docs/
