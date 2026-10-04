@@ -623,6 +623,9 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
 
     final battlefield = table.zone('battlefield-$seatId');
     if (battlefield == null) return;
+    // A token is of the game on this seat: a Treasure is no use at a
+    // Pokemon table and a search that offered one would be noise.
+    final game = ref.read(playProvider.notifier).gameAt(seatId);
 
     final media = MediaQuery.of(context);
     final m = Metrics.of(
@@ -643,7 +646,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
         search: (term) async {
           final db = ref.read(catalogDbProvider);
           if (db == null) return const [];
-          return db.searchByName(term);
+          return db.searchByName(term, game: game);
         },
         onPick: (card) {
           Navigator.of(sheet).pop();

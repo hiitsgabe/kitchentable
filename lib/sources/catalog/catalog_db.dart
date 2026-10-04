@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../decks/model/game.dart';
 import '../model/catalog_card.dart';
 import 'catalog_opener.dart';
 
@@ -25,6 +26,10 @@ class Cards extends Table {
   TextColumn get imageNormal => text().nullable()();
   TextColumn get imageLarge => text().nullable()();
   TextColumn get imageBack => text().nullable()();
+
+  /// Which game printed the card. Every row that existed before this column
+  /// was Magic, which is what the default says.
+  TextColumn get game => text().withDefault(const Constant('magic'))();
 
   @override
   Set<Column> get primaryKey => {oracleId};
@@ -65,7 +70,7 @@ class CatalogDb extends _$CatalogDb {
   CatalogDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -106,6 +111,11 @@ class CatalogDb extends _$CatalogDb {
         // the way those cards already drew. A reimport fills it in.
         await _addColumnOnce(m, cards, cards.imageLarge);
       }
+      if (from < 6) {
+        // Magic on every existing row, by the default: there was no other
+        // game to import before this column.
+        await _addColumnOnce(m, cards, cards.game);
+      }
     },
   );
 
@@ -122,10 +132,22 @@ class CatalogDb extends _$CatalogDb {
     if (!already) await m.addColumn(table, column);
   }
 
-  Future<int> cardCount() async {
+  Future<int> cardCount({Game? game}) async {
     final count = countAll();
     final query = selectOnly(cards)..addColumns([count]);
+    if (game != null) query.where(cards.game.equals(game.name));
     return await query.map((row) => row.read(count)!).getSingle();
+  }
+
+  /// The games that have at least one card here, which is what decides
+  /// whether a deck of that game can be built.
+  Future<Set<Game>> gamesWithCards() async {
+    final query = selectOnly(cards, distinct: true)..addColumns([cards.game]);
+    final rows = await query.map((row) => row.read(cards.game)!).get();
+    return {
+      for (final name in rows)
+        if (Game.values.any((g) => g.name == name)) Game.values.byName(name),
+    };
   }
 
   /// True when anything in the catalog predates the large image column.
@@ -144,11 +166,21 @@ class CatalogDb extends _$CatalogDb {
     });
   }
 
-  Future<List<CatalogCard>> searchByName(String term) async {
+  /// Cards by part of their name, in one [game] or in any.
+  ///
+  /// The game matters as soon as there are two: a Pokemon deck has no use
+  /// for a Magic card called Charizard's cousin, and a search box that
+  /// mixed them would make a player read the type line on every row.
+  Future<List<CatalogCard>> searchByName(String term, {Game? game}) async {
     final needle = '%${term.toLowerCase()}%';
     final rows =
         await (select(cards)
               ..where((c) => c.nameFolded.like(needle))
+              ..where(
+                (c) => game == null
+                    ? const Constant(true)
+                    : c.game.equals(game.name),
+              )
               ..orderBy([(c) => OrderingTerm(expression: c.name)])
               ..limit(100))
             .get();
@@ -199,6 +231,7 @@ class CatalogDb extends _$CatalogDb {
     imageNormal: Value(c.imageNormal),
     imageLarge: Value(c.imageLarge),
     imageBack: Value(c.imageBack),
+    game: Value(c.game.name),
   );
 
   CatalogCard _fromRow(Card row) => CatalogCard(
@@ -223,5 +256,8 @@ class CatalogDb extends _$CatalogDb {
     imageNormal: row.imageNormal,
     imageLarge: row.imageLarge,
     imageBack: row.imageBack,
+    game: Game.values.any((g) => g.name == row.game)
+        ? Game.values.byName(row.game)
+        : Game.magic,
   );
 }

@@ -15,10 +15,6 @@ enum Game {
     Game.pokemon => 'Pokemon',
   };
 
-  /// Pokemon has no catalog yet, so its formats are listed and its decks are
-  /// refused rather than pretended at. See the source registry.
-  bool get hasCatalog => this == Game.magic;
-
   List<DeckFormat> get formats => switch (this) {
     Game.magic => const [
       DeckFormat.commander,

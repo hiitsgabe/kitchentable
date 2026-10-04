@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../decks/model/game.dart';
+
 import '../../sources/catalog/catalog_db.dart';
 import '../../sources/catalog/catalog_opener.dart';
 
@@ -61,6 +63,14 @@ final catalogDbProvider = Provider<CatalogDb?>((ref) {
   final db = CatalogDb();
   ref.onDispose(db.close);
   return db;
+});
+
+/// The games with at least one card on this device, which is what decides
+/// whether a deck of that game can be built. Empty with no catalog.
+final gamesWithCardsProvider = FutureProvider<Set<Game>>((ref) async {
+  final db = ref.watch(catalogDbProvider);
+  if (db == null) return const {};
+  return db.gamesWithCards();
 });
 
 final menuStateProvider = FutureProvider<MenuState>((ref) async {

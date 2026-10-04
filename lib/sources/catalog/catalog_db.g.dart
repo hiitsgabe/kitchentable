@@ -187,6 +187,16 @@ class $CardsTable extends Cards with TableInfo<$CardsTable, Card> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _gameMeta = const VerificationMeta('game');
+  @override
+  late final GeneratedColumn<String> game = GeneratedColumn<String>(
+    'game',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('magic'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     oracleId,
@@ -206,6 +216,7 @@ class $CardsTable extends Cards with TableInfo<$CardsTable, Card> {
     imageNormal,
     imageLarge,
     imageBack,
+    game,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -341,6 +352,12 @@ class $CardsTable extends Cards with TableInfo<$CardsTable, Card> {
         imageBack.isAcceptableOrUnknown(data['image_back']!, _imageBackMeta),
       );
     }
+    if (data.containsKey('game')) {
+      context.handle(
+        _gameMeta,
+        game.isAcceptableOrUnknown(data['game']!, _gameMeta),
+      );
+    }
     return context;
   }
 
@@ -418,6 +435,10 @@ class $CardsTable extends Cards with TableInfo<$CardsTable, Card> {
         DriftSqlType.string,
         data['${effectivePrefix}image_back'],
       ),
+      game: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}game'],
+      )!,
     );
   }
 
@@ -445,6 +466,10 @@ class Card extends DataClass implements Insertable<Card> {
   final String? imageNormal;
   final String? imageLarge;
   final String? imageBack;
+
+  /// Which game printed the card. Every row that existed before this column
+  /// was Magic, which is what the default says.
+  final String game;
   const Card({
     required this.oracleId,
     required this.name,
@@ -463,6 +488,7 @@ class Card extends DataClass implements Insertable<Card> {
     this.imageNormal,
     this.imageLarge,
     this.imageBack,
+    required this.game,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -504,6 +530,7 @@ class Card extends DataClass implements Insertable<Card> {
     if (!nullToAbsent || imageBack != null) {
       map['image_back'] = Variable<String>(imageBack);
     }
+    map['game'] = Variable<String>(game);
     return map;
   }
 
@@ -546,6 +573,7 @@ class Card extends DataClass implements Insertable<Card> {
       imageBack: imageBack == null && nullToAbsent
           ? const Value.absent()
           : Value(imageBack),
+      game: Value(game),
     );
   }
 
@@ -572,6 +600,7 @@ class Card extends DataClass implements Insertable<Card> {
       imageNormal: serializer.fromJson<String?>(json['imageNormal']),
       imageLarge: serializer.fromJson<String?>(json['imageLarge']),
       imageBack: serializer.fromJson<String?>(json['imageBack']),
+      game: serializer.fromJson<String>(json['game']),
     );
   }
   @override
@@ -595,6 +624,7 @@ class Card extends DataClass implements Insertable<Card> {
       'imageNormal': serializer.toJson<String?>(imageNormal),
       'imageLarge': serializer.toJson<String?>(imageLarge),
       'imageBack': serializer.toJson<String?>(imageBack),
+      'game': serializer.toJson<String>(game),
     };
   }
 
@@ -616,6 +646,7 @@ class Card extends DataClass implements Insertable<Card> {
     Value<String?> imageNormal = const Value.absent(),
     Value<String?> imageLarge = const Value.absent(),
     Value<String?> imageBack = const Value.absent(),
+    String? game,
   }) => Card(
     oracleId: oracleId ?? this.oracleId,
     name: name ?? this.name,
@@ -634,6 +665,7 @@ class Card extends DataClass implements Insertable<Card> {
     imageNormal: imageNormal.present ? imageNormal.value : this.imageNormal,
     imageLarge: imageLarge.present ? imageLarge.value : this.imageLarge,
     imageBack: imageBack.present ? imageBack.value : this.imageBack,
+    game: game ?? this.game,
   );
   Card copyWithCompanion(CardsCompanion data) {
     return Card(
@@ -668,6 +700,7 @@ class Card extends DataClass implements Insertable<Card> {
           ? data.imageLarge.value
           : this.imageLarge,
       imageBack: data.imageBack.present ? data.imageBack.value : this.imageBack,
+      game: data.game.present ? data.game.value : this.game,
     );
   }
 
@@ -690,7 +723,8 @@ class Card extends DataClass implements Insertable<Card> {
           ..write('imageSmall: $imageSmall, ')
           ..write('imageNormal: $imageNormal, ')
           ..write('imageLarge: $imageLarge, ')
-          ..write('imageBack: $imageBack')
+          ..write('imageBack: $imageBack, ')
+          ..write('game: $game')
           ..write(')'))
         .toString();
   }
@@ -714,6 +748,7 @@ class Card extends DataClass implements Insertable<Card> {
     imageNormal,
     imageLarge,
     imageBack,
+    game,
   );
   @override
   bool operator ==(Object other) =>
@@ -735,7 +770,8 @@ class Card extends DataClass implements Insertable<Card> {
           other.imageSmall == this.imageSmall &&
           other.imageNormal == this.imageNormal &&
           other.imageLarge == this.imageLarge &&
-          other.imageBack == this.imageBack);
+          other.imageBack == this.imageBack &&
+          other.game == this.game);
 }
 
 class CardsCompanion extends UpdateCompanion<Card> {
@@ -756,6 +792,7 @@ class CardsCompanion extends UpdateCompanion<Card> {
   final Value<String?> imageNormal;
   final Value<String?> imageLarge;
   final Value<String?> imageBack;
+  final Value<String> game;
   final Value<int> rowid;
   const CardsCompanion({
     this.oracleId = const Value.absent(),
@@ -775,6 +812,7 @@ class CardsCompanion extends UpdateCompanion<Card> {
     this.imageNormal = const Value.absent(),
     this.imageLarge = const Value.absent(),
     this.imageBack = const Value.absent(),
+    this.game = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CardsCompanion.insert({
@@ -795,6 +833,7 @@ class CardsCompanion extends UpdateCompanion<Card> {
     this.imageNormal = const Value.absent(),
     this.imageLarge = const Value.absent(),
     this.imageBack = const Value.absent(),
+    this.game = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : oracleId = Value(oracleId),
        name = Value(name),
@@ -821,6 +860,7 @@ class CardsCompanion extends UpdateCompanion<Card> {
     Expression<String>? imageNormal,
     Expression<String>? imageLarge,
     Expression<String>? imageBack,
+    Expression<String>? game,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -841,6 +881,7 @@ class CardsCompanion extends UpdateCompanion<Card> {
       if (imageNormal != null) 'image_normal': imageNormal,
       if (imageLarge != null) 'image_large': imageLarge,
       if (imageBack != null) 'image_back': imageBack,
+      if (game != null) 'game': game,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -863,6 +904,7 @@ class CardsCompanion extends UpdateCompanion<Card> {
     Value<String?>? imageNormal,
     Value<String?>? imageLarge,
     Value<String?>? imageBack,
+    Value<String>? game,
     Value<int>? rowid,
   }) {
     return CardsCompanion(
@@ -883,6 +925,7 @@ class CardsCompanion extends UpdateCompanion<Card> {
       imageNormal: imageNormal ?? this.imageNormal,
       imageLarge: imageLarge ?? this.imageLarge,
       imageBack: imageBack ?? this.imageBack,
+      game: game ?? this.game,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -941,6 +984,9 @@ class CardsCompanion extends UpdateCompanion<Card> {
     if (imageBack.present) {
       map['image_back'] = Variable<String>(imageBack.value);
     }
+    if (game.present) {
+      map['game'] = Variable<String>(game.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -967,6 +1013,7 @@ class CardsCompanion extends UpdateCompanion<Card> {
           ..write('imageNormal: $imageNormal, ')
           ..write('imageLarge: $imageLarge, ')
           ..write('imageBack: $imageBack, ')
+          ..write('game: $game, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1719,6 +1766,7 @@ typedef $$CardsTableCreateCompanionBuilder = CardsCompanion Function({
   Value<String?> imageNormal,
   Value<String?> imageLarge,
   Value<String?> imageBack,
+  Value<String> game,
   Value<int> rowid,
 });
 typedef $$CardsTableUpdateCompanionBuilder = CardsCompanion Function({
@@ -1739,6 +1787,7 @@ typedef $$CardsTableUpdateCompanionBuilder = CardsCompanion Function({
   Value<String?> imageNormal,
   Value<String?> imageLarge,
   Value<String?> imageBack,
+  Value<String> game,
   Value<int> rowid,
 });
 
@@ -1832,6 +1881,11 @@ class $$CardsTableFilterComposer extends Composer<_$CatalogDb, $CardsTable> {
 
   ColumnFilters<String> get imageBack => $composableBuilder(
     column: $table.imageBack,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get game => $composableBuilder(
+    column: $table.game,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1928,6 +1982,11 @@ class $$CardsTableOrderingComposer extends Composer<_$CatalogDb, $CardsTable> {
     column: $table.imageBack,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get game => $composableBuilder(
+    column: $table.game,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CardsTableAnnotationComposer
@@ -2003,6 +2062,9 @@ class $$CardsTableAnnotationComposer
 
   GeneratedColumn<String> get imageBack =>
       $composableBuilder(column: $table.imageBack, builder: (column) => column);
+
+  GeneratedColumn<String> get game =>
+      $composableBuilder(column: $table.game, builder: (column) => column);
 }
 
 class $$CardsTableTableManager
@@ -2050,6 +2112,7 @@ class $$CardsTableTableManager
                 Value<String?> imageNormal = const Value.absent(),
                 Value<String?> imageLarge = const Value.absent(),
                 Value<String?> imageBack = const Value.absent(),
+                Value<String> game = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CardsCompanion(
                 oracleId: oracleId,
@@ -2069,6 +2132,7 @@ class $$CardsTableTableManager
                 imageNormal: imageNormal,
                 imageLarge: imageLarge,
                 imageBack: imageBack,
+                game: game,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2090,6 +2154,7 @@ class $$CardsTableTableManager
                 Value<String?> imageNormal = const Value.absent(),
                 Value<String?> imageLarge = const Value.absent(),
                 Value<String?> imageBack = const Value.absent(),
+                Value<String> game = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CardsCompanion.insert(
                 oracleId: oracleId,
@@ -2109,6 +2174,7 @@ class $$CardsTableTableManager
                 imageNormal: imageNormal,
                 imageLarge: imageLarge,
                 imageBack: imageBack,
+                game: game,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
