@@ -4,6 +4,19 @@ import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/ui/atoms/card_art.dart';
 
 void main() {
+  testWidgets('a Pokemon back is painted, not Magic\'s and not a blank', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: CardBack(width: 60, game: Game.pokemon)),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const Key('pokemon-back')), findsOneWidget);
+    expect(find.byKey(const Key('card-back-art')), findsNothing);
+  });
+
   test('Magic has a back and it is the real one', () {
     // Scryfall serves the Magic back, which the card viewer has used since
     // plan 1 for a card with no second face.

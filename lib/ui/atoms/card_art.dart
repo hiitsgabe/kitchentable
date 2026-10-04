@@ -123,13 +123,53 @@ const _magicBack =
 /// a token or a card the table knows nothing about.
 String? backFor(Game? game) => switch (game) {
   Game.magic => _magicBack,
-  // Nothing the app imports serves a Pokemon back, there is no Pokemon
-  // catalog to ask, and a fan site is not a source. It arrives with the
-  // catalog that serves it. Until then the pile draws the plain box,
-  // which is already what the table draws when it knows nothing.
+  // Nothing the app imports serves a Pokemon back and a fan site is not a
+  // source, so Pokemon's is painted, see [PokemonBack]. Null here means no
+  // picture to fetch; [CardBack] knows to paint instead.
   Game.pokemon => null,
   null => null,
 };
+
+/// The back of a Pokemon card, painted.
+///
+/// A deep blue with a pale ring on it. Not the printed back, which is the
+/// publisher's and is served by nobody the app reads from, and not Magic's,
+/// which a Pokemon pile wore for a while because the viewer only knew one.
+/// Enough to say "a card, face down, in this game" at any size.
+class PokemonBack extends StatelessWidget {
+  const PokemonBack({super.key});
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final w = box.maxWidth.isFinite ? box.maxWidth : 63.0;
+      return Container(
+        key: const Key('pokemon-back'),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF2A5DB0), Color(0xFF0E2A66)],
+          ),
+          border: Border.all(color: const Color(0xFFE8C14A), width: w * 0.045),
+        ),
+        child: Center(
+          child: Container(
+            width: w * 0.46,
+            height: w * 0.46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: const Color(0xCCFFFFFF),
+                width: w * 0.045,
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
 
 /// The back of a card.
 ///
@@ -162,7 +202,9 @@ class CardBack extends StatelessWidget {
       height: height,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(width * 0.05),
-        child: url == null
+        child: game == Game.pokemon
+            ? const PokemonBack()
+            : url == null
             ? blank
             : CardImage(
                 key: const Key('card-back-art'),
