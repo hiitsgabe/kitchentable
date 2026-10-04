@@ -63,6 +63,7 @@ class _AddLandsScreenState extends ConsumerState<AddLandsScreen> {
         title: 'Lands',
         label: 'no deck open',
         onBack: () => Navigator.of(context).maybePop(),
+        home: true,
         children: const [],
       );
     }
@@ -78,6 +79,7 @@ class _AddLandsScreenState extends ConsumerState<AddLandsScreen> {
           ? '$missing still to fill'
           : 'the deck is already full',
       onBack: () => Navigator.of(context).maybePop(),
+      home: true,
       children: [
         if (split.isNotEmpty)
           MenuRow(

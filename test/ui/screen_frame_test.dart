@@ -4,27 +4,77 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/ui/organisms/screen_frame.dart';
 import 'package:kitchentable/ui/tokens/metrics.dart';
 
-Widget _host({VoidCallback? onBack}) => MaterialApp(
-      home: ScreenFrame(
-        metrics: Metrics.of(DeviceClass.handheld),
-        title: 'Sources',
-        label: 'nothing has left this device yet',
-        onBack: onBack,
-        children: const [Text('a row')],
+Widget _host({VoidCallback? onBack, bool home = false}) => MaterialApp(
+  home: ScreenFrame(
+    metrics: Metrics.of(DeviceClass.handheld),
+    title: 'Sources',
+    label: 'nothing has left this device yet',
+    onBack: onBack,
+    home: home,
+    children: const [Text('a row')],
+  ),
+);
+
+/// A screen [depth] steps below the root, each one a frame of its own, the
+/// way Decks, a game, a deck and its cards stack up in the app.
+Widget _deep(int depth) => ScreenFrame(
+  metrics: Metrics.of(DeviceClass.handheld),
+  title: 'Screen $depth',
+  label: 'step $depth',
+  home: depth >= 2,
+  onBack: depth == 0 ? null : () {},
+  children: [
+    Builder(
+      builder: (context) => TextButton(
+        key: Key('down-$depth'),
+        onPressed: () => Navigator.of(context)
+            .push(MaterialPageRoute<void>(builder: (_) => _deep(depth + 1))),
+        child: const Text('down'),
       ),
-    );
+    ),
+  ],
+);
 
 void main() {
-  testWidgets('the label is shouted, because it says what is true now',
-      (tester) async {
+  testWidgets('the label is shouted, because it says what is true now', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host());
     expect(find.text('NOTHING HAS LEFT THIS DEVICE YET'), findsOneWidget);
   });
 
-  testWidgets('there is no back affordance when there is nowhere to go',
-      (tester) async {
+  testWidgets('there is no back affordance when there is nowhere to go', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host());
     expect(find.text('Back'), findsNothing);
+  });
+
+  testWidgets('there is no home affordance unless the screen asks', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_host(onBack: () {}));
+    expect(find.byKey(const Key('home')), findsNothing);
+
+    await tester.pumpWidget(_host(onBack: () {}, home: true));
+    expect(find.byKey(const Key('home')), findsOneWidget);
+    expect(find.text('Back'), findsOneWidget, reason: 'home is beside back');
+  });
+
+  testWidgets('home goes to the first screen in one press', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: _deep(0)));
+    for (final step in [0, 1, 2]) {
+      await tester.tap(find.byKey(Key('down-$step')));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('STEP 3'), findsOneWidget);
+
+    // Three screens down and Back three times was the only way out.
+    await tester.tap(find.byKey(const Key('home')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('STEP 0'), findsOneWidget);
+    expect(find.text('Back'), findsNothing, reason: 'the root has no back');
   });
 
   testWidgets('tapping back goes back', (tester) async {
@@ -41,7 +91,9 @@ void main() {
     await tester.pumpWidget(_host(onBack: () {}));
 
     final box = tester.getSize(
-      find.ancestor(of: find.text('Back'), matching: find.byType(Container)).first,
+      find
+          .ancestor(of: find.text('Back'), matching: find.byType(Container))
+          .first,
     );
 
     // Anything under about forty points is a target people miss. The first

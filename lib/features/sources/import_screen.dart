@@ -46,6 +46,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       title: widget.source.name,
       label: _labelFor(s),
       onBack: () => Navigator.of(context).maybePop(),
+      home: true,
       children: [
         ProgressTrack(
           metrics: m,

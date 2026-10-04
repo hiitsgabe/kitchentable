@@ -54,6 +54,7 @@ class _RenameDeckScreenState extends ConsumerState<RenameDeckScreen> {
       title: 'Name',
       label: 'what this deck is called',
       onBack: () => Navigator.of(context).maybePop(),
+      home: true,
       children: [
         TextFieldBox(
           metrics: m,

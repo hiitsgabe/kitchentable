@@ -52,6 +52,8 @@ void main() {
     expect(find.text('Scryfall'), findsOneWidget);
     expect(find.text('MTGJSON'), findsOneWidget);
     expect(find.textContaining('NOTHING HAS LEFT THIS DEVICE'), findsOneWidget);
+    // Two screens below the menu, so Home stands beside Back.
+    expect(find.byKey(const Key('home')), findsOneWidget);
   });
 
   testWidgets('a source that downloads states its size up front', (

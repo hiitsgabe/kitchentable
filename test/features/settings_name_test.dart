@@ -18,6 +18,20 @@ Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  testWidgets('one step below the menu, settings has back and no home', (
+    tester,
+  ) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await _pump(tester, container);
+    expect(find.text('Back'), findsOneWidget);
+    expect(
+      find.byKey(const Key('home')),
+      findsNothing,
+      reason: 'back already is home from here',
+    );
+  });
+
   test('nobody has said who they are, so they are you', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -38,8 +52,9 @@ void main() {
     expect(container.read(yourNameProvider), namelessPlayer);
   });
 
-  testWidgets('your name is in settings, where the rest of you is',
-      (tester) async {
+  testWidgets('your name is in settings, where the rest of you is', (
+    tester,
+  ) async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     await _pump(tester, container);
@@ -62,10 +77,12 @@ void main() {
     // By key: the network boxes are TextFields too.
     expect(
       tester
-          .widget<TextField>(find.descendant(
-            of: find.byKey(const Key('player-name')),
-            matching: find.byType(TextField),
-          ))
+          .widget<TextField>(
+            find.descendant(
+              of: find.byKey(const Key('player-name')),
+              matching: find.byType(TextField),
+            ),
+          )
           .controller!
           .text,
       'kit',

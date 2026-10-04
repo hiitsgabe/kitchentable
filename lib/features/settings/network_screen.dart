@@ -77,6 +77,7 @@ class _NetworkScreenState extends ConsumerState<NetworkScreen> {
       title: 'Network',
       label: ref.watch(turnProvider) == null ? 'no relay' : 'a relay is set',
       onBack: () => Navigator.of(context).maybePop(),
+      home: true,
       children: [
         SettingsCaption(
           metrics: m,

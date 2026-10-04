@@ -76,6 +76,7 @@ class _PasteListScreenState extends ConsumerState<PasteListScreen> {
           ? 'one card per line'
           : '${preview.resolvedCount} cards found',
       onBack: () => Navigator.of(context).maybePop(),
+      home: true,
       children: [
         TextFieldBox(
           metrics: m,

@@ -68,6 +68,7 @@ class _AddCardsScreenState extends ConsumerState<AddCardsScreen> {
           ? 'no deck open'
           : '${deck.format.label} · ${deck.mainCount} of ${deck.format.deckSize}',
       onBack: () => Navigator.of(context).maybePop(),
+      home: true,
       children: [
         TextFieldBox(
           metrics: m,

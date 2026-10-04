@@ -52,6 +52,7 @@ class _BackdropScreenState extends ConsumerState<BackdropScreen> {
       title: 'Background',
       label: '${style.kind.label} · it changes as you pick',
       onBack: () => Navigator.of(context).maybePop(),
+      home: true,
       children: [
         _Label(metrics: m, text: 'effect'),
         for (final kind in BackdropKind.values)
