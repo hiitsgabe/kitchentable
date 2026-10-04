@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/sources/catalog/catalog_db.dart';
@@ -22,6 +23,7 @@ import 'package:kitchentable/features/play/renderers/split_view.dart';
 import 'package:kitchentable/features/play/widgets/seat_rail.dart';
 import 'package:kitchentable/features/play/widgets/card_drag.dart';
 import 'package:kitchentable/features/play/widgets/command_slot.dart';
+import 'package:kitchentable/features/play/widgets/card_actions_sheet.dart';
 import 'package:kitchentable/features/play/widgets/hand_sheet.dart';
 import 'package:kitchentable/features/play/widgets/table_card.dart';
 import 'package:kitchentable/table/model/seat_owner.dart';
@@ -31,6 +33,7 @@ import 'package:kitchentable/table/model/table_state.dart';
 import 'package:kitchentable/table/referee/referee.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 import 'package:kitchentable/ui/atoms/card_art.dart';
+import 'package:kitchentable/ui/input/pad.dart';
 
 import '../net/fake_transport.dart';
 
@@ -106,7 +109,12 @@ Future<ProviderContainer> _seatedPod(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: PlayScreen()),
+      // Under the same input layer the app runs under, so B and the pad
+      // reach the table here the way they do there.
+      child: MaterialApp(
+        builder: (context, child) => PadInput(child: child!),
+        home: const PlayScreen(),
+      ),
     ),
   );
   await tester.pump();
@@ -172,7 +180,12 @@ Future<ProviderContainer> _seatedFromRoom(WidgetTester tester) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: PlayScreen()),
+      // Under the same input layer the app runs under, so B and the pad
+      // reach the table here the way they do there.
+      child: MaterialApp(
+        builder: (context, child) => PadInput(child: child!),
+        home: const PlayScreen(),
+      ),
     ),
   );
   await tester.pump();
@@ -289,7 +302,12 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [catalogDbProvider.overrideWithValue(null)],
-        child: const MaterialApp(home: PlayScreen()),
+        // Under the same input layer the app runs under, so B and the pad
+        // reach the table here the way they do there.
+        child: MaterialApp(
+          builder: (context, child) => PadInput(child: child!),
+          home: const PlayScreen(),
+        ),
       ),
     );
     await tester.pump();
@@ -578,6 +596,94 @@ void main() {
       hand.top,
       greaterThanOrEqualTo(board.bottom - 1),
       reason: 'the hand must start at or below where your board ends',
+    );
+  });
+
+  testWidgets('select on a card on the board asks, and select on Tap taps it', (
+    tester,
+  ) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pump();
+
+    // The board holds focus when the table opens and the ring is on the
+    // one card. One button, so the button asks.
+    await tester.sendKeyEvent(LogicalKeyboardKey.gameButtonA);
+    await tester.pumpAndSettle();
+    expect(find.byType(CardActionsSheet), findsOneWidget);
+    expect(find.byKey(const Key('act-tap')), findsOneWidget);
+    expect(
+      find.textContaining('press'),
+      findsNothing,
+      reason: 'no prompt names a button anywhere',
+    );
+
+    // Tap is first and already ringed: select twice is the turn.
+    await tester.sendKeyEvent(LogicalKeyboardKey.gameButtonA);
+    await tester.pumpAndSettle();
+    expect(find.byType(CardActionsSheet), findsNothing);
+    expect(container.read(playProvider)!.locate(card.id)!.card.rotation, 90);
+  });
+
+  testWidgets('B on the menu closes it and changes nothing', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.gameButtonA);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.gameButtonB);
+    await tester.pumpAndSettle();
+    expect(find.byType(CardActionsSheet), findsNothing);
+    expect(find.byType(PlayScreen), findsOneWidget, reason: 'the table stays');
+    expect(container.read(playProvider)!.locate(card.id)!.card.rotation, 0);
+  });
+
+  testWidgets('the menu sends a card to the graveyard, or the top of the '
+      'library', (tester) async {
+    final container = await _seatedPod(tester, ['you']);
+    final play = container.read(playProvider.notifier);
+    final table = container.read(playProvider)!;
+    final card = table.zone('hand-s1')!.cards.first;
+    play.run(MoveCard(cardId: card.id, toZoneId: 'battlefield-s1'));
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.gameButtonA);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('act-top')));
+    await tester.pumpAndSettle();
+    final library = container.read(playProvider)!.zone('library-s1')!;
+    expect(library.cards.first.id, card.id, reason: 'the top is index zero');
+  });
+
+  testWidgets('a hand card with the ring on it plays on select', (
+    tester,
+  ) async {
+    final container = await _seatedPod(tester, ['you']);
+    final card = container.read(playProvider)!.zone('hand-s1')!.cards.first;
+    await tester.tap(find.byKey(const Key('hand-handle')));
+    await tester.pumpAndSettle();
+
+    // The card's own node is inside the card: the nearest Focus above the
+    // card is the board's.
+    Focus.of(
+      tester.element(
+        find.descendant(
+          of: find.byKey(Key('hand-card-${card.id}')),
+          matching: find.byType(AnimatedRotation),
+        ),
+      ),
+    ).requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.gameButtonA);
+    await tester.pumpAndSettle();
+    expect(
+      container.read(playProvider)!.locate(card.id)!.zone.id,
+      'battlefield-s1',
     );
   });
 

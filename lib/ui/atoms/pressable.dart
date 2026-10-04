@@ -82,8 +82,11 @@ class _PressableState extends State<Pressable> {
     Widget body = inner;
     if (widget.ring) {
       final accent = context.palette.accent;
+      // Painted over the thing, never around it: a border that took space
+      // would make every card, pile and chip wider by two rings whether or
+      // not anybody was looking at it, and the table is laid out in points.
       body = Container(
-        decoration: BoxDecoration(
+        foregroundDecoration: BoxDecoration(
           borderRadius: BorderRadius.circular(widget.radius ?? m.scaled(8)),
           border: Border.all(
             color: _focused

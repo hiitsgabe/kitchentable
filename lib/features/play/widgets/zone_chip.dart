@@ -10,6 +10,7 @@ import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import '../dragging.dart';
 import 'card_drag.dart';
+import '../../../ui/atoms/pressable.dart';
 
 /// How tall a chip stands when nothing is in the air, before scaling.
 ///
@@ -128,10 +129,11 @@ class ZoneChip extends ConsumerWidget {
     final tap = onTap;
     final tappable = tap == null || count == 0
         ? chip
-        : GestureDetector(
+        : Pressable(
             key: Key('$pileName-open'),
-            onTap: tap,
-            behavior: HitTestBehavior.opaque,
+            metrics: m,
+            onPress: tap,
+            semanticLabel: '$label, $count cards',
             child: chip,
           );
 

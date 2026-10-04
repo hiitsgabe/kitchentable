@@ -49,6 +49,8 @@ import 'widgets/token_sheet.dart';
 import 'widgets/watched_board.dart';
 import 'widgets/zone_rail.dart';
 import 'widgets/zone_chip.dart';
+import 'widgets/card_actions_sheet.dart';
+import '../../ui/atoms/pressable.dart';
 
 class PlayScreen extends ConsumerStatefulWidget {
   const PlayScreen({super.key});
@@ -252,6 +254,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
           zones: zones,
           printings: _printings,
           onActivate: (c) => play.run(RotateCard(c.id)),
+          onMenu: _cardMenu,
           onInspect: _inspect,
           onPlace: _place,
           game: game,
@@ -884,6 +887,54 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
   }
 
   /// The long press: the big card, and the controls on it.
+  /// Select on a card on the board: what to do with it, in a list.
+  ///
+  /// A finger has a drag for every pile and a tap for the turn. A pad has
+  /// one button, so the button asks. Tap is first, so select twice is the
+  /// turn.
+  Future<void> _cardMenu(CardInstance card) async {
+    final seatId = ref.read(viewerSeatProvider);
+    if (seatId == null) return;
+    final media = MediaQuery.of(context);
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
+    final action = await showModalBottomSheet<CardMenuAction>(
+      context: context,
+      backgroundColor: Palette.surface,
+      isScrollControlled: true,
+      builder: (sheet) => CardActionsSheet(
+        metrics: m,
+        card: card,
+        printing: _printings[card.oracleId],
+        onAct: (a) => Navigator.of(sheet).pop(a),
+      ),
+    );
+    if (action == null || !mounted) return;
+
+    final play = ref.read(playProvider.notifier);
+    String zone(String name) => '$name-$seatId';
+    switch (action) {
+      case CardMenuAction.tap:
+        play.run(RotateCard(card.id));
+      case CardMenuAction.flip:
+        play.run(FlipCard(card.id));
+      case CardMenuAction.look:
+        await _inspect(card);
+      case CardMenuAction.toGraveyard:
+        play.run(MoveCard(cardId: card.id, toZoneId: zone('graveyard')));
+      case CardMenuAction.toHand:
+        play.run(MoveCard(cardId: card.id, toZoneId: zone('hand')));
+      case CardMenuAction.toTop:
+        play.run(MoveCard(cardId: card.id, toZoneId: zone('library'), at: 0));
+      case CardMenuAction.toBottom:
+        play.run(MoveCard(cardId: card.id, toZoneId: zone('library')));
+    }
+  }
+
   Future<void> _inspect(CardInstance instance) async {
     final printing = _printings[instance.oracleId];
     if (printing == null) return;
@@ -1118,24 +1169,28 @@ class _Pill extends StatelessWidget {
     final m = metrics;
     final count = badge ?? 0;
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Stack(
+    return Pressable(
+      metrics: m,
+      onPress: onTap,
+      ring: false,
+      builder: (context, state) => Stack(
         clipBehavior: Clip.none,
         children: [
           Container(
             width: m.scaled(34),
             height: m.scaled(34),
             decoration: BoxDecoration(
-              color: lit ? context.palette.tileFocused : Palette.tile,
+              color: lit || state.focused || state.hovered
+                  ? context.palette.tileFocused
+                  : Palette.tile,
               borderRadius: BorderRadius.circular(m.scaled(8)),
               border: Border.all(
                 color: warn
                     ? Palette.attention
-                    : lit
+                    : lit || state.focused
                     ? context.palette.accent
                     : Palette.tileEdge,
+                width: state.focused ? m.focusRing : 1,
               ),
             ),
             child: Icon(
