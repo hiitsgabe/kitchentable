@@ -86,11 +86,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ref.read(playerNameProvider.notifier).set(name);
           },
         ),
-        SettingsCaption(
-          metrics: m,
-          text:
-              'What the others see on your chair. Left empty, $namelessPlayer.',
-        ),
+        SettingsCaption(metrics: m, text: 'What the others see on your chair.'),
 
         // Four groups, which is the benchmark's number, each a subscreen of
         // its own rather than another slab of fields on this one.
