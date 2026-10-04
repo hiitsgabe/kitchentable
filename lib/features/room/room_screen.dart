@@ -20,6 +20,7 @@ import '../menu/menu_screen.dart';
 import '../play/play_controller.dart';
 import '../play/play_screen.dart';
 import 'room_controller.dart';
+import '../../ui/atoms/pressable.dart';
 
 /// The commit this build was made from, handed in as `--dart-define=BUILD=`
 /// by whoever builds; "dev" when nobody did.
@@ -635,12 +636,15 @@ class _Invite extends StatelessWidget {
               ),
             ),
             SizedBox(height: m.scaled(8)),
-            GestureDetector(
-              onTap: onCopyCode,
-              behavior: HitTestBehavior.opaque,
-              child: Semantics(
-                button: true,
-                label: 'Room code $code. Tap to copy',
+            Pressable(
+              metrics: m,
+              onPress: onCopyCode,
+              semanticLabel: 'Room code $code. Copies it',
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: m.scaled(8),
+                  vertical: m.scaled(2),
+                ),
                 child: Text(
                   code,
                   key: const Key('room-code'),
@@ -717,9 +721,10 @@ class _Aside extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.only(bottom: m.scaled(14)),
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
+      child: Pressable(
+        metrics: m,
+        onPress: onTap,
+        semanticLabel: text,
         child: Text(
           text,
           key: Key(id),

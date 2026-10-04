@@ -14,6 +14,7 @@ import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../menu/menu_controller.dart';
 import 'decks_controller.dart';
+import '../../ui/atoms/pressable.dart';
 
 /// Basic lands, which are a third of most decks and the most tedious third.
 ///
@@ -193,8 +194,10 @@ class _LandRow extends ConsumerWidget {
         child: Row(
           children: [
             if (found != null)
-              GestureDetector(
-                onTap: () => CardViewer.show(context, found),
+              Pressable(
+                metrics: m,
+                onPress: () => CardViewer.show(context, found),
+                semanticLabel: 'Look at $name',
                 child: CardArt(metrics: m, card: found, width: m.scaled(48)),
               )
             else
@@ -222,22 +225,28 @@ class _LandRow extends ConsumerWidget {
               (Icons.add_rounded, 1),
               (Icons.keyboard_double_arrow_up_rounded, 5),
             ]) ...[
-              GestureDetector(
-                onTap: found == null ? null : () => bump(by),
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  width: m.scaled(34),
-                  height: m.scaled(34),
-                  margin: EdgeInsets.only(left: m.scaled(4)),
-                  decoration: BoxDecoration(
-                    color: Palette.tile,
-                    borderRadius: BorderRadius.circular(m.scaled(8)),
-                    border: Border.all(color: Palette.tileEdge),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: m.scaled(17),
-                    color: Palette.inkMuted,
+              Padding(
+                padding: EdgeInsets.only(left: m.scaled(4)),
+                child: Pressable(
+                  metrics: m,
+                  enabled: found != null,
+                  onPress: () => bump(by),
+                  semanticLabel: by < 0
+                      ? '$name, one fewer'
+                      : '$name, $by more',
+                  child: Container(
+                    width: m.scaled(34),
+                    height: m.scaled(34),
+                    decoration: BoxDecoration(
+                      color: Palette.tile,
+                      borderRadius: BorderRadius.circular(m.scaled(8)),
+                      border: Border.all(color: Palette.tileEdge),
+                    ),
+                    child: Icon(
+                      icon,
+                      size: m.scaled(17),
+                      color: Palette.inkMuted,
+                    ),
                   ),
                 ),
               ),

@@ -17,6 +17,7 @@ import 'add_lands_screen.dart';
 import 'decks_controller.dart';
 import 'rename_deck_screen.dart';
 import 'paste_list_screen.dart';
+import '../../ui/atoms/pressable.dart';
 
 class DeckScreen extends ConsumerWidget {
   const DeckScreen({super.key});
@@ -186,8 +187,10 @@ class _SlotRow extends ConsumerWidget {
       padding: EdgeInsets.only(bottom: m.scaled(10)),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => CardViewer.show(context, slot.card),
+          Pressable(
+            metrics: m,
+            onPress: () => CardViewer.show(context, slot.card),
+            semanticLabel: 'Look at ${slot.card.name}',
             child: CardArt(metrics: m, card: slot.card, width: m.scaled(48)),
           ),
           SizedBox(width: m.scaled(12)),
@@ -307,9 +310,10 @@ class _Step extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = metrics;
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
+    return Pressable(
+      metrics: m,
+      onPress: onTap,
+      enabled: enabled,
       child: Container(
         width: m.scaled(34),
         height: m.scaled(34),

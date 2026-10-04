@@ -32,6 +32,7 @@ class Pressable extends StatefulWidget {
     this.enabled = true,
     this.radius,
     this.ring = true,
+    this.descendantsAreFocusable = false,
   }) : assert(builder != null || child != null, 'a builder or a child');
 
   final Metrics metrics;
@@ -54,6 +55,10 @@ class Pressable extends StatefulWidget {
   /// Whether the ring is drawn here at all. Off for a widget that draws its
   /// own focus, the way the board draws a ring around its cursor.
   final bool ring;
+
+  /// Off, so the thing is one stop for the D-pad. On for the one case with
+  /// something inside that takes focus of its own: a text field.
+  final bool descendantsAreFocusable;
 
   @override
   State<Pressable> createState() => _PressableState();
@@ -97,7 +102,7 @@ class _PressableState extends State<Pressable> {
       focusNode: widget.focusNode,
       autofocus: widget.autofocus && widget.enabled,
       enabled: widget.enabled,
-      descendantsAreFocusable: false,
+      descendantsAreFocusable: widget.descendantsAreFocusable,
       onFocusChange: (v) => setState(() => _focused = v),
       onShowHoverHighlight: (v) => setState(() => _hovered = v),
       actions: <Type, Action<Intent>>{
