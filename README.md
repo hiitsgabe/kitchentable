@@ -172,6 +172,10 @@ flutter build web --base-href /kitchentable/ --pwa-strategy=none \
 - `Build and Release`, run by hand from the Actions tab, bumps the version,
   tags it, and publishes Android packages and a zip of the web build
   (`.github/workflows/release.yml`).
+- iOS and Android store builds go through Expo Launch, which reads this
+  repo and builds on EAS. `eas.json` sets `appVersionSource: local` so EAS
+  takes the version from `pubspec.yaml` and does not inject
+  `FLUTTER_BUILD_NAME`, which Flutter refuses as an environment variable.
 
 ## License
 

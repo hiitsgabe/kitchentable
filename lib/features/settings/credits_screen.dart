@@ -292,7 +292,7 @@ class _Head extends StatelessWidget {
         ),
         SizedBox(height: m.scaled(6)),
         Text(
-          'dev.hiitsgabe.kitchentable',
+          'com.hiitsgabe.kitchentable',
           style: pixel(
             size: m.scaled(10),
             weight: 500,

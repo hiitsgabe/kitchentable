@@ -1,4 +1,4 @@
-package dev.hiitsgabe.kitchentable
+package com.hiitsgabe.kitchentable
 
 import io.flutter.embedding.android.FlutterActivity
 
