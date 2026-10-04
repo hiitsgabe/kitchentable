@@ -170,6 +170,24 @@ class RoomScreen extends ConsumerWidget {
             metrics: m,
             onActivate: () => _start(context, ref, lobby, config),
           ),
+        // The way back in. Back from the table lands here, and this screen
+        // used to offer nothing for it: Start was dead with "the table is
+        // dealt" under it, which is a sentence about the past, and somebody
+        // who had stepped out for a second had no door to go back through.
+        // Shown to the host and the guest alike, because both can step out.
+        if (lobby != null && lobby.dealt && ref.watch(playProvider) != null)
+          MenuRow(
+            key: const Key('room-back-to-table'),
+            title: 'Back to the table',
+            subtitle: 'the game is still going',
+            icon: Icons.table_restaurant_rounded,
+            tone: SlabTone.choice,
+            metrics: m,
+            autofocus: true,
+            onActivate: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
+            ),
+          ),
         if (lobby != null && !lobby.hosting && lobby.host == null)
           _Fact(
             metrics: m,

@@ -79,113 +79,112 @@ class _ChatSheetState extends State<ChatSheet> {
     final m = widget.metrics;
     final lines = widget.room.lines;
 
-    return Padding(
-      // Above the keyboard, which is the whole of why this is here.
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              m.safeInset,
-              m.scaled(14),
-              m.safeInset,
-              m.scaled(8),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  'TABLE TALK',
-                  style: pixel(
-                    size: m.scaled(12),
-                    weight: 600,
-                    color: Palette.inkMuted,
-                    letterSpacing: 1.4,
+    // No keyboard padding here. The sheet that opens this moves the whole
+    // thing up by the keyboard and caps what is left, and padding inside a
+    // capped box is exactly what pushed the input off the bottom of it.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            m.safeInset,
+            m.scaled(14),
+            m.safeInset,
+            m.scaled(8),
+          ),
+          child: Row(
+            children: [
+              Text(
+                'TABLE TALK',
+                style: pixel(
+                  size: m.scaled(12),
+                  weight: 600,
+                  color: Palette.inkMuted,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                lines.isEmpty ? 'nothing yet' : '${lines.length}',
+                style: pixel(
+                  size: m.scaled(12),
+                  weight: 500,
+                  color: Palette.inkFaint,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Flexible(
+          child: lines.isEmpty
+              ? _Nothing(metrics: m)
+              : ListView.builder(
+                  key: const Key('chat-lines'),
+                  controller: _scroll,
+                  padding: EdgeInsets.symmetric(horizontal: m.safeInset),
+                  itemCount: lines.length,
+                  itemBuilder: (context, i) => _Line(
+                    metrics: m,
+                    line: lines[i],
+                    // Grouped: a name is drawn only when the person
+                    // changes, which is what stops four lines from one
+                    // person being four names.
+                    named: i == 0 || lines[i - 1].by != lines[i].by,
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  lines.isEmpty ? 'nothing yet' : '${lines.length}',
-                  style: pixel(
-                    size: m.scaled(12),
-                    weight: 500,
-                    color: Palette.inkFaint,
-                  ),
-                ),
-              ],
-            ),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            m.safeInset,
+            m.scaled(8),
+            m.safeInset,
+            m.scaled(12),
           ),
-          Flexible(
-            child: lines.isEmpty
-                ? _Nothing(metrics: m)
-                : ListView.builder(
-                    key: const Key('chat-lines'),
-                    controller: _scroll,
-                    padding: EdgeInsets.symmetric(horizontal: m.safeInset),
-                    itemCount: lines.length,
-                    itemBuilder: (context, i) => _Line(
-                      metrics: m,
-                      line: lines[i],
-                      // Grouped: a name is drawn only when the person
-                      // changes, which is what stops four lines from one
-                      // person being four names.
-                      named: i == 0 || lines[i - 1].by != lines[i].by,
-                    ),
-                  ),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              m.safeInset,
-              m.scaled(8),
-              m.safeInset,
-              m.scaled(12),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Shortcuts(
-                    shortcuts: const {
-                      SingleActivator(LogicalKeyboardKey.enter): _SayIt(),
-                    },
-                    child: Actions(
-                      actions: {
-                        _SayIt: CallbackAction<_SayIt>(
-                          onInvoke: (_) {
-                            _send();
-                            return null;
-                          },
-                        ),
-                      },
-                      child: TextFieldBox(
-                        key: const Key('chat-box'),
-                        metrics: m,
-                        controller: _typed,
-                        hint: 'say something',
-                        autofocus: true,
-                        onSubmitted: (_) => _send(),
+          child: Row(
+            children: [
+              Expanded(
+                child: Shortcuts(
+                  shortcuts: const {
+                    SingleActivator(LogicalKeyboardKey.enter): _SayIt(),
+                  },
+                  child: Actions(
+                    actions: {
+                      _SayIt: CallbackAction<_SayIt>(
+                        onInvoke: (_) {
+                          _send();
+                          return null;
+                        },
                       ),
+                    },
+                    child: TextFieldBox(
+                      key: const Key('chat-box'),
+                      metrics: m,
+                      controller: _typed,
+                      hint: 'say something',
+                      autofocus: true,
+                      onSubmitted: (_) => _send(),
                     ),
                   ),
                 ),
-                SizedBox(width: m.scaled(10)),
-                Slab(
-                  key: const Key('chat-send'),
-                  metrics: m,
-                  tone: SlabTone.choice,
-                  onActivate: _send,
-                  semanticLabel: 'Send',
-                  padding: EdgeInsets.all(m.scaled(11)),
-                  child: Icon(
-                    Icons.send_rounded,
-                    size: m.scaled(18),
-                    color: Palette.slabInk,
-                  ),
+              ),
+              SizedBox(width: m.scaled(10)),
+              Slab(
+                key: const Key('chat-send'),
+                metrics: m,
+                tone: SlabTone.choice,
+                onActivate: _send,
+                semanticLabel: 'Send',
+                padding: EdgeInsets.all(m.scaled(11)),
+                child: Icon(
+                  Icons.send_rounded,
+                  size: m.scaled(18),
+                  color: Palette.slabInk,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/features/play/dice/die_view.dart';
+import 'package:vector_math/vector_math_64.dart' show Quaternion;
 import 'package:kitchentable/features/play/dice/dice_tray.dart';
 
 Widget _host({
@@ -151,6 +153,37 @@ void main() {
     await tester.pump();
 
     expect(_turning(tester, 6), isNull);
+  });
+
+  testWidgets('a die acted out turns, then stops on the number it was given', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RollingDie(solid: trayDice[2].solid, to: 4, size: 40),
+        ),
+      ),
+    );
+    await tester.pump();
+    Quaternion turn() => tester.widget<DieView>(find.byType(DieView)).turn;
+
+    final early = turn().storage.toList();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(
+      turn().storage.toList(),
+      isNot(equals(early)),
+      reason: 'it never turned',
+    );
+
+    // Nothing here rolls anything: the throw is acted out, and the number
+    // it stops on is the one everybody already agreed on.
+    await tester.pumpAndSettle();
+    expect(
+      turn().storage.toList(),
+      trayDice[2].solid.settle(3).storage.toList(),
+    );
+    expect(tester.widget<DieView>(find.byType(DieView)).showing, 3);
   });
 }
 

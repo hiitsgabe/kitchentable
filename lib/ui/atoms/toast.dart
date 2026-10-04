@@ -12,7 +12,18 @@ import '../tokens/palette.dart';
 class Toast {
   static OverlayEntry? _showing;
 
-  static void show(BuildContext context, String message, {IconData? icon}) {
+  static void show(BuildContext context, String message, {IconData? icon}) =>
+      announce(context, message, leading: icon == null ? null : _IconFor(icon));
+
+  /// A line with something in front of it that is not an icon: a die being
+  /// thrown, for one. [lasts] is how long it stays, because a thing that
+  /// moves needs longer than a line that is read at a glance.
+  static void announce(
+    BuildContext context,
+    String message, {
+    Widget? leading,
+    Duration lasts = const Duration(milliseconds: 1600),
+  }) {
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
 
@@ -29,12 +40,12 @@ class Toast {
     _showing?.remove();
 
     final entry = OverlayEntry(
-      builder: (_) => _Toast(metrics: m, message: message, icon: icon),
+      builder: (_) => _Toast(metrics: m, message: message, leading: leading),
     );
     _showing = entry;
     overlay.insert(entry);
 
-    Future.delayed(const Duration(milliseconds: 1600), () {
+    Future.delayed(lasts, () {
       if (_showing == entry) {
         entry.remove();
         _showing = null;
@@ -43,12 +54,31 @@ class Toast {
   }
 }
 
+/// An icon drawn the way the toast has always drawn one.
+class _IconFor extends StatelessWidget {
+  const _IconFor(this.icon);
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
+    return Icon(icon, size: m.scaled(16), color: context.palette.accent);
+  }
+}
+
 class _Toast extends StatefulWidget {
-  const _Toast({required this.metrics, required this.message, this.icon});
+  const _Toast({required this.metrics, required this.message, this.leading});
 
   final Metrics metrics;
   final String message;
-  final IconData? icon;
+  final Widget? leading;
 
   @override
   State<_Toast> createState() => _ToastState();
@@ -102,12 +132,8 @@ class _ToastState extends State<_Toast> with SingleTickerProviderStateMixin {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (widget.icon != null) ...[
-                      Icon(
-                        widget.icon,
-                        size: m.scaled(16),
-                        color: context.palette.accent,
-                      ),
+                    if (widget.leading case final leading?) ...[
+                      leading,
                       SizedBox(width: m.scaled(8)),
                     ],
                     Text(

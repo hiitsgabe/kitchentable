@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sources/import/scryfall_importer.dart';
 import '../../sources/model/source_def.dart';
 import '../menu/menu_controller.dart';
+import 'imported.dart';
 
 enum ImportPhase { idle, downloading, indexing, done, failed }
 
@@ -97,6 +98,10 @@ class ImportNotifier extends Notifier<ImportState> {
 
       state = state.copyWith(phase: ImportPhase.done);
       ref.invalidate(menuStateProvider);
+      // Remembered by source, not just as a count. The count is what the
+      // menu wants; which source it came from is what the list of sources
+      // and the first run both want, and neither could tell before.
+      await ref.read(importedSourcesProvider.notifier).mark(source.id);
     } catch (e) {
       state = state.copyWith(phase: ImportPhase.failed, error: '$e');
     } finally {

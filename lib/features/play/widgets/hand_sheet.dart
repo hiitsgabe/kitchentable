@@ -192,12 +192,15 @@ class _HandSheetState extends State<HandSheet>
 
   void _toggle() => setState(() => _open = !_open);
 
-  /// Playing a card from an open hand puts the hand down with it.
+  /// Playing a card from a hand you had to open puts the hand down with it.
   ///
   /// Otherwise you drop a card onto a board that is half the height it was and
-  /// then go looking for the card, which is worse than the strip ever was.
+  /// then go looking for the card, which is worse than the strip ever was. A
+  /// hand that started open is one this screen can afford, and putting that
+  /// one down after every play left a strip of cut cards where the hand had
+  /// been, until it was opened again by hand.
   void _play(CardInstance card) {
-    if (_open) setState(() => _open = false);
+    if (_open && !widget.startsOpen) setState(() => _open = false);
     widget.onPlay(card);
   }
 

@@ -13,6 +13,7 @@ import '../decks/games_screen.dart';
 import '../menu/menu_controller.dart';
 import '../settings/player_name.dart';
 import '../sources/import_screen.dart';
+import '../sources/imported.dart';
 import 'setup_controller.dart';
 
 /// The first run: your name, somewhere for the cards to come from, and a
@@ -117,43 +118,61 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     ),
   ];
 
-  List<Widget> _source(Metrics m, int cards) => [
-    _Said(
-      metrics: m,
-      text: cards > 0
-          ? 'Done: $cards cards on this device. You can add another source '
-                'later from Settings.'
-          : 'The app ships with no cards. Pick where they come from and it '
-                'downloads them once, onto this device; nothing is sent '
-                'anywhere.',
-    ),
-    for (final source in knownSources)
-      MenuRow(
-        key: Key('setup-source-${source.id}'),
-        title: source.name,
-        subtitle: source.available ? source.subtitle : 'not ready yet',
-        icon: Icons.download_rounded,
-        tone: source.available ? SlabTone.cool : SlabTone.plain,
-        enabled: source.available,
+  List<Widget> _source(Metrics m, int cards) {
+    final imported = ref.watch(importedSourcesProvider);
+    return [
+      _Said(
         metrics: m,
-        autofocus: source.id == knownSources.first.id && cards == 0,
-        onActivate: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => ImportScreen(source: source)),
-        ),
+        text: cards > 0
+            ? 'Done: $cards cards on this device. You can add another source '
+                  'later from Settings.'
+            : 'The app ships with no cards. Pick where they come from and it '
+                  'downloads them once, onto this device; nothing is sent '
+                  'anywhere.',
       ),
-    SizedBox(height: m.scaled(14)),
-    MenuRow(
-      key: const Key('setup-next'),
-      title: cards > 0 ? 'Next' : 'Skip for now',
-      subtitle: cards > 0
-          ? 'a deck next'
-          : 'you can add a source any time, from Settings',
-      icon: Icons.arrow_forward_rounded,
-      metrics: m,
-      autofocus: cards > 0,
-      onActivate: _next,
-    ),
-  ];
+      for (final source in knownSources)
+        MenuRow(
+          key: Key('setup-source-${source.id}'),
+          title: source.name,
+          // Marked on the row the moment the import is done, so coming back
+          // from one shows the thing that just happened rather than the same
+          // list as before, which read as no progress at all.
+          subtitle: imported.contains(source.id)
+              ? 'imported, on this device'
+              : source.available
+              ? source.subtitle
+              : 'not ready yet',
+          icon: imported.contains(source.id)
+              ? Icons.check_rounded
+              : Icons.download_rounded,
+          tone: imported.contains(source.id)
+              ? SlabTone.plain
+              : source.available
+              ? SlabTone.cool
+              : SlabTone.plain,
+          enabled: source.available,
+          metrics: m,
+          autofocus: source.id == knownSources.first.id && cards == 0,
+          onActivate: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ImportScreen(source: source),
+            ),
+          ),
+        ),
+      SizedBox(height: m.scaled(14)),
+      MenuRow(
+        key: const Key('setup-next'),
+        title: cards > 0 ? 'Next' : 'Skip for now',
+        subtitle: cards > 0
+            ? 'a deck next'
+            : 'you can add a source any time, from Settings',
+        icon: Icons.arrow_forward_rounded,
+        metrics: m,
+        autofocus: cards > 0,
+        onActivate: _next,
+      ),
+    ];
+  }
 
   List<Widget> _deck(Metrics m, int cards) => [
     _Said(
