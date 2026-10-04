@@ -6,6 +6,7 @@ import '../catalog/catalog_db.dart';
 import '../model/draft_set.dart';
 import 'gunzip.dart';
 import 'json_array_stream.dart';
+import 'scryfall_importer.dart' show fileHeaders;
 
 /// Pulls what a draft needs out of MTGJSON, in two sizes.
 ///
@@ -32,7 +33,8 @@ class MtgjsonImporter {
   /// Entries we could not read. Kept rather than thrown.
   int skipped = 0;
 
-  static const headers = {'User-Agent': 'kitchentable/0.1'};
+  /// See [fileHeaders]: a custom header here is a 403 from a browser.
+  static const headers = fileHeaders;
 
   /// Where a set's own file is, beside the list.
   static Uri setUrlFor(Uri listEndpoint, String code) =>
