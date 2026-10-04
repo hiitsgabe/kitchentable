@@ -154,7 +154,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
           title: 'Make the room',
           subtitle: life == null
               ? 'starting life has to be a number'
-              : 'and get a code to hand out',
+              : 'and get a link to hand out',
           icon: Icons.meeting_room_rounded,
           // The one dominant action on this screen, the way Play is on the
           // menu. Everything above it is a choice about the room; this is the

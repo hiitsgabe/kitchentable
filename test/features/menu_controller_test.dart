@@ -62,7 +62,9 @@ void main() {
     // first and the cards come out inside it. Decks is still the editor.
     expect(play.subtitle, isNot(join.subtitle));
     expect(play.subtitle, contains('table'));
-    expect(join.subtitle, contains('code'));
+    // Not "the code": seven characters have no destination in them, so the
+    // menu names the two things somebody can actually be handed.
+    expect(join.subtitle, contains('link'));
     expect(decks.subtitle, contains('build'));
     for (final entry in state.entries) {
       expect(entry.subtitle, isNot(contains('deals')), reason: entry.title);

@@ -21,9 +21,10 @@ import 'room_screen.dart';
 /// no code on screen to read out, which is an instruction to do something
 /// the app no longer lets anybody do.
 ///
-/// The box still takes a bare code, because one may yet arrive in a message
-/// somebody typed by hand, and refusing it would be rude. It is simply not
-/// what the screen asks for.
+/// A bare code is not one of them any more. Seven characters are nothing to
+/// anybody who does not already have the app open at this screen, and
+/// nowhere in the app hands one out, so there was nowhere for one to come
+/// from.
 class JoinScreen extends ConsumerStatefulWidget {
   const JoinScreen({super.key, this.code});
 
@@ -88,8 +89,8 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
         ),
         SizedBox(height: m.scaled(10)),
         Text(
-          'The whole link is fine, and so is the code on its own if that is '
-          'what somebody sent you.',
+          'Whatever they sent you, pasted whole. The app finds the room in '
+          'it.',
           style: pixel(
             size: m.scaled(11),
             weight: 500,

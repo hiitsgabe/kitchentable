@@ -138,7 +138,7 @@ class _ScanScreenState extends State<ScanScreen> {
           SizedBox(height: m.scaled(12)),
           Text(
             'The person hosting has it on their room screen. Nothing is sent '
-            'anywhere: the code is read here on this device.',
+            'anywhere: the QR is read here, on this device.',
             style: pixel(
               size: m.scaled(12),
               weight: 500,
