@@ -1,0 +1,291 @@
+name: Build and Release
+
+# Run by hand. Bumps the version in pubspec.yaml, tags it, builds the Android
+# packages and a zip of the web build, and publishes a release with them.
+# The web build itself goes to GitHub Pages on every push (pages.yml); the
+# zip here is for anybody who wants to host it themselves.
+
+on:
+  workflow_dispatch:
+    branches:
+      - main
+
+env:
+  FLUTTER_VERSION: "3.47.5"
+  FLUTTER_CHANNEL: "stable"
+  HOME_URL: https://hiitsgabe.github.io/kitchentable/
+
+jobs:
+  resolve-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.resolve.outputs.VERSION }}
+      version_name: ${{ steps.resolve.outputs.VERSION_NAME }}
+      build_number: ${{ steps.resolve.outputs.BUILD_NUMBER }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and bump version
+        id: resolve
+        run: |
+          CURRENT=$(grep '^version:' pubspec.yaml | sed 's/version: //')
+          VERSION_NAME=$(echo "$CURRENT" | cut -d'+' -f1)
+          BUILD_NUMBER=$(echo "$CURRENT" | cut -d'+' -f2)
+
+          IFS='.' read -r VMAJOR VMINOR VPATCH <<< "$VERSION_NAME"
+          VPATCH=$((VPATCH + 1))
+          if [ "$VPATCH" -gt 9 ]; then
+            VPATCH=0
+            VMINOR=$((VMINOR + 1))
+            if [ "$VMINOR" -gt 9 ]; then
+              VMINOR=0
+              VMAJOR=$((VMAJOR + 1))
+            fi
+          fi
+
+          NEW_VERSION_NAME="${VMAJOR}.${VMINOR}.${VPATCH}"
+          NEW_BUILD_NUMBER=$((BUILD_NUMBER + 1))
+          NEW_VERSION="${NEW_VERSION_NAME}+${NEW_BUILD_NUMBER}"
+          TAG="v${NEW_VERSION_NAME}"
+
+          sed -i "s/^version: .*/version: ${NEW_VERSION}/" pubspec.yaml
+
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add pubspec.yaml
+          git commit -m "Bump version to ${NEW_VERSION}"
+          git push origin main
+          git tag "$TAG"
+          git push origin "$TAG"
+
+          echo "VERSION=$TAG" >> $GITHUB_OUTPUT
+          echo "VERSION_NAME=$NEW_VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "BUILD_NUMBER=$NEW_BUILD_NUMBER" >> $GITHUB_OUTPUT
+
+  build-android:
+    needs: [resolve-version]
+    runs-on: ubuntu-latest
+    steps:
+      # The tag resolve-version made, not github.sha: that is the commit
+      # before the bump and would build with the previous version.
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-version.outputs.version }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      # Only written when the keystore secrets are set. Without key.properties
+      # android/app/build.gradle.kts falls back to debug signing, so an
+      # installable APK still comes out, it just cannot update a signed one.
+      - name: Apply keystore
+        env:
+          KEYSTORE64: ${{ secrets.KEYSTORE64 }}
+          KEY_STORE_PATH: ${{ secrets.KEY_STORE_PATH }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE64" ] || [ -z "$KEY_STORE_PATH" ]; then
+            echo "::warning::KEYSTORE64/KEY_STORE_PATH not set, building with debug signing."
+            exit 0
+          fi
+          {
+            echo "storeFile=$KEY_STORE_PATH"
+            echo "password=$KEY_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+          } > ./android/key.properties
+          echo "$KEYSTORE64" | base64 --decode > "android/$KEY_STORE_PATH"
+          echo "Release signing: using the configured keystore."
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # HOME_URL is where a room link made on this phone points: the web
+      # build on Pages, so a friend without the app lands in the browser.
+      - name: Build Android APKs (split ABI)
+        run: flutter build apk --release --split-per-abi --dart-define=HOME_URL=${{ env.HOME_URL }}
+
+      - name: Build Android universal APK
+        run: flutter build apk --release --dart-define=HOME_URL=${{ env.HOME_URL }}
+
+      - name: Build Android App Bundle
+        run: flutter build appbundle --release --dart-define=HOME_URL=${{ env.HOME_URL }}
+
+      - name: Rename artifacts
+        run: |
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk kitchentable_arm64.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk kitchentable_arm32.apk
+          cp build/app/outputs/flutter-apk/app-release.apk kitchentable_universal.apk
+          cp build/app/outputs/bundle/release/app-release.aab kitchentable.aab
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: |
+            kitchentable_arm64.apk
+            kitchentable_arm32.apk
+            kitchentable_universal.apk
+            kitchentable.aab
+          retention-days: 30
+
+  build-web:
+    needs: [resolve-version]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-version.outputs.version }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # Built for the root of whatever host it is unpacked on, which is the
+      # self-hosting case. The Pages copy is built separately with its own
+      # base href.
+      - name: Build web
+        run: |
+          flutter build web --release \
+            --pwa-strategy=none \
+            --dart-define=HOME_URL=${{ env.HOME_URL }} \
+            --dart-define=BUILD=${{ needs.resolve-version.outputs.version }}
+
+      - name: Create ZIP
+        run: (cd build/web && zip -qr ../../kitchentable_web.zip .)
+
+      - name: Upload web ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-zip
+          path: kitchentable_web.zip
+          retention-days: 30
+
+  release:
+    needs: [resolve-version, build-android, build-web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Android APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apks
+          path: dist/
+
+      - name: Download web ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: web-zip
+          path: dist/
+
+      # Release notes written from the commit titles since the last tag.
+      # Needs OPENROUTER_API_KEY; without it the commit list is the notes.
+      - name: Generate release notes
+        id: ai_notes
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          TAG=${{ needs.resolve-version.outputs.version }}
+          PREV_TAG=$(git tag --sort=-v:refname | grep '^v' | head -2 | tail -1)
+
+          if [ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "$TAG" ]; then
+            COMMITS=$(git log "$PREV_TAG".."$TAG" --pretty=format:"- %s" --no-merges 2>/dev/null || git log --pretty=format:"- %s" --no-merges -20)
+          else
+            COMMITS=$(git log --pretty=format:"- %s" --no-merges -20)
+          fi
+
+          echo "Commits since $PREV_TAG:"
+          echo "$COMMITS"
+
+          AI_NOTES=""
+          if [ -n "$OPENROUTER_API_KEY" ]; then
+            RESPONSE=$(curl -s -X POST "https://openrouter.ai/api/v1/chat/completions" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+              -d "$(jq -n \
+                --arg commits "$COMMITS" \
+                --arg version "$TAG" \
+                '{
+                  "model": "minimax/minimax-m1",
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": ("Write concise release notes for " + $version + " of kitchentable, an app for playing Magic and Pokemon card games with friends over the internet. Group changes under New, Improved and Fixed. Plain markdown, no emoji, one line per change, no filler. Only describe what the commits say; invent nothing. Skip commits that only touch CI, workflows, README, docs or other non-functional files.\n\nCommits:\n" + $commits)
+                    }
+                  ],
+                  "max_tokens": 1024
+                }')")
+            AI_NOTES=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+          fi
+
+          if [ -z "$AI_NOTES" ]; then
+            echo "No generated notes, using the commit list"
+            AI_NOTES=$(printf "### Changes\n\n%s" "$COMMITS")
+          fi
+
+          EOF_MARKER=$(dd if=/dev/urandom bs=15 count=1 2>/dev/null | base64)
+          echo "notes<<${EOF_MARKER}" >> $GITHUB_OUTPUT
+          echo "$AI_NOTES" >> $GITHUB_OUTPUT
+          echo "${EOF_MARKER}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.resolve-version.outputs.version }}
+          name: kitchentable ${{ needs.resolve-version.outputs.version }}
+          body: |
+            ## kitchentable ${{ needs.resolve-version.outputs.version }}
+
+            ${{ steps.ai_notes.outputs.notes || '' }}
+
+            ---
+
+            Play in the browser: https://hiitsgabe.github.io/kitchentable/
+
+            ### Downloads
+
+            | Platform | File | Notes |
+            |----------|------|-------|
+            | Android (arm64) | `kitchentable_arm64.apk` | Most phones since 2017 |
+            | Android (arm32) | `kitchentable_arm32.apk` | Older phones |
+            | Android (universal) | `kitchentable_universal.apk` | Every architecture, larger |
+            | Android (Play Store) | `kitchentable.aab` | App Bundle |
+            | Web | `kitchentable_web.zip` | Unpack on any static host |
+
+            ### Android installation
+            1. Download the APK for your phone (`arm64` for most).
+            2. Allow installs from unknown sources if asked.
+            3. Open the file.
+          files: dist/*
+          draft: false
+          prerelease: false
