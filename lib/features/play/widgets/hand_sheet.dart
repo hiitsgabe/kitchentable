@@ -7,6 +7,7 @@ import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import 'card_drag.dart';
 import 'table_card.dart';
+import '../../../ui/atoms/pressable.dart';
 
 /// How many lines of cards the hand ever draws.
 ///
@@ -270,15 +271,14 @@ class _HandSheetState extends State<HandSheet>
   Widget _peek(Metrics m) {
     final peek = m.scaled(_peekHeight);
 
-    return GestureDetector(
+    return Pressable(
       key: const Key('hand-handle'),
-      onTap: _toggle,
-      behavior: HitTestBehavior.opaque,
+      metrics: m,
+      onPress: _toggle,
+      semanticLabel: widget.cards.isEmpty
+          ? 'Your hand, empty'
+          : 'Your hand, ${widget.cards.length} cards. Opens it',
       child: Semantics(
-        button: true,
-        label: widget.cards.isEmpty
-            ? 'Your hand, empty'
-            : 'Your hand, ${widget.cards.length} cards. Tap to open',
         child: SizedBox(
           height: peek,
           child: widget.cards.isEmpty
@@ -297,13 +297,12 @@ class _HandSheetState extends State<HandSheet>
 
   /// The bar that puts it down again. A hand you cannot put down is worse than
   /// one that never moved.
-  Widget _handle(Metrics m) => GestureDetector(
+  Widget _handle(Metrics m) => Pressable(
     key: const Key('hand-handle'),
-    onTap: _toggle,
-    behavior: HitTestBehavior.opaque,
+    metrics: m,
+    onPress: _toggle,
+    semanticLabel: 'Put your hand down',
     child: Semantics(
-      button: true,
-      label: 'Put your hand down',
       child: SizedBox(
         height: m.scaled(_handleHeight),
         child: Icon(

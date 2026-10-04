@@ -77,7 +77,108 @@ Widget _host({
       ),
     );
 
+/// A board with a button beside it, the way the rail stands beside the
+/// real one, so a press at the board's edge has somewhere to go.
+Widget _withNeighbour({void Function(CardInstance)? onMenu}) => ProviderScope(
+  child: MaterialApp(
+    home: Scaffold(
+      body: Column(
+        children: [
+          TextButton(
+            key: const Key('above'),
+            onPressed: () {},
+            child: const Text('above'),
+          ),
+          Expanded(
+            child: CursorBoard(
+              metrics: Metrics.of(DeviceClass.tv),
+              zones: [
+                (
+                  id: 'battlefield-s1',
+                  label: 'Battlefield',
+                  cards: [
+                    for (var i = 0; i < 2; i++)
+                      CardInstance(id: 'b$i', oracleId: 'card$i'),
+                  ],
+                ),
+              ],
+              printings: const {},
+              onActivate: (_) {},
+              onMenu: onMenu,
+              onInspect: (_) {},
+              onPlace: (_, _, _, _) {},
+            ),
+          ),
+          TextButton(
+            key: const Key('below'),
+            onPressed: () {},
+            child: const Text('below'),
+          ),
+        ],
+      ),
+    ),
+  ),
+);
+
+bool _hasFocus(WidgetTester tester, Key key) => Focus.of(
+  tester.element(
+    find.descendant(of: find.byKey(key), matching: find.byType(Text)),
+  ),
+).hasFocus;
+
 void main() {
+  testWidgets('select on the ringed card asks what to do with it', (
+    tester,
+  ) async {
+    CardInstance? asked;
+    await tester.pumpWidget(_withNeighbour(onMenu: (c) => asked = c));
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.gameButtonA);
+    await tester.pump();
+    expect(asked?.id, 'b0');
+  });
+
+  testWidgets('at its edge the board hands the press to what stands beside '
+      'it', (tester) async {
+    await tester.pumpWidget(_withNeighbour());
+    await tester.pump();
+    expect(
+      find.byKey(const Key('ring-b0')),
+      findsOneWidget,
+      reason: 'the board opens focused, with its ring',
+    );
+
+    // Down from the only pile: nowhere to go on the board, so the press
+    // goes to the traversal and the button below takes it. The board was
+    // a room with no door before this.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    expect(_hasFocus(tester, const Key('below')), isTrue);
+    expect(
+      find.byKey(const Key('ring-b0')),
+      findsNothing,
+      reason: 'the ring goes with the focus',
+    );
+
+    // And back up into it.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pump();
+    expect(find.byKey(const Key('ring-b0')), findsOneWidget);
+
+    // Right along the cards, then off the end.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    expect(find.byKey(const Key('ring-b1')), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    expect(
+      find.byKey(const Key('ring-b1')),
+      findsOneWidget,
+      reason: 'nothing to the right: the ring stays, the press is not lost',
+    );
+  });
+
   testWidgets('the ring starts on the first card', (tester) async {
     await tester.pumpWidget(_host());
     await tester.pump();

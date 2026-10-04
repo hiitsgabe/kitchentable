@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../ui/tokens/app_palette.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
+import '../../../ui/atoms/pressable.dart';
 
 /// One seat's board, dressed: the canvas it was handed, a badge in the
 /// corner with the label and life, an accent edge when it is yours, and your
@@ -64,9 +65,11 @@ class SeatBoard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          GestureDetector(
-            onTap: onTapBadge,
-            behavior: HitTestBehavior.opaque,
+          Pressable(
+            metrics: m,
+            onPress: onTapBadge ?? () {},
+            enabled: onTapBadge != null,
+            semanticLabel: label,
             child: LayoutBuilder(
               builder: (context, badge) => Row(
                 children: [

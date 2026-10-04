@@ -34,6 +34,7 @@ class CursorBoard extends StatefulWidget {
     required this.onActivate,
     required this.onInspect,
     required this.onPlace,
+    this.onMenu,
     this.cardScale = 1,
     this.game,
     this.showLabels = true,
@@ -48,9 +49,14 @@ class CursorBoard extends StatefulWidget {
   final bool showLabels;
   final Map<String, CatalogCard> printings;
 
-  /// A press of select, on whatever the ring is around.
+  /// A tap on a card.
   final void Function(CardInstance) onActivate;
   final void Function(CardInstance) onInspect;
+
+  /// Select on the ringed card. A finger has a gesture for every verb; a
+  /// pad has one button, and one button on a card asks what to do with it.
+  /// Null falls back to [onActivate].
+  final void Function(CardInstance)? onMenu;
 
   /// Which pile a card was dropped on, and where on that pile's mat,
   /// normalized 0 to 1.
@@ -120,6 +126,10 @@ class CursorBoard extends StatefulWidget {
 class _CursorBoardState extends State<CursorBoard> {
   BoardCursor? _cursor;
 
+  /// Whether the ring is drawn. Only while this board holds focus: a ring
+  /// that stayed on after the D-pad left for the hand would be two rings.
+  var _focused = false;
+
   /// The card as this board lays it out, on a board this wide.
   ///
   /// [cardWidthFor] and not a fraction of a fixed mat: the two used to be the
@@ -174,22 +184,41 @@ class _CursorBoardState extends State<CursorBoard> {
       next = cursor.step(-1, zones: _sizes);
     } else if (key == LogicalKeyboardKey.arrowDown ||
         key == LogicalKeyboardKey.gameButtonRight1) {
-      next = cursor.changeZone(1, zones: _sizes);
+      next = _lastZone(cursor) ? null : cursor.changeZone(1, zones: _sizes);
     } else if (key == LogicalKeyboardKey.arrowUp ||
         key == LogicalKeyboardKey.gameButtonLeft1) {
-      next = cursor.changeZone(-1, zones: _sizes);
+      next = _firstZone(cursor) ? null : cursor.changeZone(-1, zones: _sizes);
     } else if (key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.select ||
         key == LogicalKeyboardKey.gameButtonA) {
       final card = _under;
-      if (card != null) widget.onActivate(card);
+      if (card != null) (widget.onMenu ?? widget.onActivate)(card);
       return KeyEventResult.handled;
     } else {
       return KeyEventResult.ignored;
     }
 
+    // At an edge the ring has nowhere to go on this board, and the press
+    // is not swallowed: it goes up to the traversal, which moves focus to
+    // whatever is beside the board, the rail, the bar, the hand. Without
+    // this the board was a room with no door.
+    if (next == null ||
+        (next.zoneId == cursor.zoneId && next.index == cursor.index)) {
+      return KeyEventResult.ignored;
+    }
+
     setState(() => _cursor = next);
     return KeyEventResult.handled;
+  }
+
+  bool _firstZone(BoardCursor cursor) {
+    final drawn = _sizes.where((z) => z.size > 0).toList();
+    return drawn.isEmpty || drawn.first.id == cursor.zoneId;
+  }
+
+  bool _lastZone(BoardCursor cursor) {
+    final drawn = _sizes.where((z) => z.size > 0).toList();
+    return drawn.isEmpty || drawn.last.id == cursor.zoneId;
   }
 
   @override
@@ -200,6 +229,10 @@ class _CursorBoardState extends State<CursorBoard> {
     return Focus(
       autofocus: true,
       onKeyEvent: _onKey,
+      onFocusChange: (v) => setState(() => _focused = v),
+      // The cards under this focus are the finger's; the D-pad walks them
+      // through the cursor, so they are not stops of their own as well.
+      descendantsAreFocusable: false,
       child: LayoutBuilder(
         builder: (context, constraints) {
           // Two piles do not each get the whole window and do not need to.
@@ -364,7 +397,10 @@ class _CursorBoardState extends State<CursorBoard> {
     final m = widget.metrics;
     final card = zone.cards[index];
     final ringed =
-        cursor != null && zone.id == cursor.zoneId && index == cursor.index;
+        _focused &&
+        cursor != null &&
+        zone.id == cursor.zoneId &&
+        index == cursor.index;
     final size = _cardSize(mat.width);
     final spot = spotFor(
       position: card.position,

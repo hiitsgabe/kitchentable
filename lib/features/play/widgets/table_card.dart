@@ -7,6 +7,7 @@ import '../../../ui/atoms/card_art.dart';
 import '../../../ui/tokens/metrics.dart';
 import 'counter_piece.dart';
 import 'hover_card.dart';
+import '../../../ui/atoms/pressable.dart';
 
 /// One card where it is sitting, turned however it is turned.
 class TableCard extends StatelessWidget {
@@ -54,10 +55,6 @@ class TableCard extends StatelessWidget {
     final m = metrics;
     final card = printing;
 
-    final face = instance.faceDown || card == null
-        ? CardBack(width: width, game: game)
-        : CardArt(metrics: m, card: card, width: width);
-
     // Wrapped here and not by each caller, so a card in a hand, in a seat's
     // band and in a deck sheet all grow under a pointer from one place, and
     // the two that draw cards big turn it off rather than each of the rest
@@ -65,25 +62,45 @@ class TableCard extends StatelessWidget {
     return _maybeHover(
       m,
       card,
-      GestureDetector(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        // The same door a hold opens, on the button a mouse already has. Two
-        // gestures onto one callback, not two menus to keep in step.
-        onSecondaryTap: onLongPress,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedRotation(
-          turns: instance.rotation / 360,
-          duration: const Duration(milliseconds: 160),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              face,
-              if (instance.counters.isNotEmpty)
-                CountersOnCard(counters: instance.counters, width: width),
-            ],
-          ),
-        ),
+      // A stop for the pad whenever a finger could tap it, and a plain
+      // picture otherwise: a card in somebody else's band takes no press
+      // and so offers no ring.
+      onTap == null
+          ? GestureDetector(
+              onLongPress: onLongPress,
+              onSecondaryTap: onLongPress,
+              behavior: HitTestBehavior.opaque,
+              child: _body(m),
+            )
+          : Pressable(
+              metrics: m,
+              onPress: onTap!,
+              // The same door a hold opens, on the button a mouse already
+              // has. Two gestures onto one callback, not two menus.
+              onLongPress: onLongPress,
+              semanticLabel: printing?.name ?? 'a card',
+              radius: m.scaled(6),
+              child: _body(m),
+            ),
+    );
+  }
+
+  Widget _body(Metrics m) {
+    final card = printing;
+    final face = instance.faceDown || card == null
+        ? CardBack(width: width, game: game)
+        : CardArt(metrics: m, card: card, width: width);
+
+    return AnimatedRotation(
+      turns: instance.rotation / 360,
+      duration: const Duration(milliseconds: 160),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          face,
+          if (instance.counters.isNotEmpty)
+            CountersOnCard(counters: instance.counters, width: width),
+        ],
       ),
     );
   }

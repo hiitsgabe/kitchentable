@@ -7,6 +7,7 @@ import '../../../ui/atoms/card_art.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
 import 'card_drag.dart';
+import '../../../ui/atoms/pressable.dart';
 
 /// How many cards of thickness the pile ever draws.
 ///
@@ -162,10 +163,11 @@ class LibraryStack extends StatelessWidget {
 
     final tappable = count == 0
         ? pile
-        : GestureDetector(
+        : Pressable(
             key: Key('$pileName-draw'),
-            onTap: onDraw,
-            behavior: HitTestBehavior.opaque,
+            metrics: m,
+            onPress: onDraw,
+            semanticLabel: '${label ?? 'Deck'}, $count cards',
             child: pile,
           );
 
@@ -221,10 +223,11 @@ class LibraryStack extends StatelessWidget {
                 ),
               ),
               if (work != null) ...[
-                GestureDetector(
+                Pressable(
                   key: Key('$pileName-work'),
-                  onTap: work,
-                  behavior: HitTestBehavior.opaque,
+                  metrics: m,
+                  onPress: work,
+                  semanticLabel: 'More, for the ${label ?? 'deck'}',
                   child: Padding(
                     padding: EdgeInsets.all(width * 0.04),
                     child: Icon(

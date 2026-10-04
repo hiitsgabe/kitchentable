@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../ui/tokens/app_palette.dart';
 import '../../../ui/tokens/metrics.dart';
 import '../../../ui/tokens/palette.dart';
+import '../../../ui/atoms/pressable.dart';
 
 /// One seat on the rail: who, and how much life.
 typedef RailSeat = ({
@@ -48,20 +49,25 @@ class SeatRail extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         children: [
           for (final seat in seats)
-            GestureDetector(
+            Pressable(
               key: Key('rail-${seat.seatId}'),
-              onTap: () => onPick(seat.seatId),
-              behavior: HitTestBehavior.opaque,
-              child: Container(
+              metrics: m,
+              onPress: () => onPick(seat.seatId),
+              ring: false,
+              semanticLabel: seat.label,
+              builder: (context, state) => Container(
                 margin: EdgeInsets.only(right: m.scaled(6)),
                 padding: EdgeInsets.symmetric(horizontal: m.scaled(10)),
                 decoration: BoxDecoration(
-                  color: seat.mine ? context.palette.tileFocused : Palette.tile,
+                  color: seat.mine || state.hovered
+                      ? context.palette.tileFocused
+                      : Palette.tile,
                   borderRadius: BorderRadius.circular(m.scaled(14)),
                   border: Border.all(
-                    color: seat.seatId == pickedSeatId
+                    color: seat.seatId == pickedSeatId || state.focused
                         ? context.palette.accent
                         : Palette.tileEdge,
+                    width: state.focused ? m.focusRing : 1,
                   ),
                 ),
                 child: Row(
