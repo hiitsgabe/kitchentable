@@ -45,6 +45,23 @@ class PadInput extends StatelessWidget {
         SingleActivator(LogicalKeyboardKey.gameButtonB): DismissIntent(),
         SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
         SingleActivator(LogicalKeyboardKey.browserBack): DismissIntent(),
+        // The arrows move focus on every platform. Flutter binds them so on
+        // a phone and a desktop, but in a browser it binds them to scrolling
+        // and leaves focus to Tab, so a D-pad on the web build walked the
+        // board and then had nowhere to go. Bound here, under the app's own
+        // defaults, so the inner binding wins everywhere alike.
+        SingleActivator(LogicalKeyboardKey.arrowUp): DirectionalFocusIntent(
+          TraversalDirection.up,
+        ),
+        SingleActivator(LogicalKeyboardKey.arrowDown): DirectionalFocusIntent(
+          TraversalDirection.down,
+        ),
+        SingleActivator(LogicalKeyboardKey.arrowLeft): DirectionalFocusIntent(
+          TraversalDirection.left,
+        ),
+        SingleActivator(LogicalKeyboardKey.arrowRight): DirectionalFocusIntent(
+          TraversalDirection.right,
+        ),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{DismissIntent: _CloseWhatIsOpen()},
