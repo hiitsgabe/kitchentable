@@ -456,20 +456,24 @@ void main() {
           reason: 'which is where the old empty box landed too');
     });
 
-    testWidgets('off the web there is no link to give, only the code',
+    testWidgets('a build told nowhere it lives says so, and offers nothing',
         (tester) async {
-      // A phone hosting has no address of its own and never did: the link
-      // points at wherever the web build is served, and a build that is not
-      // served anywhere has nothing to point at. Inventing a URL here would
+      // A phone hosting has no address of its own: the link points at
+      // wherever the web build is served, and a build that was not told
+      // where that is has nothing to point at. Inventing a URL here would
       // hand somebody a link that goes nowhere.
+      //
+      // It used to fall back to showing the code for reading out. That is
+      // gone, so the honest answer is to say the build is missing its
+      // HOME_URL rather than to offer a way in that is no way in.
       final container = _container(origin: null);
       container.read(roomProvider.notifier).open(_config());
       await _pump(tester, container, const RoomScreen());
 
-      expect(find.byKey(const Key('room-code')), findsOneWidget);
       expect(find.byKey(const Key('room-copy')), findsNothing);
       expect(find.byType(QrImageView), findsNothing);
       expect(find.byKey(const Key('room-no-link')), findsOneWidget);
+      expect(find.textContaining('HOME_URL'), findsOneWidget);
     });
   });
 
@@ -1029,22 +1033,38 @@ void main() {
       expect(container.read(roomProvider)!.hosting, isFalse);
     });
 
-    testWidgets('a code read out loud across the table is enough',
-        (tester) async {
+    testWidgets('a link pasted in any case is enough', (tester) async {
       final container = _container();
       final code = freshRoomCode();
 
       await _pump(tester, container, const JoinScreen());
       await tester.enterText(
         find.byKey(const Key('join-input')),
-        code.toUpperCase(),
+        linkFor(code.toUpperCase(), origin: 'https://example.com/'),
       );
       await tester.pump();
       await tester.tap(find.byKey(const Key('join-go')));
       await tester.pumpAndSettle();
 
       expect(container.read(roomProvider)?.code, code,
-          reason: 'a code somebody said out loud has no case of its own');
+          reason: 'a code inside a link has no case of its own');
+    });
+
+    testWidgets('a bare code still works, it is just never asked for',
+        (tester) async {
+      // The screen asks for a link or a QR, because seven characters have
+      // no destination in them. Being lenient about what arrives costs
+      // nothing, so one is still taken if somebody has one.
+      final container = _container();
+      final code = freshRoomCode();
+
+      await _pump(tester, container, const JoinScreen());
+      await tester.enterText(find.byKey(const Key('join-input')), code);
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('join-go')));
+      await tester.pumpAndSettle();
+
+      expect(container.read(roomProvider)?.code, code);
     });
 
     testWidgets('there is nothing to join until there is a code',

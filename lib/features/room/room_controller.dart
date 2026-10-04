@@ -33,11 +33,16 @@ class Room {
   /// what it was told.
   final bool hosting;
 
-  /// What to call the room on screen. The host's name for it, or the code,
-  /// which is all a guest has until the host says otherwise.
+  /// What to call the room on screen.
+  ///
+  /// The host's name for it, and until the host says otherwise, a plain
+  /// phrase. It used to fall back to the code, which put seven characters
+  /// of hex at the top of a guest's screen, where they named nothing the
+  /// guest could do anything with: the code is how the room is found, not
+  /// how it is spoken about.
   String get title => config?.roomName.trim().isNotEmpty == true
       ? config!.roomName.trim()
-      : code;
+      : 'Somebody\'s table';
 }
 
 class RoomHere extends Notifier<Room?> {
@@ -60,11 +65,22 @@ class RoomHere extends Notifier<Room?> {
     return code;
   }
 
-  /// Turns up at somebody else's room. Takes a code however it was written: a
-  /// pasted link, or seven characters somebody read out.
+  /// Turns up at somebody else's room. Takes a pasted link, and a bare code
+  /// if one somehow reaches somebody.
   ///
-  /// Refuses what could not have been minted rather than carrying a typo as far
-  /// as the mesh and coming back with no such room.
+  /// The code is still what names a room and always will be: it is what the
+  /// relays and the kind are derived from, and no server resolves it. What
+  /// changed is that the app stopped putting it in front of anybody. Seven
+  /// characters have no destination in them, so a person holding only those
+  /// has nowhere to type them until they already have the app open at this
+  /// screen. The link carries the same code and the address of the app
+  /// around it.
+  ///
+  /// Still accepted here, because being lenient about what arrives costs
+  /// nothing and refusing a thing somebody has in their hand would be rude.
+  ///
+  /// Refuses what could not have been minted rather than carrying a typo as
+  /// far as the mesh and coming back with no such room.
   bool arrive(String typed) {
     final code = codeFrom(typed) ?? _bareCode(typed);
     if (code == null) return false;
@@ -74,8 +90,7 @@ class RoomHere extends Notifier<Room?> {
 
   void leave() => state = null;
 
-  /// A code on its own, with no link around it. Lower cased first: somebody
-  /// reading it out across a table does not say which case it was in.
+  /// A code on its own, with no link around it.
   static String? _bareCode(String typed) {
     final code = typed.trim().toLowerCase();
     return roomCodePattern.hasMatch(code) ? code : null;
@@ -94,7 +109,22 @@ bool looksLikeRoom(String typed) =>
 /// A Provider and not a constant so tests can say where they are served from,
 /// and so that the one place that reads the browser is the one place that is
 /// replaced off the web.
-final roomOriginProvider = Provider<String?>((ref) => launchOrigin());
+final roomOriginProvider = Provider<String?>(
+  (ref) => launchOrigin() ?? (appHome.isEmpty ? null : appHome),
+);
+
+/// Where this app is served, for the builds that cannot ask.
+///
+/// A web build reads its own address bar. A phone build has no address bar
+/// and so has nowhere to point a link, which used to mean it fell back to
+/// showing a code for somebody to read out. The code is gone, so a phone
+/// build needs to be told where the app lives:
+///
+///     flutter build apk --dart-define=HOME_URL=https://example.com/
+///
+/// Empty means the build was not told, and the room says so rather than
+/// handing out a link to nowhere.
+const appHome = String.fromEnvironment('HOME_URL');
 
 /// The code the app was opened on, or null.
 ///

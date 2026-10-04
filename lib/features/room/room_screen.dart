@@ -106,11 +106,12 @@ class RoomScreen extends ConsumerWidget {
                 .toList(),
           ),
 
-        // The two ways of bringing somebody in that work on a phone: send
-        // the link, or let the person opposite you scan it. The code is the
-        // third, for reading out loud, and is a line rather than a
-        // billboard: it is the highest friction of the three and it had the
-        // top of the screen.
+        // The two ways of bringing somebody in: send the link, or let the
+        // person opposite you scan it. There used to be a third, the code
+        // read out loud, and it is gone. Seven characters mean nothing to
+        // anybody who has not already got the app open at the right screen,
+        // and the link does the whole job: it opens the app and arrives at
+        // the room.
         if (link != null) ...[
           MenuRow(
             key: const Key('room-copy'),
@@ -123,19 +124,14 @@ class RoomScreen extends ConsumerWidget {
           ),
           _Invite(metrics: m, link: link),
         ] else ...[
-          _CodeLine(
-            metrics: m,
-            code: room.code,
-            onTap: () => _copyCode(context, room.code),
-          ),
           _Note(
             metrics: m,
             id: 'room-no-link',
-            colour: Palette.inkMuted,
+            colour: Palette.attention,
             text:
-                'No link from this build: a link points at the web version, '
-                'and this one is not served anywhere. Read the code out, or '
-                'let somebody type it in.',
+                'This build cannot make an invite, because it was not told '
+                'where the app is served. Whoever built it passes that in '
+                'with HOME_URL.',
           ),
         ],
 
@@ -178,7 +174,7 @@ class RoomScreen extends ConsumerWidget {
           _Fact(
             metrics: m,
             id: 'room-answer',
-            text: 'Waiting for the host to answer under this code.',
+            text: 'Waiting for the host to answer.',
           ),
         if (lobby != null && lobby.mesh != null && !lobby.hosting)
           _Fact(
@@ -301,11 +297,6 @@ class RoomScreen extends ConsumerWidget {
   void _copy(BuildContext context, String link) {
     Clipboard.setData(ClipboardData(text: link));
     Toast.show(context, 'Link copied', icon: Icons.check_rounded);
-  }
-
-  void _copyCode(BuildContext context, String code) {
-    Clipboard.setData(ClipboardData(text: code));
-    Toast.show(context, 'Code copied', icon: Icons.check_rounded);
   }
 
   /// Deals everybody in, on this phone, and opens the table. The lobby hands
@@ -631,55 +622,6 @@ class _Invite extends StatelessWidget {
 }
 
 /// The code, as a line you can read out, where there is no link to put it
-/// beside.
-class _CodeLine extends StatelessWidget {
-  const _CodeLine({
-    required this.metrics,
-    required this.code,
-    required this.onTap,
-  });
-
-  final Metrics metrics;
-  final String code;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = metrics;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: m.scaled(14)),
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Row(
-          children: [
-            Text(
-              'or read out the code',
-              style: pixel(
-                size: m.scaled(12),
-                weight: 500,
-                color: Palette.inkFaint,
-              ),
-            ),
-            SizedBox(width: m.scaled(8)),
-            Text(
-              code,
-              key: const Key('room-code'),
-              style: pixel(
-                size: m.scaled(15),
-                weight: 700,
-
-                letterSpacing: m.scaled(1.5),
-                color: context.palette.accent,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// The link as a square, on white, because a camera has to read it.
 ///
