@@ -21,7 +21,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: CreditsScreen()));
     await tester.pumpAndSettle();
 
-    expect(find.text('dev.hiitsgabe.kitchentable'), findsOneWidget);
+    expect(find.text('com.hiitsgabe.kitchentable'), findsOneWidget);
     expect(find.textContaining('build'), findsOneWidget);
     expect(find.text('Bring your own cards'), findsOneWidget);
     expect(find.byKey(const Key('credits-source')), findsOneWidget);
