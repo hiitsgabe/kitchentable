@@ -42,6 +42,7 @@ class SourcesScreen extends ConsumerWidget {
       title: 'Sources',
       label: 'nothing has left this device yet',
       onBack: () => Navigator.of(context).maybePop(),
+      home: true,
       children: [
         for (final source in knownSources)
           MenuRow(

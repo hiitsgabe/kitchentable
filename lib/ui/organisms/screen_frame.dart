@@ -35,6 +35,7 @@ class ScreenFrame extends StatelessWidget {
     required this.children,
     this.wordmark = false,
     this.onBack,
+    this.home = false,
   });
 
   final Metrics metrics;
@@ -56,6 +57,17 @@ class ScreenFrame extends StatelessWidget {
   /// gamepad B button. A browser window and a television remote have neither a
   /// back gesture nor a system back button.
   final VoidCallback? onBack;
+
+  /// Draws a Home slab beside Back that pops to the first screen, for a
+  /// screen that is two or more steps below it.
+  ///
+  /// Decks, a game, a deck, its cards: four screens down, and the only way
+  /// out was Back four times. Home is one. The first screen is the menu, or
+  /// on a first run the wizard that stands in for it, which is why this pops
+  /// to the root rather than pushing a menu: it goes to whatever this app
+  /// opened on. Off by default, and off on purpose inside a room, where
+  /// going home would be leaving the table without saying so.
+  final bool home;
 
   @override
   Widget build(BuildContext context) {
@@ -113,19 +125,7 @@ class ScreenFrame extends StatelessWidget {
                       ),
                       if (onBack != null) ...[
                         SizedBox(height: m.scaled(12)),
-                        Slab(
-                          metrics: m,
-                          tone: SlabTone.warm,
-                          onActivate: onBack!,
-                          semanticLabel: 'Back',
-                          padding: EdgeInsets.symmetric(
-                            horizontal: m.scaled(14),
-                            vertical: m.scaled(14),
-                          ),
-                          child: Center(
-                            child: Text('Back', style: slabText(m.scaled(15))),
-                          ),
-                        ),
+                        _WayOut(metrics: m, onBack: onBack!, home: home),
                       ],
                     ],
                   ),
@@ -166,6 +166,73 @@ class ScreenFrame extends StatelessWidget {
 
 class _GoBackIntent extends Intent {
   const _GoBackIntent();
+}
+
+/// The way out of a screen: Back, and Home beside it when the screen is
+/// deep enough to want one.
+///
+/// Back keeps the width. Home is the narrower of the two because it is the
+/// rarer press, and the two are told apart by colour as well as by word:
+/// every screen's Back has always been the warm slab, so Home is the cool
+/// one.
+class _WayOut extends StatelessWidget {
+  const _WayOut({
+    required this.metrics,
+    required this.onBack,
+    required this.home,
+  });
+
+  final Metrics metrics;
+  final VoidCallback onBack;
+  final bool home;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+    final padding = EdgeInsets.symmetric(
+      horizontal: m.scaled(14),
+      vertical: m.scaled(14),
+    );
+
+    final back = Slab(
+      metrics: m,
+      tone: SlabTone.warm,
+      onActivate: onBack,
+      semanticLabel: 'Back',
+      padding: padding,
+      child: Center(child: Text('Back', style: slabText(m.scaled(15)))),
+    );
+
+    if (!home) return back;
+
+    return Row(
+      children: [
+        Expanded(child: back),
+        SizedBox(width: m.scaled(10)),
+        Slab(
+          key: const Key('home'),
+          metrics: m,
+          tone: SlabTone.cool,
+          onActivate: () =>
+              Navigator.of(context).popUntil((route) => route.isFirst),
+          semanticLabel: 'Home',
+          padding: padding,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.home_rounded,
+                size: m.scaled(18),
+                color: Palette.slabInk,
+              ),
+              SizedBox(width: m.scaled(6)),
+              Text('Home', style: slabText(m.scaled(15))),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _Heading extends StatelessWidget {

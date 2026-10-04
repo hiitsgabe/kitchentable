@@ -87,6 +87,7 @@ class _ScanScreenState extends State<ScanScreen> {
           ? 'point this at the other screen'
           : 'the camera could not start',
       onBack: () => Navigator.of(context).pop(),
+      home: true,
       children: [
         if (_trouble case final why?)
           Well(

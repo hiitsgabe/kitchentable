@@ -39,6 +39,7 @@ class DecksScreen extends ConsumerWidget {
         _ => 'reading',
       },
       onBack: () => Navigator.of(context).maybePop(),
+      home: true,
       children: [
         MenuRow(
           title: 'New deck',

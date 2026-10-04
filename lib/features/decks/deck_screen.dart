@@ -38,6 +38,7 @@ class DeckScreen extends ConsumerWidget {
         title: 'Deck',
         label: 'nothing open',
         onBack: () => Navigator.of(context).maybePop(),
+        home: true,
         children: const [],
       );
     }
@@ -47,6 +48,7 @@ class DeckScreen extends ConsumerWidget {
       title: deck.name,
       label: deck.format.label,
       onBack: () => Navigator.of(context).maybePop(),
+      home: true,
       children: [
         _Counts(metrics: m, deck: deck),
         SizedBox(height: m.scaled(18)),
