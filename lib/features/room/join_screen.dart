@@ -53,6 +53,13 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
       title: 'Join a table',
       label: 'their QR, their link, or their code',
       onBack: () => Navigator.of(context).maybePop(),
+      primary: ScreenAction(
+        slabKey: const Key('join-go'),
+        label: 'Join',
+        icon: Icons.meeting_room_rounded,
+        enabled: ready,
+        onActivate: _join,
+      ),
       children: [
         // The camera first, because it is the one that needs nothing typed
         // and no messaging app in between: you are in the same room as them
@@ -79,16 +86,6 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
           autofocus: !canScan,
           onChanged: (_) => setState(() {}),
           onSubmitted: (_) => _join(),
-        ),
-        SizedBox(height: m.scaled(16)),
-        MenuRow(
-          key: const Key('join-go'),
-          title: 'Join',
-          icon: Icons.meeting_room_rounded,
-          enabled: ready,
-          tone: canScan ? SlabTone.plain : SlabTone.choice,
-          metrics: m,
-          onActivate: _join,
         ),
       ],
     );
