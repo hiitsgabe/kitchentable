@@ -35,6 +35,7 @@ class ScreenFrame extends StatelessWidget {
     required this.children,
     this.wordmark = false,
     this.onBack,
+    this.primary,
     this.home = false,
   });
 
@@ -57,7 +58,17 @@ class ScreenFrame extends StatelessWidget {
   /// Drawn as a slab along the bottom when given, and bound to Escape and the
   /// gamepad B button. A browser window and a television remote have neither a
   /// back gesture nor a system back button.
+  ///
+  /// Back keeps the prominent bottom slab only on a screen with no action of
+  /// its own. Where the screen has one thing it is for, that is what [primary]
+  /// is, and Back steps down to a slim control beneath it: the one button that
+  /// is not a choice the screen offers should not be the loudest thing on it.
   final VoidCallback? onBack;
+
+  /// The one dominant action the screen is for, drawn as the bright slab along
+  /// the bottom. Null on a screen that only reads or only lists, where there is
+  /// nothing to make primary and Back is the only way out.
+  final ScreenAction? primary;
 
   /// Draws a Home slab beside Back that pops to the first screen, for a
   /// screen that is two or more steps below it.
@@ -126,9 +137,14 @@ class ScreenFrame extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (onBack != null) ...[
+                      if (onBack != null || primary != null) ...[
                         SizedBox(height: m.scaled(12)),
-                        _WayOut(metrics: m, onBack: onBack!, home: home),
+                        _WayOut(
+                          metrics: m,
+                          onBack: onBack,
+                          home: home,
+                          primary: primary,
+                        ),
                       ],
                     ],
                   ),
@@ -171,27 +187,155 @@ class _GoBackIntent extends Intent {
   const _GoBackIntent();
 }
 
-/// The way out of a screen: Back, and Home beside it when the screen is
-/// deep enough to want one.
+/// The one action a screen is for, handed to [ScreenFrame.primary] so the frame
+/// draws it as the bright bottom slab rather than leaving it buried in the list
+/// above a louder Back.
+class ScreenAction {
+  const ScreenAction({
+    required this.label,
+    required this.onActivate,
+    this.enabled = true,
+    this.icon,
+    this.slabKey,
+  });
+
+  final String label;
+  final VoidCallback onActivate;
+
+  /// A disabled action still draws, dimmed, saying what is missing through the
+  /// screen rather than vanishing: a button that is not there cannot explain
+  /// why it is not there.
+  final bool enabled;
+  final IconData? icon;
+  final Key? slabKey;
+}
+
+/// The way out of a screen, and the way on from it.
 ///
-/// Back keeps the width. Home is the narrower of the two because it is the
-/// rarer press, and the two are told apart by colour as well as by word:
-/// every screen's Back has always been the warm slab, so Home is the cool
-/// one.
+/// With no [primary], Back keeps the prominent warm slab and Home sits beside
+/// it when the screen is deep enough to want one. With a [primary], that action
+/// takes the bright bottom slab and Back drops to a slim plain control beneath
+/// it, Home beside it: the screen's own action leads, and the way out is still
+/// there, bound to Escape and the pad, without shouting.
 class _WayOut extends StatelessWidget {
   const _WayOut({
     required this.metrics,
     required this.onBack,
     required this.home,
+    required this.primary,
   });
 
   final Metrics metrics;
-  final VoidCallback onBack;
+  final VoidCallback? onBack;
   final bool home;
+  final ScreenAction? primary;
 
   @override
   Widget build(BuildContext context) {
     final m = metrics;
+    final primary = this.primary;
+
+    if (primary != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Slab(
+            key: primary.slabKey,
+            metrics: m,
+            tone: SlabTone.choice,
+            enabled: primary.enabled,
+            onActivate: primary.enabled ? primary.onActivate : () {},
+            semanticLabel: primary.label,
+            padding: EdgeInsets.symmetric(
+              horizontal: m.scaled(14),
+              vertical: m.scaled(14),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (primary.icon != null) ...[
+                  Icon(
+                    primary.icon,
+                    size: m.scaled(18),
+                    color: Palette.slabInk,
+                  ),
+                  SizedBox(width: m.scaled(8)),
+                ],
+                Flexible(
+                  child: Text(
+                    primary.label,
+                    style: slabText(m.scaled(15)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (onBack != null) ...[
+            SizedBox(height: m.scaled(8)),
+            _discreetRow(context, m),
+          ],
+        ],
+      );
+    }
+
+    return _prominentRow(context, m);
+  }
+
+  /// Back the slim plain way, under a primary action: low and quiet, Home a
+  /// matching square beside it.
+  Widget _discreetRow(BuildContext context, Metrics m) {
+    final padding = EdgeInsets.symmetric(
+      horizontal: m.scaled(12),
+      vertical: m.scaled(9),
+    );
+    final back = Slab(
+      metrics: m,
+      tone: SlabTone.plain,
+      depth: m.scaled(3),
+      onActivate: onBack!,
+      semanticLabel: 'Back',
+      padding: padding,
+      child: Center(
+        child: Text(
+          'Back',
+          style: pixel(
+            size: m.scaled(12),
+            weight: 600,
+            color: Palette.slabInk,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+    if (!home) return back;
+    return Row(
+      children: [
+        Expanded(child: back),
+        SizedBox(width: m.scaled(8)),
+        Slab(
+          key: const Key('home'),
+          metrics: m,
+          tone: SlabTone.cool,
+          depth: m.scaled(3),
+          onActivate: () =>
+              Navigator.of(context).popUntil((route) => route.isFirst),
+          semanticLabel: 'Home',
+          padding: padding,
+          child: Icon(
+            Icons.home_rounded,
+            size: m.scaled(16),
+            color: Palette.slabInk,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Back the loud way, on a screen with no action of its own: the warm slab
+  /// across the width, Home the narrower cool one beside it.
+  Widget _prominentRow(BuildContext context, Metrics m) {
     final padding = EdgeInsets.symmetric(
       horizontal: m.scaled(14),
       vertical: m.scaled(14),
@@ -200,7 +344,7 @@ class _WayOut extends StatelessWidget {
     final back = Slab(
       metrics: m,
       tone: SlabTone.warm,
-      onActivate: onBack,
+      onActivate: onBack!,
       semanticLabel: 'Back',
       padding: padding,
       child: Center(child: Text('Back', style: slabText(m.scaled(15)))),
