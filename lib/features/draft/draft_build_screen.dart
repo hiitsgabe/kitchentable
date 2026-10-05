@@ -18,6 +18,43 @@ import '../decks/decks_controller.dart';
 import 'draft_controller.dart';
 import 'draft_state.dart';
 
+/// The slots a draft deck saves with: the chosen pool cards as the deck, the
+/// basics added from outside, and every pool card left behind as the sideboard.
+///
+/// Copies are aggregated by oracle id, so three of one common become one slot
+/// of quantity three. A pool card the catalog could not resolve is dropped,
+/// because a slot needs a real card to point at, and a basic is only added if
+/// the catalog has it. The leftover pool as the sideboard is what keeps "the
+/// cards in your draft but outside the deck" with the deck rather than lost.
+List<DeckSlot> draftDeckSlots({
+  required List<DraftCard> pool,
+  required Set<int> inDeck,
+  required Map<String, int> basics,
+  required Map<String, CatalogCard> cards,
+  required Map<String, CatalogCard> basicCards,
+}) {
+  final deckCount = <String, int>{};
+  final sideCount = <String, int>{};
+  final byOracle = <String, CatalogCard>{};
+  for (var i = 0; i < pool.length; i++) {
+    final card = cards[pool[i].oracleId];
+    if (card == null) continue;
+    byOracle[card.oracleId] = card;
+    final bucket = inDeck.contains(i) ? deckCount : sideCount;
+    bucket[card.oracleId] = (bucket[card.oracleId] ?? 0) + 1;
+  }
+
+  return [
+    for (final e in deckCount.entries)
+      DeckSlot(card: byOracle[e.key]!, quantity: e.value),
+    for (final e in basics.entries)
+      if (basicCards[e.key] != null)
+        DeckSlot(card: basicCards[e.key]!, quantity: e.value),
+    for (final e in sideCount.entries)
+      DeckSlot(card: byOracle[e.key]!, quantity: e.value, sideboard: true),
+  ];
+}
+
 /// Building a deck from the drafted pool, and nothing from outside it but land.
 ///
 /// Two zones: the deck, and the pool it leaves behind. A pool card taps into
@@ -147,29 +184,13 @@ class _DraftBuildScreenState extends ConsumerState<DraftBuildScreen> {
     final repo = ref.read(deckRepositoryProvider);
     if (repo == null) return;
 
-    // Aggregate copies by oracle id: the deck pile, then the pool left over as
-    // the sideboard. Cards the catalog could not resolve are dropped, because a
-    // slot needs a real card to point at.
-    final deckCount = <String, int>{};
-    final sideCount = <String, int>{};
-    final byOracle = <String, CatalogCard>{};
-    for (var i = 0; i < pool.length; i++) {
-      final card = cards[pool[i].oracleId];
-      if (card == null) continue;
-      byOracle[card.oracleId] = card;
-      final bucket = _inDeck.contains(i) ? deckCount : sideCount;
-      bucket[card.oracleId] = (bucket[card.oracleId] ?? 0) + 1;
-    }
-
-    final slots = <DeckSlot>[
-      for (final e in deckCount.entries)
-        DeckSlot(card: byOracle[e.key]!, quantity: e.value),
-      for (final e in _basics.entries)
-        if (basics[e.key] != null)
-          DeckSlot(card: basics[e.key]!, quantity: e.value),
-      for (final e in sideCount.entries)
-        DeckSlot(card: byOracle[e.key]!, quantity: e.value, sideboard: true),
-    ];
+    final slots = draftDeckSlots(
+      pool: pool,
+      inDeck: _inDeck,
+      basics: _basics,
+      cards: cards,
+      basicCards: basics,
+    );
 
     final id = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
     await repo.save(
