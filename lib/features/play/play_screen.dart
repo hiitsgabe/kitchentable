@@ -1050,13 +1050,30 @@ class _TopBar extends StatelessWidget {
 
     return Row(
       children: [
+        // Labelled, not a bare arrow: this leaves the table for the room (or
+        // the bracket, in a tournament), a step out and not an undo.
         GestureDetector(
           onTap: onLeave,
           behavior: HitTestBehavior.opaque,
-          child: Icon(
-            Icons.arrow_back_rounded,
-            size: m.scaled(20),
-            color: Palette.inkMuted,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.arrow_back_rounded,
+                size: m.scaled(16),
+                color: Palette.inkMuted,
+              ),
+              SizedBox(width: m.scaled(2)),
+              Text(
+                'Leave',
+                style: pixel(
+                  size: m.scaled(11),
+                  weight: 600,
+                  color: Palette.inkMuted,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
           ),
         ),
         // No name here: the rail says whose table this is, and on a phone
@@ -1068,23 +1085,23 @@ class _TopBar extends StatelessWidget {
           icon: Icons.remove_rounded,
           onTap: () => onLife(-1),
         ),
-        SizedBox(width: m.scaled(10)),
+        SizedBox(width: m.scaled(5)),
         Text(
           '$life',
           style: TextStyle(
-            fontSize: m.scaled(22),
+            fontSize: m.scaled(20),
             fontWeight: FontWeight.w700,
             color: Palette.ink,
           ),
         ),
-        SizedBox(width: m.scaled(10)),
+        SizedBox(width: m.scaled(5)),
         _Pill(
           metrics: m,
           key: const Key('life-up'),
           icon: Icons.add_rounded,
           onTap: () => onLife(1),
         ),
-        SizedBox(width: m.scaled(12)),
+        SizedBox(width: m.scaled(8)),
         _Pill(
           metrics: m,
           key: const Key('switch-renderer'),
@@ -1095,7 +1112,7 @@ class _TopBar extends StatelessWidget {
           },
           onTap: onSwitchRenderer,
         ),
-        SizedBox(width: m.scaled(12)),
+        SizedBox(width: m.scaled(5)),
         Opacity(
           opacity: canUndo ? 1 : 0.35,
           child: _Pill(
@@ -1122,7 +1139,7 @@ class _TopBar extends StatelessWidget {
           ),
         ],
         if (unread != null) ...[
-          SizedBox(width: m.scaled(10)),
+          SizedBox(width: m.scaled(7)),
           _Pill(
             metrics: m,
             key: const Key('talk'),
@@ -1131,7 +1148,7 @@ class _TopBar extends StatelessWidget {
             badge: unread,
           ),
         ],
-        SizedBox(width: m.scaled(10)),
+        SizedBox(width: m.scaled(7)),
         _Pill(
           metrics: m,
           key: const Key('more'),
