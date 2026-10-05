@@ -23,10 +23,19 @@ import 'pack_opening.dart';
 /// its cards are laid out to pick from; a pack passed along by a neighbour goes
 /// straight to the grid.
 class DraftScreen extends ConsumerStatefulWidget {
-  const DraftScreen({super.key, this.game = Game.magic, this.onBack});
+  const DraftScreen({
+    super.key,
+    this.game = Game.magic,
+    this.onBack,
+    this.setLabel,
+  });
 
   final Game game;
   final VoidCallback? onBack;
+
+  /// The set this draft opens, shown on the pack wrapper. Null falls back to
+  /// the plain "PACK" label.
+  final String? setLabel;
 
   @override
   ConsumerState<DraftScreen> createState() => _DraftScreenState();
@@ -88,13 +97,17 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
     final pack = view.pack ?? const <DraftCard>[];
     final sig = _signature(view);
     if (view.fresh && _openedPack != sig) {
+      // Transparent, not felt: the app's backdrop lives behind every route and
+      // a solid colour here would paint over it, which is the black screen the
+      // crack used to open on.
       return Scaffold(
-        backgroundColor: Palette.felt,
+        backgroundColor: Colors.transparent,
         body: SafeArea(
           child: PackOpening(
             metrics: m,
             count: pack.length,
             packNumber: view.packNumber,
+            label: widget.setLabel,
             game: widget.game,
             onDone: () => setState(() => _openedPack = sig),
           ),

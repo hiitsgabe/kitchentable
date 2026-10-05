@@ -105,6 +105,7 @@ class _DemoDriverState extends ConsumerState<_DemoDriver> {
   @override
   Widget build(BuildContext context) {
     return DraftScreen(
+      setLabel: 'Demo Set',
       onBack: () => Navigator.of(context).maybePop(),
     );
   }

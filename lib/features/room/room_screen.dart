@@ -422,13 +422,17 @@ class RoomScreen extends ConsumerWidget {
   /// This phone goes to the draft, host or guest alike: it adopts the lobby's
   /// draft into the controller the screens read, then opens the draft screen.
   void _enterDraft(BuildContext context, WidgetRef ref) {
-    final room = ref.read(lobbyProvider)?.draft;
+    final lobby = ref.read(lobbyProvider);
+    final room = lobby?.draft;
     if (room == null) return;
     ref.read(draftProvider.notifier).adopt(room);
+    final setLabel = lobby?.config?.draft?.setCode;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            DraftScreen(onBack: () => Navigator.of(context).maybePop()),
+        builder: (_) => DraftScreen(
+          setLabel: setLabel,
+          onBack: () => Navigator.of(context).maybePop(),
+        ),
       ),
     );
   }

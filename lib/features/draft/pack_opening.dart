@@ -9,8 +9,9 @@ import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 
-/// The booster crack: a foil wrapper you tear open, the cards fanning out with
-/// a shine sweeping across them, the way Pokemon TCG Pocket opens a pack.
+/// The booster crack: a foil wrapper, crimped top and bottom, that sways in
+/// space like a card until you tear the top off and the cards fan out, the way
+/// Pokemon TCG Pocket opens a pack.
 ///
 /// It is a lead-in and nothing more: when the fan settles it calls [onDone] and
 /// the picking grid takes over with the same cards face up. The whole area is
@@ -25,6 +26,7 @@ class PackOpening extends StatefulWidget {
     required this.packNumber,
     required this.game,
     required this.onDone,
+    this.label,
   });
 
   final Metrics metrics;
@@ -34,6 +36,9 @@ class PackOpening extends StatefulWidget {
 
   /// Which pack this is, for the wrapper's label.
   final int packNumber;
+
+  /// The set, shown large on the foil. Null falls back to "PACK".
+  final String? label;
 
   final Game game;
 
@@ -45,10 +50,17 @@ class PackOpening extends StatefulWidget {
 }
 
 class _PackOpeningState extends State<PackOpening>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
+    with TickerProviderStateMixin {
+  // The sealed pack never sits still: a slow sway gives it the depth of a
+  // thing held in a hand rather than a flat card pinned to the screen.
+  late final AnimationController _idle = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1150),
+    duration: const Duration(seconds: 6),
+  )..repeat();
+
+  late final AnimationController _tear = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1250),
   )..addStatusListener((s) {
     if (s == AnimationStatus.completed && !_done) {
       _done = true;
@@ -61,16 +73,18 @@ class _PackOpeningState extends State<PackOpening>
 
   @override
   void dispose() {
-    _c.dispose();
+    _idle.dispose();
+    _tear.dispose();
     super.dispose();
   }
 
   void _advance() {
     if (!_torn) {
       setState(() => _torn = true);
-      _c.forward();
-    } else if (_c.isAnimating) {
-      _c.value = 1; // skip straight to the settled fan
+      _idle.stop();
+      _tear.forward();
+    } else if (_tear.isAnimating) {
+      _tear.value = 1; // skip to the settled fan
     }
   }
 
@@ -85,48 +99,273 @@ class _PackOpeningState extends State<PackOpening>
       semanticLabel: _torn ? 'Opening the pack' : 'Open the pack',
       child: Center(
         child: AnimatedBuilder(
-          animation: _c,
+          animation: _torn ? _tear : _idle,
           builder: (context, _) => _torn
-              ? _Fan(metrics: m, count: widget.count, game: widget.game, t: _c.value)
-              : _Wrapper(metrics: m, packNumber: widget.packNumber),
+              ? _Tearing(
+                  metrics: m,
+                  count: widget.count,
+                  packNumber: widget.packNumber,
+                  label: widget.label,
+                  game: widget.game,
+                  t: _tear.value,
+                )
+              : _Sealed(
+                  metrics: m,
+                  packNumber: widget.packNumber,
+                  label: widget.label,
+                  sway: _idle.value,
+                ),
         ),
       ),
     );
   }
 }
 
-/// The unopened foil before the first press.
-class _Wrapper extends StatelessWidget {
-  const _Wrapper({required this.metrics, required this.packNumber});
+/// The dimensions and the foil, shared by the sealed pack and the torn one so
+/// the body does not jump when the top comes off.
+const double _packW = 150;
+const double _aspect = 88 / 60; // a touch taller and narrower than a card
+const double _crimp = 12; // height of a crimped band
+
+BoxDecoration _foil(Metrics m) => BoxDecoration(
+  gradient: const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF3A1430),
+      Palette.tileFocused,
+      Color(0xFF17121F),
+      Palette.tileFocused,
+    ],
+    stops: [0, 0.35, 0.7, 1],
+  ),
+  border: Border.all(color: Palette.accent, width: m.scaled(1.5)),
+);
+
+/// The unopened booster: a crimped foil wrapper tilting slowly in space.
+class _Sealed extends StatelessWidget {
+  const _Sealed({
+    required this.metrics,
+    required this.packNumber,
+    required this.label,
+    required this.sway,
+  });
 
   final Metrics metrics;
   final int packNumber;
+  final String? label;
+  final double sway;
 
   @override
   Widget build(BuildContext context) {
     final m = metrics;
-    final w = m.scaled(132);
-    return Container(
-      width: w,
-      height: w * 88 / 63,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(m.scaled(12)),
-        border: Border.all(color: Palette.accent, width: m.scaled(2)),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Palette.tileFocused, Palette.tile, Palette.focusWash],
-        ),
-        boxShadow: const [
-          BoxShadow(color: Palette.accent, blurRadius: 24, spreadRadius: -8),
+    final angle = sway * math.pi * 2;
+    final transform = Matrix4.identity()
+      ..setEntry(3, 2, 0.0014)
+      ..rotateY(math.sin(angle) * 0.22)
+      ..rotateX(math.cos(angle) * 0.07);
+    return Transform(
+      alignment: Alignment.center,
+      transform: transform,
+      child: _Foil(
+        metrics: m,
+        packNumber: packNumber,
+        label: label,
+        glow: true,
+      ),
+    );
+  }
+}
+
+/// The pack coming apart: the top crimp tears up and away, a dark mouth opens,
+/// and the cards fan out of it. The body fades as the fan takes over.
+class _Tearing extends StatelessWidget {
+  const _Tearing({
+    required this.metrics,
+    required this.count,
+    required this.packNumber,
+    required this.label,
+    required this.game,
+    required this.t,
+  });
+
+  final Metrics metrics;
+  final int count;
+  final int packNumber;
+  final String? label;
+  final Game game;
+  final double t;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+    final w = m.scaled(_packW);
+    final h = w * _aspect;
+
+    // The tear leads, the fan follows, and the body dims out behind the fan.
+    final tear = Curves.easeIn.transform(math.min(1, t / 0.4));
+    final fan = t < 0.3 ? 0.0 : (t - 0.3) / 0.7;
+    final bodyFade = (1 - fan * 1.3).clamp(0.0, 1.0).toDouble();
+
+    return SizedBox(
+      width: w * 2.4,
+      height: h * 1.4,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          // The pack body, dimming as the cards come out.
+          Opacity(
+            opacity: bodyFade,
+            child: _Foil(
+              metrics: m,
+              packNumber: packNumber,
+              label: label,
+              glow: false,
+              openMouth: tear,
+            ),
+          ),
+          // The torn-off top crimp, flung up and spinning away.
+          Transform.translate(
+            offset: Offset(tear * m.scaled(28), -h * 0.5 - tear * m.scaled(120)),
+            child: Transform.rotate(
+              angle: tear * 0.6,
+              child: Opacity(
+                opacity: (1 - tear).clamp(0.0, 1.0).toDouble(),
+                child: _CrimpBand(metrics: m, width: w),
+              ),
+            ),
+          ),
+          // The cards fanning out of the opened top.
+          if (fan > 0)
+            Transform.translate(
+              offset: Offset(0, -h * 0.12),
+              child: _Fan(metrics: m, count: count, game: game, spread: fan),
+            ),
         ],
       ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    );
+  }
+}
+
+/// The foil rectangle itself: crimped top and bottom, a sheen down the middle,
+/// and the set on it. [openMouth] pulls a dark gap open under the top crimp as
+/// the pack tears.
+class _Foil extends StatelessWidget {
+  const _Foil({
+    required this.metrics,
+    required this.packNumber,
+    required this.label,
+    required this.glow,
+    this.openMouth = 0,
+  });
+
+  final Metrics metrics;
+  final int packNumber;
+  final String? label;
+  final bool glow;
+  final double openMouth;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+    final w = m.scaled(_packW);
+    final h = w * _aspect;
+    final crimp = m.scaled(_crimp);
+
+    return Container(
+      width: w,
+      height: h,
+      decoration: glow
+          ? const BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: Palette.accent,
+                  blurRadius: 34,
+                  spreadRadius: -10,
+                ),
+              ],
+            )
+          : null,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(m.scaled(10)),
+        child: Stack(
           children: [
-            Text('PACK', style: slabText(m.scaled(22))),
-            Text('$packNumber', style: slabText(m.scaled(34))),
+            // The foil body.
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: _foil(m).copyWith(
+                  borderRadius: BorderRadius.circular(m.scaled(10)),
+                ),
+              ),
+            ),
+            // A bright diagonal sheen.
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: const [
+                        Color(0x00FFFFFF),
+                        Color(0x33FFFFFF),
+                        Color(0x00FFFFFF),
+                      ],
+                      stops: const [0.35, 0.5, 0.65],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // The set, centred.
+            Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: m.scaled(8)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      (label ?? 'PACK').toUpperCase(),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: slabText(m.scaled(16)),
+                    ),
+                    SizedBox(height: m.scaled(4)),
+                    Text(
+                      'PACK $packNumber',
+                      style: pixel(
+                        size: m.scaled(10),
+                        weight: 600,
+                        color: Palette.inkMuted,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // The dark mouth that opens under the top crimp as it tears.
+            if (openMouth > 0)
+              Positioned(
+                top: crimp,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: (h * 0.22) * openMouth,
+                  color: Palette.felt,
+                ),
+              ),
+            // The crimped bands, top and bottom.
+            Align(
+              alignment: Alignment.topCenter,
+              child: _CrimpBand(metrics: m, width: w),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: _CrimpBand(metrics: m, width: w, pointDown: true),
+            ),
           ],
         ),
       ),
@@ -134,31 +373,98 @@ class _Wrapper extends StatelessWidget {
   }
 }
 
-/// The cards fanned out of the torn wrapper, with a shine sweeping over them.
+/// One heat-sealed crimp: a band of chevrons across the pack. [pointDown] draws
+/// the bottom one, its teeth the other way.
+class _CrimpBand extends StatelessWidget {
+  const _CrimpBand({
+    required this.metrics,
+    required this.width,
+    this.pointDown = false,
+  });
+
+  final Metrics metrics;
+  final double width;
+  final bool pointDown;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+    return SizedBox(
+      width: width,
+      height: m.scaled(_crimp),
+      child: CustomPaint(
+        painter: _CrimpPainter(
+          pointDown: pointDown,
+          tooth: m.scaled(9),
+        ),
+      ),
+    );
+  }
+}
+
+class _CrimpPainter extends CustomPainter {
+  _CrimpPainter({required this.pointDown, required this.tooth});
+
+  final bool pointDown;
+  final double tooth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final fill = Paint()..color = Palette.accent;
+    final back = Paint()..color = const Color(0xFF2A0E1E);
+    // A solid strip behind the teeth, so the crimp reads as a sealed edge.
+    canvas.drawRect(Offset.zero & size, back);
+
+    final path = Path();
+    final mid = size.height * 0.45;
+    if (!pointDown) {
+      path.moveTo(0, 0);
+      path.lineTo(size.width, 0);
+      path.lineTo(size.width, mid);
+      for (var x = size.width; x > 0; x -= tooth) {
+        path.lineTo(x - tooth / 2, size.height);
+        path.lineTo(x - tooth, mid);
+      }
+      path.close();
+    } else {
+      path.moveTo(0, size.height);
+      path.lineTo(size.width, size.height);
+      path.lineTo(size.width, size.height - mid);
+      for (var x = size.width; x > 0; x -= tooth) {
+        path.lineTo(x - tooth / 2, 0);
+        path.lineTo(x - tooth, size.height - mid);
+      }
+      path.close();
+    }
+    canvas.drawPath(path, fill);
+  }
+
+  @override
+  bool shouldRepaint(_CrimpPainter old) =>
+      old.pointDown != pointDown || old.tooth != tooth;
+}
+
+/// The cards fanned out of the torn wrapper, opening over [spread] from 0 to 1.
 class _Fan extends StatelessWidget {
   const _Fan({
     required this.metrics,
     required this.count,
     required this.game,
-    required this.t,
+    required this.spread,
   });
 
   final Metrics metrics;
   final int count;
   final Game game;
-  final double t;
+  final double spread;
 
   @override
   Widget build(BuildContext context) {
     final m = metrics;
     final cardW = m.scaled(84);
     final n = math.max(1, math.min(count, 15));
-
-    // The fan eases open over the first two thirds, then the shine sweeps.
-    final spread = Curves.easeOutBack.transform(math.min(1, t / 0.7));
-    final shine = t < 0.55 ? 0.0 : (t - 0.55) / 0.45;
-
-    final maxAngle = math.min(0.9, 0.12 * n); // radians, whole fan
+    final open = Curves.easeOutBack.transform(spread.clamp(0, 1).toDouble());
+    final maxAngle = math.min(0.9, 0.12 * n);
     final box = cardW * 2.6;
 
     return SizedBox(
@@ -169,32 +475,7 @@ class _Fan extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           for (var i = 0; i < n; i++)
-            _fanned(m, cardW, i, n, maxAngle, spread),
-          if (shine > 0)
-            IgnorePointer(
-              child: Opacity(
-                opacity: (1 - (shine - 0.5).abs() * 2).clamp(0, 1).toDouble(),
-                child: Transform.translate(
-                  offset: Offset((shine * 2 - 1) * box, 0),
-                  child: Transform.rotate(
-                    angle: 0.35,
-                    child: Container(
-                      width: m.scaled(40),
-                      height: box * 1.6,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Color(0x00FFFFFF),
-                            Color(0x66FFFFFF),
-                            Color(0x00FFFFFF),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            _fanned(m, cardW, i, n, maxAngle, open),
         ],
       ),
     );
@@ -206,17 +487,20 @@ class _Fan extends StatelessWidget {
     int i,
     int n,
     double maxAngle,
-    double spread,
+    double open,
   ) {
     final frac = n == 1 ? 0.5 : i / (n - 1);
-    final angle = (frac - 0.5) * maxAngle * spread;
-    final lift = math.sin(frac * math.pi) * cardW * 0.6 * spread;
-    final dx = (frac - 0.5) * cardW * 2.2 * spread;
+    final angle = (frac - 0.5) * maxAngle * open;
+    final lift = math.sin(frac * math.pi) * cardW * 0.6 * open;
+    final dx = (frac - 0.5) * cardW * 2.2 * open;
     return Transform.translate(
       offset: Offset(dx, -lift),
       child: Transform.rotate(
         angle: angle,
-        child: CardBack(width: cardW, game: game),
+        child: Opacity(
+          opacity: open.clamp(0.0, 1.0).toDouble(),
+          child: CardBack(width: cardW, game: game),
+        ),
       ),
     );
   }
