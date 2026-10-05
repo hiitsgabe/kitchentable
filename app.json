@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "kitchentable",
+    "slug": "kitchentable",
+    "version": "1.0.1",
+    "ios": {
+      "bundleIdentifier": "com.hiitsgabe.kitchentable"
+    },
+    "android": {
+      "package": "com.hiitsgabe.kitchentable"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "15b2ba43-63de-4c7e-ac65-ab804b869754"
+      }
+    }
+  }
+}
