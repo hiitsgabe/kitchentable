@@ -96,6 +96,14 @@ RoomConfig _config({int seats = 4, int? life}) => RoomConfig(
   roomName: 'the kitchen',
 );
 
+RoomConfig _draftConfig({int seats = 2}) => RoomConfig(
+  format: DeckFormat.draft,
+  seats: seats,
+  hostName: 'kit',
+  roomName: 'the draft',
+  draft: const DraftOptions(setCode: 'mh3', packs: 3),
+);
+
 ProviderContainer _container({
   String origin = _origin,
   String? launchCode,
@@ -562,6 +570,33 @@ void main() {
       }
       expect(line, contains('hand'));
       expect(line, contains('see'));
+    });
+
+    testWidgets('a draft room asks for no deck and opens the draft', (
+      tester,
+    ) async {
+      final net = FakeNetwork();
+      final container = _container(net: net, shelf: const []);
+      container.read(roomProvider.notifier).open(_draftConfig(seats: 2));
+      await _pump(tester, container, const RoomScreen());
+
+      // No deck to pick on the way into a draft; a note instead, and the host
+      // has already taken its chair.
+      expect(find.byKey(const Key('room-deck')), findsNothing);
+      expect(_textAt(tester, 'room-draft-note'), contains('chair 1'));
+
+      // Start the draft is there, waiting on the other chair.
+      MenuRow startRow() =>
+          tester.widget<MenuRow>(find.byKey(const Key('room-start-draft')));
+      expect(startRow().enabled, isFalse, reason: 'a chair is still empty');
+
+      // A friend takes the other chair by name, no deck.
+      final friend = _friend(net, 'ana');
+      await _settle(tester, net);
+      friend.attend(name: 'Ana');
+      await _settle(tester, net);
+
+      expect(startRow().enabled, isTrue, reason: 'every chair is taken');
     });
 
     test('no line on the room says nobody can arrive', () {
