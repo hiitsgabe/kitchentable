@@ -52,6 +52,26 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
     return '${v.packNumber}:${v.pack?.length ?? 0}:$first';
   }
 
+  /// Art for the pack's face: the rarest card in it that the catalog could
+  /// resolve, the way a booster features its hit, falling back to the first.
+  static String? _coverUrl(
+    List<DraftCard> pack,
+    Map<String, CatalogCard> cards,
+  ) {
+    CatalogCard? pick;
+    for (final draft in pack) {
+      final card = cards[draft.oracleId];
+      if (card == null) continue;
+      pick ??= card;
+      final r = draft.rarity.toLowerCase();
+      if (r == 'mythic' || r == 'rare') {
+        pick = card;
+        break;
+      }
+    }
+    return pick?.imageNormal ?? pick?.imageLarge ?? pick?.imageSmall;
+  }
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
@@ -109,6 +129,7 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
             count: pack.length,
             packNumber: view.packNumber,
             label: widget.setLabel,
+            coverUrl: _coverUrl(pack, cards),
             game: widget.game,
             onDone: () => setState(() => _openedPack = sig),
           ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../decks/model/game.dart';
 import '../../ui/atoms/card_art.dart';
+import '../../ui/atoms/card_image.dart';
 import '../../ui/atoms/pressable.dart';
 import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
@@ -27,6 +28,7 @@ class PackOpening extends StatefulWidget {
     required this.game,
     required this.onDone,
     this.label,
+    this.coverUrl,
   });
 
   final Metrics metrics;
@@ -39,6 +41,10 @@ class PackOpening extends StatefulWidget {
 
   /// The set, shown large on the foil. Null falls back to "PACK".
   final String? label;
+
+  /// Art for a card from the pack, printed dimmed on the foil as the pack's
+  /// face, the way a real booster shows a card. Null leaves the plain foil.
+  final String? coverUrl;
 
   final Game game;
 
@@ -106,6 +112,7 @@ class _PackOpeningState extends State<PackOpening>
                   count: widget.count,
                   packNumber: widget.packNumber,
                   label: widget.label,
+                  coverUrl: widget.coverUrl,
                   game: widget.game,
                   t: _tear.value,
                 )
@@ -113,6 +120,7 @@ class _PackOpeningState extends State<PackOpening>
                   metrics: m,
                   packNumber: widget.packNumber,
                   label: widget.label,
+                  coverUrl: widget.coverUrl,
                   sway: _idle.value,
                 ),
         ),
@@ -148,12 +156,14 @@ class _Sealed extends StatelessWidget {
     required this.metrics,
     required this.packNumber,
     required this.label,
+    required this.coverUrl,
     required this.sway,
   });
 
   final Metrics metrics;
   final int packNumber;
   final String? label;
+  final String? coverUrl;
   final double sway;
 
   @override
@@ -171,6 +181,7 @@ class _Sealed extends StatelessWidget {
         metrics: m,
         packNumber: packNumber,
         label: label,
+        coverUrl: coverUrl,
         glow: true,
       ),
     );
@@ -185,6 +196,7 @@ class _Tearing extends StatelessWidget {
     required this.count,
     required this.packNumber,
     required this.label,
+    required this.coverUrl,
     required this.game,
     required this.t,
   });
@@ -193,6 +205,7 @@ class _Tearing extends StatelessWidget {
   final int count;
   final int packNumber;
   final String? label;
+  final String? coverUrl;
   final Game game;
   final double t;
 
@@ -221,6 +234,7 @@ class _Tearing extends StatelessWidget {
               metrics: m,
               packNumber: packNumber,
               label: label,
+              coverUrl: coverUrl,
               glow: false,
               openMouth: tear,
             ),
@@ -256,6 +270,7 @@ class _Foil extends StatelessWidget {
     required this.metrics,
     required this.packNumber,
     required this.label,
+    required this.coverUrl,
     required this.glow,
     this.openMouth = 0,
   });
@@ -263,6 +278,7 @@ class _Foil extends StatelessWidget {
   final Metrics metrics;
   final int packNumber;
   final String? label;
+  final String? coverUrl;
   final bool glow;
   final double openMouth;
 
@@ -299,6 +315,24 @@ class _Foil extends StatelessWidget {
                 ),
               ),
             ),
+            // A card from the set, printed dimmed over the foil as the pack's
+            // face. A real booster shows a card; this is that, darkened so the
+            // set reads and the pack still feels sealed.
+            if (coverUrl != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: ColorFiltered(
+                    colorFilter: const ColorFilter.mode(
+                      Color(0x99120A16),
+                      BlendMode.darken,
+                    ),
+                    child: CardImage(
+                      url: coverUrl!,
+                      fallback: const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ),
             // A bright diagonal sheen.
             Positioned.fill(
               child: IgnorePointer(
