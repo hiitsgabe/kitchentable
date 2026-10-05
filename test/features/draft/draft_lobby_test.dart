@@ -1,9 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kitchentable/decks/model/deck.dart';
 import 'package:kitchentable/decks/model/deck_format.dart';
 import 'package:kitchentable/features/draft/draft_room.dart';
 import 'package:kitchentable/features/draft/draft_state.dart';
 import 'package:kitchentable/features/lobby/lobby.dart';
 import 'package:kitchentable/table/room/room.dart';
+import 'package:kitchentable/table/setup.dart';
 
 import '../../net/fake_transport.dart';
 
@@ -64,6 +66,60 @@ void main() {
     // Each seat has been dealt its own pack of two.
     expect(hostRoom.view?.pack?.length, 2, reason: 'the host sees its pack');
     expect(guest.draft!.view?.pack?.length, 2, reason: 'the guest sees its own');
+
+    host.dispose();
+    guest.dispose();
+  });
+
+  test('a sealed draft builds decks, and the host deals the table', () async {
+    final net = FakeNetwork();
+    final hostT = net.join('host');
+    final guestT = net.join('ana');
+
+    final host = Lobby.host(
+      transport: hostT,
+      config: RoomConfig(
+        format: DeckFormat.draft,
+        seats: 2,
+        hostName: 'Gabe',
+        roomName: 'sealed',
+        draft: const DraftOptions(setCode: 'mh3', sealed: true, packs: 1),
+      ),
+    );
+    final guest = Lobby.guest(transport: guestT);
+    await net.settle();
+    guest.attend(name: 'Ana');
+    await net.settle();
+
+    host.startDraft(
+      (seatIds) => DraftRoom.fromPacks(
+        transport: hostT,
+        seatIds: seatIds,
+        sealed: true,
+        packsPerSeat: _packs(seatIds),
+      ),
+    );
+    await net.settle();
+
+    // Sealed opens straight into building; each seat turns its pool into a
+    // deck and hands it in.
+    Deck deck(String id) =>
+        Deck(id: id, name: id, format: DeckFormat.draft, slots: const []);
+    host.draft!.submit(deck('host-deck'));
+    guest.draft!.submit(deck('ana-deck'));
+    await net.settle();
+
+    expect(host.draftReadyToDeal, isTrue, reason: 'both decks are in');
+
+    host.dealDraft(
+      (players) => sitDownTogether(players: players, seed: 'seed'),
+    );
+    await net.settle();
+
+    expect(host.dealt, isTrue, reason: 'the host is at the table');
+    expect(host.drafting, isFalse, reason: 'the draft is over');
+    expect(guest.dealt, isTrue, reason: 'the guest followed to the table');
+    expect(guest.drafting, isFalse);
 
     host.dispose();
     guest.dispose();

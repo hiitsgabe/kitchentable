@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/basic_lands.dart';
+import '../../decks/model/deck.dart';
 import '../../sources/catalog/catalog_db.dart';
 import '../../sources/import/mtgjson_importer.dart';
 import '../../sources/model/catalog_card.dart';
@@ -40,6 +41,9 @@ class DraftController extends Notifier<DraftView?> {
   }
 
   void pick(String uuid) => _room?.pick(uuid);
+
+  /// Hands the built deck to the draft, which carries it to the host to deal.
+  void submit(Deck deck) => _room?.submit(deck);
 
   DraftRoom? get room => _room;
 
