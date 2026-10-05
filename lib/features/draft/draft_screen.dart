@@ -72,6 +72,15 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
     return pick?.imageNormal ?? pick?.imageLarge ?? pick?.imageSmall;
   }
 
+  /// Scryfall's symbol for a set, by its code. Null for anything that is not a
+  /// set code, so a demo's made-up label draws no broken symbol.
+  static String? _symbolUrl(String? code) {
+    if (code == null) return null;
+    final c = code.trim().toLowerCase();
+    if (!RegExp(r'^[a-z0-9]{2,6}$').hasMatch(c)) return null;
+    return 'https://svgs.scryfall.io/sets/$c.svg';
+  }
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
@@ -91,6 +100,7 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
         title: 'Draft',
         label: 'dealing the packs',
         onBack: widget.onBack,
+        backLabel: 'Leave draft',
         children: [
           Padding(
             padding: EdgeInsets.all(m.scaled(24)),
@@ -110,6 +120,7 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
         title: 'Draft',
         label: 'pack ${view.packNumber}',
         onBack: widget.onBack,
+        backLabel: 'Leave draft',
         children: [_Waiting(metrics: m, pool: view.pool, cards: cards)],
       );
     }
@@ -130,6 +141,7 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
             packNumber: view.packNumber,
             label: widget.setLabel,
             coverUrl: _coverUrl(pack, cards),
+            symbolUrl: _symbolUrl(widget.setLabel),
             game: widget.game,
             onDone: () => setState(() => _openedPack = sig),
           ),
@@ -142,6 +154,7 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
       title: 'Draft',
       label: 'pack ${view.packNumber} · pick ${view.pickNumber}',
       onBack: widget.onBack,
+      backLabel: 'Leave draft',
       children: [
         if (view.queueDepth > 0)
           Padding(
