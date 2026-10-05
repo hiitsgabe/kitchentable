@@ -20,6 +20,7 @@ import '../draft/bracket_screen.dart';
 import '../draft/draft_controller.dart';
 import '../draft/draft_room.dart';
 import '../draft/draft_screen.dart';
+import '../draft/post_draft.dart';
 import '../draft/post_draft_screen.dart';
 import '../lobby/lobby.dart';
 import '../menu/menu_controller.dart';
@@ -72,18 +73,23 @@ class RoomScreen extends ConsumerWidget {
     ref.listen(draftReadyToDealProvider, (was, ready) {
       if (ready && was != true) {
         Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const PostDraftScreen()),
+          MaterialPageRoute<void>(
+            settings: const RouteSettings(name: draftFlowRoute),
+            builder: (_) => const PostDraftScreen(),
+          ),
         );
       }
     });
 
     // A guest lands in the tournament bracket when the host opens one; the host
-    // gets there from the chooser itself.
+    // gets there from the chooser itself. The draft screens come out from under
+    // it, so the bracket sits on the room.
     ref.listen(tourneyingProvider, (was, now) {
       final lobby = ref.read(lobbyProvider);
       if (now && was != true && lobby != null && !lobby.hosting) {
-        Navigator.of(context).push(
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute<void>(builder: (_) => const BracketScreen()),
+          (route) => route.settings.name != draftFlowRoute,
         );
       }
     });
@@ -451,6 +457,7 @@ class RoomScreen extends ConsumerWidget {
     final setLabel = lobby?.config?.draft?.setCode;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
+        settings: const RouteSettings(name: draftFlowRoute),
         builder: (_) => DraftScreen(
           setLabel: setLabel,
           onBack: () => Navigator.of(context).maybePop(),
@@ -470,8 +477,12 @@ class RoomScreen extends ConsumerWidget {
     if (lobby.tourneying) return;
 
     ref.read(playProvider.notifier).join(mesh!, decks: lobby.decks);
-    Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => const PlayScreen()));
+    // The draft screens come out from under the table, so backing out of the
+    // game lands on the room.
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
+      (route) => route.settings.name != draftFlowRoute,
+    );
   }
 
   /// Leaving ends the room for this device. Back from here is the menu, and on
