@@ -85,11 +85,16 @@ void dealDrafted(BuildContext context, WidgetRef ref, PostDraftMode mode) {
 
   final mine = lobby.dealDraftAs(mode, (players) => _table(players, config));
 
+  // Whichever opens, the draft screens come out from under it so the room is
+  // what sits behind the table or the bracket.
+  bool notDraft(Route<dynamic> route) => route.settings.name != draftFlowRoute;
+
   // A tournament runs from the bracket: the host deals the first round and
   // lands there like everyone else, and plays each game from it.
   if (mode == PostDraftMode.tournament) {
-    Navigator.of(context).pushReplacement(
+    Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(builder: (_) => const BracketScreen()),
+      notDraft,
     );
     return;
   }
@@ -101,8 +106,9 @@ void dealDrafted(BuildContext context, WidgetRef ref, PostDraftMode mode) {
   }
 
   ref.read(playProvider.notifier).join(mine, decks: lobby.decks);
-  Navigator.of(context).pushReplacement(
+  Navigator.of(context).pushAndRemoveUntil(
     MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
+    notDraft,
   );
 }
 

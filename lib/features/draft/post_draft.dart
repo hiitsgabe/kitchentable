@@ -1,3 +1,8 @@
+/// The route name the draft flow's screens carry: the draft, the chooser, the
+/// build. When a game or the bracket opens, these are popped out from under it,
+/// so backing out of a game lands on the room rather than a stale draft screen.
+const draftFlowRoute = 'draft-flow';
+
 /// What a pod does once the draft is built.
 ///
 /// The host picks one when every deck is in. [oneTable] seats the whole pod
