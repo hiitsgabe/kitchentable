@@ -111,10 +111,12 @@ class DraftRoom {
   }
 
   /// Called on the host whenever a built deck arrives, so a lobby watching can
-  /// see [allBuilt] turn true. Called on a guest when the host says the table
-  /// is dealt, so it can leave the draft for the mesh.
+  /// see [allBuilt] turn true.
   void Function()? onBuiltChanged;
-  void Function()? onDealt;
+
+  /// Called on a guest when the host says which table to play: the draft is
+  /// over, and the scope is the game this seat joins on the shared transport.
+  void Function(String scope)? onPlay;
 
   StreamSubscription<Incoming>? _sub;
 
@@ -149,10 +151,10 @@ class DraftRoom {
           _built[message.from] = deckFromWire(wire);
           onBuiltChanged?.call();
         }
-      case 'dealt' when !_isHost && message.from == _hostId:
-        // The host turned the finished draft into a table. The draft is over;
-        // the lobby takes it from here and joins the mesh.
-        onDealt?.call();
+      case 'play' when !_isHost && message.from == _hostId:
+        // The host turned the finished draft into tables and named this seat's
+        // one. The draft is over; the lobby joins that game's mesh.
+        onPlay?.call((json['scope'] as String?) ?? '');
     }
   }
 

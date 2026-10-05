@@ -19,6 +19,7 @@ import '../decks/play_decks_screen.dart';
 import '../draft/draft_controller.dart';
 import '../draft/draft_room.dart';
 import '../draft/draft_screen.dart';
+import '../draft/post_draft_screen.dart';
 import '../lobby/lobby.dart';
 import '../menu/menu_controller.dart';
 import '../menu/menu_screen.dart';
@@ -66,9 +67,13 @@ class RoomScreen extends ConsumerWidget {
       if (drafting && was != true) _enterDraft(context, ref);
     });
 
-    // Once every seat has built its deck, the host deals the drafted table.
+    // Once every seat has built its deck, the host chooses how the pod plays.
     ref.listen(draftReadyToDealProvider, (was, ready) {
-      if (ready && was != true) _dealDraft(context, ref);
+      if (ready && was != true) {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const PostDraftScreen()),
+        );
+      }
     });
 
     // Nobody should reach this screen without a room, and the one way it could
@@ -422,25 +427,6 @@ class RoomScreen extends ConsumerWidget {
         roller: roller,
       ),
     );
-  }
-
-  /// The host deals the drafted table, from the decks the draft produced. The
-  /// same deal path as a normal start, but fed the built decks rather than ones
-  /// brought to the lobby; the guests follow on the "dealt" word, through
-  /// [_sitDown], the way they do from a normal deal.
-  void _dealDraft(BuildContext context, WidgetRef ref) {
-    final lobby = ref.read(lobbyProvider);
-    final config = lobby?.config ?? ref.read(roomProvider)?.config;
-    if (lobby == null || config == null) return;
-
-    final play = ref.read(playProvider.notifier);
-    final mesh = lobby.dealDraft((players) {
-      play.startPod(players: players, seed: freshSeed(), life: config.life);
-      return ref.read(playProvider)!;
-    });
-    play.follow(mesh);
-    Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => const PlayScreen()));
   }
 
   /// This phone goes to the draft, host or guest alike: it adopts the lobby's

@@ -46,15 +46,27 @@ const _firstStamp = 0;
 /// It speaks to a [Transport] and has never heard of Nostr or WebRTC. That is
 /// the seam: the next slice writes a real one and this file does not change.
 class Mesh {
-  Mesh({required Transport transport, TableState? table, bool creator = false})
-    : _transport = transport,
-      _creator = creator {
+  Mesh({
+    required Transport transport,
+    TableState? table,
+    bool creator = false,
+    this.scope = '',
+  }) : _transport = transport,
+       _creator = creator {
     // In the body and not the initializer list, because the field is not final
     // and `prefer_initializing_formals` then asks for `this._table`, which a
     // named parameter may not be called.
     _table = table;
     if (creator) _stamps[transport.me] = _firstStamp;
   }
+
+  /// Which table this mesh is, when several share one transport.
+  ///
+  /// Empty for the one-table room, which is every room until a draft splits it
+  /// into parallel 1v1 games. Then each game is a mesh with its own scope over
+  /// the same transport: a message carries its scope and a mesh ignores every
+  /// one that is not its own, so two games never hear each other's verbs.
+  final String scope;
 
   final Transport _transport;
 
@@ -275,6 +287,9 @@ class Mesh {
   void _heard(Incoming message) {
     try {
       final json = _read(message.body);
+      // Another table's message on the shared transport. Silently ignored, not
+      // refused: it is not wrong, it is simply not ours.
+      if ((json['scope'] as String? ?? '') != scope) return;
       switch (json['kind']) {
         case 'hello':
           _handTheTableTo(message.from);
@@ -501,8 +516,14 @@ class Mesh {
   // is chat and the sixth is a microphone being introduced to another
   // microphone; neither is a verb and neither ever touches the table.
 
-  String _say(String kind, [Map<String, Object?> more = const {}]) =>
-      jsonEncode({'v': wireVersion, 'kind': kind, ...more});
+  String _say(String kind, [Map<String, Object?> more = const {}]) => jsonEncode(
+    {
+      'v': wireVersion,
+      'kind': kind,
+      if (scope.isNotEmpty) 'scope': scope,
+      ...more,
+    },
+  );
 
   /// The envelope, or a [WireError] saying which part of it was wrong.
   ///
