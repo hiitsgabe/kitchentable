@@ -44,6 +44,7 @@ class PostDraftScreen extends ConsumerWidget {
       title: 'How to play',
       label: 'every deck is built',
       onBack: () => Navigator.of(context).maybePop(),
+      backLabel: 'Room',
       children: [
         for (final mode in [
           PostDraftMode.oneTable,

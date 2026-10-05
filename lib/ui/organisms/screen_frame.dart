@@ -37,6 +37,7 @@ class ScreenFrame extends StatelessWidget {
     this.onBack,
     this.primary,
     this.home = false,
+    this.backLabel,
   });
 
   final Metrics metrics;
@@ -64,6 +65,11 @@ class ScreenFrame extends StatelessWidget {
   /// is, and Back steps down to a slim control beneath it: the one button that
   /// is not a choice the screen offers should not be the loudest thing on it.
   final VoidCallback? onBack;
+
+  /// What the way-out slab says, when "Back" is not what it does. A draft
+  /// screen's way out leaves for the room, so it says where it goes rather than
+  /// reading as an undo. Null is "Back".
+  final String? backLabel;
 
   /// The one dominant action the screen is for, drawn as the bright slab along
   /// the bottom. Null on a screen that only reads or only lists, where there is
@@ -144,6 +150,7 @@ class ScreenFrame extends StatelessWidget {
                           onBack: onBack,
                           home: home,
                           primary: primary,
+                          backLabel: backLabel ?? 'Back',
                         ),
                       ],
                     ],
@@ -223,12 +230,14 @@ class _WayOut extends StatelessWidget {
     required this.onBack,
     required this.home,
     required this.primary,
+    required this.backLabel,
   });
 
   final Metrics metrics;
   final VoidCallback? onBack;
   final bool home;
   final ScreenAction? primary;
+  final String backLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -295,11 +304,11 @@ class _WayOut extends StatelessWidget {
       tone: SlabTone.plain,
       depth: m.scaled(3),
       onActivate: onBack!,
-      semanticLabel: 'Back',
+      semanticLabel: backLabel,
       padding: padding,
       child: Center(
         child: Text(
-          'Back',
+          backLabel,
           style: pixel(
             size: m.scaled(12),
             weight: 600,
@@ -345,9 +354,9 @@ class _WayOut extends StatelessWidget {
       metrics: m,
       tone: SlabTone.warm,
       onActivate: onBack!,
-      semanticLabel: 'Back',
+      semanticLabel: backLabel,
       padding: padding,
-      child: Center(child: Text('Back', style: slabText(m.scaled(15)))),
+      child: Center(child: Text(backLabel, style: slabText(m.scaled(15)))),
     );
 
     if (!home) return back;
