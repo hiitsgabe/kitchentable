@@ -43,6 +43,7 @@ class BracketScreen extends ConsumerWidget {
       title: 'Tournament',
       label: champion != null ? 'we have a winner' : 'round ${round + 1}',
       onBack: () => Navigator.of(context).maybePop(),
+      backLabel: 'Room',
       children: [
         if (champion != null)
           _Banner(metrics: m, text: '$champion wins the pod'),
