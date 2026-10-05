@@ -73,7 +73,7 @@ void main() {
         // Now a has b's remaining pack (b2), passed; not fresh.
         final a = table.viewFor('a');
         expect(a.phase, DraftPhase.picking);
-        expect(_packIds(a), ['a2'].contains('a2') ? _packIds(a) : _packIds(a));
+        expect(_packIds(a), ['b2'], reason: 'a now holds what b passed on');
         expect(
           a.fresh,
           isFalse,
