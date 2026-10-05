@@ -49,13 +49,11 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     // Finishing used to read exactly like not having started: a note, and
-    // the same Back as before. The count is the proof something happened.
+    // the same Back as before. Now Done is the primary slab and the count is
+    // the note beside it, the proof something happened.
     final done = find.byKey(const Key('import-done'));
     expect(done, findsOneWidget);
-    expect(
-      find.descendant(of: done, matching: find.textContaining('36079 cards')),
-      findsOneWidget,
-    );
+    expect(find.text('36079 cards are on this device now'), findsOneWidget);
 
     await tester.tap(done);
     await tester.pump();

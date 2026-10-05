@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../decks/model/deck_format.dart';
 import '../../table/room/room.dart';
 import '../../table/shuffle.dart';
 import '../../ui/atoms/menu_row.dart';
@@ -15,10 +16,15 @@ import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../decks/play_decks_screen.dart';
+import '../draft/draft_controller.dart';
+import '../draft/draft_room.dart';
+import '../draft/draft_screen.dart';
 import '../lobby/lobby.dart';
+import '../menu/menu_controller.dart';
 import '../menu/menu_screen.dart';
 import '../play/play_controller.dart';
 import '../play/play_screen.dart';
+import '../settings/player_name.dart';
 import 'room_controller.dart';
 import '../../ui/atoms/pressable.dart';
 
@@ -54,6 +60,12 @@ class RoomScreen extends ConsumerWidget {
       if (dealt && was != true) _sitDown(context, ref);
     });
 
+    // The draft equivalent: the moment the draft opens, on the host when it
+    // opens it and on a guest when it hears it, this phone goes to the draft.
+    ref.listen(draftingProvider, (was, drafting) {
+      if (drafting && was != true) _enterDraft(context, ref);
+    });
+
     // Nobody should reach this screen without a room, and the one way it could
     // happen is a rebuild the instant after leaving. An empty frame beats a
     // crash on the way out.
@@ -76,6 +88,21 @@ class RoomScreen extends ConsumerWidget {
     final empty = lobby?.emptyChairs ?? const <int>[];
     final somebodyElse =
         lobby != null && lobby.seated.any((s) => s.peer != lobby.me);
+    final isDraft = config?.format == DeckFormat.draft;
+
+    // A draft guest takes its chair by name the moment it knows the room is a
+    // draft: there is no deck to pick on the way in. attend is idempotent, so
+    // scheduling it on every build announces the guest just once.
+    if (isDraft &&
+        lobby != null &&
+        !lobby.hosting &&
+        config != null &&
+        !lobby.seatedHere) {
+      final name = ref.read(yourNameProvider);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(lobbyProvider)?.attend(name: name);
+      });
+    }
 
     return ScreenFrame(
       metrics: m,
@@ -127,27 +154,51 @@ class RoomScreen extends ConsumerWidget {
           onCopyCode: () => _copyCode(context, room.code),
         ),
 
-        // What you do now, said once. The deck is the thing a player has to
-        // understand here and it was the nineteenth block on the screen.
-        MenuRow(
-          key: const Key('room-deck'),
-          title: lobby != null && lobby.seatedHere
-              ? 'Change your deck'
-              : 'Pick your deck',
-          subtitle: lobby != null && lobby.seatedHere
-              ? 'you are sitting in chair ${_chairOf(lobby)}'
-              : 'to sit down',
-          icon: Icons.style_rounded,
-          // The one thing the host has to do before anything else can happen,
-          // so it carries the colour the way Play does on the menu.
-          tone: SlabTone.choice,
-          metrics: m,
-          autofocus: true,
-          onActivate: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const PlayDecksScreen()),
+        // What you do now, said once. In a draft there is no deck to pick on
+        // the way in: you take a chair by being here and the deck is what the
+        // draft is for. Everywhere else, the deck is the thing to understand.
+        if (isDraft)
+          _Fact(
+            metrics: m,
+            id: 'room-draft-note',
+            text: lobby != null && lobby.seatedHere
+                ? 'You are in chair ${_chairOf(lobby)}. The draft builds your '
+                      'deck when it starts.'
+                : 'Taking your chair…',
+          )
+        else
+          MenuRow(
+            key: const Key('room-deck'),
+            title: lobby != null && lobby.seatedHere
+                ? 'Change your deck'
+                : 'Pick your deck',
+            subtitle: lobby != null && lobby.seatedHere
+                ? 'you are sitting in chair ${_chairOf(lobby)}'
+                : 'to sit down',
+            icon: Icons.style_rounded,
+            // The one thing the host has to do before anything else can
+            // happen, so it carries the colour the way Play does on the menu.
+            tone: SlabTone.choice,
+            metrics: m,
+            autofocus: true,
+            onActivate: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const PlayDecksScreen()),
+            ),
           ),
-        ),
-        if (lobby != null && lobby.hosting && config != null)
+        if (lobby != null && lobby.hosting && config != null && isDraft)
+          MenuRow(
+            key: const Key('room-start-draft'),
+            title: 'Start the draft',
+            subtitle: lobby.drafting
+                ? 'the draft is open'
+                : startWords(empty),
+            icon: Icons.inventory_2_rounded,
+            tone: SlabTone.choice,
+            enabled: lobby.canStartDraft,
+            metrics: m,
+            onActivate: () => _startDraft(context, ref, lobby, config),
+          ),
+        if (lobby != null && lobby.hosting && config != null && !isDraft)
           MenuRow(
             key: const Key('room-start'),
             title: 'Start',
@@ -249,7 +300,8 @@ class RoomScreen extends ConsumerWidget {
         // A line rather than a row. It answers "nobody is coming", which is
         // not what this screen is for, and as a row with an icon it stood
         // level with Start and read as an equal way to play.
-        if (room.config case final own? when own.seats > 1 && !somebodyElse)
+        if (room.config case final own?
+            when own.seats > 1 && !somebodyElse && !isDraft)
           _Aside(
             metrics: m,
             id: 'room-fill',
@@ -331,6 +383,54 @@ class RoomScreen extends ConsumerWidget {
     play.follow(mesh);
     Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => const PlayScreen()));
+  }
+
+  /// The host opens the draft: builds the roller from the chosen set, fetching
+  /// its packs the first time, then hands the transport to a DraftRoom. The
+  /// drafting listener is what carries this phone into the draft, the same as
+  /// for a guest, so there is nothing to navigate here.
+  Future<void> _startDraft(
+    BuildContext context,
+    WidgetRef ref,
+    Lobby lobby,
+    RoomConfig config,
+  ) async {
+    final db = ref.read(catalogDbProvider);
+    final options = config.draft;
+    final setCode = options?.setCode;
+    if (db == null || options == null || setCode == null) return;
+
+    Toast.show(context, 'Opening the packs…');
+    final roller = await rollerForSet(db, setCode);
+    if (!context.mounted) return;
+    if (roller == null || !roller.canRoll) {
+      Toast.show(context, 'That set has no draftable packs');
+      return;
+    }
+
+    lobby.startDraft(
+      (seatIds) => DraftRoom.host(
+        transport: lobby.transport,
+        seatIds: seatIds,
+        sealed: options.sealed,
+        packCount: options.packs,
+        roller: roller,
+      ),
+    );
+  }
+
+  /// This phone goes to the draft, host or guest alike: it adopts the lobby's
+  /// draft into the controller the screens read, then opens the draft screen.
+  void _enterDraft(BuildContext context, WidgetRef ref) {
+    final room = ref.read(lobbyProvider)?.draft;
+    if (room == null) return;
+    ref.read(draftProvider.notifier).adopt(room);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            DraftScreen(onBack: () => Navigator.of(context).maybePop()),
+      ),
+    );
   }
 
   /// A guest sits down at the table the host dealt, and the screen opens on

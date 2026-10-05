@@ -3,9 +3,13 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/basic_lands.dart';
+import '../../sources/catalog/catalog_db.dart';
+import '../../sources/import/mtgjson_importer.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../sources/model/draft_set.dart';
+import '../../sources/source_registry.dart';
 import '../menu/menu_controller.dart';
+import 'booster_roller.dart';
 import 'draft_room.dart';
 import 'draft_state.dart';
 
@@ -78,6 +82,26 @@ final draftSetsProvider = FutureProvider<List<DraftSet>>((ref) async {
   if (db == null) return const [];
   return db.draftSetList();
 });
+
+/// Builds the roller for a set the host chose, fetching the set's packs the
+/// first time it is drafted (the set list carries only metadata until then).
+/// Null where the catalog, the set or its MTGJSON endpoint is missing.
+Future<BoosterRoller?> rollerForSet(CatalogDb db, String setCode) async {
+  var set = await db.draftSet(setCode);
+  if (set == null) return null;
+  if (!set.fetched) {
+    Uri? endpoint;
+    for (final source in knownSources) {
+      if (source.id == 'mtgjson_sets') endpoint = source.endpoint;
+    }
+    if (endpoint == null) return null;
+    await MtgjsonImporter(db: db).fetchSet(endpoint, setCode);
+    set = await db.draftSet(setCode);
+    if (set == null) return null;
+  }
+  final printings = await db.draftPrintingsOf(setCode);
+  return BoosterRoller.forSet(set, printings);
+}
 
 /// The five basic lands, by name, for the only cards the deck builder lets a
 /// player add from outside the pool. Empty where the catalog does not have

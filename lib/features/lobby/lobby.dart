@@ -105,6 +105,10 @@ class Lobby extends ChangeNotifier {
   /// way [_bringing] holds a deck for a dealt game.
   String? _attendName;
 
+  /// Whether this guest has already taken a draft chair, so a screen that calls
+  /// [attend] on every build does not keep announcing itself.
+  bool _attended = false;
+
   /// The draft this lobby handed the transport to, once it has. Separate from
   /// [_mesh] on purpose: the draft comes first and the mesh after it, and the
   /// guards that read [_mesh] must not fire while the draft is running.
@@ -229,6 +233,8 @@ class Lobby extends ChangeNotifier {
       _hostAttending = true;
       _rearrange();
     } else {
+      if (_attended) return;
+      _attended = true;
       _attendName = name;
       _sendAttend();
     }
@@ -565,6 +571,8 @@ class Lobby extends ChangeNotifier {
     _host = null;
     _config = null;
     _chairs = const [];
+    // A new host is a new chair to take: let this guest attend again.
+    _attended = false;
     notifyListeners();
   }
 
@@ -891,6 +899,12 @@ final lobbyProvider = NotifierProvider<LobbyHere, Lobby?>(LobbyHere.new);
 /// one time it happens.
 final dealtProvider = Provider<bool>(
   (ref) => ref.watch(lobbyProvider)?.dealt ?? false,
+);
+
+/// Whether the draft has opened on this phone. The draft equivalent of
+/// [dealtProvider]: a screen opens the draft when this turns true.
+final draftingProvider = Provider<bool>(
+  (ref) => ref.watch(lobbyProvider)?.drafting ?? false,
 );
 
 /// What the connection has said, for the room this device is in.
