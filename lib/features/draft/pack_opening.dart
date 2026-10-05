@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../decks/model/game.dart';
 import '../../ui/atoms/card_art.dart';
@@ -29,6 +30,7 @@ class PackOpening extends StatefulWidget {
     required this.onDone,
     this.label,
     this.coverUrl,
+    this.symbolUrl,
   });
 
   final Metrics metrics;
@@ -45,6 +47,10 @@ class PackOpening extends StatefulWidget {
   /// Art for a card from the pack, printed dimmed on the foil as the pack's
   /// face, the way a real booster shows a card. Null leaves the plain foil.
   final String? coverUrl;
+
+  /// The set's symbol (an SVG), drawn above the name. Null, or a fetch that
+  /// fails, leaves just the name.
+  final String? symbolUrl;
 
   final Game game;
 
@@ -113,6 +119,7 @@ class _PackOpeningState extends State<PackOpening>
                   packNumber: widget.packNumber,
                   label: widget.label,
                   coverUrl: widget.coverUrl,
+                  symbolUrl: widget.symbolUrl,
                   game: widget.game,
                   t: _tear.value,
                 )
@@ -121,6 +128,7 @@ class _PackOpeningState extends State<PackOpening>
                   packNumber: widget.packNumber,
                   label: widget.label,
                   coverUrl: widget.coverUrl,
+                  symbolUrl: widget.symbolUrl,
                   sway: _idle.value,
                 ),
         ),
@@ -157,6 +165,7 @@ class _Sealed extends StatelessWidget {
     required this.packNumber,
     required this.label,
     required this.coverUrl,
+    required this.symbolUrl,
     required this.sway,
   });
 
@@ -164,6 +173,7 @@ class _Sealed extends StatelessWidget {
   final int packNumber;
   final String? label;
   final String? coverUrl;
+  final String? symbolUrl;
   final double sway;
 
   @override
@@ -182,6 +192,7 @@ class _Sealed extends StatelessWidget {
         packNumber: packNumber,
         label: label,
         coverUrl: coverUrl,
+        symbolUrl: symbolUrl,
         glow: true,
       ),
     );
@@ -197,6 +208,7 @@ class _Tearing extends StatelessWidget {
     required this.packNumber,
     required this.label,
     required this.coverUrl,
+    required this.symbolUrl,
     required this.game,
     required this.t,
   });
@@ -206,6 +218,7 @@ class _Tearing extends StatelessWidget {
   final int packNumber;
   final String? label;
   final String? coverUrl;
+  final String? symbolUrl;
   final Game game;
   final double t;
 
@@ -235,6 +248,7 @@ class _Tearing extends StatelessWidget {
               packNumber: packNumber,
               label: label,
               coverUrl: coverUrl,
+              symbolUrl: symbolUrl,
               glow: false,
               openMouth: tear,
             ),
@@ -271,6 +285,7 @@ class _Foil extends StatelessWidget {
     required this.packNumber,
     required this.label,
     required this.coverUrl,
+    required this.symbolUrl,
     required this.glow,
     this.openMouth = 0,
   });
@@ -279,6 +294,7 @@ class _Foil extends StatelessWidget {
   final int packNumber;
   final String? label;
   final String? coverUrl;
+  final String? symbolUrl;
   final bool glow;
   final double openMouth;
 
@@ -359,6 +375,19 @@ class _Foil extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (symbolUrl != null) ...[
+                      SvgPicture.network(
+                        symbolUrl!,
+                        width: m.scaled(40),
+                        height: m.scaled(40),
+                        colorFilter: const ColorFilter.mode(
+                          Palette.slabInk,
+                          BlendMode.srcIn,
+                        ),
+                        placeholderBuilder: (_) => SizedBox(height: m.scaled(40)),
+                      ),
+                      SizedBox(height: m.scaled(8)),
+                    ],
                     Text(
                       (label ?? 'PACK').toUpperCase(),
                       textAlign: TextAlign.center,
