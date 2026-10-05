@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../decks/model/deck.dart';
 import '../../decks/model/deck_format.dart';
 import '../draft/draft_room.dart';
+import '../draft/post_draft.dart';
 import '../../net/mesh.dart';
 import '../../net/nostr/keys.dart';
 import '../../net/nostr/relay.dart';
@@ -113,6 +114,12 @@ class Lobby extends ChangeNotifier {
   /// [_mesh] on purpose: the draft comes first and the mesh after it, and the
   /// guards that read [_mesh] must not fire while the draft is running.
   DraftRoom? _draft;
+
+  /// Tables the host authorities but does not play at, in a 1v1 split: each is
+  /// a running mesh for a game between two other seats, relaying their verbs
+  /// over the shared transport on its own scope. The host's own table is
+  /// [_mesh]; these are the others.
+  final _extraMeshes = <Mesh>[];
 
   int _refused = 0;
   String? _lastRefusal;
@@ -333,10 +340,23 @@ class Lobby extends ChangeNotifier {
   /// sends it on. The one call the deck builder makes when a draft deck is done.
   void submitDraftDeck(Deck deck) => _draft?.submit(deck);
 
-  /// Deals the drafted table and hands the transport from the draft to the
-  /// mesh. The second handover: the transport went to the draft first and goes
-  /// to the mesh now, with the decks the draft produced.
-  Mesh dealDraft(TableState Function(List<Player> players) deal) {
+  /// Deals the whole pod to one table. [dealDraftAs] with the casual mode.
+  Mesh? dealDraft(TableState Function(List<Player> players) deal) =>
+      dealDraftAs(PostDraftMode.oneTable, deal);
+
+  /// Turns the finished draft into tables and hands the transport from the
+  /// draft to the mesh, the second handover, in whatever shape [mode] asks for.
+  ///
+  /// One table seats the pod together; 1v1 cuts it into parallel games, each a
+  /// mesh on its own scope over the shared transport. The host authorities every
+  /// table: it plays at its own ([_mesh]) and runs the rest headless
+  /// ([_extraMeshes]), and tells each guest which scope to join. Returns the
+  /// host's own table, or null when the host drew the bye.
+  Mesh? dealDraftAs(
+    PostDraftMode mode,
+    TableState Function(List<Player> players) deal, {
+    int round = 0,
+  }) {
     if (!hosting) throw StateError('only the host deals');
     if (_mesh != null) throw StateError('the table is already dealt');
     final draft = _draft;
@@ -345,20 +365,47 @@ class Lobby extends ChangeNotifier {
     }
 
     final decks = draft.builtDecks;
-    final players = <Player>[
-      (deck: decks[me]!, name: _names[me]!, owner: SeatOwner.peer(me)),
-      for (final peer in _order)
-        (deck: decks[peer]!, name: _names[peer]!, owner: SeatOwner.peer(peer)),
-    ];
-    final table = deal(players);
+    final seatIds = <String>[me, ..._order];
+    final tables = draftTables(mode, seatIds, round: round);
 
-    final word = _say('dealt');
-    for (final peer in transport.peers) {
-      transport.send(peer, word);
+    Mesh? mine;
+    for (final plan in tables) {
+      final players = <Player>[
+        for (final seat in plan.seats)
+          (
+            deck: decks[seat]!,
+            name: _names[seat]!,
+            owner: SeatOwner.peer(seat),
+          ),
+      ];
+      final mesh = Mesh(
+        transport: transport,
+        table: deal(players),
+        creator: true,
+        scope: plan.scope,
+      )..start();
+      if (plan.seats.contains(me)) {
+        mine = mesh;
+      } else {
+        _extraMeshes.add(mesh);
+      }
+      // Each guest at this table hears only its own scope.
+      for (final seat in plan.seats) {
+        if (seat != me) {
+          transport.send(seat, jsonEncode({'kind': 'play', 'scope': plan.scope}));
+        }
+      }
     }
+
     unawaited(draft.close());
     _draft = null;
-    return _handOver(table);
+    _stopListening();
+    _mesh = mine;
+    if (mine != null) {
+      _tables = mine.tables.listen((_) => notifyListeners());
+    }
+    notifyListeners();
+    return mine;
   }
 
   /// A guest's side of [startDraft]: the host said the draft is open, so this
@@ -370,15 +417,15 @@ class Lobby extends ChangeNotifier {
     if (host == null) return;
     _stopListening();
     final room = _draft = DraftRoom.guest(transport: transport, hostId: host);
-    // When the host deals, leave the draft for the mesh: keep this seat's own
-    // built deck so the table it joins knows its game and size, then hand over.
-    room.onDealt = () {
+    // When the host names this seat's table, leave the draft for its mesh:
+    // keep this seat's own built deck so the table knows its game and size.
+    room.onPlay = (scope) {
       final d = _draft;
       if (d == null) return;
       _decks.addAll(d.builtDecks);
       unawaited(d.close());
       _draft = null;
-      _handOver(null);
+      _handOver(null, scope: scope);
     };
     notifyListeners();
   }
@@ -395,6 +442,10 @@ class Lobby extends ChangeNotifier {
     _closed = true;
     unawaited(_stopListening());
     unawaited(_tables?.cancel());
+    for (final mesh in _extraMeshes) {
+      unawaited(mesh.close());
+    }
+    _extraMeshes.clear();
     _tables = null;
     super.dispose();
   }
@@ -415,12 +466,13 @@ class Lobby extends ChangeNotifier {
 
   /// Stops listening and gives the transport to a [Mesh]. Cancelled before
   /// the mesh is made, so no message is ever heard by both.
-  Mesh _handOver(TableState? table) {
+  Mesh _handOver(TableState? table, {String scope = ''}) {
     _stopListening();
     final mesh = _mesh = Mesh(
       transport: transport,
       table: table,
       creator: hosting,
+      scope: scope,
     )..start();
     _tables = mesh.tables.listen((_) => notifyListeners());
     notifyListeners();
