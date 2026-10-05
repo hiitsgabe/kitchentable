@@ -8,6 +8,7 @@ import '../../decks/model/deck.dart';
 import '../../decks/model/deck_format.dart';
 import '../draft/draft_room.dart';
 import '../draft/post_draft.dart';
+import '../draft/tournament.dart';
 import '../../net/mesh.dart';
 import '../../net/nostr/keys.dart';
 import '../../net/nostr/relay.dart';
@@ -121,6 +122,18 @@ class Lobby extends ChangeNotifier {
   /// [_mesh]; these are the others.
   final _extraMeshes = <Mesh>[];
 
+  /// The tournament, on the host that runs it. Guests do not hold it; they are
+  /// sent the standings to show. The draft room stays alive past the draft as
+  /// the channel it rides on, beside the game meshes.
+  Tournament? _tourney;
+  TableState Function(List<Player> players)? _tourneyDeal;
+
+  /// A guest's view of the tournament: the standings the host last sent, and
+  /// whether this seat is knocked out or has reported its current game.
+  Map<String, Object?>? _bracket;
+  bool _eliminated = false;
+  bool _reported = false;
+
   int _refused = 0;
   String? _lastRefusal;
   Mesh? _mesh;
@@ -170,8 +183,11 @@ class Lobby extends ChangeNotifier {
   /// has been told it is open. Null before then.
   DraftRoom? get draft => _draft;
 
-  /// Whether the draft has begun on this phone.
-  bool get drafting => _draft != null;
+  /// Whether this phone is in the draft itself: picking or building, with no
+  /// game dealt yet. The draft room can outlive this as a tournament's channel,
+  /// so a running game ([_mesh]) means the draft is behind us even when the
+  /// room object is still open.
+  bool get drafting => _draft != null && _mesh == null;
 
   /// Whether the host can now deal the drafted table: a draft is running and
   /// every seat has turned its pool into a deck.
@@ -364,16 +380,49 @@ class Lobby extends ChangeNotifier {
       throw StateError('the draft is not finished');
     }
 
-    final decks = draft.builtDecks;
+    // Keep the built decks: a tournament deals from them again each round.
+    _decks.addAll(draft.builtDecks);
     final seatIds = <String>[me, ..._order];
-    final tables = draftTables(mode, seatIds, round: round);
+
+    if (mode == PostDraftMode.tournament) {
+      _tourneyDeal = deal;
+      _tourney = Tournament.start(seatIds, {
+        for (final s in seatIds) s: _names[s]!,
+      });
+      draft.onResult = _recordResult;
+      final mine = _dealPlans(_tourney!.games, deal);
+      _broadcastBracket();
+      // The draft room stays alive as the tournament's channel.
+      return mine;
+    }
+
+    final mine = _dealPlans(draftTables(mode, seatIds, round: round), deal);
+    unawaited(draft.close());
+    _draft = null;
+    return mine;
+  }
+
+  /// Builds the meshes for one round's tables, tearing down the previous
+  /// round's first, and tells each guest the scope of its game.
+  Mesh? _dealPlans(
+    List<DraftTablePlan> plans,
+    TableState Function(List<Player> players) deal,
+  ) {
+    unawaited(_mesh?.close());
+    for (final mesh in _extraMeshes) {
+      unawaited(mesh.close());
+    }
+    _extraMeshes.clear();
+    unawaited(_tables?.cancel());
+    _tables = null;
+    _mesh = null;
 
     Mesh? mine;
-    for (final plan in tables) {
+    for (final plan in plans) {
       final players = <Player>[
         for (final seat in plan.seats)
           (
-            deck: decks[seat]!,
+            deck: _decks[seat]!,
             name: _names[seat]!,
             owner: SeatOwner.peer(seat),
           ),
@@ -389,16 +438,18 @@ class Lobby extends ChangeNotifier {
       } else {
         _extraMeshes.add(mesh);
       }
-      // Each guest at this table hears only its own scope.
       for (final seat in plan.seats) {
         if (seat != me) {
-          transport.send(seat, jsonEncode({'kind': 'play', 'scope': plan.scope}));
+          transport.send(
+            seat,
+            jsonEncode({'kind': 'play', 'scope': plan.scope}),
+          );
         }
       }
     }
 
-    unawaited(draft.close());
-    _draft = null;
+    // The lobby's own listener is done; the draft room's, where a tournament
+    // lives, is a separate subscription this does not touch.
     _stopListening();
     _mesh = mine;
     if (mine != null) {
@@ -407,6 +458,86 @@ class Lobby extends ChangeNotifier {
     notifyListeners();
     return mine;
   }
+
+  /// Reports a game's winner. Either player at the table may, and the host
+  /// records it, drops the loser out, and once the round is in, deals the next.
+  void reportWinner(String scope, String winner) {
+    _reported = true;
+    _draft?.reportResult(scope, winner);
+    notifyListeners();
+  }
+
+  void _recordResult(String scope, String winner) {
+    final before = _tourney;
+    if (before == null) return;
+    final now = before.withResult(scope, winner);
+    _tourney = now;
+
+    // The seat that just dropped out hears it; then the standings go to all.
+    final out = now.alive.toSet();
+    for (final seat in before.alive) {
+      if (!out.contains(seat) && seat != me) _draft?.tellOut(seat);
+    }
+
+    if (now.roundComplete && !now.over) {
+      _tourney = now.nextRound();
+      _dealPlans(_tourney!.games, _tourneyDeal!);
+    }
+    _broadcastBracket();
+    notifyListeners();
+  }
+
+  void _broadcastBracket() {
+    final t = _tourney;
+    if (t == null) return;
+    final json = _bracketJson(t);
+    _bracket = json;
+    for (final peer in transport.peers) {
+      _draft?.tellBracket(peer, json);
+    }
+  }
+
+  /// The standings to show, built from the tournament on the host and from what
+  /// the host sent on a guest.
+  Map<String, Object?>? get bracket =>
+      _tourney != null ? _bracketJson(_tourney!) : _bracket;
+
+  /// This seat's current game, or null when it is eliminated, has a bye, or the
+  /// tournament is over.
+  String? get myGameScope => _mesh?.scope.isEmpty == true ? null : _mesh?.scope;
+
+  bool get eliminated => _eliminated;
+  bool get reported => _reported;
+
+  /// Whether a tournament is running on this phone.
+  bool get tourneying => _tourney != null || _bracket != null;
+
+  /// The tournament the host runs, or null on a guest and off the host.
+  Tournament? get tournament => _tourney;
+
+  static Map<String, Object?> _bracketJson(Tournament t) => {
+    'round': t.round,
+    'champion': t.champion,
+    'championName': t.champion == null ? null : t.names[t.champion],
+    'standings': [
+      for (final s in t.standings)
+        {
+          'seat': s.seat,
+          'name': s.name,
+          'wins': s.wins,
+          'out': s.out,
+          'champion': s.champion,
+        },
+    ],
+    'games': [
+      for (final g in t.games)
+        {
+          'scope': g.scope,
+          'seats': g.seats,
+          'names': [for (final s in g.seats) t.names[s] ?? s],
+        },
+    ],
+  };
 
   /// A guest's side of [startDraft]: the host said the draft is open, so this
   /// stops the lobby and joins the draft as a guest, which announces itself and
@@ -417,17 +548,35 @@ class Lobby extends ChangeNotifier {
     if (host == null) return;
     _stopListening();
     final room = _draft = DraftRoom.guest(transport: transport, hostId: host);
-    // When the host names this seat's table, leave the draft for its mesh:
-    // keep this seat's own built deck so the table knows its game and size.
+    // When the host names this seat's table, join that game's mesh. The draft
+    // room stays alive as the channel a tournament's later rounds arrive on.
     room.onPlay = (scope) {
-      final d = _draft;
-      if (d == null) return;
-      _decks.addAll(d.builtDecks);
-      unawaited(d.close());
-      _draft = null;
-      _handOver(null, scope: scope);
+      _decks.addAll(room.builtDecks);
+      _eliminated = false;
+      _reported = false;
+      _switchGame(scope);
+    };
+    room.onOut = () {
+      _eliminated = true;
+      unawaited(_mesh?.close());
+      unawaited(_tables?.cancel());
+      _tables = null;
+      _mesh = null;
+      notifyListeners();
+    };
+    room.onBracket = (b) {
+      _bracket = b;
+      notifyListeners();
     };
     notifyListeners();
+  }
+
+  void _switchGame(String scope) {
+    unawaited(_mesh?.close());
+    unawaited(_tables?.cancel());
+    _tables = null;
+    _mesh = null;
+    _handOver(null, scope: scope);
   }
 
   /// Stops listening. Not the mesh: once handed over it is the table's, and

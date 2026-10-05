@@ -202,4 +202,83 @@ void main() {
       l.dispose();
     }
   });
+
+  test('a four-player tournament runs two rounds to a champion', () async {
+    final net = FakeNetwork();
+    final hostT = net.join('host');
+    final g1T = net.join('g1');
+    final g2T = net.join('g2');
+    final g3T = net.join('g3');
+
+    final host = Lobby.host(
+      transport: hostT,
+      config: RoomConfig(
+        format: DeckFormat.draft,
+        seats: 4,
+        hostName: 'Gabe',
+        roomName: 'cup',
+        draft: const DraftOptions(setCode: 'mh3', sealed: true, packs: 1),
+      ),
+    );
+    final guests = {
+      'g1': Lobby.guest(transport: g1T),
+      'g2': Lobby.guest(transport: g2T),
+      'g3': Lobby.guest(transport: g3T),
+    };
+    await net.settle();
+    guests['g1']!.attend(name: 'One');
+    guests['g2']!.attend(name: 'Two');
+    guests['g3']!.attend(name: 'Three');
+    await net.settle();
+
+    host.startDraft(
+      (seatIds) => DraftRoom.fromPacks(
+        transport: hostT,
+        seatIds: seatIds,
+        sealed: true,
+        packsPerSeat: _packs(seatIds),
+      ),
+    );
+    await net.settle();
+    Deck deck(String id) =>
+        Deck(id: id, name: id, format: DeckFormat.draft, slots: const []);
+    host.draft!.submit(deck('host'));
+    for (final e in guests.entries) {
+      e.value.draft!.submit(deck(e.key));
+    }
+    await net.settle();
+
+    host.dealDraftAs(
+      PostDraftMode.tournament,
+      (players) => sitDownTogether(players: players, seed: 'seed'),
+    );
+    await net.settle();
+
+    expect(host.tourneying, isTrue);
+    expect(host.mesh?.scope, 'r0g0', reason: 'host plays the first semi');
+
+    // Round 0 results: host beats g1, g2 beats g3.
+    host.reportWinner('r0g0', 'host');
+    guests['g2']!.reportWinner('r0g1', 'g2');
+    await net.settle();
+
+    // The losers are out and the winners meet in the final.
+    expect(guests['g1']!.eliminated, isTrue);
+    expect(guests['g3']!.eliminated, isTrue);
+    expect(host.mesh?.scope, 'r1g0', reason: 'host advanced to the final');
+    expect(guests['g2']!.mesh?.scope, 'r1g0', reason: 'so did g2');
+
+    // The final: host wins the cup.
+    host.reportWinner('r1g0', 'host');
+    await net.settle();
+
+    expect(host.tournament?.champion, 'host');
+    expect(host.bracket?['champion'], 'host');
+    expect(guests['g2']!.bracket?['champion'], 'host', reason: 'guests see it');
+
+    host.dispose();
+    for (final l in guests.values) {
+      l.dispose();
+    }
+  });
 }

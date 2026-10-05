@@ -116,7 +116,15 @@ class DraftRoom {
 
   /// Called on a guest when the host says which table to play: the draft is
   /// over, and the scope is the game this seat joins on the shared transport.
+  /// In a tournament this fires again each round, naming the next game.
   void Function(String scope)? onPlay;
+
+  /// Tournament coordination, which keeps the room alive past the draft as the
+  /// channel beside the game meshes. On the host, a reported result; on a
+  /// guest, being knocked out and the latest standings.
+  void Function(String scope, String winner)? onResult;
+  void Function()? onOut;
+  void Function(Map<String, Object?> bracket)? onBracket;
 
   StreamSubscription<Incoming>? _sub;
 
@@ -155,8 +163,40 @@ class DraftRoom {
         // The host turned the finished draft into tables and named this seat's
         // one. The draft is over; the lobby joins that game's mesh.
         onPlay?.call((json['scope'] as String?) ?? '');
+      case 'draft-result' when _isHost:
+        final scope = json['scope'];
+        final winner = json['winner'];
+        if (scope is String && winner is String) {
+          onResult?.call(scope, winner);
+        }
+      case 'draft-out' when !_isHost && message.from == _hostId:
+        onOut?.call();
+      case 'draft-bracket' when !_isHost && message.from == _hostId:
+        final bracket = json['bracket'];
+        if (bracket is Map) {
+          onBracket?.call(bracket.cast<String, Object?>());
+        }
     }
   }
+
+  /// Reports a game's winner to the host. On the host it records it straight
+  /// away; a guest sends it on.
+  void reportResult(String scope, String winner) {
+    if (_isHost) {
+      onResult?.call(scope, winner);
+    } else {
+      _transport.send(
+        _hostId,
+        _wrap('draft-result', {'scope': scope, 'winner': winner}),
+      );
+    }
+  }
+
+  /// Host-only: tells one seat it is knocked out, and everyone the standings.
+  void tellOut(String seat) => _transport.send(seat, _wrap('draft-out'));
+
+  void tellBracket(String seat, Map<String, Object?> bracket) =>
+      _transport.send(seat, _wrap('draft-bracket', {'bracket': bracket}));
 
   /// Hands this seat's finished deck in. The host records it; a guest sends it
   /// to the host and keeps its own copy, which the lobby reads for its seat.
