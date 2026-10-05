@@ -45,6 +45,16 @@ bool launchDemoChat() => RegExp(r'chat=1').hasMatch(web.window.location.href);
 /// Whether a `#demo=N` launch should pretend the host turned voice on.
 bool launchDemoVoice() => RegExp(r'voice=1').hasMatch(web.window.location.href);
 
+/// Whether a `#demodraft` launch should open the draft on one device: a
+/// scripted pod with a bot in the other seat, so the pack crack, the picking
+/// and the pool builder can be looked at without a room or a catalog.
+bool launchDemoDraft() =>
+    RegExp(r'#demodraft').hasMatch(web.window.location.href);
+
+/// Whether that demo draft is a sealed pool rather than a passing draft.
+bool launchDemoSealed() =>
+    RegExp(r'sealed=1').hasMatch(web.window.location.href);
+
 /// How many chairs a `#demoroom=N` launch sets up, or null. The host's
 /// waiting room, opened without a card source, so the screen people wait on
 /// can be looked at and screenshotted the way `#demo=N` does the table.
