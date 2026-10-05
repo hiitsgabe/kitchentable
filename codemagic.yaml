@@ -1,0 +1,63 @@
+# Codemagic CI/CD for kitchentable (Flutter).
+#
+# Why this exists: Expo Launch's Flutter workflow exports FLUTTER_BUILD_NAME
+# and then runs flutter build, which Flutter refuses; and the standard EAS
+# build cannot build Flutter at all (it needs a package.json, and its
+# profile-env step fails on a non-Expo project). Codemagic is Flutter-native
+# and this config is ours, so the version comes from pubspec the normal way
+# and signing is Codemagic's App Store Connect integration.
+#
+# One-time setup in the Codemagic UI (codemagic.io):
+#   1. Connect the GitHub repo hiitsgabe/kitchentable.
+#   2. Team settings > Integrations > add an App Store Connect API key
+#      (issuer id, key id, .p8). This lets Codemagic create the signing
+#      certificate and provisioning profile for com.hiitsgabe.kitchentable.
+#   3. Add a variable group named "appstore" that holds the App Store Connect
+#      API key references and a CERTIFICATE_PRIVATE_KEY (Codemagic can
+#      generate the latter). Automatic signing below uses them.
+#
+# Then run the "iOS App Store" workflow. It builds a signed IPA and sends it
+# to TestFlight; from there App Store Connect handles the review submission.
+
+workflows:
+  ios-release:
+    name: iOS App Store
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - appstore
+      vars:
+        BUNDLE_ID: "com.hiitsgabe.kitchentable"
+        APP_STORE_APPLE_ID: 6819102282
+        HOME_URL: "https://hiitsgabe.github.io/kitchentable/"
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.hiitsgabe.kitchentable
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Set up code signing
+        script: xcode-project use-profiles
+      - name: Install CocoaPods
+        script: find . -name "Podfile" -execdir pod install \;
+      - name: Build signed IPA
+        script: |
+          # Build number one past the latest on TestFlight, so every upload
+          # is accepted. The version name comes from pubspec.
+          BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0) + 1))
+          flutter build ipa --release \
+            --build-number="$BUILD_NUMBER" \
+            --dart-define=HOME_URL="$HOME_URL" \
+            --dart-define=BUILD="${CM_COMMIT:0:7}" \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
