@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/deck.dart';
 import '../../decks/model/deck_format.dart';
+import '../draft/draft_room.dart';
 import '../../net/mesh.dart';
 import '../../net/nostr/keys.dart';
 import '../../net/nostr/relay.dart';
@@ -53,6 +54,14 @@ class Lobby extends ChangeNotifier {
     : hosting = true,
       _host = transport.me {
     _listen();
+    // A draft host sits the moment the room exists: there is no deck to pick
+    // on the way in, only a chair to take, so the host takes it with its name
+    // and the only thing left to wait on is the other chairs filling.
+    if (_config!.format == DeckFormat.draft) {
+      _names[me] = _config!.hostName;
+      _hostAttending = true;
+      _rearrange();
+    }
   }
 
   Lobby.guest({required this.transport}) : hosting = false {
@@ -85,6 +94,21 @@ class Lobby extends ChangeNotifier {
 
   /// A guest's deck, held until there is a host to send it to.
   ({Deck deck, String name})? _bringing;
+
+  /// Whether the host has taken its chair in a draft, where a chair is a name
+  /// rather than a deck. The guests' names live in [_names] keyed by peer the
+  /// same as a deck would be; the host's seat needs its own flag because the
+  /// host is not in [_order].
+  bool _hostAttending = false;
+
+  /// A guest's name for a draft, held until there is a host to send it to, the
+  /// way [_bringing] holds a deck for a dealt game.
+  String? _attendName;
+
+  /// The draft this lobby handed the transport to, once it has. Separate from
+  /// [_mesh] on purpose: the draft comes first and the mesh after it, and the
+  /// guards that read [_mesh] must not fire while the draft is running.
+  DraftRoom? _draft;
 
   int _refused = 0;
   String? _lastRefusal;
@@ -121,6 +145,22 @@ class Lobby extends ChangeNotifier {
   /// Whether the host can deal: every chair has somebody in it and the
   /// table has not been dealt already.
   bool get canStart => hosting && _mesh == null && emptyChairs.isEmpty;
+
+  /// Whether this is a draft room, where chairs are names and the game starts
+  /// with a draft rather than a deal.
+  bool get isDraft => _config?.format == DeckFormat.draft;
+
+  /// Whether the host can open the draft: a draft room, every chair taken, and
+  /// neither a draft nor a table under way yet.
+  bool get canStartDraft =>
+      hosting && isDraft && _mesh == null && _draft == null && emptyChairs.isEmpty;
+
+  /// The draft this lobby is running, once the host has opened it or a guest
+  /// has been told it is open. Null before then.
+  DraftRoom? get draft => _draft;
+
+  /// Whether the draft has begun on this phone.
+  bool get drafting => _draft != null;
 
   /// Whether there is no chair for this guest. False once it has one, and
   /// false for the host, whose chair is always the first.
@@ -173,10 +213,25 @@ class Lobby extends ChangeNotifier {
         'a guest brings a deck, and the host is the one who sits',
       );
     }
-    if (_mesh != null) return;
+    if (_mesh != null || _draft != null) return;
     _decks[me] = deck;
     _names[me] = name;
     _rearrange();
+  }
+
+  /// Takes a chair in a draft, with a name and no deck: the deck is what the
+  /// draft is for. The host seats itself; a guest sends its name to the host,
+  /// the way [bring] sends a deck, and is seated when the host hears it.
+  void attend({required String name}) {
+    if (_mesh != null || _draft != null) return;
+    if (hosting) {
+      _names[me] = name;
+      _hostAttending = true;
+      _rearrange();
+    } else {
+      _attendName = name;
+      _sendAttend();
+    }
   }
 
   /// A guest says what it brought. Sent the moment there is a host to send
@@ -189,7 +244,7 @@ class Lobby extends ChangeNotifier {
     // The table is dealt and the mesh is speaking. A deck now has nobody to
     // take it, so it is not sent: the lobby has handed over and does not
     // speak again.
-    if (_mesh != null) return;
+    if (_mesh != null || _draft != null) return;
     _bringing = (deck: deck, name: name);
     // Kept as well as sent: the deck is what this phone draws its own cards
     // from once the table is dealt, and the host never sends it back.
@@ -229,6 +284,47 @@ class Lobby extends ChangeNotifier {
       transport.send(peer, word);
     }
     return _handOver(table);
+  }
+
+  /// Opens the draft and hands the transport to it.
+  ///
+  /// [begin] is given the seat ids, host first then the guests in chair order,
+  /// and returns the host's [DraftRoom] built over this transport: the roller
+  /// is made where the catalog is, not in here. Everybody is told the draft has
+  /// begun before the lobby stops listening, so a guest's handover and the
+  /// host's cross without a message being heard by both the lobby and the room.
+  DraftRoom startDraft(DraftRoom Function(List<String> seatIds) begin) {
+    if (!hosting) throw StateError('only the host opens the draft');
+    if (_mesh != null) throw StateError('the table is already dealt');
+    if (_draft != null) throw StateError('the draft is already open');
+    if (!canStartDraft) {
+      throw StateError(
+        'the draft cannot open with a chair empty: '
+        '${_chairWords(emptyChairs)}',
+      );
+    }
+
+    final seatIds = <String>[me, ..._order];
+    final word = _say('drafting');
+    for (final peer in transport.peers) {
+      transport.send(peer, word);
+    }
+    _stopListening();
+    final room = _draft = begin(seatIds);
+    notifyListeners();
+    return room;
+  }
+
+  /// A guest's side of [startDraft]: the host said the draft is open, so this
+  /// stops the lobby and joins the draft as a guest, which announces itself and
+  /// is dealt its first view.
+  void _enterDraftAsGuest() {
+    if (_draft != null) return;
+    final host = _host;
+    if (host == null) return;
+    _stopListening();
+    _draft = DraftRoom.guest(transport: transport, hostId: host);
+    notifyListeners();
   }
 
   /// Stops listening. Not the mesh: once handed over it is the table's, and
@@ -308,6 +404,20 @@ class Lobby extends ChangeNotifier {
           } else {
             _refuse('${message.from} brought a deck to a guest');
           }
+        case 'attend':
+          if (hosting) {
+            _takeSeat(message.from, json);
+          } else {
+            _refuse('${message.from} took a draft chair at a guest');
+          }
+        case 'drafting':
+          if (hosting || message.from != _host) {
+            _refuse(
+              '${message.from} said the draft is open and is not hosting',
+            );
+          } else {
+            _enterDraftAsGuest();
+          }
         case 'dealt':
           if (hosting || message.from != _host) {
             _refuse(
@@ -360,6 +470,23 @@ class Lobby extends ChangeNotifier {
     _rearrange();
   }
 
+  /// A guest taking a draft chair: a name and no deck. The chair is the same
+  /// seat the deck path would have made, drawn from [_order] and [_names].
+  void _takeSeat(String from, Map<String, Object?> json) {
+    final name = _string(json, 'name');
+    final config = _config!;
+
+    if (!_order.contains(from)) {
+      if (_order.length >= config.seats - 1) {
+        _tellChairs(from);
+        return;
+      }
+      _order.add(from);
+    }
+    _names[from] = name;
+    _rearrange();
+  }
+
   void _guestLeft(String peer) {
     if (!_order.remove(peer)) return;
     _decks.remove(peer);
@@ -370,7 +497,8 @@ class Lobby extends ChangeNotifier {
   /// Recomputes the chairs from what the host holds and tells everybody.
   void _rearrange() {
     _chairs = [
-      if (_decks.containsKey(me)) (peer: me, name: _names[me]!),
+      if (_decks.containsKey(me) || _hostAttending)
+        (peer: me, name: _names[me]!),
       for (final peer in _order) (peer: peer, name: _names[peer]!),
     ];
     final wire = _chairsWire();
@@ -410,6 +538,7 @@ class Lobby extends ChangeNotifier {
     _config = config;
     _chairs = chairs;
     _sendDeck();
+    _sendAttend();
     notifyListeners();
   }
 
@@ -422,6 +551,14 @@ class Lobby extends ChangeNotifier {
       host,
       _say('bring', {'name': bringing.name, 'deck': deckToWire(bringing.deck)}),
     );
+  }
+
+  void _sendAttend() {
+    final name = _attendName;
+    final host = _host;
+    if (name == null || host == null) return;
+    _attendName = null;
+    transport.send(host, _say('attend', {'name': name}));
   }
 
   void _hostLeft() {
