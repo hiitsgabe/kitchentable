@@ -32,17 +32,25 @@ enum DeckFormat {
   /// as a floor. The others are a minimum and people play more.
   bool get sizeIsExact => this == DeckFormat.commander;
 
-  /// Copies of any one card, before the two exemptions below.
-  int get maxCopies => this == DeckFormat.commander ? 1 : 4;
+  /// Copies of any one card, before the two exemptions below. Limited has no
+  /// four-copy rule: you play as many as the packs gave you, so draft is
+  /// effectively unbounded.
+  int get maxCopies => switch (this) {
+    DeckFormat.commander => 1,
+    DeckFormat.draft => 1 << 30,
+    _ => 4,
+  };
 
   /// Six prize cards rather than a life total. The table has not been built
   /// yet, so this is a declaration waiting for it, the same as everything else
   /// about Pokemon here.
   bool get winsByPrizes => this == DeckFormat.pokemonStandard;
 
+  /// Draft keeps every card that did not make the deck as its sideboard, so the
+  /// pool is unbounded rather than the usual fifteen.
   int get sideboardSize => switch (this) {
     DeckFormat.commander => 0,
-    DeckFormat.draft => 0,
+    DeckFormat.draft => 1 << 30,
     DeckFormat.pokemonStandard => 0,
     _ => 15,
   };
