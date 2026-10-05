@@ -88,6 +88,13 @@ class _StartScreenState extends ConsumerState<StartScreen> {
       title: 'Start a table',
       label: 'name it, pick a format',
       onBack: () => Navigator.of(context).maybePop(),
+      primary: ScreenAction(
+        slabKey: const Key('make-room'),
+        label: life == null ? 'Starting life has to be a number' : 'Make the room',
+        icon: Icons.meeting_room_rounded,
+        enabled: life != null,
+        onActivate: _open,
+      ),
       children: [
         _Field(
           metrics: m,
@@ -145,19 +152,6 @@ class _StartScreenState extends ConsumerState<StartScreen> {
             on: _voice,
             onChanged: (on) => setState(() => _voice = on),
           ),
-        ),
-        MenuRow(
-          key: const Key('make-room'),
-          title: 'Make the room',
-          subtitle: life == null ? 'starting life has to be a number' : null,
-          icon: Icons.meeting_room_rounded,
-          // The one dominant action on this screen, the way Play is on the
-          // menu. Everything above it is a choice about the room; this is the
-          // room.
-          tone: SlabTone.choice,
-          enabled: life != null,
-          metrics: m,
-          onActivate: _open,
         ),
       ],
     );
