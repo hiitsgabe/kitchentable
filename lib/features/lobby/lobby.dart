@@ -1164,6 +1164,12 @@ final draftReadyToDealProvider = Provider<bool>(
   (ref) => ref.watch(lobbyProvider)?.draftReadyToDeal ?? false,
 );
 
+/// Whether a tournament is running on this phone, so the screen shows the
+/// bracket rather than opening a single table.
+final tourneyingProvider = Provider<bool>(
+  (ref) => ref.watch(lobbyProvider)?.tourneying ?? false,
+);
+
 /// What the connection has said, for the room this device is in.
 class ReachHere extends Notifier<Reach> {
   @override

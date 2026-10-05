@@ -16,6 +16,7 @@ import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
 import '../decks/play_decks_screen.dart';
+import '../draft/bracket_screen.dart';
 import '../draft/draft_controller.dart';
 import '../draft/draft_room.dart';
 import '../draft/draft_screen.dart';
@@ -72,6 +73,17 @@ class RoomScreen extends ConsumerWidget {
       if (ready && was != true) {
         Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const PostDraftScreen()),
+        );
+      }
+    });
+
+    // A guest lands in the tournament bracket when the host opens one; the host
+    // gets there from the chooser itself.
+    ref.listen(tourneyingProvider, (was, now) {
+      final lobby = ref.read(lobbyProvider);
+      if (now && was != true && lobby != null && !lobby.hosting) {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const BracketScreen()),
         );
       }
     });
@@ -454,6 +466,8 @@ class RoomScreen extends ConsumerWidget {
     final lobby = ref.read(lobbyProvider);
     final mesh = lobby?.mesh;
     if (lobby == null || lobby.hosting || mesh?.table == null) return;
+    // A tournament opens its games from the bracket, not straight from here.
+    if (lobby.tourneying) return;
 
     ref.read(playProvider.notifier).join(mesh!, decks: lobby.decks);
     Navigator.of(context)

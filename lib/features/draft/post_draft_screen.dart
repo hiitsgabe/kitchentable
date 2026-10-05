@@ -13,6 +13,7 @@ import '../lobby/lobby.dart';
 import '../play/play_controller.dart';
 import '../play/play_screen.dart';
 import '../room/room_controller.dart';
+import 'bracket_screen.dart';
 import 'post_draft.dart';
 
 /// How to play, once the draft is built: the host chooses, everybody plays.
@@ -83,6 +84,16 @@ void dealDrafted(BuildContext context, WidgetRef ref, PostDraftMode mode) {
   if (lobby == null || config == null) return;
 
   final mine = lobby.dealDraftAs(mode, (players) => _table(players, config));
+
+  // A tournament runs from the bracket: the host deals the first round and
+  // lands there like everyone else, and plays each game from it.
+  if (mode == PostDraftMode.tournament) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => const BracketScreen()),
+    );
+    return;
+  }
+
   if (mine == null) {
     // The host drew a bye this round: nothing to play at, back to the room.
     Navigator.of(context).popUntil((route) => route.isFirst);
