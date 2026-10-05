@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../sources/model/source_def.dart';
 import '../../ui/atoms/progress_track.dart';
-import '../../ui/atoms/menu_row.dart';
-import '../../ui/atoms/slab.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
@@ -47,6 +45,17 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       label: _labelFor(s),
       onBack: () => Navigator.of(context).maybePop(),
       home: true,
+      // A way forward, in the colour the player picked, because when the import
+      // is done this is the thing to press. It used to be a row above the
+      // frame's orange Back, so finishing read exactly like not having started.
+      primary: s.phase == ImportPhase.done
+          ? ScreenAction(
+              slabKey: const Key('import-done'),
+              label: 'Done',
+              icon: Icons.check_rounded,
+              onActivate: () => Navigator.of(context).maybePop(),
+            )
+          : null,
       children: [
         ProgressTrack(
           metrics: m,
@@ -67,21 +76,10 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
         ),
         if (s.phase == ImportPhase.failed)
           _Note(metrics: m, text: s.error, bad: true),
-        // A way forward, and in the colour the player picked, because this
-        // is the thing to press now. It used to be a note and the frame's
-        // orange Back, which is what every other screen ends with, and so
-        // finishing read exactly like not having started. One pop, back to
-        // whichever screen opened this, and that screen now knows.
         if (s.phase == ImportPhase.done)
-          MenuRow(
-            key: const Key('import-done'),
-            title: 'Done',
-            subtitle: '${s.indexed} ${s.what} are on this device now',
-            icon: Icons.check_rounded,
-            tone: SlabTone.choice,
+          _Note(
             metrics: m,
-            autofocus: true,
-            onActivate: () => Navigator.of(context).maybePop(),
+            text: '${s.indexed} ${s.what} are on this device now',
           ),
         if (s.phase == ImportPhase.downloading ||
             s.phase == ImportPhase.indexing)
