@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/basic_lands.dart';
 import '../../sources/model/catalog_card.dart';
+import '../../sources/model/draft_set.dart';
 import '../menu/menu_controller.dart';
 import 'draft_room.dart';
 import 'draft_state.dart';
@@ -68,6 +69,14 @@ final draftCardsProvider = FutureProvider<Map<String, CatalogCard>>((
 
   final cards = await db.cardsByOracleIds(ids.toList());
   return {for (final c in cards) c.oracleId: c};
+});
+
+/// The MTGJSON sets imported on this device, newest first, for the host to
+/// pick a draft set from. Empty with no catalog or before MTGJSON is imported.
+final draftSetsProvider = FutureProvider<List<DraftSet>>((ref) async {
+  final db = ref.watch(catalogDbProvider);
+  if (db == null) return const [];
+  return db.draftSetList();
 });
 
 /// The five basic lands, by name, for the only cards the deck builder lets a

@@ -32,6 +32,7 @@ import 'package:kitchentable/table/model/seat_owner.dart';
 import 'package:kitchentable/table/room/room.dart';
 import 'package:kitchentable/table/setup.dart';
 import 'package:kitchentable/ui/atoms/menu_row.dart';
+import 'package:kitchentable/ui/atoms/slab.dart';
 import 'package:kitchentable/ui/organisms/screen_frame.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1252,7 +1253,7 @@ void main() {
       final container = _container();
       await _pump(tester, container, const JoinScreen());
 
-      MenuRow go() => tester.widget<MenuRow>(find.byKey(const Key('join-go')));
+      Slab go() => tester.widget<Slab>(find.byKey(const Key('join-go')));
 
       expect(go().enabled, isFalse, reason: 'an empty box is not a room');
 

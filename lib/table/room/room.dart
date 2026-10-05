@@ -85,6 +85,52 @@ String? codeFrom(String link) {
 /// A value, because Task 3 holds one in provider state and rebuilds a screen
 /// off it while somebody types into it.
 @immutable
+/// What a draft room opens from: which set's packs, how many, and whether the
+/// pool is drafted around the table or kept sealed in each hand.
+///
+/// Only meaningful on a room whose format is [DeckFormat.draft]; null everywhere
+/// else. [setCode] is a set the host has imported from MTGJSON, or null before
+/// one is chosen, which is the one thing on the draft setup that can be missing.
+@immutable
+class DraftOptions {
+  const DraftOptions({this.setCode, this.sealed = false, this.packs = 3});
+
+  final String? setCode;
+  final bool sealed;
+  final int packs;
+
+  bool get ready => setCode != null;
+
+  DraftOptions copyWith({String? setCode, bool? sealed, int? packs}) =>
+      DraftOptions(
+        setCode: setCode ?? this.setCode,
+        sealed: sealed ?? this.sealed,
+        packs: packs ?? this.packs,
+      );
+
+  Map<String, Object?> toJson() => {
+    'setCode': setCode,
+    'sealed': sealed,
+    'packs': packs,
+  };
+
+  static DraftOptions fromJson(Map<String, Object?> json) => DraftOptions(
+    setCode: json['setCode'] as String?,
+    sealed: json['sealed'] == true,
+    packs: (json['packs'] as num?)?.toInt() ?? 3,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is DraftOptions &&
+      other.setCode == setCode &&
+      other.sealed == sealed &&
+      other.packs == packs;
+
+  @override
+  int get hashCode => Object.hash(setCode, sealed, packs);
+}
+
 class RoomConfig {
   RoomConfig({
     required this.format,
@@ -92,6 +138,7 @@ class RoomConfig {
     required this.hostName,
     required this.roomName,
     this.voice = false,
+    this.draft,
     int? life,
   }) : life = life ?? format.startingLife,
        assert(
@@ -130,6 +177,9 @@ class RoomConfig {
   /// the table offers to.
   final bool voice;
 
+  /// The draft setup, on a draft room, and null on every other.
+  final DraftOptions? draft;
+
   RoomConfig copyWith({
     DeckFormat? format,
     int? seats,
@@ -137,6 +187,7 @@ class RoomConfig {
     String? hostName,
     String? roomName,
     bool? voice,
+    DraftOptions? draft,
   }) => RoomConfig(
     format: format ?? this.format,
     seats: seats ?? this.seats,
@@ -144,6 +195,7 @@ class RoomConfig {
     hostName: hostName ?? this.hostName,
     roomName: roomName ?? this.roomName,
     voice: voice ?? this.voice,
+    draft: draft ?? this.draft,
   );
 
   @override
@@ -154,9 +206,10 @@ class RoomConfig {
       other.life == life &&
       other.voice == voice &&
       other.hostName == hostName &&
-      other.roomName == roomName;
+      other.roomName == roomName &&
+      other.draft == draft;
 
   @override
   int get hashCode =>
-      Object.hash(format, seats, life, hostName, roomName, voice);
+      Object.hash(format, seats, life, hostName, roomName, voice, draft);
 }
