@@ -266,7 +266,9 @@ class _PickableCard extends StatelessWidget {
       ),
     );
 
-    return Draggable<String>(
+    // Long-press to drag, so a plain tap stays the card's own: it opens the
+    // viewer. Holding then dragging drops the card on the pool to pick it.
+    return LongPressDraggable<String>(
       data: draft.uuid,
       feedback: Opacity(
         opacity: 0.9,
