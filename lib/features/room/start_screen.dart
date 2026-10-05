@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/deck_format.dart';
 import '../../decks/model/game.dart';
+import '../../sources/model/draft_set.dart';
 import '../../table/room/room.dart';
 import '../../table/room/room_names.dart';
 import '../../ui/atoms/menu_row.dart';
@@ -14,7 +15,9 @@ import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
+import '../draft/draft_controller.dart';
 import '../settings/player_name.dart';
+import '../sources/sources_screen.dart';
 import 'room_controller.dart';
 import 'room_screen.dart';
 
@@ -40,6 +43,13 @@ class _StartScreenState extends ConsumerState<StartScreen> {
 
   DeckFormat _format = DeckFormat.commander;
   int _seats = roomSeatChoices.first;
+
+  /// The draft setup, which only shows when the format is Draft. The set is the
+  /// one thing that can be missing: a draft cannot open packs from nothing.
+  String? _draftSetCode;
+  String? _draftSetName;
+  bool _sealed = false;
+  int _packs = 3;
 
   /// Whether the life box holds a number somebody chose.
   ///
@@ -82,6 +92,11 @@ class _StartScreenState extends ConsumerState<StartScreen> {
       ),
     );
     final life = _lifeTyped;
+    final isDraft = _format == DeckFormat.draft;
+    final draftReady = !isDraft || _draftSetCode != null;
+    final draftSets = isDraft
+        ? (ref.watch(draftSetsProvider).value ?? const <DraftSet>[])
+        : const <DraftSet>[];
 
     return ScreenFrame(
       metrics: m,
@@ -90,9 +105,13 @@ class _StartScreenState extends ConsumerState<StartScreen> {
       onBack: () => Navigator.of(context).maybePop(),
       primary: ScreenAction(
         slabKey: const Key('make-room'),
-        label: life == null ? 'Starting life has to be a number' : 'Make the room',
+        label: life == null
+            ? 'Starting life has to be a number'
+            : !draftReady
+            ? 'Pick a set to draft'
+            : 'Make the room',
         icon: Icons.meeting_room_rounded,
-        enabled: life != null,
+        enabled: life != null && draftReady,
         onActivate: _open,
       ),
       children: [
@@ -125,6 +144,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
             onActivate: _chooseFormat,
           ),
         ),
+        if (isDraft) ..._draftFields(m, draftSets),
         _Field(
           metrics: m,
           label: 'Chairs',
@@ -155,6 +175,116 @@ class _StartScreenState extends ConsumerState<StartScreen> {
         ),
       ],
     );
+  }
+
+  /// The three draft choices, shown only when the format is Draft: which set
+  /// to open, sealed or a passing draft, and how many packs each.
+  List<Widget> _draftFields(Metrics m, List<DraftSet> sets) {
+    return [
+      _Field(
+        metrics: m,
+        label: 'Set to draft',
+        child: MenuRow(
+          key: const Key('draft-set'),
+          title: _draftSetName ?? 'Choose a set',
+          subtitle: sets.isEmpty
+              ? 'import MTGJSON sets first'
+              : (_draftSetCode == null ? 'from your imported sets' : _draftSetCode!),
+          icon: Icons.inventory_2_rounded,
+          metrics: m,
+          onActivate: () => _chooseSet(sets),
+        ),
+      ),
+      _Field(
+        metrics: m,
+        label: 'How it plays',
+        child: SlabSwitch(
+          key: const Key('draft-sealed'),
+          metrics: m,
+          title: 'Sealed',
+          subtitle: _sealed
+              ? 'open your packs, build from all of them'
+              : 'pick one card, pass the pack on',
+          icon: Icons.style_rounded,
+          on: _sealed,
+          // Sealed is six packs of your own, a draft is three passed around:
+          // move the count to the usual one when the switch flips, unless the
+          // host has already set their own.
+          onChanged: (on) => setState(() {
+            _sealed = on;
+            _packs = on ? 6 : 3;
+          }),
+        ),
+      ),
+      _Field(
+        metrics: m,
+        label: 'Packs each',
+        child: _Chairs(
+          metrics: m,
+          seats: _packs,
+          choices: const [3, 4, 5, 6],
+          noun: 'packs',
+          onMove: _movePacks,
+        ),
+      ),
+    ];
+  }
+
+  void _movePacks(int by) => setState(() {
+    final next = _packs + by;
+    if (next < 3 || next > 6) return;
+    _packs = next;
+  });
+
+  /// Opens the imported sets to pick one, or, with none imported, the Sources
+  /// screen to import some first.
+  Future<void> _chooseSet(List<DraftSet> sets) async {
+    if (sets.isEmpty) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const SourcesScreen()),
+      );
+      return;
+    }
+    final media = MediaQuery.of(context);
+    final m = Metrics.of(
+      classifyDevice(
+        size: media.size,
+        hasTouch: media.navigationMode == NavigationMode.traditional,
+      ),
+    );
+    final picked = await showModalBottomSheet<DraftSet>(
+      context: context,
+      backgroundColor: Palette.surface,
+      isScrollControlled: true,
+      builder: (sheet) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheet).size.height * 0.7,
+          ),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final set in sets)
+                MenuRow(
+                  key: Key('draft-set-${set.code}'),
+                  title: set.name,
+                  subtitle: '${set.code} · ${set.totalSetSize} cards',
+                  icon: Icons.inventory_2_rounded,
+                  metrics: m,
+                  autofocus: set.code == _draftSetCode,
+                  onActivate: () => Navigator.of(sheet).pop(set),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        _draftSetCode = picked.code;
+        _draftSetName = picked.name;
+      });
+    }
   }
 
   /// Opens the five formats to choose from, and closes on the choice.
@@ -242,6 +372,13 @@ class _StartScreenState extends ConsumerState<StartScreen> {
       format: _format,
       seats: _seats,
       life: life,
+      draft: _format == DeckFormat.draft
+          ? DraftOptions(
+              setCode: _draftSetCode,
+              sealed: _sealed,
+              packs: _packs,
+            )
+          : null,
       // Read and not asked for. A name is the same in every room somebody
       // joins, so it lives with them in settings, and the room still carries
       // who made it.
@@ -272,16 +409,23 @@ class _Chairs extends StatelessWidget {
     required this.metrics,
     required this.seats,
     required this.onMove,
+    this.choices = roomSeatChoices,
+    this.noun = 'chairs',
   });
 
   final Metrics metrics;
   final int seats;
   final ValueChanged<int> onMove;
 
+  /// The values the stepper may land on, in order. Chairs by default; the
+  /// draft reuses this for packs with its own range.
+  final List<int> choices;
+  final String noun;
+
   @override
   Widget build(BuildContext context) {
     final m = metrics;
-    final at = roomSeatChoices.indexOf(seats);
+    final at = choices.indexOf(seats);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,7 +457,7 @@ class _Chairs extends StatelessWidget {
               key: const Key('seats-up'),
               metrics: m,
               icon: Icons.add_rounded,
-              atEnd: at >= roomSeatChoices.length - 1,
+              atEnd: at >= choices.length - 1,
               onTap: () => onMove(1),
             ),
           ],
@@ -338,13 +482,9 @@ class _Chairs extends StatelessWidget {
   /// A dimmed button on its own is a button somebody presses twice before
   /// believing it, so the end says so in words as well.
   String get _note {
-    if (seats <= roomSeatChoices.first) {
-      return '${roomSeatChoices.first} is the fewest';
-    }
-    if (seats >= roomSeatChoices.last) {
-      return '${roomSeatChoices.last} is the most';
-    }
-    return '${roomSeatChoices.first} to ${roomSeatChoices.last} chairs';
+    if (seats <= choices.first) return '${choices.first} is the fewest';
+    if (seats >= choices.last) return '${choices.last} is the most';
+    return '${choices.first} to ${choices.last} $noun';
   }
 }
 

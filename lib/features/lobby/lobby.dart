@@ -468,6 +468,7 @@ class Lobby extends ChangeNotifier {
     'hostName': config.hostName,
     'roomName': config.roomName,
     'voice': config.voice,
+    if (config.draft != null) 'draft': config.draft!.toJson(),
   };
 
   static RoomConfig _configFrom(Map<String, Object?> json) {
@@ -493,6 +494,9 @@ class Lobby extends ChangeNotifier {
       // sends a room without the field, and the honest reading of silence is
       // that the table does not talk.
       voice: json['voice'] == true,
+      draft: json['draft'] is Map
+          ? DraftOptions.fromJson((json['draft'] as Map).cast<String, Object?>())
+          : null,
     );
   }
 
