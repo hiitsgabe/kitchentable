@@ -105,7 +105,7 @@ class _DraftBuildScreenState extends ConsumerState<DraftBuildScreen> {
     return ScreenFrame(
       metrics: m,
       title: 'Build your deck',
-      label: 'from the $target you drafted',
+      label: 'your $target-card deck',
       onBack: widget.onBack,
       children: [
         _Count(metrics: m, count: _deckCount, target: target),
