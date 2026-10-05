@@ -166,6 +166,11 @@ class Lobby extends ChangeNotifier {
   /// Whether the draft has begun on this phone.
   bool get drafting => _draft != null;
 
+  /// Whether the host can now deal the drafted table: a draft is running and
+  /// every seat has turned its pool into a deck.
+  bool get draftReadyToDeal =>
+      hosting && _mesh == null && (_draft?.allBuilt ?? false);
+
   /// Whether there is no chair for this guest. False once it has one, and
   /// false for the host, whose chair is always the first.
   bool get full {
@@ -317,8 +322,43 @@ class Lobby extends ChangeNotifier {
     }
     _stopListening();
     final room = _draft = begin(seatIds);
+    // A built deck arriving is what the host waits on to deal, so a change in
+    // them has to reach the screen the way a view does.
+    room.onBuiltChanged = notifyListeners;
     notifyListeners();
     return room;
+  }
+
+  /// Hands this seat's built deck to the draft: the host records it, a guest
+  /// sends it on. The one call the deck builder makes when a draft deck is done.
+  void submitDraftDeck(Deck deck) => _draft?.submit(deck);
+
+  /// Deals the drafted table and hands the transport from the draft to the
+  /// mesh. The second handover: the transport went to the draft first and goes
+  /// to the mesh now, with the decks the draft produced.
+  Mesh dealDraft(TableState Function(List<Player> players) deal) {
+    if (!hosting) throw StateError('only the host deals');
+    if (_mesh != null) throw StateError('the table is already dealt');
+    final draft = _draft;
+    if (draft == null || !draft.allBuilt) {
+      throw StateError('the draft is not finished');
+    }
+
+    final decks = draft.builtDecks;
+    final players = <Player>[
+      (deck: decks[me]!, name: _names[me]!, owner: SeatOwner.peer(me)),
+      for (final peer in _order)
+        (deck: decks[peer]!, name: _names[peer]!, owner: SeatOwner.peer(peer)),
+    ];
+    final table = deal(players);
+
+    final word = _say('dealt');
+    for (final peer in transport.peers) {
+      transport.send(peer, word);
+    }
+    unawaited(draft.close());
+    _draft = null;
+    return _handOver(table);
   }
 
   /// A guest's side of [startDraft]: the host said the draft is open, so this
@@ -329,7 +369,17 @@ class Lobby extends ChangeNotifier {
     final host = _host;
     if (host == null) return;
     _stopListening();
-    _draft = DraftRoom.guest(transport: transport, hostId: host);
+    final room = _draft = DraftRoom.guest(transport: transport, hostId: host);
+    // When the host deals, leave the draft for the mesh: keep this seat's own
+    // built deck so the table it joins knows its game and size, then hand over.
+    room.onDealt = () {
+      final d = _draft;
+      if (d == null) return;
+      _decks.addAll(d.builtDecks);
+      unawaited(d.close());
+      _draft = null;
+      _handOver(null);
+    };
     notifyListeners();
   }
 
@@ -905,6 +955,12 @@ final dealtProvider = Provider<bool>(
 /// [dealtProvider]: a screen opens the draft when this turns true.
 final draftingProvider = Provider<bool>(
   (ref) => ref.watch(lobbyProvider)?.drafting ?? false,
+);
+
+/// Whether the host can deal the drafted table now: the screen deals when this
+/// turns true, the way it opens the draft on [draftingProvider].
+final draftReadyToDealProvider = Provider<bool>(
+  (ref) => ref.watch(lobbyProvider)?.draftReadyToDeal ?? false,
 );
 
 /// What the connection has said, for the room this device is in.

@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
+import '../../decks/model/deck.dart';
 import '../../net/transport.dart';
+import '../../table/wire/deck_wire.dart';
 import 'booster_roller.dart';
 import 'draft_state.dart';
 import 'draft_table.dart';
@@ -94,6 +96,26 @@ class DraftRoom {
   /// The latest view of this seat, or null before the first one arrives.
   DraftView? get view => _view;
 
+  /// The decks players have built from their pools, by seat. On the host that
+  /// is everyone's, as they come in; on a guest it is only its own.
+  final _built = <String, Deck>{};
+
+  /// Everyone's built deck, by seat. The host hands these to the deal.
+  Map<String, Deck> get builtDecks => Map.unmodifiable(_built);
+
+  /// Whether every seat has turned its pool into a deck, so the host can deal.
+  bool get allBuilt {
+    final table = _table;
+    if (table == null) return false;
+    return table.seatIds.every(_built.containsKey);
+  }
+
+  /// Called on the host whenever a built deck arrives, so a lobby watching can
+  /// see [allBuilt] turn true. Called on a guest when the host says the table
+  /// is dealt, so it can leave the draft for the mesh.
+  void Function()? onBuiltChanged;
+  void Function()? onDealt;
+
   StreamSubscription<Incoming>? _sub;
 
   void _listen() {
@@ -121,6 +143,30 @@ class DraftRoom {
         if (view is Map) {
           _emit(DraftView.fromJson(view.cast<String, Object?>()));
         }
+      case 'draft-built' when _isHost:
+        final wire = json['deck'];
+        if (wire is String) {
+          _built[message.from] = deckFromWire(wire);
+          onBuiltChanged?.call();
+        }
+      case 'dealt' when !_isHost && message.from == _hostId:
+        // The host turned the finished draft into a table. The draft is over;
+        // the lobby takes it from here and joins the mesh.
+        onDealt?.call();
+    }
+  }
+
+  /// Hands this seat's finished deck in. The host records it; a guest sends it
+  /// to the host and keeps its own copy, which the lobby reads for its seat.
+  void submit(Deck deck) {
+    _built[_transport.me] = deck;
+    if (_isHost) {
+      onBuiltChanged?.call();
+    } else {
+      _transport.send(
+        _hostId,
+        _wrap('draft-built', {'deck': deckToWire(deck)}),
+      );
     }
   }
 

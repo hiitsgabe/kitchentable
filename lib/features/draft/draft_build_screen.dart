@@ -164,11 +164,11 @@ class _DraftBuildScreenState extends ConsumerState<DraftBuildScreen> {
               : () {},
           child: Text(
             _saved
-                ? 'SAVED'
+                ? 'SAVED · WAITING FOR THE OTHERS'
                 : enough
                 ? 'SAVE DECK'
                 : 'NEED ${target - _deckCount} MORE',
-            style: slabText(m.scaled(16)),
+            style: slabText(m.scaled(14)),
           ),
         ),
       ],
@@ -181,9 +181,6 @@ class _DraftBuildScreenState extends ConsumerState<DraftBuildScreen> {
     Map<String, CatalogCard> cards,
     Map<String, CatalogCard> basics,
   ) async {
-    final repo = ref.read(deckRepositoryProvider);
-    if (repo == null) return;
-
     final slots = draftDeckSlots(
       pool: pool,
       inDeck: _inDeck,
@@ -193,16 +190,24 @@ class _DraftBuildScreenState extends ConsumerState<DraftBuildScreen> {
     );
 
     final id = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
-    await repo.save(
-      Deck(
-        id: id,
-        name: 'Draft deck',
-        format: DeckFormat.draft,
-        game: widget.game,
-        slots: slots,
-      ),
+    final deck = Deck(
+      id: id,
+      name: 'Draft deck',
+      format: DeckFormat.draft,
+      game: widget.game,
+      slots: slots,
     );
-    ref.invalidate(decksProvider);
+
+    // Handed to the draft first: this is what the host gathers to deal the
+    // table, and it must go in whether or not there is a catalog to also keep
+    // the deck in this phone's deck list.
+    ref.read(draftProvider.notifier).submit(deck);
+
+    final repo = ref.read(deckRepositoryProvider);
+    if (repo != null) {
+      await repo.save(deck);
+      ref.invalidate(decksProvider);
+    }
     if (!context.mounted) return;
     setState(() => _saved = true);
   }
