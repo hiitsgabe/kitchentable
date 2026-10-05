@@ -41,11 +41,28 @@ class DraftRoom {
             ],
         ],
     ];
+    return DraftRoom.fromPacks(
+      transport: transport,
+      seatIds: seatIds,
+      sealed: sealed,
+      packsPerSeat: packs,
+    );
+  }
+
+  /// The host, over packs already rolled. [DraftRoom.host] is this with the
+  /// roller run for you; a demo or a test that wants a known pod passes its own
+  /// packs here instead.
+  factory DraftRoom.fromPacks({
+    required Transport transport,
+    required List<String> seatIds,
+    required bool sealed,
+    required List<List<List<DraftCard>>> packsPerSeat,
+  }) {
     final room = DraftRoom._(transport, transport.me, true);
     room._table = DraftTable(
       seatIds: seatIds,
       sealed: sealed,
-      packsPerSeat: packs,
+      packsPerSeat: packsPerSeat,
     );
     room._listen();
     room._pushAll();

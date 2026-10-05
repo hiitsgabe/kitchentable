@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../draft/draft_demo.dart';
 import '../menu/menu_screen.dart';
 import '../setup/setup_controller.dart';
 import '../setup/setup_screen.dart';
@@ -25,6 +26,8 @@ class Entry extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (launchDemoDraft()) return DraftDemoScreen(sealed: launchDemoSealed());
+
     final demo = launchDemoSeats();
     if (demo != null) {
       return DemoTable(
