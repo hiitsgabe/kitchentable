@@ -12,7 +12,9 @@ import '../../features/play/widgets/counter_piece.dart';
 import '../tokens/metrics.dart';
 import '../atoms/card_art.dart';
 import '../atoms/card_image.dart';
+import '../atoms/slab.dart';
 import '../tokens/app_palette.dart';
+import '../tokens/lettering.dart';
 import '../tokens/palette.dart';
 import 'card_shading.dart';
 import '../atoms/pressable.dart';
@@ -34,6 +36,10 @@ enum CardAction {
   /// Magic are a copy of something already on the table, and a copy needs no
   /// search: the face is the face of the card being looked at.
   copy,
+
+  /// Taking the card into a draft pool. The one action with no table under it:
+  /// the viewer is looking at a printing, and the caller turns this into a pick.
+  pick,
 }
 
 /// The kinds the box holds no piece for.
@@ -67,9 +73,16 @@ class CardViewer extends StatefulWidget {
     this.onAct,
     this.onCount,
     this.hasCommandZone = false,
+    this.actionLabel,
+    this.actionIcon,
   });
 
   final CatalogCard card;
+
+  /// A deliberate action the viewer offers at the bottom, for a card with no
+  /// table under it: the draft uses it for "Pick this card". Null draws none.
+  final String? actionLabel;
+  final IconData? actionIcon;
 
   /// The card on a table, when there is one. Null from the deck builder,
   /// where a printing is being looked at rather than a card being played, and
@@ -99,6 +112,8 @@ class CardViewer extends StatefulWidget {
     CardInstance? instance,
     bool hasCommandZone = false,
     void Function(String kind, int by)? onCount,
+    String? actionLabel,
+    IconData? actionIcon,
   }) => Navigator.of(context).push(
     // Not PageRouteBuilder<CardAction?>. push<T> already hands back a
     // Future<T?>, so the route's own type argument is the non null one.
@@ -110,6 +125,8 @@ class CardViewer extends StatefulWidget {
         instance: instance,
         hasCommandZone: hasCommandZone,
         onCount: onCount,
+        actionLabel: actionLabel,
+        actionIcon: actionIcon,
         onAct: (action) => Navigator.of(context).pop(action),
       ),
       transitionsBuilder: (_, animation, _, child) =>
@@ -319,7 +336,44 @@ class _CardViewerState extends State<CardViewer>
 
   Widget _actions(Metrics m) {
     final instance = widget.instance;
-    if (instance == null) return const SizedBox.shrink();
+
+    // A card with no table under it offers nothing to do to it, except the one
+    // deliberate action a caller hands in: the draft's "Pick this card".
+    if (instance == null) {
+      final label = widget.actionLabel;
+      if (label == null) return const SizedBox.shrink();
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          m.safeInset,
+          0,
+          m.safeInset,
+          m.safeInset,
+        ),
+        child: Slab(
+          key: const Key('viewer-action'),
+          metrics: m,
+          tone: SlabTone.choice,
+          autofocus: true,
+          onActivate: () => widget.onAct?.call(CardAction.pick),
+          padding: EdgeInsets.symmetric(vertical: m.scaled(14)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.actionIcon != null) ...[
+                Icon(
+                  widget.actionIcon,
+                  size: m.scaled(18),
+                  color: Palette.slabInk,
+                ),
+                SizedBox(width: m.scaled(8)),
+              ],
+              Text(label, style: slabText(m.scaled(15))),
+            ],
+          ),
+        ),
+      );
+    }
 
     final kinds = [
       // The box first, in the order the player reaches into it, then the three
