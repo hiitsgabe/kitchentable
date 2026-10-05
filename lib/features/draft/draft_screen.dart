@@ -6,6 +6,7 @@ import '../../sources/model/catalog_card.dart';
 import '../../ui/atoms/card_art.dart';
 import '../../ui/atoms/pressable.dart';
 import '../../ui/atoms/tray.dart';
+import '../../ui/organisms/card_viewer.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
@@ -137,7 +138,13 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
           onPick: (uuid) => ref.read(draftProvider.notifier).pick(uuid),
         ),
         SizedBox(height: m.scaled(12)),
-        _PoolStrip(metrics: m, pool: view.pool, cards: cards, game: widget.game),
+        _PoolStrip(
+          metrics: m,
+          pool: view.pool,
+          cards: cards,
+          game: widget.game,
+          onAccept: (uuid) => ref.read(draftProvider.notifier).pick(uuid),
+        ),
       ],
     );
   }
@@ -183,8 +190,8 @@ class _PackGrid extends StatelessWidget {
   }
 }
 
-/// One card in the pack: its art, a glow if it is rare, and a press that takes
-/// it into the pool.
+/// One card in the pack. A tap lifts it to read, with a Pick button under it;
+/// a drag drops it on the pool to take it straight away. A glow marks a rare.
 class _PickableCard extends StatelessWidget {
   const _PickableCard({
     required this.metrics,
@@ -209,12 +216,36 @@ class _PickableCard extends StatelessWidget {
     return r == 'rare' || r == 'mythic';
   }
 
+  Future<void> _open(BuildContext context) async {
+    final c = card;
+    // A card the catalog never resolved has no face to read, so there is
+    // nothing to expand: a tap just takes it.
+    if (c == null) {
+      onPick();
+      return;
+    }
+    final action = await CardViewer.show(
+      context,
+      c,
+      actionLabel: 'Pick this card',
+      actionIcon: Icons.add_rounded,
+    );
+    if (action == CardAction.pick) onPick();
+  }
+
   @override
   Widget build(BuildContext context) {
     final m = metrics;
-    return Pressable(
+    final face = ClipRRect(
+      borderRadius: BorderRadius.circular(m.scaled(6)),
+      child: card == null
+          ? CardBack(width: width, game: game)
+          : CardArt(metrics: m, card: card!, width: width),
+    );
+
+    final pressable = Pressable(
       metrics: m,
-      onPress: onPick,
+      onPress: () => _open(context),
       autofocus: autofocus,
       semanticLabel: card?.name ?? 'Unknown card',
       radius: m.scaled(8),
@@ -231,38 +262,71 @@ class _PickableCard extends StatelessWidget {
                 ],
               )
             : null,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(m.scaled(6)),
-          child: card == null
-              ? CardBack(width: width, game: game)
-              : CardArt(metrics: m, card: card!, width: width),
-        ),
+        child: face,
       ),
+    );
+
+    return Draggable<String>(
+      data: draft.uuid,
+      feedback: Opacity(
+        opacity: 0.9,
+        child: SizedBox(width: width, child: face),
+      ),
+      childWhenDragging: Opacity(opacity: 0.3, child: pressable),
+      child: pressable,
     );
   }
 }
 
-/// The pool you have drafted so far, a scrollable strip under the pack.
+/// The pool you have drafted so far, a scrollable strip under the pack. With
+/// [onAccept] it is also where a dragged card is dropped to pick it.
 class _PoolStrip extends StatelessWidget {
   const _PoolStrip({
     required this.metrics,
     required this.pool,
     required this.cards,
     required this.game,
+    this.onAccept,
   });
 
   final Metrics metrics;
   final List<DraftCard> pool;
   final Map<String, CatalogCard> cards;
   final Game game;
+  final void Function(String uuid)? onAccept;
 
   @override
   Widget build(BuildContext context) {
     final m = metrics;
+    if (onAccept == null) return _strip(m);
+    return DragTarget<String>(
+      onAcceptWithDetails: (d) => onAccept!(d.data),
+      builder: (context, candidate, _) => AnimatedScale(
+        scale: candidate.isEmpty ? 1 : 1.03,
+        duration: const Duration(milliseconds: 120),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(m.scaled(10)),
+            border: Border.all(
+              color: candidate.isEmpty
+                  ? Colors.transparent
+                  : Palette.accent,
+              width: m.focusRing,
+            ),
+          ),
+          child: _strip(m, dropping: candidate.isNotEmpty),
+        ),
+      ),
+    );
+  }
+
+  Widget _strip(Metrics m, {bool dropping = false}) {
     final w = m.scaled(52);
     return Well(
       metrics: m,
-      label: 'Your pool · ${pool.length}',
+      label: dropping
+          ? 'Drop to pick · ${pool.length}'
+          : 'Your pool · ${pool.length}',
       child: pool.isEmpty
           ? Text(
               'nothing yet',
