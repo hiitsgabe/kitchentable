@@ -997,6 +997,11 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
             cardId: 'token-${freshSeed()}',
           ),
         );
+      case CardAction.pick:
+        // Taking a card into a draft pool. Never reached from the table: the
+        // viewer only offers it when a draft hands it the action, which it
+        // does with no table under the card. Here for exhaustiveness.
+        break;
     }
   }
 }
