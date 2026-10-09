@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../decks/model/game.dart';
 import '../../sources/source_registry.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/slab.dart';
@@ -29,11 +30,21 @@ import 'setup_controller.dart';
 /// has never run the app lands here first and in the room after, because the
 /// link is the intent and the wizard is a detour: the destination is parked
 /// before the wizard starts and replayed when it ends.
+///
+/// [forGame] is what that link said the room plays, when it said. The
+/// sources step then names the one catalog the room needs rather than
+/// offering four equal rows and a skip: a guest who skips the lot arrives at
+/// a table where every card is a blank back, and "you can add a source any
+/// time" is no help with the host already dealing.
 class SetupScreen extends ConsumerStatefulWidget {
-  const SetupScreen({super.key, required this.then});
+  const SetupScreen({super.key, required this.then, this.forGame});
 
   /// Built once the last step is done or skipped.
   final WidgetBuilder then;
+
+  /// The game of the room the launch link leads to, or null when there is no
+  /// room on the way, or the link did not say.
+  final Game? forGame;
 
   @override
   ConsumerState<SetupScreen> createState() => _SetupScreenState();
@@ -115,11 +126,21 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
   List<Widget> _source(Metrics m, int cards) {
     final imported = ref.watch(importedSourcesProvider);
+    // The one catalog the room on the way needs, until it is in. A local
+    // file of the same cards counts too, which is why the row only insists
+    // while the device has no cards at all.
+    final game = widget.forGame;
+    final needed = game == null ? null : catalogFor(game);
+    final missing = needed != null && cards == 0;
     return [
       _Said(
         metrics: m,
         text: cards > 0
             ? 'Done: $cards cards on this device.'
+            : needed != null
+            ? 'The room you were invited to plays ${game!.label}. It needs '
+                  'the ${needed.name} catalog on this device, or every card '
+                  'at the table will be a blank back. It downloads once.'
             : 'Pick where the cards come from. They download once, onto '
                   'this device.',
       ),
@@ -132,20 +153,26 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
           // list as before, which read as no progress at all.
           subtitle: imported.contains(source.id)
               ? 'imported, on this device'
+              : missing && source == needed
+              ? 'needed for the room you are joining'
               : source.available
               ? source.subtitle
               : 'not ready yet',
           icon: imported.contains(source.id)
               ? Icons.check_rounded
               : Icons.download_rounded,
+          // With a room on the way, the catalog it needs is the one choice
+          // on the screen and the other sources step back to plain.
           tone: imported.contains(source.id)
               ? SlabTone.plain
+              : missing
+              ? (source == needed ? SlabTone.choice : SlabTone.plain)
               : source.available
               ? SlabTone.cool
               : SlabTone.plain,
           enabled: source.available,
           metrics: m,
-          autofocus: source.id == knownSources.first.id && cards == 0,
+          autofocus: cards == 0 && (needed ?? knownSources.first) == source,
           onActivate: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => ImportScreen(source: source),
@@ -155,9 +182,15 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       SizedBox(height: m.scaled(14)),
       MenuRow(
         key: const Key('setup-next'),
-        title: cards > 0 ? 'Next' : 'Skip for now',
+        title: cards > 0
+            ? 'Next'
+            : missing
+            ? 'Skip anyway'
+            : 'Skip for now',
         subtitle: cards > 0
             ? 'a deck next'
+            : missing
+            ? 'the table will show blank cards until ${needed.name} is in'
             : 'you can add a source any time, from Settings',
         icon: Icons.arrow_forward_rounded,
         metrics: m,

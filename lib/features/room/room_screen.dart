@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../decks/model/deck_format.dart';
+import '../../decks/model/game.dart';
 import '../../table/room/room.dart';
 import '../../table/shuffle.dart';
+import '../../ui/atoms/kitchentable_mark.dart';
 import '../../ui/atoms/menu_row.dart';
 import '../../ui/atoms/slab.dart';
 import '../../ui/atoms/toast.dart';
@@ -25,7 +27,9 @@ import '../draft/post_draft_screen.dart';
 import '../lobby/lobby.dart';
 import '../menu/menu_controller.dart';
 import '../menu/menu_screen.dart';
+import '../play/chat.dart';
 import '../play/play_controller.dart';
+import '../play/voice.dart';
 import '../play/play_screen.dart';
 import '../settings/player_name.dart';
 import 'room_controller.dart';
@@ -107,12 +111,21 @@ class RoomScreen extends ConsumerWidget {
       );
     }
 
-    final link = linkFor(room.code, origin: ref.watch(roomOriginProvider));
     final lobby = ref.watch(lobbyProvider);
+    // Woken here, under every screen a room has: the chat and the
+    // microphones listen to the room's channel from the first chair, so a
+    // line said before the chat is opened is there when it is.
+    ref.watch(chatProvider);
+    ref.watch(voiceProvider);
     final reach = ref.watch(reachProvider);
     // The host's own, or what the host said when it answered: a guest has no
     // settings of its own to show and shows none until then.
     final config = room.config ?? lobby?.config;
+    final link = linkFor(
+      room.code,
+      origin: ref.watch(roomOriginProvider),
+      game: config == null ? null : Game.of(config.format),
+    );
     final empty = lobby?.emptyChairs ?? const <int>[];
     final somebodyElse =
         lobby != null && lobby.seated.any((s) => s.peer != lobby.me);
@@ -167,31 +180,57 @@ class RoomScreen extends ConsumerWidget {
         // it to somebody who does not have the app open, the QR carries it
         // across a table, and the code itself is for somebody who already
         // has the app open at Join.
-        MenuRow(
-          key: const Key('room-copy'),
-          title: 'Send the link',
-          icon: Icons.ios_share_rounded,
-          tone: SlabTone.cool,
-          metrics: m,
-          onActivate: () => _copy(context, link),
-        ),
-        _Invite(
-          metrics: m,
-          link: link,
-          code: room.code,
-          onCopyCode: () => _copyCode(context, room.code),
-        ),
+        //
+        // The host's to send. A guest followed one of these to get here and
+        // is waiting on the host, not gathering a table; the square and the
+        // code in front of them read as something still to do.
+        //
+        // And only until the chairs are full: the invitation has done its
+        // job then, and a square still asking to be scanned reads as if
+        // somebody were missing. A check in its place says the opposite.
+        if (room.hosting && lobby != null && empty.isEmpty)
+          _AllHere(metrics: m)
+        else if (room.hosting) ...[
+          MenuRow(
+            key: const Key('room-copy'),
+            title: 'Send the link',
+            icon: Icons.ios_share_rounded,
+            tone: SlabTone.cool,
+            metrics: m,
+            onActivate: () => _copy(context, link),
+          ),
+          _Invite(
+            metrics: m,
+            link: link,
+            code: room.code,
+            onCopyCode: () => _copyCode(context, room.code),
+          ),
+        ],
 
         // What you do now, said once. In a draft there is no deck to pick on
         // the way in: you take a chair by being here and the deck is what the
         // draft is for. Everywhere else, the deck is the thing to understand.
-        if (isDraft)
+        if (config == null && !room.hosting)
+          // Nothing to do yet: the host has not answered, so the screen
+          // cannot know whether there is a deck to pick. The row that said
+          // "Pick your deck" here flashed in front of every draft guest.
+          const SizedBox.shrink()
+        else if (isDraft && room.hosting)
           _Fact(
             metrics: m,
             id: 'room-draft-note',
             text: lobby != null && lobby.seatedHere
-                ? 'You are in chair ${_chairOf(lobby)}. The draft builds your '
-                      'deck when it starts.'
+                ? 'You are in chair ${_chairOf(lobby)}. Once every chair is '
+                      'taken, start the draft.'
+                : 'Taking your chair…',
+          )
+        else if (isDraft)
+          _Waiting(
+            metrics: m,
+            id: 'room-draft-note',
+            text: lobby != null && lobby.seatedHere
+                ? 'You are in chair ${_chairOf(lobby)}. Waiting for '
+                      '${_hostName(config)} to start the draft.'
                 : 'Taking your chair…',
           )
         else
@@ -213,18 +252,42 @@ class RoomScreen extends ConsumerWidget {
               MaterialPageRoute<void>(builder: (_) => const PlayDecksScreen()),
             ),
           ),
-        if (lobby != null && lobby.hosting && config != null && isDraft)
+        if (!isDraft &&
+            lobby != null &&
+            !lobby.hosting &&
+            lobby.seatedHere &&
+            lobby.mesh == null)
+          _Waiting(
+            metrics: m,
+            id: 'room-waiting',
+            text: 'Waiting for ${_hostName(config)} to start.',
+          ),
+        if (lobby != null &&
+            lobby.hosting &&
+            config != null &&
+            isDraft &&
+            !lobby.drafting)
           MenuRow(
             key: const Key('room-start-draft'),
             title: 'Start the draft',
-            subtitle: lobby.drafting
-                ? 'the draft is open'
-                : startWords(empty),
+            subtitle: startWords(empty),
             icon: Icons.inventory_2_rounded,
             tone: SlabTone.choice,
             enabled: lobby.canStartDraft,
             metrics: m,
             onActivate: () => _startDraft(context, ref, lobby, config),
+          ),
+        // The way back into a draft somebody stepped out of, host and guest
+        // alike. The draft keeps running without them; this is the door.
+        if (lobby != null && lobby.drafting)
+          MenuRow(
+            key: const Key('room-back-to-draft'),
+            title: 'Back to the draft',
+            icon: Icons.inventory_2_rounded,
+            tone: SlabTone.choice,
+            metrics: m,
+            autofocus: true,
+            onActivate: () => _enterDraft(context, ref),
           ),
         if (lobby != null && lobby.hosting && config != null && !isDraft)
           MenuRow(
@@ -258,7 +321,7 @@ class RoomScreen extends ConsumerWidget {
             ).push(MaterialPageRoute<void>(builder: (_) => const PlayScreen())),
           ),
         if (lobby != null && !lobby.hosting && lobby.host == null)
-          _Fact(
+          _Waiting(
             metrics: m,
             id: 'room-answer',
             text: 'Waiting for the host to answer.',
@@ -269,7 +332,7 @@ class RoomScreen extends ConsumerWidget {
             id: 'room-dealt',
             done: lobby.dealt,
             text: lobby.dealt
-                ? '${config!.hostName} dealt the table.'
+                ? '${_capitalized(_hostName(config))} dealt the table.'
                 : 'The host dealt the table. Waiting for it to arrive.',
           ),
 
@@ -283,7 +346,9 @@ class RoomScreen extends ConsumerWidget {
             failed: true,
             text: 'No relay could be reached, so nobody can find this room.',
           )
-        else if (!reach.relayAnswered)
+        // Only the host's room is being made findable; a guest is finding
+        // it, and already has a line saying they wait for the host.
+        else if (!reach.relayAnswered && room.hosting)
           _Fact(metrics: m, id: 'room-relay', text: 'Making the room findable'),
         if (reach.refused != null)
           _Fact(
@@ -348,15 +413,6 @@ class RoomScreen extends ConsumerWidget {
                 'Every chair is taken. You can watch once the table is '
                 'dealt.',
           ),
-        // One line, not five. The long version was the longest thing on the
-        // screen and said four times over what this says once.
-        _Fact(
-          metrics: m,
-          id: 'room-openness',
-          text:
-              'Everybody can see every hand and every deck. Fine for '
-              'friends.',
-        ),
       ],
     );
   }
@@ -429,22 +485,30 @@ class RoomScreen extends ConsumerWidget {
     if (db == null || options == null || setCode == null) return;
 
     Toast.show(context, 'Opening the packs…');
-    final roller = await rollerForSet(db, setCode);
-    if (!context.mounted) return;
-    if (roller == null || !roller.canRoll) {
-      Toast.show(context, 'That set has no draftable packs');
-      return;
-    }
+    // Said on the screen rather than lost to the console: a fetch that
+    // failed or a set file the roller cannot read used to leave the host
+    // looking at a button that did nothing.
+    try {
+      final roller = await rollerForSet(db, setCode);
+      if (!context.mounted) return;
+      if (roller == null || !roller.canRoll) {
+        Toast.show(context, 'That set has no draftable packs');
+        return;
+      }
 
-    lobby.startDraft(
-      (seatIds) => DraftRoom.host(
-        transport: lobby.transport,
-        seatIds: seatIds,
-        sealed: options.sealed,
-        packCount: options.packs,
-        roller: roller,
-      ),
-    );
+      lobby.startDraft(
+        (seatIds) => DraftRoom.host(
+          transport: lobby.transport,
+          seatIds: seatIds,
+          sealed: options.sealed,
+          packCount: options.packs,
+          roller: roller,
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      Toast.show(context, 'Could not open the packs: $e');
+    }
   }
 
   /// This phone goes to the draft, host or guest alike: it adopts the lobby's
@@ -587,7 +651,14 @@ class _Seats extends StatelessWidget {
 
   String _name(int chair) {
     final who = _in(chair);
-    if (who != null) return who.peer == lobby.me ? 'You' : who.name;
+    if (who != null) {
+      if (who.peer == lobby.me) return 'You';
+      // A peer whose name never crossed arrives as the nameless default,
+      // which printed straight put "you" on their chair next to "You" on
+      // yours. The chair is what tells them apart.
+      final name = who.name.trim();
+      return name.isEmpty || name == namelessPlayer ? 'Player $chair' : name;
+    }
     if (chair == 1) return lobby.hosting ? 'You' : 'The host';
     return 'Empty';
   }
@@ -681,6 +752,143 @@ class _Chair extends StatelessWidget {
 /// from every other line on the screen, and the mark it drew said nothing
 /// the colour does not: a sentence about privacy was wearing an ellipsis
 /// because it was neither done nor failed.
+/// Every chair taken, where the square and the code were.
+class _AllHere extends StatelessWidget {
+  const _AllHere({required this.metrics});
+
+  final Metrics metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: m.scaled(10)),
+      child: Well(
+        metrics: m,
+        edge: context.palette.accent,
+        padding: EdgeInsets.symmetric(
+          horizontal: m.scaled(12),
+          vertical: m.scaled(14),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.check_circle_rounded,
+              key: const Key('room-all-here'),
+              size: m.scaled(22),
+              color: context.palette.accent,
+            ),
+            SizedBox(width: m.scaled(12)),
+            Expanded(
+              child: Text(
+                'Everybody is here.',
+                style: pixel(
+                  size: m.scaled(12),
+                  weight: 500,
+                  height: 1.4,
+                  color: Palette.inkMuted,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Who a guest is waiting on, by name once the host has answered.
+String _capitalized(String s) =>
+    s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+String _hostName(RoomConfig? config) {
+  final name = config?.hostName.trim() ?? '';
+  return name.isEmpty || name == namelessPlayer ? 'the host' : name;
+}
+
+/// What a guest looks at while the host gets the table ready: the mark,
+/// turning slowly, and one line saying who is being waited on.
+///
+/// A guest's room used to be the host's room with the Start row missing: a
+/// link to send, a square to scan, a code to read out, and a sentence at
+/// the bottom. All of it read as things still to do, and none of it was.
+/// The table turning says the one true thing, which is that something is
+/// about to happen and it is not up to you.
+///
+/// Still under reduced motion, which is also what keeps a test's
+/// pumpAndSettle from waiting on a turn that never ends.
+class _Waiting extends StatefulWidget {
+  const _Waiting({required this.metrics, required this.id, required this.text});
+
+  final Metrics metrics;
+  final String id;
+  final String text;
+
+  @override
+  State<_Waiting> createState() => _WaitingState();
+}
+
+class _WaitingState extends State<_Waiting>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _turn = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 12),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _turn.stop();
+    } else if (!_turn.isAnimating) {
+      _turn.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _turn.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = widget.metrics;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: m.scaled(10)),
+      child: Well(
+        metrics: m,
+        padding: EdgeInsets.symmetric(
+          horizontal: m.scaled(12),
+          vertical: m.scaled(18),
+        ),
+        child: Column(
+          children: [
+            RotationTransition(
+              turns: _turn,
+              child: KitchentableMark(size: m.scaled(64)),
+            ),
+            SizedBox(height: m.scaled(14)),
+            Text(
+              widget.text,
+              key: Key(widget.id),
+              textAlign: TextAlign.center,
+              style: pixel(
+                size: m.scaled(12),
+                weight: 500,
+                height: 1.4,
+                color: Palette.inkMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Fact extends StatelessWidget {
   const _Fact({
     required this.metrics,

@@ -69,7 +69,10 @@ class _PaintSwirlState extends State<PaintSwirl>
       builder: (_, _) => CustomPaint(
         painter: _SwirlPainter(
           shader: shader,
-          seconds: _clock.value * _clock.duration!.inSeconds,
+          seconds:
+              _clock.value *
+              _clock.duration!.inSeconds *
+              _SwirlPainter.slow,
           style: widget.style,
         ),
         size: Size.infinite,
@@ -88,6 +91,16 @@ class _SwirlPainter extends CustomPainter {
   final ui.FragmentShader shader;
   final double seconds;
   final BackdropStyle style;
+
+  /// How much slower than the original it turns. The original is a game's
+  /// title screen, where the paint is the show; here it sits behind a hand
+  /// of cards for an evening, and at full speed it pulled the eye.
+  ///
+  /// Slower is the one economy taken. Painting it to a small offscreen
+  /// image and stretching that, which would run the shader on a ninth of
+  /// the pixels, was tried and on the web it was worse: each offscreen
+  /// image is a new surface, and the frames came out uneven and slow.
+  static const slow = 0.5;
 
   @override
   void paint(Canvas canvas, Size size) {

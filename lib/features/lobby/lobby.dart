@@ -14,7 +14,9 @@ import '../../net/nostr/keys.dart';
 import '../../net/nostr/relay.dart';
 import '../../net/nostr/room_relays.dart';
 import '../../net/signaling.dart';
+import '../../net/talk.dart';
 import '../../net/transport.dart';
+import '../settings/player_name.dart';
 import '../../net/connection_report.dart';
 import '../../net/link.dart';
 import '../../net/relay_transport.dart';
@@ -54,6 +56,7 @@ typedef Seated = ({String peer, String name});
 class Lobby extends ChangeNotifier {
   Lobby.host({required this.transport, required RoomConfig this._config})
     : hosting = true,
+      talk = TalkChannel(transport),
       _host = transport.me {
     _listen();
     // A draft host sits the moment the room exists: there is no deck to pick
@@ -66,7 +69,9 @@ class Lobby extends ChangeNotifier {
     }
   }
 
-  Lobby.guest({required this.transport}) : hosting = false {
+  Lobby.guest({required this.transport})
+    : hosting = false,
+      talk = TalkChannel(transport) {
     _listen();
     for (final peer in transport.peers) {
       _knock(peer);
@@ -75,6 +80,23 @@ class Lobby extends ChangeNotifier {
 
   /// The wire under this lobby, and under the mesh it becomes.
   final Transport transport;
+
+  /// The room talking, from the moment it exists: chat and the microphones,
+  /// over the same transport the chairs and the draft ride, beside them.
+  /// The mesh carries its own once there is a table; this is for before,
+  /// and for the people at the table who are not at this phone's game.
+  /// Listening from the start, not from the first screen that asks: a line
+  /// said while this phone was still finding its chair is a line it heard.
+  final TalkChannel talk;
+
+  /// What to call a peer: the name on their chair, or a word for somebody
+  /// who has not given one. For a line of chat, which arrives under a key.
+  String nameOf(String peer) {
+    final name = _names[peer]?.trim() ?? '';
+    if (name.isNotEmpty && name != namelessPlayer) return name;
+    final chair = _chairs.indexWhere((s) => s.peer == peer);
+    return chair < 0 ? 'Somebody' : 'Player ${chair + 1}';
+  }
 
   /// Whether this device made the room. Set here by the code that made it and
   /// never read off a message, the same rule the mesh keeps.
@@ -177,7 +199,11 @@ class Lobby extends ChangeNotifier {
   /// Whether the host can open the draft: a draft room, every chair taken, and
   /// neither a draft nor a table under way yet.
   bool get canStartDraft =>
-      hosting && isDraft && _mesh == null && _draft == null && emptyChairs.isEmpty;
+      hosting &&
+      isDraft &&
+      _mesh == null &&
+      _draft == null &&
+      emptyChairs.isEmpty;
 
   /// The draft this lobby is running, once the host has opened it or a guest
   /// has been told it is open. Null before then.
@@ -596,6 +622,7 @@ class Lobby extends ChangeNotifier {
     }
     _extraMeshes.clear();
     _tables = null;
+    unawaited(talk.close());
     super.dispose();
   }
 
@@ -644,6 +671,9 @@ class Lobby extends ChangeNotifier {
   void _heard(Incoming message) {
     try {
       final json = _read(message.body);
+      // Another layer's message on the shared transport, talk or a table.
+      // Not ours and not wrong, so not refused.
+      if (json.containsKey('scope')) return;
       switch (json['kind']) {
         case 'hello':
           if (hosting) _tellChairs(message.from);
@@ -891,7 +921,9 @@ class Lobby extends ChangeNotifier {
       // that the table does not talk.
       voice: json['voice'] == true,
       draft: json['draft'] is Map
-          ? DraftOptions.fromJson((json['draft'] as Map).cast<String, Object?>())
+          ? DraftOptions.fromJson(
+              (json['draft'] as Map).cast<String, Object?>(),
+            )
           : null,
     );
   }

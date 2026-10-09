@@ -343,19 +343,17 @@ class _CardViewerState extends State<CardViewer>
       final label = widget.actionLabel;
       if (label == null) return const SizedBox.shrink();
       return Padding(
-        padding: EdgeInsets.fromLTRB(
-          m.safeInset,
-          0,
-          m.safeInset,
-          m.safeInset,
-        ),
+        padding: EdgeInsets.fromLTRB(m.safeInset, 0, m.safeInset, m.safeInset),
         child: Slab(
           key: const Key('viewer-action'),
           metrics: m,
           tone: SlabTone.choice,
           autofocus: true,
           onActivate: () => widget.onAct?.call(CardAction.pick),
-          padding: EdgeInsets.symmetric(vertical: m.scaled(14)),
+          padding: EdgeInsets.symmetric(
+            vertical: m.scaled(14),
+            horizontal: m.scaled(28),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,

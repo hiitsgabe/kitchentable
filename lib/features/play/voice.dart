@@ -5,10 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../../net/link.dart';
-import '../../net/mesh.dart';
+import '../../net/talk.dart';
+import '../../net/transport.dart';
 import '../../net/voice_link.dart';
 import '../lobby/lobby.dart';
 import '../settings/network.dart';
+import 'talk_here.dart';
 
 /// Where this phone's microphone is up to.
 enum Talking {
@@ -99,27 +101,42 @@ class VoiceRoom extends Notifier<Voice> {
   final VoiceLinks links;
   final AskForMicrophone _ask;
 
-  Mesh? _mesh;
+  Talk? _mesh;
   TurnServer? _turn;
   MediaStream? _mine;
   final Map<String, VoiceLink> _links_ = {};
   final List<StreamSubscription<Object?>> _watching = [];
   StreamSubscription<VoiceSignal>? _hearing;
+  StreamSubscription<PeerEvent>? _presence;
 
   @override
   Voice build() {
-    ref.onDispose(() => unawaited(_down()));
+    ref.listen(talkProvider, (_, talk) => follow(talk), fireImmediately: true);
+    ref.onDispose(() {
+      _hearing?.cancel();
+      _presence?.cancel();
+      unawaited(_down());
+    });
     return const Voice();
   }
 
-  /// The mesh to talk over, handed in when the table opens. Changing it
-  /// hangs up: a new table is new people.
-  void follow(Mesh? mesh) {
+  /// What to talk over: the room's channel, or a table's mesh. Changing it
+  /// hangs up: a new room is new people.
+  void follow(Talk? mesh) {
     if (identical(mesh, _mesh)) return;
     unawaited(_down());
     _mesh = mesh;
     _hearing?.cancel();
     _hearing = mesh?.voiceSignals.listen(_heard);
+    _presence?.cancel();
+    _presence = mesh?.presence.listen((event) {
+      switch (event.presence) {
+        case Presence.arrived:
+          peerArrived(event.peerId);
+        case Presence.left:
+          peerLeft(event.peerId);
+      }
+    });
   }
 
   /// Takes the room up on its offer.

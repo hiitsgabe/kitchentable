@@ -612,10 +612,15 @@ void main() {
       '../table/actions/table_action.dart',
       '../table/model/table_state.dart',
       '../table/wire/wire.dart',
+      'talk.dart',
       'transport.dart',
     };
 
-    for (final path in ['lib/net/transport.dart', 'lib/net/mesh.dart']) {
+    for (final path in [
+      'lib/net/transport.dart',
+      'lib/net/talk.dart',
+      'lib/net/mesh.dart',
+    ]) {
       final file = File(path);
       expect(
         file.existsSync(),

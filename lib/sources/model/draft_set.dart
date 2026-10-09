@@ -33,6 +33,58 @@ class DraftSet {
 
   bool get fetched => booster != null;
 
+  /// Whether the file that was read had a pack recipe in it. A set that was
+  /// read before MTGJSON wrote its recipe is stored with an empty one, and
+  /// is worth reading again rather than being refused every time.
+  bool get hasPacks => fetched && booster != '{}';
+
+  /// The MTGJSON types that were sold in boosters. Everything else on the
+  /// list (promo, token, commander, memorabilia, alchemy, box...) is a
+  /// product with no packs to open.
+  static const boosterTypes = {
+    'core',
+    'expansion',
+    'masters',
+    'draft_innovation',
+    'funny',
+    'starter',
+  };
+
+  /// The fewest cards a set needs before its packs are worth opening: six
+  /// packs of fifteen, one sealed pool. The type gate lets through sets that
+  /// are not out yet (0 cards on the list) and the odd tiny one; this is
+  /// what keeps them off the picker.
+  static const minCards = 90;
+
+  /// Whether a draft can be run from this set: a boostered type, on paper,
+  /// with enough cards printed, and not one whose file was read and had no
+  /// packs in it (The List, playtest cards, a foreign reprint).
+  bool get draftable =>
+      boosterTypes.contains(type) &&
+      !onlineOnly &&
+      totalSetSize >= minCards &&
+      !(fetched && !hasPacks);
+
+  /// Whether the set is out on [day]. A set in preview is on the list with
+  /// a slice of its cards and no packs yet, which is no draft.
+  bool releasedBy(DateTime day) {
+    if (releaseDate.isEmpty) return true;
+    final d = day.toIso8601String().substring(0, 10);
+    return releaseDate.compareTo(d) <= 0;
+  }
+
+  /// Scryfall's symbol for the set, as an SVG.
+  String get symbolUrl => symbolUrlFor(code)!;
+
+  /// Scryfall's symbol for a set, by its code. Null for anything that is not
+  /// a set code, so a demo's made-up label draws no broken symbol.
+  static String? symbolUrlFor(String? code) {
+    if (code == null) return null;
+    final c = code.trim().toLowerCase();
+    if (!RegExp(r'^[a-z0-9]{2,6}$').hasMatch(c)) return null;
+    return 'https://svgs.scryfall.io/sets/$c.svg';
+  }
+
   /// A row out of SetList.json.
   static DraftSet fromMtgjson(Map<String, dynamic> json) => DraftSet(
     code: json['code'] as String,

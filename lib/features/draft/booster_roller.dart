@@ -122,7 +122,7 @@ class BoosterRoller {
   }
 
   T _pick<T>(List<T> items, int Function(T) weight, int total) {
-    var roll = _random.nextInt(total <= 0 ? items.length : total);
+    var roll = _roll(total <= 0 ? items.length : total);
     for (final item in items) {
       roll -= total <= 0 ? 1 : weight(item);
       if (roll < 0) return item;
@@ -131,11 +131,18 @@ class BoosterRoller {
   }
 
   String _pickKey(Map<String, int> weights, int total) {
-    var roll = _random.nextInt(total <= 0 ? weights.length : total);
+    var roll = _roll(total <= 0 ? weights.length : total);
     for (final entry in weights.entries) {
       roll -= total <= 0 ? 1 : entry.value;
       if (roll < 0) return entry.key;
     }
     return weights.keys.last;
   }
+
+  /// A roll in [0, total), as a double. MTGJSON's weights are fractions
+  /// brought to a common denominator, and a foil or wildcard sheet's total
+  /// runs into the trillions, past the 2^32 that [Random.nextInt] takes.
+  /// A double carries a weight that size exactly, and a draw that is one
+  /// part in 2^53 off uniform is a pack nobody can tell from a fair one.
+  double _roll(int total) => _random.nextDouble() * total;
 }

@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../table/actions/table_action.dart';
 import '../../table/model/card_instance.dart';
-import '../../table/model/seat.dart';
 import '../../table/model/zone.dart';
 import '../../table/opening.dart';
 import '../../table/shuffle.dart';
@@ -14,7 +12,6 @@ import '../../table/view/seat_view.dart';
 import '../../ui/atoms/toast.dart';
 import '../../ui/organisms/card_viewer.dart';
 import '../../ui/organisms/screen_frame.dart';
-import '../../ui/tokens/app_palette.dart';
 import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
@@ -24,8 +21,6 @@ import 'card_size.dart';
 import 'dice/dice_tray.dart';
 import 'look_at_top.dart';
 import 'play_controller.dart';
-import 'widgets/chat_sheet.dart';
-import 'widgets/voice_sheet.dart';
 import 'chat.dart';
 import 'voice.dart';
 import 'said_out_loud.dart';
@@ -40,6 +35,8 @@ import 'widgets/command_slot.dart';
 import 'widgets/cursor_board.dart';
 import 'widgets/deck_sheet.dart';
 import 'widgets/hand_sheet.dart';
+import 'widgets/pill.dart';
+import 'talk_sheets.dart';
 import 'widgets/mulligan_button.dart';
 import 'widgets/library_stack.dart';
 import 'widgets/pile_sheet.dart';
@@ -50,7 +47,6 @@ import 'widgets/watched_board.dart';
 import 'widgets/zone_rail.dart';
 import 'widgets/zone_chip.dart';
 import 'widgets/card_actions_sheet.dart';
-import '../../ui/atoms/pressable.dart';
 
 class PlayScreen extends ConsumerStatefulWidget {
   const PlayScreen({super.key});
@@ -344,11 +340,11 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
                 unread: play.atATableWithOthers || chat.lines.isNotEmpty
                     ? chat.unread
                     : null,
-                onTalk: () => _talk(m),
+                onTalk: () => openChat(context, m),
                 // Absent unless the room offers it, which is the host's
                 // decision and not this phone's.
                 voice: roomTalks ? voice : null,
-                onVoice: () => _voice(m),
+                onVoice: () => openVoice(context, m, talkersAtTable),
                 onMore: _more,
                 onLeave: () {
                   play.leave();
@@ -468,78 +464,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
     );
   }
 
-  /// Opens everything about the microphone.
-  Future<void> _voice(Metrics m) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Palette.tray,
-      isScrollControlled: true,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.62,
-      ),
-      builder: (sheet) => Consumer(
-        builder: (context, ref, _) {
-          final voice = ref.watch(voiceProvider);
-          final table = ref.watch(playProvider);
-          final me = ref.read(transportProvider)?.me;
-          return VoiceSheet(
-            metrics: m,
-            voice: voice,
-            talkers: [
-              for (final seat in table?.seats ?? const <Seat>[])
-                if (seat.owner.peerId != null && seat.owner.peerId != me)
-                  (
-                    name: seat.name,
-                    talking: voice.talking.contains(seat.owner.peerId),
-                    reaching: voice.reaching.contains(seat.owner.peerId),
-                  ),
-            ],
-            onJoin: () => ref.read(voiceProvider.notifier).join(),
-            onLeave: () => ref.read(voiceProvider.notifier).leave(),
-            onMute: ref.read(voiceProvider.notifier).mute,
-          );
-        },
-      ),
-    );
-  }
 
-  /// Opens the chat. Reading it is what marks it read.
-  Future<void> _talk(Metrics m) async {
-    ref.read(chatProvider.notifier).seen();
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Palette.tray,
-      isScrollControlled: true,
-      builder: (sheet) {
-        // Sized from the room above the keyboard, not from the screen. It
-        // used to be capped at a share of the screen with the keyboard's
-        // inset padded inside that cap, so the moment a phone's keyboard
-        // came up the input was pushed below the sheet's own bottom edge
-        // and vanished the instant somebody tapped it. The cap is still a
-        // share of the screen, the way Board Game Arena caps its own chat,
-        // because the table is what people came for; it is just measured
-        // from what is left once the keyboard has taken its part.
-        final keyboard = MediaQuery.viewInsetsOf(sheet).bottom;
-        final height = MediaQuery.sizeOf(sheet).height;
-        final room = math.min(height * 0.42, height - keyboard - m.scaled(24));
-        return AnimatedPadding(
-          duration: const Duration(milliseconds: 120),
-          padding: EdgeInsets.only(bottom: keyboard),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: math.max(room, 0)),
-            child: Consumer(
-              builder: (context, ref, _) => ChatSheet(
-                metrics: m,
-                room: ref.watch(chatProvider),
-                onSay: (text) => ref.read(playProvider.notifier).say(text),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-    if (mounted) ref.read(chatProvider.notifier).seen();
-  }
 
   /// Puts a card down where it was dropped, in whichever renderer dropped it.
   ///
@@ -1079,7 +1004,7 @@ class _TopBar extends StatelessWidget {
         // No name here: the rail says whose table this is, and on a phone
         // the bar had no room for it anyway.
         const Spacer(),
-        _Pill(
+        Pill(
           metrics: m,
           key: const Key('life-down'),
           icon: Icons.remove_rounded,
@@ -1095,14 +1020,14 @@ class _TopBar extends StatelessWidget {
           ),
         ),
         SizedBox(width: m.scaled(5)),
-        _Pill(
+        Pill(
           metrics: m,
           key: const Key('life-up'),
           icon: Icons.add_rounded,
           onTap: () => onLife(1),
         ),
         SizedBox(width: m.scaled(8)),
-        _Pill(
+        Pill(
           metrics: m,
           key: const Key('switch-renderer'),
           icon: switch (renderer) {
@@ -1115,7 +1040,7 @@ class _TopBar extends StatelessWidget {
         SizedBox(width: m.scaled(5)),
         Opacity(
           opacity: canUndo ? 1 : 0.35,
-          child: _Pill(
+          child: Pill(
             metrics: m,
             key: const Key('undo'),
             icon: Icons.undo_rounded,
@@ -1124,7 +1049,7 @@ class _TopBar extends StatelessWidget {
         ),
         if (voice case final talking?) ...[
           SizedBox(width: m.scaled(10)),
-          _Pill(
+          Pill(
             metrics: m,
             key: const Key('voice'),
             icon: switch (talking.state) {
@@ -1140,7 +1065,7 @@ class _TopBar extends StatelessWidget {
         ],
         if (unread != null) ...[
           SizedBox(width: m.scaled(7)),
-          _Pill(
+          Pill(
             metrics: m,
             key: const Key('talk'),
             icon: Icons.chat_bubble_outline_rounded,
@@ -1149,7 +1074,7 @@ class _TopBar extends StatelessWidget {
           ),
         ],
         SizedBox(width: m.scaled(7)),
-        _Pill(
+        Pill(
           metrics: m,
           key: const Key('more'),
           icon: Icons.more_horiz_rounded,
@@ -1160,103 +1085,3 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-class _Pill extends StatelessWidget {
-  const _Pill({
-    super.key,
-    required this.metrics,
-    required this.icon,
-    required this.onTap,
-    this.badge,
-    this.lit = false,
-    this.warn = false,
-  });
-
-  final Metrics metrics;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  /// A count to draw on the corner. Zero and null draw nothing: an empty
-  /// badge is a mark saying there is nothing to see.
-  final int? badge;
-
-  /// On and working, which is drawn in the colour the player picked.
-  final bool lit;
-
-  /// Not working, which is drawn in the one colour reserved for a thing
-  /// somebody has to notice.
-  final bool warn;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = metrics;
-    final count = badge ?? 0;
-
-    return Pressable(
-      metrics: m,
-      onPress: onTap,
-      ring: false,
-      builder: (context, state) => Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: m.scaled(34),
-            height: m.scaled(34),
-            decoration: BoxDecoration(
-              color: lit || state.focused || state.hovered
-                  ? context.palette.tileFocused
-                  : Palette.tile,
-              borderRadius: BorderRadius.circular(m.scaled(8)),
-              border: Border.all(
-                color: warn
-                    ? Palette.attention
-                    : lit || state.focused
-                    ? context.palette.accent
-                    : Palette.tileEdge,
-                width: state.focused ? m.focusRing : 1,
-              ),
-            ),
-            child: Icon(
-              icon,
-              size: m.scaled(17),
-              color: warn
-                  ? Palette.attention
-                  : lit
-                  ? context.palette.accent
-                  : Palette.inkMuted,
-            ),
-          ),
-          if (count > 0)
-            Positioned(
-              top: -m.scaled(5),
-              right: -m.scaled(5),
-              child: Container(
-                key: const Key('unread'),
-                padding: EdgeInsets.symmetric(
-                  horizontal: m.scaled(5),
-                  vertical: m.scaled(1),
-                ),
-                constraints: BoxConstraints(minWidth: m.scaled(17)),
-                decoration: BoxDecoration(
-                  color: context.palette.accent,
-                  borderRadius: BorderRadius.circular(m.scaled(9)),
-                  border: Border.all(
-                    color: Palette.outline,
-                    width: m.scaled(1.5),
-                  ),
-                ),
-                child: Text(
-                  count > 9 ? '9+' : '$count',
-                  textAlign: TextAlign.center,
-                  style: pixel(
-                    size: m.scaled(10),
-                    weight: 700,
-                    color: Palette.slabInk,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}

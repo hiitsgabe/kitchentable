@@ -24,4 +24,17 @@ enum Game {
     ],
     Game.pokemon => const [DeckFormat.pokemonStandard],
   };
+
+  /// The game a format belongs to.
+  static Game of(DeckFormat format) =>
+      values.firstWhere((game) => game.formats.contains(format));
+
+  /// The game by its name, as a link spells it. Null for a word that is not
+  /// one, so a link somebody edited by hand names nothing rather than throws.
+  static Game? named(String? name) {
+    for (final game in values) {
+      if (game.name == name) return game;
+    }
+    return null;
+  }
 }

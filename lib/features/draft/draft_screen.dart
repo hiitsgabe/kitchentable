@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../decks/model/game.dart';
 import '../../sources/model/catalog_card.dart';
+import '../../sources/model/draft_set.dart';
 import '../../ui/atoms/card_art.dart';
 import '../../ui/atoms/pressable.dart';
 import '../../ui/atoms/tray.dart';
@@ -11,9 +12,11 @@ import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
 import '../../ui/tokens/palette.dart';
+import '../play/widgets/talk_bar.dart';
 import 'draft_build_screen.dart';
 import 'draft_controller.dart';
 import 'draft_state.dart';
+import 'leave_draft.dart';
 import 'pack_opening.dart';
 
 /// The draft, from the player's chair.
@@ -47,38 +50,18 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
   /// does not replay it and a neighbour's pack never triggers it.
   String? _openedPack;
 
+  /// The way out, asked about first. Null where the screen was given none.
+  VoidCallback? _leave(BuildContext context, Metrics m) {
+    final back = widget.onBack;
+    if (back == null) return null;
+    return () => confirmLeaveDraft(context, m, back);
+  }
+
   static String _signature(DraftView v) {
-    final first = (v.pack != null && v.pack!.isNotEmpty) ? v.pack!.first.uuid : '';
+    final first = (v.pack != null && v.pack!.isNotEmpty)
+        ? v.pack!.first.uuid
+        : '';
     return '${v.packNumber}:${v.pack?.length ?? 0}:$first';
-  }
-
-  /// Art for the pack's face: the rarest card in it that the catalog could
-  /// resolve, the way a booster features its hit, falling back to the first.
-  static String? _coverUrl(
-    List<DraftCard> pack,
-    Map<String, CatalogCard> cards,
-  ) {
-    CatalogCard? pick;
-    for (final draft in pack) {
-      final card = cards[draft.oracleId];
-      if (card == null) continue;
-      pick ??= card;
-      final r = draft.rarity.toLowerCase();
-      if (r == 'mythic' || r == 'rare') {
-        pick = card;
-        break;
-      }
-    }
-    return pick?.imageNormal ?? pick?.imageLarge ?? pick?.imageSmall;
-  }
-
-  /// Scryfall's symbol for a set, by its code. Null for anything that is not a
-  /// set code, so a demo's made-up label draws no broken symbol.
-  static String? _symbolUrl(String? code) {
-    if (code == null) return null;
-    final c = code.trim().toLowerCase();
-    if (!RegExp(r'^[a-z0-9]{2,6}$').hasMatch(c)) return null;
-    return 'https://svgs.scryfall.io/sets/$c.svg';
   }
 
   @override
@@ -99,8 +82,9 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
         metrics: m,
         title: 'Draft',
         label: 'dealing the packs',
-        onBack: widget.onBack,
+        onBack: _leave(context, m),
         backLabel: 'Leave draft',
+        quietBack: true,
         children: [
           Padding(
             padding: EdgeInsets.all(m.scaled(24)),
@@ -119,9 +103,13 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
         metrics: m,
         title: 'Draft',
         label: 'pack ${view.packNumber}',
-        onBack: widget.onBack,
+        onBack: _leave(context, m),
         backLabel: 'Leave draft',
-        children: [_Waiting(metrics: m, pool: view.pool, cards: cards)],
+        quietBack: true,
+        children: [
+          TalkBar(metrics: m),
+          _Waiting(metrics: m, pool: view.pool, cards: cards),
+        ],
       );
     }
 
@@ -140,8 +128,7 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
             count: pack.length,
             packNumber: view.packNumber,
             label: widget.setLabel,
-            coverUrl: _coverUrl(pack, cards),
-            symbolUrl: _symbolUrl(widget.setLabel),
+            symbolUrl: DraftSet.symbolUrlFor(widget.setLabel),
             game: widget.game,
             onDone: () => setState(() => _openedPack = sig),
           ),
@@ -153,9 +140,12 @@ class _DraftScreenState extends ConsumerState<DraftScreen> {
       metrics: m,
       title: 'Draft',
       label: 'pack ${view.packNumber} · pick ${view.pickNumber}',
-      onBack: widget.onBack,
+      onBack: _leave(context, m),
       backLabel: 'Leave draft',
+      quietBack: true,
       children: [
+        TalkBar(metrics: m),
+        SizedBox(height: m.scaled(8)),
         if (view.queueDepth > 0)
           Padding(
             padding: EdgeInsets.only(bottom: m.scaled(8)),
@@ -344,9 +334,7 @@ class _PoolStrip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(m.scaled(10)),
             border: Border.all(
-              color: candidate.isEmpty
-                  ? Colors.transparent
-                  : Palette.accent,
+              color: candidate.isEmpty ? Colors.transparent : Palette.accent,
               width: m.focusRing,
             ),
           ),
@@ -363,6 +351,36 @@ class _PoolStrip extends StatelessWidget {
       label: dropping
           ? 'Drop to pick · ${pool.length}'
           : 'Your pool · ${pool.length}',
+      // The strip is a glance; this is the look. Sixteen cards two centimetres
+      // tall tell you what colours you are in and not much else.
+      trailing: pool.isEmpty
+          ? null
+          : Builder(
+              builder: (context) => Pressable(
+                key: const Key('pool-expand'),
+                metrics: m,
+                semanticLabel: 'See your pool',
+                radius: m.scaled(6),
+                onPress: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => _PoolScreen(
+                      metrics: m,
+                      pool: pool,
+                      cards: cards,
+                      game: game,
+                    ),
+                  ),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(m.scaled(2)),
+                  child: Icon(
+                    Icons.open_in_full_rounded,
+                    size: m.scaled(16),
+                    color: Palette.inkMuted,
+                  ),
+                ),
+              ),
+            ),
       child: pool.isEmpty
           ? Text(
               'nothing yet',
@@ -374,22 +392,104 @@ class _PoolStrip extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 itemCount: pool.length,
                 separatorBuilder: (_, _) => SizedBox(width: m.scaled(4)),
-                itemBuilder: (context, i) {
-                  final c = cards[pool[i].oracleId];
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(m.scaled(4)),
-                    child: c == null
-                        ? CardBack(width: w, game: game)
-                        : CardArt(metrics: m, card: c, width: w),
-                  );
-                },
+                itemBuilder: (context, i) => _PoolCard(
+                  metrics: m,
+                  card: cards[pool[i].oracleId],
+                  game: game,
+                  width: w,
+                ),
               ),
             ),
     );
   }
 }
 
-/// Shown while a neighbour's pack has not come around yet.
+/// One card of the pool, in the strip or on the pool screen. A tap lifts it
+/// to read; there is nothing to do to a card already picked.
+class _PoolCard extends StatelessWidget {
+  const _PoolCard({
+    required this.metrics,
+    required this.card,
+    required this.game,
+    required this.width,
+  });
+
+  final Metrics metrics;
+  final CatalogCard? card;
+  final Game game;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+    final c = card;
+    final face = ClipRRect(
+      borderRadius: BorderRadius.circular(m.scaled(4)),
+      child: c == null
+          ? CardBack(width: width, game: game)
+          : CardArt(metrics: m, card: c, width: width),
+    );
+    if (c == null) return face;
+    return Pressable(
+      metrics: m,
+      onPress: () => CardViewer.show(context, c),
+      semanticLabel: c.name,
+      radius: m.scaled(6),
+      child: face,
+    );
+  }
+}
+
+/// The pool laid out to be read: every card at the pack's size, in rows,
+/// each a button that lifts it. Reached from the strip's expand control and
+/// left by the frame's way back, so a draft in progress is one step away.
+class _PoolScreen extends StatelessWidget {
+  const _PoolScreen({
+    required this.metrics,
+    required this.pool,
+    required this.cards,
+    required this.game,
+  });
+
+  final Metrics metrics;
+  final List<DraftCard> pool;
+  final Map<String, CatalogCard> cards;
+  final Game game;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metrics;
+    final w = m.scaled(96);
+    return ScreenFrame(
+      metrics: m,
+      title: 'Your pool',
+      label: '${pool.length} cards',
+      onBack: () => Navigator.of(context).pop(),
+      backLabel: 'Back to the draft',
+      quietBack: true,
+      children: [
+        Wrap(
+          spacing: m.scaled(8),
+          runSpacing: m.scaled(8),
+          alignment: WrapAlignment.center,
+          children: [
+            for (final draft in pool)
+              _PoolCard(
+                metrics: m,
+                card: cards[draft.oracleId],
+                game: game,
+                width: w,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Shown after a pick, while the neighbour is still choosing from the pack
+/// that comes here next. It says that, not "next pack": the player just
+/// picked and the one thing they are waiting on is the others.
 class _Waiting extends StatelessWidget {
   const _Waiting({
     required this.metrics,
@@ -410,17 +510,12 @@ class _Waiting extends StatelessWidget {
         Padding(
           padding: EdgeInsets.symmetric(vertical: m.scaled(20)),
           child: Text(
-            'waiting for the next pack',
+            'picked. waiting for the others to pick and pass',
             textAlign: TextAlign.center,
             style: pixel(size: m.scaled(14), color: Palette.inkMuted),
           ),
         ),
-        _PoolStrip(
-          metrics: m,
-          pool: pool,
-          cards: cards,
-          game: Game.magic,
-        ),
+        _PoolStrip(metrics: m, pool: pool, cards: cards, game: Game.magic),
       ],
     );
   }

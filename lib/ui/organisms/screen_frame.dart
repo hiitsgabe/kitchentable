@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../atoms/kitchentable_mark.dart';
+import '../atoms/pressable.dart';
 import '../atoms/slab.dart';
 import '../atoms/tray.dart';
 import '../tokens/app_palette.dart';
@@ -38,6 +39,7 @@ class ScreenFrame extends StatelessWidget {
     this.primary,
     this.home = false,
     this.backLabel,
+    this.quietBack = false,
   });
 
   final Metrics metrics;
@@ -75,6 +77,12 @@ class ScreenFrame extends StatelessWidget {
   /// the bottom. Null on a screen that only reads or only lists, where there is
   /// nothing to make primary and Back is the only way out.
   final ScreenAction? primary;
+
+  /// Back as a line of text rather than a slab, with or without a
+  /// [primary]. For a screen whose content is the action, like a pack to
+  /// pick from: the way out is the one thing on it nobody came to do, and it
+  /// should not look like a thing to do.
+  final bool quietBack;
 
   /// Draws a Home slab beside Back that pops to the first screen, for a
   /// screen that is two or more steps below it.
@@ -151,6 +159,7 @@ class ScreenFrame extends StatelessWidget {
                           home: home,
                           primary: primary,
                           backLabel: backLabel ?? 'Back',
+                          quiet: quietBack,
                         ),
                       ],
                     ],
@@ -231,6 +240,7 @@ class _WayOut extends StatelessWidget {
     required this.home,
     required this.primary,
     required this.backLabel,
+    this.quiet = false,
   });
 
   final Metrics metrics;
@@ -238,6 +248,7 @@ class _WayOut extends StatelessWidget {
   final bool home;
   final ScreenAction? primary;
   final String backLabel;
+  final bool quiet;
 
   @override
   Widget build(BuildContext context) {
@@ -283,14 +294,42 @@ class _WayOut extends StatelessWidget {
           ),
           if (onBack != null) ...[
             SizedBox(height: m.scaled(8)),
-            _discreetRow(context, m),
+            quiet ? _linkRow(m) : _discreetRow(context, m),
           ],
         ],
       );
     }
 
+    if (quiet && onBack != null) return _linkRow(m);
     return _prominentRow(context, m);
   }
+
+  /// Back as a line of text, centred: pressable, focusable, and nothing
+  /// more. Home is not drawn here; a screen quiet enough for this is not one
+  /// that wants a second way out beside it.
+  Widget _linkRow(Metrics m) => Center(
+    child: Pressable(
+      metrics: m,
+      onPress: onBack!,
+      semanticLabel: backLabel,
+      radius: m.scaled(6),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: m.scaled(14),
+          vertical: m.scaled(10),
+        ),
+        child: Text(
+          backLabel,
+          style: pixel(
+            size: m.scaled(12),
+            weight: 600,
+            color: Palette.inkMuted,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    ),
+  );
 
   /// Back the slim plain way, under a primary action: low and quiet, Home a
   /// matching square beside it.

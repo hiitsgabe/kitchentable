@@ -42,6 +42,9 @@ class Entry extends ConsumerWidget {
     if (waiting != null) return DemoRoom(seats: waiting);
 
     final arriving = ref.watch(launchRoomCodeProvider);
+    // Read now, next to the code, rather than when the wizard turns out to
+    // need it: the address is rewritten after the first frame.
+    final arrivingGame = ref.watch(launchRoomGameProvider);
     final done = ref.watch(setupDoneProvider);
     // Null while the flag is being read off the disk, which is a frame or
     // two. Nothing, rather than the menu: opening the menu and replacing it a
@@ -56,6 +59,7 @@ class Entry extends ConsumerWidget {
     // link that opens the menu after five minutes of setup is worse.
     if (!done) {
       return SetupScreen(
+        forGame: arriving == null ? null : arrivingGame,
         then: (_) => arriving == null ? const MenuScreen() : const RoomScreen(),
       );
     }

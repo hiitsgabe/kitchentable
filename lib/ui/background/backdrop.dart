@@ -22,10 +22,13 @@ class Backdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Each in a layer of its own. Sharing one meant every tick of the paint
+    // repainted the whole app over it, and every card drawn or page turned
+    // ran the paint's shader again across the whole screen.
     return Stack(
       children: [
-        Positioned.fill(child: _paint()),
-        Positioned.fill(child: child),
+        Positioned.fill(child: RepaintBoundary(child: _paint())),
+        Positioned.fill(child: RepaintBoundary(child: child)),
       ],
     );
   }

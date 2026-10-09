@@ -8,7 +8,6 @@ import '../../decks/model/game.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../ui/atoms/card_art.dart';
 import '../../ui/atoms/pressable.dart';
-import '../../ui/atoms/slab.dart';
 import '../../ui/atoms/tray.dart';
 import '../../ui/organisms/screen_frame.dart';
 import '../../ui/tokens/lettering.dart';
@@ -17,6 +16,8 @@ import '../../ui/tokens/palette.dart';
 import '../decks/decks_controller.dart';
 import 'draft_controller.dart';
 import 'draft_state.dart';
+import '../play/widgets/talk_bar.dart';
+import 'leave_draft.dart';
 
 /// The slots a draft deck saves with: the chosen pool cards as the deck, the
 /// basics added from outside, and every pool card left behind as the sideboard.
@@ -82,7 +83,8 @@ class _DraftBuildScreenState extends ConsumerState<DraftBuildScreen> {
 
   bool _saved = false;
 
-  int get _deckCount => _inDeck.length + _basics.values.fold(0, (a, b) => a + b);
+  int get _deckCount =>
+      _inDeck.length + _basics.values.fold(0, (a, b) => a + b);
 
   @override
   Widget build(BuildContext context) {
@@ -106,9 +108,28 @@ class _DraftBuildScreenState extends ConsumerState<DraftBuildScreen> {
       metrics: m,
       title: 'Build your deck',
       label: 'your $target-card deck',
-      onBack: widget.onBack,
+      onBack: widget.onBack == null
+          ? null
+          : () => confirmLeaveDraft(context, m, widget.onBack!),
       backLabel: 'Leave draft',
+      quietBack: true,
+      // Saving is what the screen is for, so it is the bright slab at the
+      // bottom and Leave steps down to the quiet line under it. It used to
+      // be the other way round: Leave was the loudest thing on the screen
+      // and Save was somewhere above it, past forty cards of scrolling.
+      primary: ScreenAction(
+        slabKey: const Key('save-deck'),
+        label: _saved
+            ? 'Saved · waiting for the others'
+            : enough
+            ? 'Save deck'
+            : 'Need ${target - _deckCount} more',
+        enabled: enough && !_saved,
+        onActivate: () => _save(context, pool, cards, basics),
+      ),
       children: [
+        TalkBar(metrics: m),
+        SizedBox(height: m.scaled(8)),
         _Count(metrics: m, count: _deckCount, target: target),
         SizedBox(height: m.scaled(10)),
         if (basics.isNotEmpty)
@@ -116,9 +137,8 @@ class _DraftBuildScreenState extends ConsumerState<DraftBuildScreen> {
             metrics: m,
             basics: basics,
             counts: _basics,
-            onAdd: (name) => setState(
-              () => _basics[name] = (_basics[name] ?? 0) + 1,
-            ),
+            onAdd: (name) =>
+                setState(() => _basics[name] = (_basics[name] ?? 0) + 1),
             onRemove: (name) => setState(() {
               final n = (_basics[name] ?? 0) - 1;
               if (n <= 0) {
@@ -135,9 +155,7 @@ class _DraftBuildScreenState extends ConsumerState<DraftBuildScreen> {
           metrics: m,
           game: widget.game,
           empty: 'tap pool cards to add them',
-          entries: [
-            for (final i in _inDeck) (pool[i], i),
-          ],
+          entries: [for (final i in _inDeck) (pool[i], i)],
           cards: cards,
           onTap: (i) => setState(() => _inDeck.remove(i)),
         ),
@@ -154,23 +172,6 @@ class _DraftBuildScreenState extends ConsumerState<DraftBuildScreen> {
           ],
           cards: cards,
           onTap: (i) => setState(() => _inDeck.add(i)),
-        ),
-        SizedBox(height: m.scaled(18)),
-        Slab(
-          metrics: m,
-          tone: enough ? SlabTone.cool : SlabTone.plain,
-          dimmed: !enough || _saved,
-          onActivate: enough && !_saved
-              ? () => _save(context, pool, cards, basics)
-              : () {},
-          child: Text(
-            _saved
-                ? 'SAVED · WAITING FOR THE OTHERS'
-                : enough
-                ? 'SAVE DECK'
-                : 'NEED ${target - _deckCount} MORE',
-            style: slabText(m.scaled(14)),
-          ),
         ),
       ],
     );
@@ -215,7 +216,11 @@ class _DraftBuildScreenState extends ConsumerState<DraftBuildScreen> {
 }
 
 class _Count extends StatelessWidget {
-  const _Count({required this.metrics, required this.count, required this.target});
+  const _Count({
+    required this.metrics,
+    required this.count,
+    required this.target,
+  });
 
   final Metrics metrics;
   final int count;
@@ -295,9 +300,7 @@ class _BasicsRow extends StatelessWidget {
                     border: Border.all(color: Palette.tileEdge),
                   ),
                   child: Text(
-                    (counts[name] ?? 0) > 0
-                        ? '$name ${counts[name]}'
-                        : name,
+                    (counts[name] ?? 0) > 0 ? '$name ${counts[name]}' : name,
                     style: pixel(
                       size: m.scaled(12),
                       color: (counts[name] ?? 0) > 0

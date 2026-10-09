@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import '../../decks/model/deck_format.dart';
+import '../../decks/model/game.dart';
 
 /// What a room code is spelled out of.
 ///
@@ -26,6 +27,7 @@ const roomSeatChoices = [2, 3, 4];
 
 /// What a link puts in front of the code.
 const _roomMarker = '#room=';
+const _gameMarker = '&game=';
 
 /// Not seeded, and secure rather than merely random.
 ///
@@ -54,11 +56,26 @@ String freshRoomCode() {
 /// The code goes in the fragment on purpose. A fragment is never sent to the
 /// server that hands over the page, so the only copy of it is in the hands of
 /// the people at the table.
-String linkFor(String code, {required String origin}) {
+///
+/// The link also says which game the room plays, when the host knows: the
+/// phone that follows it may never have run the app, and its first-run
+/// wizard needs to say which catalog this room needs before the host is
+/// there to ask. A guest passing the link on before the host has answered
+/// leaves it off, and the wizard then says nothing it cannot know.
+String linkFor(String code, {required String origin, Game? game}) {
   final base = origin.endsWith('/')
       ? origin.substring(0, origin.length - 1)
       : origin;
-  return '$base/$_roomMarker${code.toLowerCase()}';
+  final tail = game == null ? '' : '$_gameMarker${game.name}';
+  return '$base/$_roomMarker${code.toLowerCase()}$tail';
+}
+
+/// The game a link says its room plays, or null for a link that does not say.
+Game? gameFrom(String link) {
+  final at = link.indexOf(_gameMarker);
+  if (at < 0) return null;
+  final name = link.substring(at + _gameMarker.length);
+  return Game.named(name.split('&').first.toLowerCase());
 }
 
 /// The code out of a link, a pasted line, or the browser's own hash. Null when
@@ -70,7 +87,11 @@ String? codeFrom(String link) {
   final at = link.indexOf(_roomMarker);
   if (at < 0) return null;
 
-  final code = link.substring(at + _roomMarker.length).toLowerCase();
+  final code = link
+      .substring(at + _roomMarker.length)
+      .split('&')
+      .first
+      .toLowerCase();
 
   // Shaped like a code or nothing. A code holding an `o` or a `1` was misheard
   // rather than minted, and there is nothing to repair it to: no character in

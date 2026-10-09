@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../decks/model/deck_format.dart';
 import '../../decks/model/game.dart';
@@ -189,7 +190,9 @@ class _StartScreenState extends ConsumerState<StartScreen> {
           title: _draftSetName ?? 'Choose a set',
           subtitle: sets.isEmpty
               ? 'import MTGJSON sets first'
-              : (_draftSetCode == null ? 'from your imported sets' : _draftSetCode!),
+              : (_draftSetCode == null
+                    ? 'from your imported sets'
+                    : _draftSetCode!),
           icon: Icons.inventory_2_rounded,
           metrics: m,
           onActivate: () => _chooseSet(sets),
@@ -240,9 +243,8 @@ class _StartScreenState extends ConsumerState<StartScreen> {
   /// screen to import some first.
   Future<void> _chooseSet(List<DraftSet> sets) async {
     if (sets.isEmpty) {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const SourcesScreen()),
-      );
+      await Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: (_) => const SourcesScreen()));
       return;
     }
     final media = MediaQuery.of(context);
@@ -270,6 +272,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                   title: set.name,
                   subtitle: '${set.code} · ${set.totalSetSize} cards',
                   icon: Icons.inventory_2_rounded,
+                  leading: _SetSymbol(url: set.symbolUrl, metrics: m),
                   metrics: m,
                   autofocus: set.code == _draftSetCode,
                   onActivate: () => Navigator.of(sheet).pop(set),
@@ -347,13 +350,11 @@ class _StartScreenState extends ConsumerState<StartScreen> {
     final stakes = format.winsByPrizes
         ? 'prize cards'
         : '${format.startingLife} life';
-    return '${_gameOf(format).label} · ${format.deckSize} cards · $stakes';
+    return '${Game.of(format).label} · ${format.deckSize} cards · $stakes';
   }
 
   /// Read off [Game.formats] rather than named again here, so a format that
   /// belongs to a game nobody listed is loud rather than mislabelled.
-  static Game _gameOf(DeckFormat format) =>
-      Game.values.firstWhere((game) => game.formats.contains(format));
 
   static IconData _iconFor(DeckFormat format) => switch (format) {
     DeckFormat.commander => Icons.groups_rounded,
@@ -373,11 +374,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
       seats: _seats,
       life: life,
       draft: _format == DeckFormat.draft
-          ? DraftOptions(
-              setCode: _draftSetCode,
-              sealed: _sealed,
-              packs: _packs,
-            )
+          ? DraftOptions(setCode: _draftSetCode, sealed: _sealed, packs: _packs)
           : null,
       // Read and not asked for. A name is the same in every room somebody
       // joins, so it lives with them in settings, and the room still carries
@@ -565,6 +562,36 @@ class _Field extends StatelessWidget {
           child,
         ],
       ),
+    );
+  }
+}
+
+/// The set's symbol off Scryfall, in the row's ink. A small spinner holds
+/// the space while it is on its way, so the row does not flash a box icon
+/// and then swap it; the box stands in only if the symbol never arrives.
+class _SetSymbol extends StatelessWidget {
+  const _SetSymbol({required this.url, required this.metrics});
+
+  final String url;
+  final Metrics metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = metrics.scaled(20);
+    return SvgPicture.network(
+      url,
+      width: size,
+      height: size,
+      colorFilter: const ColorFilter.mode(Palette.slabInk, BlendMode.srcIn),
+      placeholderBuilder: (_) => SizedBox.square(
+        dimension: size * 0.7,
+        child: const CircularProgressIndicator(
+          strokeWidth: 2,
+          color: Palette.slabInk,
+        ),
+      ),
+      errorBuilder: (_, _, _) =>
+          Icon(Icons.inventory_2_rounded, size: size, color: Palette.slabInk),
     );
   }
 }

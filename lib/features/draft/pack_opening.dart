@@ -5,10 +5,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../decks/model/game.dart';
 import '../../ui/atoms/card_art.dart';
-import '../../ui/atoms/card_image.dart';
 import '../../ui/atoms/pressable.dart';
 import '../../ui/tokens/lettering.dart';
 import '../../ui/tokens/metrics.dart';
+import '../../ui/tokens/app_palette.dart';
 import '../../ui/tokens/palette.dart';
 
 /// The booster crack: a foil wrapper, crimped top and bottom, that sways in
@@ -29,7 +29,6 @@ class PackOpening extends StatefulWidget {
     required this.game,
     required this.onDone,
     this.label,
-    this.coverUrl,
     this.symbolUrl,
   });
 
@@ -43,10 +42,6 @@ class PackOpening extends StatefulWidget {
 
   /// The set, shown large on the foil. Null falls back to "PACK".
   final String? label;
-
-  /// Art for a card from the pack, printed dimmed on the foil as the pack's
-  /// face, the way a real booster shows a card. Null leaves the plain foil.
-  final String? coverUrl;
 
   /// The set's symbol (an SVG), drawn above the name. Null, or a fetch that
   /// fails, leaves just the name.
@@ -70,15 +65,16 @@ class _PackOpeningState extends State<PackOpening>
     duration: const Duration(seconds: 6),
   )..repeat();
 
-  late final AnimationController _tear = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1250),
-  )..addStatusListener((s) {
-    if (s == AnimationStatus.completed && !_done) {
-      _done = true;
-      widget.onDone();
-    }
-  });
+  late final AnimationController _tear =
+      AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 1250),
+      )..addStatusListener((s) {
+        if (s == AnimationStatus.completed && !_done) {
+          _done = true;
+          widget.onDone();
+        }
+      });
 
   bool _torn = false;
   bool _done = false;
@@ -118,7 +114,6 @@ class _PackOpeningState extends State<PackOpening>
                   count: widget.count,
                   packNumber: widget.packNumber,
                   label: widget.label,
-                  coverUrl: widget.coverUrl,
                   symbolUrl: widget.symbolUrl,
                   game: widget.game,
                   t: _tear.value,
@@ -127,8 +122,8 @@ class _PackOpeningState extends State<PackOpening>
                   metrics: m,
                   packNumber: widget.packNumber,
                   label: widget.label,
-                  coverUrl: widget.coverUrl,
                   symbolUrl: widget.symbolUrl,
+                  game: widget.game,
                   sway: _idle.value,
                 ),
         ),
@@ -164,16 +159,16 @@ class _Sealed extends StatelessWidget {
     required this.metrics,
     required this.packNumber,
     required this.label,
-    required this.coverUrl,
     required this.symbolUrl,
+    required this.game,
     required this.sway,
   });
 
   final Metrics metrics;
   final int packNumber;
   final String? label;
-  final String? coverUrl;
   final String? symbolUrl;
+  final Game game;
   final double sway;
 
   @override
@@ -191,8 +186,8 @@ class _Sealed extends StatelessWidget {
         metrics: m,
         packNumber: packNumber,
         label: label,
-        coverUrl: coverUrl,
         symbolUrl: symbolUrl,
+        game: game,
         glow: true,
       ),
     );
@@ -207,7 +202,6 @@ class _Tearing extends StatelessWidget {
     required this.count,
     required this.packNumber,
     required this.label,
-    required this.coverUrl,
     required this.symbolUrl,
     required this.game,
     required this.t,
@@ -217,7 +211,6 @@ class _Tearing extends StatelessWidget {
   final int count;
   final int packNumber;
   final String? label;
-  final String? coverUrl;
   final String? symbolUrl;
   final Game game;
   final double t;
@@ -247,15 +240,18 @@ class _Tearing extends StatelessWidget {
               metrics: m,
               packNumber: packNumber,
               label: label,
-              coverUrl: coverUrl,
               symbolUrl: symbolUrl,
+              game: game,
               glow: false,
               openMouth: tear,
             ),
           ),
           // The torn-off top crimp, flung up and spinning away.
           Transform.translate(
-            offset: Offset(tear * m.scaled(28), -h * 0.5 - tear * m.scaled(120)),
+            offset: Offset(
+              tear * m.scaled(28),
+              -h * 0.5 - tear * m.scaled(120),
+            ),
             child: Transform.rotate(
               angle: tear * 0.6,
               child: Opacity(
@@ -284,8 +280,8 @@ class _Foil extends StatelessWidget {
     required this.metrics,
     required this.packNumber,
     required this.label,
-    required this.coverUrl,
     required this.symbolUrl,
+    required this.game,
     required this.glow,
     this.openMouth = 0,
   });
@@ -293,8 +289,8 @@ class _Foil extends StatelessWidget {
   final Metrics metrics;
   final int packNumber;
   final String? label;
-  final String? coverUrl;
   final String? symbolUrl;
+  final Game game;
   final bool glow;
   final double openMouth;
 
@@ -326,29 +322,38 @@ class _Foil extends StatelessWidget {
             // The foil body.
             Positioned.fill(
               child: DecoratedBox(
-                decoration: _foil(m).copyWith(
-                  borderRadius: BorderRadius.circular(m.scaled(10)),
-                ),
+                decoration: _foil(
+                  m,
+                ).copyWith(borderRadius: BorderRadius.circular(m.scaled(10))),
               ),
             ),
-            // A card from the set, printed dimmed over the foil as the pack's
-            // face. A real booster shows a card; this is that, darkened so the
-            // set reads and the pack still feels sealed.
-            if (coverUrl != null)
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: ColorFiltered(
-                    colorFilter: const ColorFilter.mode(
-                      Color(0x99120A16),
-                      BlendMode.darken,
-                    ),
-                    child: CardImage(
-                      url: coverUrl!,
-                      fallback: const SizedBox.shrink(),
-                    ),
+            // The game's card back, printed faint over the foil as the pack's
+            // face: it says which game this is before anybody reads a word,
+            // and a back is sealed by nature where a card face gave the pack
+            // away. Dimmed well down, then washed in the player's colour so
+            // the pack is theirs the way the rest of the app is.
+            Positioned.fill(
+              child: IgnorePointer(
+                // One colour filter rather than an opacity layer under a
+                // tint layer: two translucent layers under the sway's
+                // perspective transform flickered on the web.
+                child: ColorFiltered(
+                  colorFilter: ColorFilter.mode(
+                    Color.lerp(
+                      Palette.felt,
+                      context.palette.accent,
+                      0.7,
+                    )!.withValues(alpha: 0.72),
+                    BlendMode.srcATop,
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.cover,
+                    clipBehavior: Clip.hardEdge,
+                    child: CardBack(width: w, game: game),
                   ),
                 ),
               ),
+            ),
             // A bright diagonal sheen.
             Positioned.fill(
               child: IgnorePointer(
@@ -384,7 +389,8 @@ class _Foil extends StatelessWidget {
                           Palette.slabInk,
                           BlendMode.srcIn,
                         ),
-                        placeholderBuilder: (_) => SizedBox(height: m.scaled(40)),
+                        placeholderBuilder: (_) =>
+                            SizedBox(height: m.scaled(40)),
                       ),
                       SizedBox(height: m.scaled(8)),
                     ],
@@ -456,10 +462,7 @@ class _CrimpBand extends StatelessWidget {
       width: width,
       height: m.scaled(_crimp),
       child: CustomPaint(
-        painter: _CrimpPainter(
-          pointDown: pointDown,
-          tooth: m.scaled(9),
-        ),
+        painter: _CrimpPainter(pointDown: pointDown, tooth: m.scaled(9)),
       ),
     );
   }
@@ -478,24 +481,27 @@ class _CrimpPainter extends CustomPainter {
     // A solid strip behind the teeth, so the crimp reads as a sealed edge.
     canvas.drawRect(Offset.zero & size, back);
 
+    // Whole teeth across the width, so the crimp does not end in a stub.
+    final n = math.max(1, (size.width / tooth).round());
+    final t = size.width / n;
     final path = Path();
     final mid = size.height * 0.45;
     if (!pointDown) {
       path.moveTo(0, 0);
       path.lineTo(size.width, 0);
       path.lineTo(size.width, mid);
-      for (var x = size.width; x > 0; x -= tooth) {
-        path.lineTo(x - tooth / 2, size.height);
-        path.lineTo(x - tooth, mid);
+      for (var i = n; i > 0; i--) {
+        path.lineTo((i - 0.5) * t, size.height);
+        path.lineTo((i - 1) * t, mid);
       }
       path.close();
     } else {
       path.moveTo(0, size.height);
       path.lineTo(size.width, size.height);
       path.lineTo(size.width, size.height - mid);
-      for (var x = size.width; x > 0; x -= tooth) {
-        path.lineTo(x - tooth / 2, 0);
-        path.lineTo(x - tooth, size.height - mid);
+      for (var i = n; i > 0; i--) {
+        path.lineTo((i - 0.5) * t, 0);
+        path.lineTo((i - 1) * t, size.height - mid);
       }
       path.close();
     }
@@ -537,8 +543,7 @@ class _Fan extends StatelessWidget {
         alignment: Alignment.center,
         clipBehavior: Clip.none,
         children: [
-          for (var i = 0; i < n; i++)
-            _fanned(m, cardW, i, n, maxAngle, open),
+          for (var i = 0; i < n; i++) _fanned(m, cardW, i, n, maxAngle, open),
         ],
       ),
     );

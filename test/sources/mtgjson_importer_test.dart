@@ -157,6 +157,31 @@ void main() {
     expect(await db.draftSetCount(), 1);
   });
 
+  test('a set fetched with no packs is forgotten by a later list import, '
+      'so it can be read again', () async {
+    final importer = MtgjsonImporter(db: db);
+    await importer.indexSetList(
+      Stream.value(utf8.encode(_list([_set('TRK', 'Star Trek')]))),
+    );
+    await importer.storeSet(
+      'TRK',
+      jsonEncode({
+        'data': {'code': 'TRK', 'cards': <Object>[]},
+      }),
+    );
+    var set = await db.draftSet('TRK');
+    expect(set!.fetched, isTrue);
+    expect(set.hasPacks, isFalse);
+    expect(set.draftable, isFalse, reason: 'off the picker once known empty');
+
+    await importer.indexSetList(
+      Stream.value(utf8.encode(_list([_set('TRK', 'Star Trek')]))),
+    );
+    set = await db.draftSet('TRK');
+    expect(set!.fetched, isFalse);
+    expect(set.draftable, isTrue);
+  });
+
   test('fetching a set twice leaves one copy of its printings', () async {
     final importer = MtgjsonImporter(db: db);
     await importer.indexSetList(

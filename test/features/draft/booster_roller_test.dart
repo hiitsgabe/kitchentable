@@ -76,6 +76,31 @@ void main() {
     }
   });
 
+  test('a sheet whose weights run past 2^32 still rolls', () {
+    // Marvel Super Heroes' foil sheet sums to 5,766,383,925,000 and Final
+    // Fantasy's wildcard to 177 trillion: fractions on a common
+    // denominator. Random.nextInt stops at 2^32 and threw mid-deal.
+    final booster = _booster();
+    final play = booster['play'] as Map<String, dynamic>;
+    (play['sheets'] as Map<String, dynamic>)['common'] = {
+      'totalWeight': 5766383925000,
+      'foil': false,
+      'cards': {
+        for (var i = 0; i < 10; i++) 'c$i': i == 0 ? 5766383925000 - 9 : 1,
+      },
+    };
+    final roller = BoosterRoller(
+      booster: booster,
+      printings: {for (final p in _printings()) p.uuid: p},
+      random: Random(7),
+    );
+
+    final pack = roller.rollPack();
+    expect(pack, hasLength(10));
+    // The heavy printing is all but certain to be drawn first.
+    expect(pack.first.uuid, 'c0');
+  });
+
   test('the same seed rolls the same pack', () {
     List<String> roll(int seed) => BoosterRoller(
       booster: _booster(),
