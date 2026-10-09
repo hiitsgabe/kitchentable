@@ -40,8 +40,10 @@ class LoopbackNetwork {
     scheduleMicrotask(() => seat._receive(Incoming(from: from, body: body)));
   }
 
-  Set<String> _othersOf(String id) =>
-      {for (final k in _seats.keys) if (k != id) k};
+  Set<String> _othersOf(String id) => {
+    for (final k in _seats.keys)
+      if (k != id) k,
+  };
 }
 
 class LoopbackTransport implements Transport {

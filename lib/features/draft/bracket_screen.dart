@@ -77,9 +77,7 @@ class _Banner extends StatelessWidget {
               size: m.scaled(28),
             ),
             SizedBox(width: m.scaled(10)),
-            Expanded(
-              child: Text(text, style: slabText(m.scaled(16))),
-            ),
+            Expanded(child: Text(text, style: slabText(m.scaled(16)))),
           ],
         ),
       ),
@@ -88,7 +86,11 @@ class _Banner extends StatelessWidget {
 }
 
 class _Standings extends StatelessWidget {
-  const _Standings({required this.metrics, required this.rows, required this.me});
+  const _Standings({
+    required this.metrics,
+    required this.rows,
+    required this.me,
+  });
 
   final Metrics metrics;
   final List<Map<String, Object?>> rows;
@@ -256,9 +258,8 @@ class _Action extends ConsumerWidget {
     final mesh = lobby.mesh;
     if (mesh?.table == null) return;
     ref.read(playProvider.notifier).join(mesh!, decks: lobby.decks);
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const PlayScreen()),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const PlayScreen()));
   }
 
   Widget _note(Metrics m, String text) => Padding(

@@ -53,5 +53,4 @@ List<DraftTablePlan> draftTables(
 }
 
 /// The seat with no opponent this round, or null when everyone is paired.
-String? byeOf(List<String> seats) =>
-    seats.length.isOdd ? seats.last : null;
+String? byeOf(List<String> seats) => seats.length.isOdd ? seats.last : null;

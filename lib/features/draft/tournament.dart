@@ -2,7 +2,13 @@ import 'post_draft.dart';
 
 /// Where a player stands in the tournament: how many games they have won and
 /// whether they are out.
-typedef Standing = ({String seat, String name, int wins, bool out, bool champion});
+typedef Standing = ({
+  String seat,
+  String name,
+  int wins,
+  bool out,
+  bool champion,
+});
 
 /// A single-elimination bracket over the drafted pod.
 ///
