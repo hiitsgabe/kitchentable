@@ -24,6 +24,7 @@ class MenuRow extends StatelessWidget {
     required this.onActivate,
     this.subtitle,
     this.icon,
+    this.leading,
     this.enabled = true,
     this.focusNode,
     this.autofocus = false,
@@ -36,6 +37,10 @@ class MenuRow extends StatelessWidget {
   /// Optional, but every list in the app passes one. A row that opens with
   /// naked text reads as a paragraph, not as something you can press.
   final IconData? icon;
+
+  /// Something drawn in the icon's place: a set symbol, say. It is laid out
+  /// at the icon's size, and wins over [icon] when both are given.
+  final Widget? leading;
 
   final Metrics metrics;
   final VoidCallback onActivate;
@@ -63,7 +68,13 @@ class MenuRow extends StatelessWidget {
         semanticLabel: subtitle == null ? title : '$title. $subtitle',
         child: Row(
           children: [
-            if (icon != null) ...[
+            if (leading != null) ...[
+              SizedBox.square(
+                dimension: m.scaled(20),
+                child: Center(child: leading),
+              ),
+              SizedBox(width: m.scaled(12)),
+            ] else if (icon != null) ...[
               Icon(icon, size: m.scaled(20), color: Palette.slabInk),
               SizedBox(width: m.scaled(12)),
             ],

@@ -5,27 +5,14 @@ import '../table/actions/apply.dart';
 import '../table/actions/table_action.dart';
 import '../table/model/table_state.dart';
 import '../table/wire/wire.dart';
+import 'talk.dart';
 import 'transport.dart';
+
+export 'talk.dart' show Said, VoiceSignal;
 
 /// A verb the table applied, and whose key played it.
 typedef Played = ({String by, TableAction action});
 
-/// One step of a WebRTC introduction, on its way to or from one peer.
-///
-/// The mesh carries these and does not read them. Voice is a second
-/// connection to the same people, opened over the one that already works:
-/// the relays carry the introduction, and the audio goes straight across
-/// if it can. That is what every Nostr WebRTC draft does, and it is why
-/// nobody needs a server for the signalling half.
-typedef VoiceSignal = ({String from, Map<String, Object?> body});
-
-/// Something somebody typed, and whose key typed it.
-///
-/// Deliberately not a [TableAction]. A line of chat is not a thing that
-/// happened to the cards: it must not be undone by undo, it must not arrive
-/// in the snapshot a late guest is handed, and the referee has no opinion
-/// about it. It rides the same wire and nothing else.
-typedef Said = ({String by, String text});
 
 /// The number the peer that made the room holds, and the lowest there is, so it
 /// hosts until it goes.
@@ -45,7 +32,7 @@ const _firstStamp = 0;
 ///
 /// It speaks to a [Transport] and has never heard of Nostr or WebRTC. That is
 /// the seam: the next slice writes a real one and this file does not change.
-class Mesh {
+class Mesh implements Talk {
   Mesh({
     required Transport transport,
     TableState? table,
@@ -119,6 +106,7 @@ class Mesh {
   StreamSubscription<PeerEvent>? _watching;
 
   /// Who this device is, in the transport's names.
+  @override
   String get me => _transport.me;
 
   /// Everything on the table, or null before this peer has been handed it.
@@ -168,16 +156,23 @@ class Mesh {
   Stream<Played> get verbs => _verbs.stream;
 
   /// Everybody reachable right now, by key.
+  @override
   Set<String> get peers => _transport.peers;
 
+  @override
+  Stream<PeerEvent> get presence => _transport.presence;
+
   /// Everything anybody at this table has typed, this phone included.
+  @override
   Stream<Said> get chatter => _chatter.stream;
 
   /// Introductions between microphones, which this mesh forwards and never
   /// reads. Not fanned back to the sender: an offer is for one peer.
+  @override
   Stream<VoiceSignal> get voiceSignals => _voice.stream;
 
   /// Hands one step of an introduction to one peer.
+  @override
   void signalVoice(String peer, Map<String, Object?> body) {
     if (!_transport.peers.contains(peer)) return;
     _transport.send(peer, _say('voice', {'body': body}));
@@ -188,6 +183,7 @@ class Mesh {
   /// Not applied to anything and not acknowledged. A line that does not
   /// arrive is a line that did not arrive, which is how talking works, and
   /// is a far better failure than a table that disagrees about its cards.
+  @override
   void say(String text) {
     final said = text.trim();
     if (said.isEmpty) return;
@@ -516,14 +512,13 @@ class Mesh {
   // is chat and the sixth is a microphone being introduced to another
   // microphone; neither is a verb and neither ever touches the table.
 
-  String _say(String kind, [Map<String, Object?> more = const {}]) => jsonEncode(
-    {
-      'v': wireVersion,
-      'kind': kind,
-      if (scope.isNotEmpty) 'scope': scope,
-      ...more,
-    },
-  );
+  String _say(String kind, [Map<String, Object?> more = const {}]) =>
+      jsonEncode({
+        'v': wireVersion,
+        'kind': kind,
+        if (scope.isNotEmpty) 'scope': scope,
+        ...more,
+      });
 
   /// The envelope, or a [WireError] saying which part of it was wrong.
   ///

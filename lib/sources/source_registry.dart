@@ -1,3 +1,4 @@
+import '../decks/model/game.dart';
 import 'model/source_def.dart';
 
 /// Sizes checked against the live endpoints on 2026 09 21 (Scryfall) and
@@ -54,3 +55,13 @@ final knownSources = <SourceDef>[
     kind: SourceKind.localFile,
   ),
 ];
+
+/// The catalog a game's cards come from: what a phone needs before it can
+/// show a table of that game, whether it brought a deck or was dealt one.
+SourceDef catalogFor(Game game) {
+  final id = switch (game) {
+    Game.magic => 'scryfall_oracle',
+    Game.pokemon => 'pokemon_tcg_data',
+  };
+  return knownSources.firstWhere((s) => s.id == id);
+}

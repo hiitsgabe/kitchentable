@@ -1,7 +1,9 @@
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/decks/model/basic_lands.dart';
 import 'package:kitchentable/decks/model/deck.dart';
 import 'package:kitchentable/decks/model/deck_format.dart';
+import 'package:kitchentable/sources/catalog/catalog_db.dart';
 import 'package:kitchentable/sources/model/catalog_card.dart';
 
 CatalogCard _card(String name, List<String> identity) => CatalogCard(
@@ -85,4 +87,30 @@ void main() {
     ]);
     expect(evenLandSplit(deck), isEmpty);
   });
+
+  test(
+    'the catalog\'s basics come back under the names the screens use',
+    () async {
+      final db = CatalogDb.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.insertAll([
+        CatalogCard(
+          oracleId: 'p',
+          name: 'Plains',
+          typeLine: 'Basic Land — Plains',
+          cmc: 0,
+        ),
+        CatalogCard(
+          oracleId: 'f',
+          name: 'Forest',
+          typeLine: 'Basic Land — Forest',
+          cmc: 0,
+        ),
+      ]);
+
+      final lands = await loadBasicLands(db);
+      expect(lands.keys, ['Plains', 'Forest']);
+      expect(lands['Plains']!.oracleId, 'p');
+    },
+  );
 }

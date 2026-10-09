@@ -16,9 +16,8 @@ import '../../table/setup.dart';
 import '../../table/shuffle.dart';
 import '../../table/table_session.dart';
 import '../lobby/lobby.dart';
-import 'chat.dart';
+import 'talk_here.dart';
 import 'table_news.dart';
-import 'voice.dart';
 
 /// The table currently being played, or null when nobody is at one.
 /// Why the last action was turned down.
@@ -273,23 +272,9 @@ class PlayController extends Notifier<TableState?> {
           .read(tableNewsProvider.notifier)
           .say(by: played.by, action: played.action, table: _table),
     );
-    // The microphones follow the same mesh, over the same wire, and are
-    // not switched on by following it.
-    ref.read(voiceProvider.notifier).follow(mesh);
-    _watching = ref.read(transportProvider)?.presence.listen((event) {
-      final voice = ref.read(voiceProvider.notifier);
-      switch (event.presence) {
-        case Presence.arrived:
-          voice.peerArrived(event.peerId);
-        case Presence.left:
-          voice.peerLeft(event.peerId);
-      }
-    });
-    _hearing = mesh.chatter.listen(
-      (said) => ref
-          .read(chatProvider.notifier)
-          .heard(by: said.by, text: said.text, table: _table, me: _meOf(ref)),
-    );
+    // The chat and the microphones follow the mesh too, where there is no
+    // room channel to follow instead; they read it from here.
+    ref.read(meshTalkProvider.notifier).set(mesh);
   }
 
   /// Whether there is anybody else here to talk to.
@@ -300,7 +285,7 @@ class PlayController extends Notifier<TableState?> {
 
   /// Says something to the table. Nothing happens on a table this phone is
   /// holding alone, because there is nobody to say it to.
-  void say(String text) => _mesh?.say(text);
+  void say(String text) => ref.read(talkProvider)?.say(text);
 
   /// Read off the zone rather than off the decklist, so a card that reached
   /// the command zone by any other road is counted the same way. Empty in a
@@ -389,6 +374,7 @@ class PlayController extends Notifier<TableState?> {
     // Not closed. The mesh is the lobby's and the transport under it belongs
     // to whoever made it; leaving the table stops listening to it, no more.
     _mesh = null;
+    ref.read(meshTalkProvider.notifier).set(null);
     _session = null;
     _games = const {};
     _deckSizes = const {};

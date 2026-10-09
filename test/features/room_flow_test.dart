@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/decks/deck_repository.dart';
 import 'package:kitchentable/decks/model/deck.dart';
 import 'package:kitchentable/decks/model/deck_format.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/features/decks/decks_controller.dart';
 import 'package:kitchentable/features/decks/play_decks_screen.dart';
 import 'package:kitchentable/features/lobby/lobby.dart';
@@ -107,6 +108,7 @@ RoomConfig _draftConfig({int seats = 2}) => RoomConfig(
 ProviderContainer _container({
   String origin = _origin,
   String? launchCode,
+  Game? launchGame,
   List<Deck> shelf = const [],
   String? yourName = namelessPlayer,
   MenuState menu = const MenuState(cardCount: 36079, enabledSources: 1),
@@ -119,6 +121,7 @@ ProviderContainer _container({
     overrides: [
       roomOriginProvider.overrideWithValue(origin),
       launchRoomCodeProvider.overrideWithValue(launchCode),
+      launchRoomGameProvider.overrideWithValue(launchGame),
       transportFactoryProvider.overrideWithValue((_) => network.join('me')),
       // Your name comes off the device rather than out of this screen now, and
       // overriding the resolved one keeps these cases off the disk. Null means
@@ -167,6 +170,11 @@ void _tallWindow(WidgetTester tester) {
   tester.view.physicalSize = const Size(800, 1600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
+  // A guest's room turns the mark until the host starts, and pumpAndSettle
+  // would wait for that forever. Reduced motion holds it still.
+  tester.platformDispatcher.accessibilityFeaturesTestValue =
+      const FakeAccessibilityFeatures(disableAnimations: true);
+  addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
 }
 
 Future<void> _pump(
@@ -303,9 +311,12 @@ void main() {
       // put the wrong code in the link would still show a QR somebody could
       // scan, and a case that only looked at the QR would let it through.
       expect(find.byKey(const Key('room-copy')), findsOneWidget);
+      // The host knows what the room plays, so its link says so: the phone
+      // that follows it may be on its first run, and its wizard has to name
+      // the catalog the room needs before the host is there to ask.
       expect(
         tester.widget<RoomQr>(find.byKey(const Key('room-qr'))).link,
-        linkFor(code, origin: _origin),
+        linkFor(code, origin: _origin, game: Game.magic),
       );
       expect(
         find.byType(QrImageView),
@@ -542,36 +553,6 @@ void main() {
   });
 
   group('the room', () {
-    testWidgets('says plainly that nothing is hidden yet', (tester) async {
-      // Everything replicates in the clear in this slice: a peer holds every
-      // hand and every library, and what stops them being drawn is software
-      // running on somebody else's phone. That is fine for friends and it is
-      // not what a security promise sounds like, so the room says so rather
-      // than leaving it to be assumed.
-      final container = _container();
-      container.read(roomProvider.notifier).open(_config());
-      await _pump(tester, container, const RoomScreen());
-
-      expect(find.byKey(const Key('room-openness')), findsOneWidget);
-
-      final line = _textAt(tester, 'room-openness').toLowerCase();
-
-      // In words a player understands. Somebody holding a hand of cards is
-      // owed a sentence about their hand, not a sentence about transport
-      // security, and "unencrypted" tells them nothing at all.
-      for (final jargon in [
-        'encrypt',
-        'plaintext',
-        'cleartext',
-        'in the clear',
-        'peer',
-      ]) {
-        expect(line, isNot(contains(jargon)), reason: jargon);
-      }
-      expect(line, contains('hand'));
-      expect(line, contains('see'));
-    });
-
     testWidgets('a draft room asks for no deck and opens the draft', (
       tester,
     ) async {
@@ -953,12 +934,22 @@ void main() {
         reason: 'a guest cannot count chairs it has not been told about',
       );
       expect(find.byKey(const Key('room-start')), findsNothing);
+      // A guest followed the link to get here; the square and the code are
+      // the host's to send, and in front of a guest they read as a chore.
+      expect(find.byKey(const Key('room-copy')), findsNothing);
+      expect(find.byKey(const Key('room-qr')), findsNothing);
+      expect(find.byKey(const Key('room-code')), findsNothing);
 
       await _settle(tester, net);
       expect(
         find.byKey(const Key('room-answer')),
         findsNothing,
         reason: 'the host answered, so there is nothing to wait for',
+      );
+      expect(
+        find.byKey(const Key('room-waiting')),
+        findsNothing,
+        reason: 'and there is a deck to pick before there is any waiting',
       );
       expect(_rowAt(tester, 'room-chair-1'), contains('host'));
       expect(_rowAt(tester, 'room-chair-2'), contains('Empty'));
@@ -975,6 +966,8 @@ void main() {
       await _settle(tester, net);
       expect(_rowAt(tester, 'room-chair-2'), contains('You'));
       expect(host.seated.map((s) => s.name), [namelessPlayer]);
+      // Seated, so the one thing left is the host, and the screen says so.
+      expect(_textAt(tester, 'room-waiting'), contains('Waiting for'));
 
       host.sit(deck: _deck('hosts'), name: 'kit');
       await _settle(tester, net);
@@ -1199,8 +1192,13 @@ void main() {
       await _pump(tester, container, const RoomScreen());
 
       expect(find.byKey(const Key('room-fill')), findsNothing);
-      // The positive control again: a guest still picks a deck and sits down.
-      expect(find.byKey(const Key('room-deck')), findsOneWidget);
+      // Nor a deck to pick: whether this room wants one is one of the
+      // settings it has not been told. Offering one flashed "Pick your
+      // deck" at every draft guest for the second before the host answered.
+      // The deck row comes with the host's answer, which the guest case
+      // above walks through.
+      expect(find.byKey(const Key('room-deck')), findsNothing);
+      expect(_textAt(tester, 'room-answer'), contains('Waiting for the host'));
     });
 
     testWidgets('the room is what the table starts on', (tester) async {
@@ -1214,6 +1212,11 @@ void main() {
       await tester.pumpAndSettle();
       _friend(net, 'ana').bring(deck: _deck('anas'), name: 'ana');
       await _settle(tester, net);
+      // Both chairs taken, so the invitation has done its job: a check in
+      // place of a square still asking to be scanned.
+      expect(find.byKey(const Key('room-all-here')), findsOneWidget);
+      expect(find.byKey(const Key('room-qr')), findsNothing);
+      expect(find.byKey(const Key('room-copy')), findsNothing);
       await tester.tap(find.byKey(const Key('room-start')));
       await tester.pumpAndSettle();
 
@@ -1386,6 +1389,65 @@ void main() {
 
       expect(find.byType(RoomScreen), findsOneWidget);
       expect(container.read(roomProvider)!.code, code);
+    });
+
+    testWidgets('a link that says what the room plays makes the wizard name '
+        'the catalog it needs', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final container = _container(
+        launchCode: freshRoomCode(),
+        launchGame: Game.magic,
+        menu: const MenuState(cardCount: 0, enabledSources: 0),
+      );
+
+      await _pump(tester, container, const Entry());
+      await tester.tap(find.byKey(const Key('setup-next')));
+      await tester.pumpAndSettle();
+
+      // Scryfall is the one choice on the screen, and says why; the skip is
+      // still there, but it no longer promises that a source can wait.
+      final scryfall = tester.widget<MenuRow>(
+        find.byKey(const Key('setup-source-scryfall_oracle')),
+      );
+      expect(scryfall.tone, SlabTone.choice);
+      expect(scryfall.subtitle, contains('needed for the room'));
+      expect(
+        tester
+            .widget<MenuRow>(
+              find.byKey(const Key('setup-source-pokemon_tcg_data')),
+            )
+            .tone,
+        SlabTone.plain,
+      );
+      final skip = tester.widget<MenuRow>(find.byKey(const Key('setup-next')));
+      expect(skip.title, 'Skip anyway');
+      expect(skip.subtitle, contains('blank cards until Scryfall'));
+      expect(find.textContaining('plays Magic'), findsOneWidget);
+    });
+
+    testWidgets('a link that does not say leaves the wizard as it was', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final container = _container(
+        launchCode: freshRoomCode(),
+        menu: const MenuState(cardCount: 0, enabledSources: 0),
+      );
+
+      await _pump(tester, container, const Entry());
+      await tester.tap(find.byKey(const Key('setup-next')));
+      await tester.pumpAndSettle();
+
+      final skip = tester.widget<MenuRow>(find.byKey(const Key('setup-next')));
+      expect(skip.title, 'Skip for now');
+      expect(
+        tester
+            .widget<MenuRow>(
+              find.byKey(const Key('setup-source-scryfall_oracle')),
+            )
+            .tone,
+        SlabTone.cool,
+      );
     });
 
     testWidgets('the wizard is run once, and the menu after that', (

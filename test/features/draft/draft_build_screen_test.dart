@@ -31,11 +31,7 @@ void main() {
 
     final view = DraftView(
       phase: DraftPhase.building,
-      pool: [
-        _draft('1', 'Alpha'),
-        _draft('2', 'Beta'),
-        _draft('3', 'Gamma'),
-      ],
+      pool: [_draft('1', 'Alpha'), _draft('2', 'Beta'), _draft('3', 'Gamma')],
       pack: null,
       packNumber: 3,
       pickNumber: 1,
@@ -60,13 +56,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('IN THE DECK · 0'), findsOneWidget);
-    expect(find.text('NEED 40 MORE'), findsOneWidget);
+    expect(find.text('Need 40 more'), findsOneWidget);
 
     await tester.tap(find.text('Alpha'));
     await tester.pumpAndSettle();
 
     expect(find.text('IN THE DECK · 1'), findsOneWidget);
-    expect(find.text('NEED 39 MORE'), findsOneWidget);
+    expect(find.text('Need 39 more'), findsOneWidget);
     // Alpha is still on screen, now in the deck zone rather than the pool.
     expect(find.text('Alpha'), findsOneWidget);
     expect(find.text('POOL · 2'), findsOneWidget);

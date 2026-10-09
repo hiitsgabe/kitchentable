@@ -44,7 +44,7 @@ class _AddLandsScreenState extends ConsumerState<AddLandsScreen> {
     if (mounted) setState(() => _lands = found);
   }
 
-  CatalogCard? _cardFor(String name) => _lands[name.toLowerCase()];
+  CatalogCard? _cardFor(String name) => _lands[name];
 
   @override
   Widget build(BuildContext context) {

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/decks/model/deck_format.dart';
+import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/table/room/room.dart';
 
 /// What each format starts you on, written out rather than read off
@@ -91,6 +92,23 @@ void main() {
     );
     expect(codeFrom('https://example.test/app/'), isNull);
     expect(codeFrom('nonsense'), isNull);
+  });
+
+  test('a link can say what the room plays, and the code survives it', () {
+    final link = linkFor(
+      'abcd-efg',
+      origin: 'https://example.test/app',
+      game: Game.pokemon,
+    );
+
+    expect(link, 'https://example.test/app/#room=abcd-efg&game=pokemon');
+    expect(codeFrom(link), 'abcd-efg');
+    expect(gameFrom(link), Game.pokemon);
+    expect(codeFrom('#room=ABCD-EFG&game=MAGIC'), 'abcd-efg');
+    expect(gameFrom('#room=ABCD-EFG&game=MAGIC'), Game.magic);
+    // A link that does not say, and one somebody edited into nonsense.
+    expect(gameFrom('https://example.test/app/#room=abcd-efg'), isNull);
+    expect(gameFrom('#room=abcd-efg&game=chess'), isNull);
   });
 
   test('a link is the same link however the origin was spelled', () {

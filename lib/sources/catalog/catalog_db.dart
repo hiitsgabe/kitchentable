@@ -227,7 +227,12 @@ class CatalogDb extends _$CatalogDb {
 
   /// The set list, replaced whole: MTGJSON's list is the truth about what
   /// exists, and a set already fetched keeps its packs across the replace.
+  /// A set whose file had no packs is forgotten here, so the next draft of
+  /// it reads the file again: MTGJSON writes recipes in after a set ships.
   Future<void> insertDraftSets(List<DraftSet> sets) async {
+    await (update(draftSets)..where((t) => t.booster.equals('{}'))).write(
+      const DraftSetsCompanion(booster: Value(null)),
+    );
     await batch((b) {
       for (final s in sets) {
         b.insert(

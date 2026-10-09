@@ -1,5 +1,6 @@
 import 'package:web/web.dart' as web;
 
+import '../../decks/model/game.dart';
 import '../../table/room/room.dart';
 
 /// The code the tab was opened on, out of the address bar's fragment.
@@ -12,7 +13,19 @@ import '../../table/room/room.dart';
 /// Null covers both a plain visit and a fragment that is not a room: `codeFrom`
 /// refuses anything that could not have been minted, so a mistyped link opens
 /// the menu rather than a room that was never there.
-String? launchRoomCode() => codeFrom(web.window.location.href);
+String? launchRoomCode() => codeFrom(_launchHref);
+
+/// The game the link said its room plays, if it said. See [gameFrom].
+Game? launchRoomGame() => gameFrom(_launchHref);
+
+/// The address the tab opened on, kept from the first time anything asks.
+///
+/// Flutter's router rewrites the address once the first frame is up and the
+/// fragment goes with it, so a reader that comes a frame later (after a
+/// flag has been read off the disk, say) would find nothing there. The two
+/// readers above have to agree on one address, and this is it.
+String? _href;
+String get _launchHref => _href ??= web.window.location.href;
 
 /// How many seats a `#demo=N` launch asks for, or null. A dealt table on one
 /// device with sample decks, so the table can be looked at and screenshotted

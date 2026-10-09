@@ -79,21 +79,31 @@ final draftCardsProvider = FutureProvider<Map<String, CatalogCard>>((
   return {for (final c in cards) c.oracleId: c};
 });
 
-/// The MTGJSON sets imported on this device, newest first, for the host to
-/// pick a draft set from. Empty with no catalog or before MTGJSON is imported.
+/// The MTGJSON sets imported on this device that a draft can be run from,
+/// newest first, for the host to pick one. Empty with no catalog or before
+/// MTGJSON is imported.
 final draftSetsProvider = FutureProvider<List<DraftSet>>((ref) async {
   final db = ref.watch(catalogDbProvider);
   if (db == null) return const [];
-  return db.draftSetList();
+  final sets = await db.draftSetList();
+  final today = ref.watch(todayProvider)();
+  return [
+    for (final s in sets)
+      if (s.draftable && s.releasedBy(today)) s,
+  ];
 });
 
+/// The day the picker judges a release date against, so a test can set it.
+final todayProvider = Provider<DateTime Function()>((_) => DateTime.now);
+
 /// Builds the roller for a set the host chose, fetching the set's packs the
-/// first time it is drafted (the set list carries only metadata until then).
+/// first time it is drafted (the set list carries only metadata until then),
+/// and again if what was fetched had no packs in it.
 /// Null where the catalog, the set or its MTGJSON endpoint is missing.
 Future<BoosterRoller?> rollerForSet(CatalogDb db, String setCode) async {
   var set = await db.draftSet(setCode);
   if (set == null) return null;
-  if (!set.fetched) {
+  if (!set.hasPacks) {
     Uri? endpoint;
     for (final source in knownSources) {
       if (source.id == 'mtgjson_sets') endpoint = source.endpoint;

@@ -55,5 +55,12 @@ Map<String, int> evenLandSplit(Deck deck) {
   return {for (final name in names) name: each + (spare-- > 0 ? 1 : 0)};
 }
 
-Future<Map<String, CatalogCard>> loadBasicLands(CatalogDb db) =>
-    db.cardsByExactNames(basicLandNames);
+/// The five basics the catalog holds, keyed by their names as
+/// [basicLandNames] spells them. The catalog answers by folded name, and a
+/// screen that asked it for "Plains" and looked up "Plains" found nothing.
+Future<Map<String, CatalogCard>> loadBasicLands(CatalogDb db) async {
+  final found = await db.cardsByExactNames(basicLandNames);
+  return {
+    for (final name in basicLandNames) name: ?found[name.toLowerCase()],
+  };
+}

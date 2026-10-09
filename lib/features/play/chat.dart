@@ -1,7 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../net/talk.dart';
 import '../../table/model/table_state.dart';
+import '../lobby/lobby.dart';
+import 'play_controller.dart';
+import 'talk_here.dart';
 
 /// One line somebody said.
 @immutable
@@ -55,16 +61,43 @@ class ChatDesk extends Notifier<ChatRoom> {
   /// a table left open overnight does not grow without end.
   static const keep = 200;
 
+  StreamSubscription<Said>? _hearing;
+
   @override
-  ChatRoom build() => const ChatRoom();
+  ChatRoom build() {
+    // Follows whatever the phone talks over, which changes as a room is
+    // joined or a demo table opened, and nothing else has to remember to
+    // point the chat at it.
+    ref.listen(talkProvider, (_, talk) => _follow(talk), fireImmediately: true);
+    ref.onDispose(() => _hearing?.cancel());
+    return const ChatRoom();
+  }
+
+  void _follow(Talk? talk) {
+    _hearing?.cancel();
+    _hearing = talk?.chatter.listen((said) {
+      // The name on their chair: the lobby's where there is a lobby, the
+      // table's otherwise.
+      final lobby = ref.read(lobbyProvider);
+      heard(
+        by: said.by,
+        text: said.text,
+        table: ref.read(playProvider),
+        me: talk.me,
+        name: lobby?.nameOf(said.by),
+      );
+    });
+  }
 
   /// Somebody said something. [table] is read for the name, because a key is
-  /// what travels and a name is what a person reads.
+  /// what travels and a name is what a person reads; [name] says it outright
+  /// where the caller knows better.
   void heard({
     required String by,
     required String text,
     required TableState? table,
     required String? me,
+    String? name,
   }) {
     final said = text.trim();
     if (said.isEmpty) return;
@@ -72,7 +105,7 @@ class ChatDesk extends Notifier<ChatRoom> {
     final mine = by == me;
     final line = ChatLine(
       by: by,
-      name: nameOf(by, table),
+      name: name ?? nameOf(by, table),
       text: said,
       at: DateTime.now(),
       mine: mine,

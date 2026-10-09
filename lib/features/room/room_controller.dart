@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../decks/model/game.dart';
 import '../../table/room/room.dart';
 import 'launch.dart';
 
@@ -132,3 +133,8 @@ const appHome = String.fromEnvironment(
 /// because the widget that decides the first screen has to read it while it
 /// builds.
 final launchRoomCodeProvider = Provider<String?>((ref) => launchRoomCode());
+
+/// The game the launch link said its room plays, or null: a plain launch, or
+/// a link passed on before the host had answered. What the first-run wizard
+/// reads to say which catalog the room needs.
+final launchRoomGameProvider = Provider<Game?>((ref) => launchRoomGame());
