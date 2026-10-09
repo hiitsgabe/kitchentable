@@ -67,7 +67,11 @@ void main() {
 
     // Each seat has been dealt its own pack of two.
     expect(hostRoom.view?.pack?.length, 2, reason: 'the host sees its pack');
-    expect(guest.draft!.view?.pack?.length, 2, reason: 'the guest sees its own');
+    expect(
+      guest.draft!.view?.pack?.length,
+      2,
+      reason: 'the guest sees its own',
+    );
 
     host.dispose();
     guest.dispose();

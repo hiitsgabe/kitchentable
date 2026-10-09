@@ -12,7 +12,9 @@ DraftCard _draft(String uuid, String oracle) =>
     DraftCard(uuid: uuid, oracleId: oracle, rarity: 'common');
 
 void main() {
-  final cards = {for (final o in ['a', 'b', 'c']) o: _card(o)};
+  final cards = {
+    for (final o in ['a', 'b', 'c']) o: _card(o),
+  };
 
   test('copies of one card become one slot of that quantity', () {
     // Three of a, one of b; a and b both in the deck.
@@ -29,7 +31,12 @@ void main() {
       cards: cards,
       basicCards: const {},
     );
-    final deck = Deck(id: 'd', name: 'x', format: DeckFormat.draft, slots: slots);
+    final deck = Deck(
+      id: 'd',
+      name: 'x',
+      format: DeckFormat.draft,
+      slots: slots,
+    );
     expect(deck.quantityOf('a'), 3);
     expect(deck.quantityOf('b'), 1);
     expect(deck.sideCount, 0);
@@ -44,7 +51,12 @@ void main() {
       cards: cards,
       basicCards: const {},
     );
-    final deck = Deck(id: 'd', name: 'x', format: DeckFormat.draft, slots: slots);
+    final deck = Deck(
+      id: 'd',
+      name: 'x',
+      format: DeckFormat.draft,
+      slots: slots,
+    );
     expect(deck.mainCount, 1);
     expect(deck.quantityOf('a'), 1);
     expect(deck.sideCount, 2);
@@ -61,7 +73,12 @@ void main() {
       cards: cards,
       basicCards: basics,
     );
-    final deck = Deck(id: 'd', name: 'x', format: DeckFormat.draft, slots: slots);
+    final deck = Deck(
+      id: 'd',
+      name: 'x',
+      format: DeckFormat.draft,
+      slots: slots,
+    );
     expect(deck.mainCount, 1 + 10 + 7);
     expect(deck.sideCount, 0);
   });
@@ -74,7 +91,12 @@ void main() {
       cards: cards,
       basicCards: const {},
     );
-    final deck = Deck(id: 'd', name: 'x', format: DeckFormat.draft, slots: slots);
+    final deck = Deck(
+      id: 'd',
+      name: 'x',
+      format: DeckFormat.draft,
+      slots: slots,
+    );
     expect(deck.mainCount, 1);
     expect(deck.sideCount, 0);
   });

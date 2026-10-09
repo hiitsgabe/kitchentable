@@ -102,6 +102,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('wins the pod'), findsWidgets);
-    expect(find.textContaining('Gabe'), findsWidgets, reason: 'in the standings');
+    expect(
+      find.textContaining('Gabe'),
+      findsWidgets,
+      reason: 'in the standings',
+    );
   });
 }
