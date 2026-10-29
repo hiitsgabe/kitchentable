@@ -8,11 +8,12 @@
 # Launch's own submit steps ask Launch's API for store tokens and only work
 # inside a Launch run, so the bundles go out through EAS Submit, with the
 # Google service account key and the App Store Connect API key assigned to
-# the app on expo.dev.
+# the app on expo.dev. Job keys use underscores: a hyphen in
+# `needs.build-ios.outputs` reads as a subtraction and the submit job fails.
 name: Stores
 
 jobs:
-  build-android:
+  build_android:
     type: build
     params:
       platform: android
@@ -47,7 +48,7 @@ jobs:
           key: flutter-app
           path: build/app/outputs/bundle/release/app-release.aab
 
-  build-ios:
+  build_ios:
     type: build
     params:
       platform: ios
@@ -110,14 +111,14 @@ jobs:
           key: flutter-app
           path: build/ios/ipa/*.ipa
 
-  submit-android:
+  submit_android:
     type: submit
-    needs: [build-android]
+    needs: [build_android]
     params:
-      build_id: ${{ needs.build-android.outputs.build_id }}
+      build_id: ${{ needs.build_android.outputs.build_id }}
 
-  submit-ios:
+  submit_ios:
     type: submit
-    needs: [build-ios]
+    needs: [build_ios]
     params:
-      build_id: ${{ needs.build-ios.outputs.build_id }}
+      build_id: ${{ needs.build_ios.outputs.build_id }}
