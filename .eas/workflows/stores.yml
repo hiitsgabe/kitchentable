@@ -35,7 +35,7 @@ jobs:
           fvm flutter --disable-analytics || true
           fvm dart --disable-analytics || true
       - name: Configure Android project
-        run: launching android:config --app-name "kitchentable" --bundle-id "com.hiitsgabe.kitchentable" --build-name "$APP_BUILD_NAME"
+        run: launching android:config --app-name "Kitchentable" --bundle-id "com.hiitsgabe.kitchentable" --build-name "$APP_BUILD_NAME"
       - uses: eas/resolve_build_config
       - uses: eas/inject_android_credentials
       - uses: eas/configure_android_version
