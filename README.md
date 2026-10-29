@@ -192,7 +192,10 @@ flutter build web --base-href /kitchentable/ --pwa-strategy=none \
     one in `pubspec.yaml`, passed as `--build-name`. `package.json` and
     `app.json` exist only so eas-cli finds the project. The Android build
     profile pins `image: latest`: the default image's Node is too old for
-    Launch's tools.
+    Launch's tools. The Play submit profile uploads a `draft` release to the
+    closed testing track (`alpha`): Play refuses a rollout while the app's
+    setup in the Console is incomplete, and a draft is rolled out from there
+    by hand. Switch `releaseStatus` to `completed` once the app is published.
   - The project's EAS environment variables (environment `production`) set
     `EAS_BUILD_DISABLE_MAVEN_CACHE=1`: EAS injects its Maven cache through a
     Gradle init script that Flutter's Gradle plugin rejects.

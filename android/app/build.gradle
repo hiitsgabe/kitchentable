@@ -40,7 +40,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.hiitsgabe.kitchentable"
+        // No "=": eas-cli reads this line with a regex that wants the
+        // Groovy call form.
+        applicationId "com.hiitsgabe.kitchentable"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
