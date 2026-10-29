@@ -290,11 +290,11 @@ jobs:
           draft: false
           prerelease: false
 
-  # Google Play: starts .eas/workflows/play-store.yml on EAS (the build Expo
-  # Launch runs, then EAS Submit) for the tagged version and returns without
+  # Stores: starts .eas/workflows/stores.yml on EAS (the builds Expo
+  # Launch runs, then EAS Submit to Play and TestFlight) for the tag and returns without
   # waiting; the run shows up under the project's Workflows on expo.dev.
   # Skipped until the EXPO_TOKEN secret exists.
-  play-store:
+  stores:
     needs: [resolve-version, release]
     if: ${{ !cancelled() && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
@@ -312,7 +312,7 @@ jobs:
           EAS_NO_VCS: '1'
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
-            echo "::notice::EXPO_TOKEN is not set; skipping the Google Play build."
+            echo "::notice::EXPO_TOKEN is not set; skipping the store builds."
             exit 0
           fi
-          npx -y eas-cli@latest workflow:run .eas/workflows/play-store.yml --non-interactive
+          npx -y eas-cli@latest workflow:run .eas/workflows/stores.yml --non-interactive

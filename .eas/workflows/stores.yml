@@ -1,0 +1,123 @@
+# Store builds, started by the play-store job in Build and Release
+# (`eas workflow:run`). The build jobs repeat what Expo Launch runs for this
+# project (expo.dev shows Launch's workflow file on each of its runs), with
+# two changes: the Flutter build name is read from pubspec.yaml instead of
+# being fixed, and it is kept in APP_BUILD_NAME, because Flutter 3.47 refuses
+# to run with FLUTTER_BUILD_NAME in the environment (which is why Launch's own
+# runs fail at the build step for this project).
+# Launch's own submit steps ask Launch's API for store tokens and only work
+# inside a Launch run, so the bundles go out through EAS Submit, with the
+# Google service account key and the App Store Connect API key assigned to
+# the app on expo.dev.
+name: Stores
+
+jobs:
+  build-android:
+    type: build
+    params:
+      platform: android
+      profile: production
+    env:
+      EAS_NO_VCS: '1'
+      FVM_USE_GIT_CACHE: 'false'
+    steps:
+      - uses: eas/checkout
+      - name: Install Launch tools
+        run: bun add --global eas-cli @expo/launching@0.0.0-20261020-5bd8ae61
+      - name: Install Flutter SDK
+        run: |-
+          BUILD_NAME=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)
+          set-env APP_BUILD_NAME "$BUILD_NAME"
+          launching flutter:version --dart "^3.13.4" --init > /dev/null
+          set-env FVM_INSTALL_DIR "$HOME/.fvm" && export FVM_INSTALL_DIR="$HOME/.fvm"
+          set-env PATH "$FVM_INSTALL_DIR/bin:$PATH" && export PATH="$FVM_INSTALL_DIR/bin:$PATH"
+          curl -fsSL https://fvm.app/install.sh | bash -s -- 4.0.5
+          fvm flutter --disable-analytics || true
+          fvm dart --disable-analytics || true
+      - name: Configure Android project
+        run: launching android:config --app-name "kitchentable" --bundle-id "com.hiitsgabe.kitchentable" --build-name "$APP_BUILD_NAME"
+      - uses: eas/resolve_build_config
+      - uses: eas/inject_android_credentials
+      - uses: eas/configure_android_version
+      - name: Build Android app
+        run: fvm flutter build appbundle --release --build-name "$APP_BUILD_NAME" --build-number "${ eas.metadata.appBuildVersion }"
+      - uses: eas/upload_artifact
+        with:
+          type: application-archive
+          key: flutter-app
+          path: build/app/outputs/bundle/release/app-release.aab
+
+  build-ios:
+    type: build
+    params:
+      platform: ios
+      profile: production
+    env:
+      EAS_NO_VCS: '1'
+      FVM_USE_GIT_CACHE: 'false'
+    steps:
+      - uses: eas/checkout
+      - name: Install Launch tools
+        run: bun add --global eas-cli @expo/launching@0.0.0-20261020-5bd8ae61
+      - name: Install Flutter SDK
+        run: |-
+          BUILD_NAME=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)
+          set-env APP_BUILD_NAME "$BUILD_NAME"
+          launching flutter:version --dart "^3.13.4" --init > /dev/null
+          set-env FVM_INSTALL_DIR "$HOME/.fvm" && export FVM_INSTALL_DIR="$HOME/.fvm"
+          set-env PATH "$FVM_INSTALL_DIR/bin:$PATH" && export PATH="$FVM_INSTALL_DIR/bin:$PATH"
+          curl -fsSL https://fvm.app/install.sh | bash -s -- 4.0.5
+          fvm flutter --disable-analytics || true
+          fvm dart --disable-analytics || true
+      - name: Configure Xcode project
+        run: launching xcode:configure
+      - name: Synchronize Xcode native targets
+        run: launching xcode:targets
+      - name: Synchronize Xcode entitlements
+        run: launching xcode:entitlements --framework "flutter"
+      - uses: eas/resolve_build_config
+      - id: ios_credentials
+        uses: eas/configure_ios_credentials
+      - uses: eas/configure_ios_version
+        with:
+          target_names: ${{ steps.ios_credentials.outputs.target_names }}
+      # Launch's `launching xcode:build-config` asks Launch's API for this and
+      # fails outside a Launch run; the plist it writes is this one, with the
+      # profile eas/configure_ios_credentials assigned to the Runner target.
+      - name: Configure Xcode export config
+        run: |-
+          PROFILE=$(sed -n 's/.*PROVISIONING_PROFILE_SPECIFIER = "\(.*\)";.*/\1/p' ios/Runner.xcodeproj/project.pbxproj | head -1)
+          test -n "$PROFILE"
+          mkdir -p .launch
+          cat > .launch/xcodebuild.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>iOS Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict><key>com.hiitsgabe.kitchentable</key><string>$PROFILE</string></dict>
+          </dict>
+          </plist>
+          PLIST
+      - name: Build iOS app
+        run: fvm flutter build ipa --release --export-options-plist ".launch/xcodebuild.plist" --build-name "$APP_BUILD_NAME" --build-number "${ eas.metadata.appBuildVersion }"
+      - uses: eas/upload_artifact
+        with:
+          type: application-archive
+          key: flutter-app
+          path: build/ios/ipa/*.ipa
+
+  submit-android:
+    type: submit
+    needs: [build-android]
+    params:
+      build_id: ${{ needs.build-android.outputs.build_id }}
+
+  submit-ios:
+    type: submit
+    needs: [build-ios]
+    params:
+      build_id: ${{ needs.build-ios.outputs.build_id }}
