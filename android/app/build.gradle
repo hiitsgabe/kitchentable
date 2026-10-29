@@ -1,0 +1,82 @@
+// Groovy on purpose: Expo Launch's build steps append Groovy `apply from:` lines
+// to this file (credentials, version), which a Kotlin DSL script cannot parse.
+import java.util.Properties
+
+plugins {
+    id "com.android.application"
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+// Release signing: android/key.properties (the release workflow writes it from
+// the KEYSTORE64/KEY_STORE_PATH/KEY_PASSWORD/KEY_ALIAS secrets; Flutter's own
+// template uses storePassword/keyPassword), or those secret names as plain
+// environment variables for builders that cannot write files into the checkout
+// (Expo Launch: KEY_STORE_PATH as a file variable). KEY_STORE_PASSWORD is only
+// needed when the store and key passwords differ. Neither source: debug
+// signing, still installable, just unable to update a properly signed install.
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+def env = System.getenv()
+def releaseStoreFile = (keystoreProperties.getProperty("storeFile") ?: env["KEY_STORE_PATH"])?.with { rootProject.file(it) }
+def releaseStorePassword = (keystoreProperties.getProperty("storePassword") ?: keystoreProperties.getProperty("password")
+    ?: env["KEY_STORE_PASSWORD"] ?: env["KEY_PASSWORD"])
+def releaseKeyPassword = (keystoreProperties.getProperty("keyPassword") ?: keystoreProperties.getProperty("password")
+    ?: env["KEY_PASSWORD"] ?: releaseStorePassword)
+def releaseKeyAlias = keystoreProperties.getProperty("keyAlias") ?: env["KEY_ALIAS"]
+def releaseSigning = releaseStoreFile != null && releaseStorePassword != null && releaseKeyAlias != null
+
+android {
+    namespace = "com.hiitsgabe.kitchentable"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    defaultConfig {
+        applicationId = "com.hiitsgabe.kitchentable"
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    signingConfigs {
+        release {
+            if (releaseSigning) {
+                storeFile = releaseStoreFile
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (releaseSigning) {
+                println("[Gradle] Using RELEASE signing config for build.")
+                signingConfig = signingConfigs.release
+            } else {
+                println("[Gradle] Using DEBUG signing config for build.")
+                signingConfig = signingConfigs.debug
+            }
+        }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+flutter {
+    source = "../.."
+}

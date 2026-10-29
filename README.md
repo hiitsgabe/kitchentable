@@ -172,10 +172,29 @@ flutter build web --base-href /kitchentable/ --pwa-strategy=none \
 - `Build and Release`, run by hand from the Actions tab, bumps the version,
   tags it, and publishes Android packages and a zip of the web build
   (`.github/workflows/release.yml`).
-- iOS and Android store builds go through Expo Launch, which reads this
-  repo and builds on EAS. `eas.json` sets `appVersionSource: local` so EAS
-  takes the version from `pubspec.yaml` and does not inject
-  `FLUTTER_BUILD_NAME`, which Flutter refuses as an environment variable.
+- iOS store builds go through Codemagic (`codemagic.yaml`).
+- Google Play builds run on EAS. Expo Launch (launch.dev, pointed at this
+  repo) builds and uploads by hand; after each release the `play-store` job
+  in `release.yml` starts `.eas/workflows/play-store.yml`, which repeats
+  Launch's build steps and hands the bundle to EAS Submit for the closed
+  testing track. Notes for that route:
+  - `android/app/build.gradle` is Groovy on purpose: Launch's build steps
+    append Groovy `apply from:` lines to it, which a Kotlin DSL script
+    cannot parse. Signing comes from `key.properties` or the `KEY_STORE_PATH`
+    / `KEY_STORE_PASSWORD` / `KEY_PASSWORD` / `KEY_ALIAS` variables, else the
+    debug key; on EAS the keystore Expo generated is injected instead.
+  - `eas.json` keeps the version code on EAS (`appVersionSource: remote`,
+    `autoIncrement`), so Launch runs and workflow runs share one counter.
+    The version name is the one in `pubspec.yaml`, passed as `--build-name`.
+    `package.json` and `app.json` exist only so eas-cli finds the project.
+  - The project's EAS environment variables (environment `production`) set
+    `EAS_BUILD_DISABLE_MAVEN_CACHE=1`: EAS injects its Maven cache through a
+    Gradle init script that Flutter's Gradle plugin rejects.
+  - The workflow job needs the `EXPO_TOKEN` repository secret (expo.dev →
+    Account settings → Access tokens); without it the job only logs a
+    notice. EAS Submit needs a Google service account key assigned to the
+    app on expo.dev (Credentials → Android → Service credentials) and
+    invited in Play Console with release rights to the app.
 
 ## License
 

@@ -9,11 +9,11 @@
     "android": {
       "package": "com.hiitsgabe.kitchentable"
     },
+    "owner": "gabrielmoterani",
     "extra": {
       "eas": {
-        "projectId": "15b2ba43-63de-4c7e-ac65-ab804b869754"
+        "projectId": "76740746-6626-4440-b4a9-2ece884fa626"
       }
-    },
-    "owner": "gabrielmoterani"
+    }
   }
 }
