@@ -22,10 +22,12 @@ void main() {
   testWidgets('both faces are in the tree at once', (tester) async {
     await _open(tester);
 
-    // Two, not one. A widget that is in the tree fetches its picture, so the
-    // far side is already there when the card turns. The first version built
-    // one face at a time and turning over showed a black rectangle loading.
-    expect(find.byType(CardImage), findsNWidgets(2));
+    // Both, not one. A widget that is in the tree is ready, so the far side
+    // is already there when the card turns. The first version built one
+    // face at a time and turning over showed a black rectangle loading. The
+    // front is a picture; the back of a one faced card is painted.
+    expect(find.byType(CardImage), findsOneWidget);
+    expect(find.byKey(const Key('magic-back')), findsOneWidget);
   });
 
   testWidgets('a card with a second face shows that, not the generic back', (
@@ -54,17 +56,17 @@ void main() {
     expect(urls, contains('https://example.invalid/back.jpg'));
   });
 
-  testWidgets('a one faced card turns over onto the generic back', (
+  testWidgets('a one faced card turns over onto its game\'s painted back', (
     tester,
   ) async {
     await _open(tester);
 
+    expect(find.byKey(const Key('magic-back')), findsOneWidget);
     final urls = tester
         .widgetList<CardImage>(find.byType(CardImage))
         .map((w) => w.url)
         .toList();
-
-    expect(urls.any((u) => u.contains('backs.scryfall.io')), isTrue);
+    expect(urls.any((u) => u.contains('backs.scryfall.io')), isFalse);
   });
 
   testWidgets('a Pokemon card turns over onto its own back, painted', (

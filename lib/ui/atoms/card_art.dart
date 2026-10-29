@@ -108,48 +108,40 @@ class CardArt extends StatelessWidget {
   }
 }
 
-/// The generic Magic back, served by Scryfall. Every Magic card has this one
-/// on the other side, so turning a card over onto it invents nothing.
-const _magicBack =
-    'https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg';
+/// The back of a card, painted, per game.
+///
+/// Not the printed back: that is the publisher's, and the app shows only
+/// what a source the user turned on serves, which for a back is nothing.
+/// Magic's used to be fetched from the card source's CDN; a reviewer opening
+/// the app should see nothing the user did not ask for. A deep colour with a
+/// pale ring on it, in a tint per game, is enough to say "a card, face down,
+/// in this game" at any size.
+class PaintedBack extends StatelessWidget {
+  const PaintedBack({super.key, required this.game});
 
-/// The back of a card, per game.
-///
-/// Magic's is the one Scryfall serves, which `CardViewer` has turned cards
-/// over onto since plan 1. It lives here rather than in the viewer because
-/// there is one back per game and both the viewer and the deck pile want it.
-///
-/// Null for a game the app has no back for, and for no game at all, which is
-/// a token or a card the table knows nothing about.
-String? backFor(Game? game) => switch (game) {
-  Game.magic => _magicBack,
-  // Nothing the app imports serves a Pokemon back and a fan site is not a
-  // source, so Pokemon's is painted, see [PokemonBack]. Null here means no
-  // picture to fetch; [CardBack] knows to paint instead.
-  Game.pokemon => null,
-  null => null,
-};
-
-/// The back of a Pokemon card, painted.
-///
-/// A deep blue with a pale ring on it. Not the printed back, which is the
-/// publisher's and is served by nobody the app reads from, and not Magic's,
-/// which a Pokemon pile wore for a while because the viewer only knew one.
-/// Enough to say "a card, face down, in this game" at any size.
-class PokemonBack extends StatelessWidget {
-  const PokemonBack({super.key});
+  final Game game;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
       final w = box.maxWidth.isFinite ? box.maxWidth : 63.0;
+      final (key, colors) = switch (game) {
+        Game.magic => (
+          'magic-back',
+          [const Color(0xFF8A4A24), const Color(0xFF3A1B0C)],
+        ),
+        Game.pokemon => (
+          'pokemon-back',
+          [const Color(0xFF2A5DB0), const Color(0xFF0E2A66)],
+        ),
+      };
       return Container(
-        key: const Key('pokemon-back'),
+        key: Key(key),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF2A5DB0), Color(0xFF0E2A66)],
+            colors: colors,
           ),
           border: Border.all(color: const Color(0xFFE8C14A), width: w * 0.045),
         ),
@@ -177,9 +169,9 @@ class PokemonBack extends StatelessWidget {
 /// leaf of a library except the one on top are all the same box, which is why
 /// it lives here rather than inside whichever widget wanted it first.
 ///
-/// With a game it is that game's back, because which back it is says which
-/// game is on the table before anybody reads a word. Without one, or for a
-/// game with no back to fetch, it stays the plain box.
+/// With a game it is that game's painted back, because which back it is says
+/// which game is on the table before anybody reads a word. Without one it
+/// stays the plain box.
 class CardBack extends StatelessWidget {
   const CardBack({super.key, required this.width, this.game});
 
@@ -189,7 +181,7 @@ class CardBack extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final height = width * 88 / 63;
-    final url = backFor(game);
+    final game = this.game;
     final blank = DecoratedBox(
       decoration: BoxDecoration(
         color: Palette.tile,
@@ -202,14 +194,11 @@ class CardBack extends StatelessWidget {
       height: height,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(width * 0.05),
-        child: game == Game.pokemon
-            ? const PokemonBack()
-            : url == null
+        child: game == null
             ? blank
-            : CardImage(
+            : KeyedSubtree(
                 key: const Key('card-back-art'),
-                url: url,
-                fallback: blank,
+                child: PaintedBack(game: game),
               ),
       ),
     );

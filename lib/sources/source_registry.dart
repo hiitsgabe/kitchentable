@@ -10,7 +10,7 @@ import 'model/source_def.dart';
 final knownSources = <SourceDef>[
   SourceDef(
     id: 'scryfall_oracle',
-    name: 'Scryfall',
+    name: 'Magic cards',
     subtitle: 'card catalog',
     kind: SourceKind.catalog,
     endpoint: Uri(
@@ -22,7 +22,7 @@ final knownSources = <SourceDef>[
   ),
   SourceDef(
     id: 'pokemon_tcg_data',
-    name: 'Pokemon',
+    name: 'Pokemon cards',
     subtitle: 'card catalog',
     kind: SourceKind.catalog,
     // The list of sets. The cards are read from beside it, one file per
@@ -36,7 +36,7 @@ final knownSources = <SourceDef>[
   ),
   SourceDef(
     id: 'mtgjson_sets',
-    name: 'MTGJSON',
+    name: 'Magic sets',
     subtitle: 'the sets, for draft',
     kind: SourceKind.draftSets,
     // The list of every set. A set's packs are read from beside it, one
@@ -51,7 +51,7 @@ final knownSources = <SourceDef>[
   SourceDef(
     id: 'local_file',
     name: 'Local file',
-    subtitle: 'a Scryfall or Pokemon file already on this device',
+    subtitle: 'a Magic or Pokemon card file already on this device',
     kind: SourceKind.localFile,
   ),
 ];

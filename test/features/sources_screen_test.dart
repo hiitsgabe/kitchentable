@@ -49,10 +49,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Scryfall'), findsOneWidget);
-    expect(find.text('Pokemon'), findsOneWidget);
+    expect(find.text('Magic cards'), findsOneWidget);
+    expect(find.text('Pokemon cards'), findsOneWidget);
     expect(find.text('Local file'), findsOneWidget);
-    expect(find.text('MTGJSON'), findsOneWidget);
+    expect(find.text('Magic sets'), findsOneWidget);
     expect(find.textContaining('NOTHING HAS LEFT THIS DEVICE'), findsOneWidget);
     // Two screens below the menu, so Home stands beside Back.
     expect(find.byKey(const Key('home')), findsOneWidget);

@@ -1421,7 +1421,7 @@ void main() {
       );
       final skip = tester.widget<MenuRow>(find.byKey(const Key('setup-next')));
       expect(skip.title, 'Skip anyway');
-      expect(skip.subtitle, contains('blank cards until Scryfall'));
+      expect(skip.subtitle, contains('blank cards until Magic cards'));
       expect(find.textContaining('plays Magic'), findsOneWidget);
     });
 

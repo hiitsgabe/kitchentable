@@ -4,7 +4,6 @@ import 'package:flutter/gestures.dart';
 
 import 'package:flutter/material.dart';
 
-import '../../decks/model/game.dart';
 import '../../sources/model/catalog_card.dart';
 import '../../table/model/card_instance.dart';
 import '../../features/play/counters.dart';
@@ -660,14 +659,11 @@ class _Card extends StatelessWidget {
     final showingBack = light.showingBack;
     final openness = light.openness;
     final frontUrl = card.imageNormal ?? card.imageSmall;
-    // A card with only one face turns over onto its own game's back, which
-    // is the one the pile in front of you is drawn with. It used to turn
-    // onto Magic's whatever game it was from, so every Pokemon card had a
-    // Magic back.
-    final backUrl = card.imageBack ?? backFor(card.game);
-    final paintedBack = card.imageBack == null && card.game == Game.pokemon
-        ? const PokemonBack()
-        : null;
+    // A card with only one face turns over onto its own game's painted
+    // back, which is the one the pile in front of you is drawn with. It used
+    // to fetch Magic's printed back whatever game it was from.
+    final backUrl = card.imageBack;
+    final paintedBack = backUrl == null ? PaintedBack(game: card.game) : null;
 
     return Stack(
       alignment: Alignment.center,

@@ -189,7 +189,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
           key: const Key('draft-set'),
           title: _draftSetName ?? 'Choose a set',
           subtitle: sets.isEmpty
-              ? 'import MTGJSON sets first'
+              ? 'import Magic sets first'
               : (_draftSetCode == null
                     ? 'from your imported sets'
                     : _draftSetCode!),

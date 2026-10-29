@@ -36,11 +36,11 @@ void main() {
     await tester.pumpAndSettle();
 
     // Closed: the long list is not drawn, so the screen is a few rows.
-    expect(find.text('Scryfall'), findsNothing);
+    expect(find.text('Magic card source'), findsNothing);
 
     await tester.tap(find.byKey(const Key('shelf-credits')));
     await tester.pumpAndSettle();
-    expect(find.text('Scryfall'), findsOneWidget);
+    expect(find.text('Magic card source'), findsOneWidget);
     expect(find.text('flutter'), findsOneWidget);
   });
 

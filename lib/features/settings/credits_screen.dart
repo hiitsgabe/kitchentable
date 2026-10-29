@@ -45,18 +45,18 @@ class CreditsScreen extends StatelessWidget {
   /// Where the cards come from, and what carries a game between phones.
   static const _standsOn = <Credit>[
     (
-      name: 'Scryfall',
-      note: 'Magic card data and pictures',
+      name: 'Magic card source',
+      note: 'card data and pictures, a third-party site',
       url: 'https://scryfall.com',
     ),
     (
-      name: 'MTGJSON',
-      note: 'the sets a draft is made of',
+      name: 'Magic set source',
+      note: 'the sets a draft is made of, a third-party site',
       url: 'https://mtgjson.com',
     ),
     (
-      name: 'pokemon-tcg-data',
-      note: 'Pokemon cards, the data behind the TCG API',
+      name: 'Pokemon card source',
+      note: 'card data and pictures, a third-party site',
       url: 'https://github.com/PokemonTCG/pokemon-tcg-data',
     ),
     (
@@ -178,8 +178,7 @@ class CreditsScreen extends StatelessWidget {
               SizedBox(height: m.scaled(8)),
               Text(
                 'kitchentable is a table, not a card shop. It is not affiliated '
-                'with Wizards of the Coast, Hasbro, The Pokemon Company or '
-                'Nintendo. Card names, text and pictures belong to their '
+                'with any card game publisher. Card names, text and pictures belong to their '
                 'publishers; you point the app at a source and what arrives '
                 'came from you asking for it.',
                 style: pixel(

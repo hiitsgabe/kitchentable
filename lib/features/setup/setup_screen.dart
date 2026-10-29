@@ -190,7 +190,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         subtitle: cards > 0
             ? 'a deck next'
             : missing
-            ? 'the table will show blank cards until ${needed.name} is in'
+            ? 'the table will show blank cards until ${needed.name} are in'
             : 'you can add a source any time, from Settings',
         icon: Icons.arrow_forward_rounded,
         metrics: m,

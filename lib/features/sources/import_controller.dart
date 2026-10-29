@@ -200,7 +200,7 @@ class ImportNotifier extends Notifier<ImportState> {
           phase: ImportPhase.failed,
           error: importer.skipped == 0
               ? 'Nothing in that file.'
-              : 'Nothing in that file is a Scryfall or a Pokemon card.',
+              : 'Nothing in that file is a Magic or a Pokemon card.',
         );
         return;
       }

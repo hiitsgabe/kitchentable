@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitchentable/decks/model/game.dart';
 import 'package:kitchentable/ui/atoms/card_art.dart';
+import 'package:kitchentable/ui/atoms/card_image.dart';
 
 void main() {
-  testWidgets('a Pokemon back is painted, not Magic\'s and not a blank', (
-    tester,
-  ) async {
+  testWidgets('a Pokemon back is painted in its own tint', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(body: CardBack(width: 60, game: Game.pokemon)),
@@ -14,24 +13,12 @@ void main() {
     );
     await tester.pump();
     expect(find.byKey(const Key('pokemon-back')), findsOneWidget);
-    expect(find.byKey(const Key('card-back-art')), findsNothing);
+    expect(find.byKey(const Key('magic-back')), findsNothing);
   });
 
-  test('Magic has a back and it is the real one', () {
-    // Scryfall serves the Magic back, which the card viewer has used since
-    // plan 1 for a card with no second face.
-    expect(backFor(Game.magic), isNotNull);
-    expect(backFor(Game.magic), contains('scryfall'));
-  });
-
-  test('Pokemon has no back to fetch, and does not borrow Magic\'s', () {
-    // Nothing the app imports serves a Pokemon back, and a fan site is not a
-    // source. Null is the honest answer until the catalog that serves one
-    // arrives, and it draws the plain box.
-    expect(backFor(Game.pokemon), isNull);
-  });
-
-  testWidgets('a back with a picture draws it', (tester) async {
+  testWidgets('a Magic back is painted too, nothing fetched', (tester) async {
+    // The printed back is the publisher's. It used to come off the card
+    // source's CDN; now nothing is requested that the user did not ask for.
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(body: CardBack(width: 60, game: Game.magic)),
@@ -40,6 +27,8 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('card-back-art')), findsOneWidget);
+    expect(find.byKey(const Key('magic-back')), findsOneWidget);
+    expect(find.byType(CardImage), findsNothing);
   });
 
   testWidgets('a back with no picture is still a card shaped box', (
