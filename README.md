@@ -167,50 +167,6 @@ flutter build web --base-href /kitchentable/play/ --pwa-strategy=none \
   --dart-define=HOME_URL=https://hiitsgabe.github.io/kitchentable/play/
 ```
 
-### Builds
-
-- Every push to `main` deploys to GitHub Pages
-  (`.github/workflows/pages.yml`): the landing page and the privacy and
-  support pages from `site/` at the root, and the web build under `/play/`.
-  The landing page forwards anything with a `#` (a room link made for the old
-  root address) to `/play/`. On an Android browser `/play/` offers the app
-  first, and a room link opens straight in it when it is installed
-  (`kitchentable://join?room=...`, read as the initial route).
-- `Build and Release`, run by hand from the Actions tab, bumps the version,
-  tags it, and publishes Android packages and a zip of the web build
-  (`.github/workflows/release.yml`).
-- Store builds run on EAS. After each release the `stores` job in
-  `release.yml` starts `.eas/workflows/stores.yml`, which repeats the build
-  steps Expo Launch (launch.dev) generates for this repo, for both platforms,
-  and hands the bundles to EAS Submit (Play closed testing track,
-  TestFlight). Launch itself cannot build this project: its generated
-  workflow exports `FLUTTER_BUILD_NAME`, which Flutter 3.47 refuses as an
-  environment variable, so the workflow here keeps the name elsewhere.
-  Notes for that route:
-  - `android/app/build.gradle` is Groovy on purpose: Launch's build steps
-    append Groovy `apply from:` lines to it, which a Kotlin DSL script
-    cannot parse. Signing comes from `key.properties` or the `KEY_STORE_PATH`
-    / `KEY_STORE_PASSWORD` / `KEY_PASSWORD` / `KEY_ALIAS` variables, else the
-    debug key; on EAS the keystore Expo generated is injected instead. iOS
-    signing is the distribution certificate and profile Launch set up on EAS.
-  - `eas.json` keeps the version code and build number on EAS
-    (`appVersionSource: remote`, `autoIncrement`), so Launch runs and
-    workflow runs share one counter per platform. The version name is the
-    one in `pubspec.yaml`, passed as `--build-name`. `package.json` and
-    `app.json` exist only so eas-cli finds the project. The Android build
-    profile pins `image: latest`: the default image's Node is too old for
-    Launch's tools. The Play submit profile uploads a `draft` release to the
-    closed testing track (`alpha`): Play refuses a rollout while the app's
-    setup in the Console is incomplete, and a draft is rolled out from there
-    by hand. Switch `releaseStatus` to `completed` once the app is published.
-  - The project's EAS environment variables (environment `production`) set
-    `EAS_BUILD_DISABLE_MAVEN_CACHE=1`: EAS injects its Maven cache through a
-    Gradle init script that Flutter's Gradle plugin rejects.
-  - The workflow job needs the `EXPO_TOKEN` repository secret (expo.dev →
-    Account settings → Access tokens); without it the job only logs a
-    notice. EAS Submit needs, on expo.dev → project → Credentials, a Google
-    service account key (also invited in Play Console with release rights to
-    the app) and an App Store Connect API key, both assigned to the app.
 
 ## License
 
