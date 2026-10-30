@@ -1,8 +1,10 @@
 name: Deploy to GitHub Pages
 
-# The web build is the app. Every push to main puts it at
-# https://hiitsgabe.github.io/kitchentable/, which is also the address a room
-# link points at, so a phone that follows one lands on the same build.
+# Every push to main publishes the site: the landing page and the legal pages
+# (site/) at https://hiitsgabe.github.io/kitchentable/, and the web build of
+# the app under /play/, which is also the address a room link points at, so a
+# phone that follows one lands on the same build. The landing page forwards a
+# room link made for the old address (#room=... at the root) to /play/.
 
 on:
   push:
@@ -21,7 +23,7 @@ concurrency:
 env:
   FLUTTER_VERSION: "3.47.5"
   FLUTTER_CHANNEL: "stable"
-  HOME_URL: https://hiitsgabe.github.io/kitchentable/
+  HOME_URL: https://hiitsgabe.github.io/kitchentable/play/
 
 jobs:
   build:
@@ -46,10 +48,16 @@ jobs:
       - name: Build web
         run: |
           flutter build web --release \
-            --base-href /kitchentable/ \
+            --base-href /kitchentable/play/ \
             --pwa-strategy=none \
             --dart-define=HOME_URL=${{ env.HOME_URL }} \
             --dart-define=BUILD=${GITHUB_SHA::7}
+
+      - name: Assemble site
+        run: |
+          mkdir -p build/site
+          cp -R site/. build/site/
+          cp -R build/web build/site/play
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -59,7 +67,7 @@ jobs:
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: build/web
+          path: build/site
 
   deploy:
     needs: build

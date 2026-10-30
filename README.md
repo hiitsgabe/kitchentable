@@ -5,8 +5,10 @@ A card table for playing with friends who are somewhere else.
 You bring the cards. The app brings the table, the shuffler, the dice and the
 connection. Nobody runs a server, nobody makes an account, and nothing is sold.
 
-**Play it now: [hiitsgabe.github.io/kitchentable](https://hiitsgabe.github.io/kitchentable/)**
-in any browser, phone or desktop. Android packages are on the
+**Play it now: [hiitsgabe.github.io/kitchentable/play](https://hiitsgabe.github.io/kitchentable/play/)**
+in any browser, phone or desktop, or get it on
+[Google Play](https://play.google.com/store/apps/details?id=com.hiitsgabe.kitchentable).
+Android packages are also on the
 [releases page](https://github.com/hiitsgabe/kitchentable/releases/latest).
 [Privacy](https://hiitsgabe.github.io/kitchentable/privacy.html) and
 [support](https://hiitsgabe.github.io/kitchentable/support.html).
@@ -157,18 +159,23 @@ Two things are set at build time with `--dart-define`:
 
 - `HOME_URL`, where a room link points. It should be the web build's address,
   so a friend without the app lands in the browser. The published builds use
-  `https://hiitsgabe.github.io/kitchentable/`.
+  `https://hiitsgabe.github.io/kitchentable/play/`.
 - `BUILD`, shown in Settings so two phones can check they run the same thing.
 
 ```
-flutter build web --base-href /kitchentable/ --pwa-strategy=none \
-  --dart-define=HOME_URL=https://hiitsgabe.github.io/kitchentable/
+flutter build web --base-href /kitchentable/play/ --pwa-strategy=none \
+  --dart-define=HOME_URL=https://hiitsgabe.github.io/kitchentable/play/
 ```
 
 ### Builds
 
-- Every push to `main` deploys the web build to GitHub Pages
-  (`.github/workflows/pages.yml`).
+- Every push to `main` deploys to GitHub Pages
+  (`.github/workflows/pages.yml`): the landing page and the privacy and
+  support pages from `site/` at the root, and the web build under `/play/`.
+  The landing page forwards anything with a `#` (a room link made for the old
+  root address) to `/play/`. On an Android browser `/play/` offers the app
+  first, and a room link opens straight in it when it is installed
+  (`kitchentable://join?room=...`, read as the initial route).
 - `Build and Release`, run by hand from the Actions tab, bumps the version,
   tags it, and publishes Android packages and a zip of the web build
   (`.github/workflows/release.yml`).

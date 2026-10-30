@@ -4,5 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 
 void main() {
-  runApp(const ProviderScope(child: KitchentableApp()));
+  final container = ProviderContainer();
+  WidgetsFlutterBinding.ensureInitialized().addObserver(RoomLinks(container));
+  runApp(
+    UncontrolledProviderScope(
+      container: container,
+      child: const KitchentableApp(),
+    ),
+  );
 }

@@ -28,6 +28,7 @@ const roomSeatChoices = [2, 3, 4];
 /// What a link puts in front of the code.
 const _roomMarker = '#room=';
 const _gameMarker = '&game=';
+final _roomAt = RegExp(r'(?:^|[#?/])room=');
 
 /// Not seeded, and secure rather than merely random.
 ///
@@ -83,15 +84,15 @@ Game? gameFrom(String link) {
 ///
 /// Case insensitive, because a code that was read out loud and typed back in
 /// has a case and the person typing it did not choose one.
+///
+/// The room can follow a `#` (a web link), a `?` (the app's own
+/// `kitchentable://join?room=...`, which a phone with the app is sent) or a
+/// `/` (the same link once Android or iOS has made a route of it).
 String? codeFrom(String link) {
-  final at = link.indexOf(_roomMarker);
-  if (at < 0) return null;
+  final at = _roomAt.firstMatch(link);
+  if (at == null) return null;
 
-  final code = link
-      .substring(at + _roomMarker.length)
-      .split('&')
-      .first
-      .toLowerCase();
+  final code = link.substring(at.end).split('&').first.toLowerCase();
 
   // Shaped like a code or nothing. A code holding an `o` or a `1` was misheard
   // rather than minted, and there is nothing to repair it to: no character in

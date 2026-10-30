@@ -15,7 +15,23 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>kitchentable</string>
+	<string>Kitchentable</string>
+	<!-- kitchentable://join?room=..., what Safari's banner on the web build
+	     at /play/ opens a room link with. Flutter pushes it to Dart as a
+	     route, which KitchentableApp answers. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.hiitsgabe.kitchentable</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kitchentable</string>
+			</array>
+		</dict>
+	</array>
+	<key>FlutterDeepLinkingEnabled</key>
+	<true/>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

@@ -1,6 +1,6 @@
 {
-    "name": "kitchentable",
-    "short_name": "kitchentable",
+    "name": "Kitchentable",
+    "short_name": "Kitchentable",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#07060A",

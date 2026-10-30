@@ -1,13 +1,14 @@
-import '../../decks/model/game.dart';
+import 'dart:ui' show PlatformDispatcher;
 
-/// Nowhere to read a launch URL from.
+/// The `kitchentable://join?room=...` link Android opened the app on.
 ///
-/// A phone is not opened by following a link in this slice: there is no app
-/// link or universal link registered, so the way in on a phone is the code,
-/// typed or read off a QR. Null rather than guessed.
-String? launchRoomCode() => null;
-
-Game? launchRoomGame() => null;
+/// The web build at /play/ opens that link when a room link is followed on a
+/// phone with the app installed, and Android hands it to Flutter as the
+/// initial route, `/?room=abcd-efg&game=magic`; `codeFrom` finds the room in
+/// it the way it does in a web link. Any other launch has the route `/`. iOS
+/// hands its links over once the app is running instead; see
+/// `RoomLinks` in app.dart.
+String? launchLink() => PlatformDispatcher.instance.defaultRouteName;
 
 /// No address bar, no demo.
 int? launchDemoSeats() => null;

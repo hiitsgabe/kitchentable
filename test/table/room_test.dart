@@ -134,6 +134,18 @@ void main() {
     expect(codeFrom('#room=abcd-efg'), 'abcd-efg');
   });
 
+  test('the app link a phone is sent, as a link and as a route', () {
+    // kitchentable://join?room=..., and the routes Android and iOS make of it.
+    expect(
+      codeFrom('kitchentable://join?room=abcd-efg&game=magic'),
+      'abcd-efg',
+    );
+    expect(gameFrom('/?room=abcd-efg&game=magic'), Game.magic);
+    expect(codeFrom('?room=abcd-efg'), 'abcd-efg');
+    expect(codeFrom('/room=abcd-efg'), 'abcd-efg');
+    expect(codeFrom('/?bedroom=abcd-efg'), isNull);
+  });
+
   test('something code shaped, or nothing', () {
     // A link whose code could never have been minted here is not a link to a
     // room, and saying so beats carrying a typo as far as the mesh and coming

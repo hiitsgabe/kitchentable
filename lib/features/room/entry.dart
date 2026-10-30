@@ -20,7 +20,9 @@ import 'room_screen.dart';
 /// A widget of its own rather than a conditional inside [MaterialApp.home],
 /// because home is under the whole navigation stack: deciding it from something
 /// that changes would swap the screen out from under whatever has been pushed
-/// on top of it. What this reads never changes after startup.
+/// on top of it. What this reads changes only when a room link reaches the
+/// running app, and that takes the navigator back to this screen first; see
+/// `RoomLinks` in app.dart.
 class Entry extends ConsumerWidget {
   const Entry({super.key});
 

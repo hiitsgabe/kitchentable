@@ -27,7 +27,7 @@
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="kitchentable">
+  <meta name="apple-mobile-web-app-title" content="Kitchentable">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
   <!-- Favicon. The .ico carries 16, 32 and 48 for the places that still ask
@@ -35,13 +35,44 @@
   <link rel="icon" type="image/x-icon" href="favicon.ico" sizes="any"/>
   <link rel="icon" type="image/png" href="favicon.png" sizes="32x32"/>
 
-  <title>kitchentable</title>
+  <title>Kitchentable</title>
+
+  <!-- Safari on iOS draws its own app banner from this: Open when the app is
+       installed, Get when it is not, and nothing until the app is on the App
+       Store. A room link passes the room on, as the app's own link. -->
+  <script>
+    (function () {
+      var m = document.createElement('meta');
+      m.name = 'apple-itunes-app';
+      m.content = 'app-id=6819102282' + (/#room=/.test(location.hash)
+        ? ', app-argument=kitchentable://join?' + location.hash.slice(1)
+        : '');
+      document.head.appendChild(m);
+    })();
+  </script>
   <link rel="manifest" href="manifest.json">
 
   <!-- The page is black before Flutter paints anything. Without this the app
        opens on a flash of white, which on a phone looks like a failure. -->
   <style>
     html, body { margin: 0; padding: 0; background: #07060A; }
+
+    /* The card an Android browser is shown before the app loads: open the
+       installed app, get it, or keep going here. */
+    #store { position: fixed; inset: 0; z-index: 10; display: flex; align-items: flex-end; justify-content: center; padding: 16px; background: rgba(7, 6, 10, .7); font: 16px/1.5 system-ui, -apple-system, Roboto, sans-serif; color: #F2F0F5; }
+    #store[hidden] { display: none; }
+    #store .card { width: 100%; max-width: 420px; background: #15131A; border: 1px solid #2E2A36; border-radius: 16px; padding: 22px 20px 14px; }
+    #store .head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+    #store .head img { width: 52px; height: 52px; border-radius: 12px; }
+    #store h2 { margin: 0; font-size: 19px; }
+    #store p { margin: 2px 0 0; color: #B9B5C2; font-size: 14.5px; }
+    #store a, #store button { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 52px; margin: 0 0 10px; border-radius: 10px; font: 700 16px system-ui, -apple-system, Roboto, sans-serif; text-decoration: none; cursor: pointer; }
+    #store .open { background: #FF2E88; color: #fff; border: 0; }
+    #store .get { background: #000; color: #fff; border: 1px solid #5f5b66; }
+    #store .get svg { width: 22px; height: 24px; }
+    #store .get span { text-align: left; line-height: 1.1; }
+    #store .get small { display: block; font-size: 10.5px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
+    #store .web { background: none; border: 0; color: #B9B5C2; font-weight: 500; margin: 0; }
   </style>
 </head>
 <body>
@@ -53,6 +84,76 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <script src="flutter_bootstrap.js" async></script>
+  <div id="store" hidden>
+    <div class="card" role="dialog" aria-labelledby="store-title">
+      <div class="head">
+        <img src="icons/Icon-192.png" alt="">
+        <div><h2 id="store-title">Kitchentable for Android</h2><p id="store-why">Plays better as the app.</p></div>
+      </div>
+      <a class="open" id="store-open" href="#">Open in the app</a>
+      <a class="get" href="https://play.google.com/store/apps/details?id=com.hiitsgabe.kitchentable">
+        <svg viewBox="0 0 24 26" aria-hidden="true"><path fill="#4285F4" d="M1 1l12.5 12L1 25z"/><path fill="#34A853" d="M1 1l16.6 9.1-4.1 2.9z"/><path fill="#EA4335" d="M1 25l12.5-12 4.1 2.9z"/><path fill="#FBBC04" d="M17.6 10.1L23 13l-5.4 2.9-4.1-2.9z"/></svg>
+        <span><small>Get it on</small>Google Play</span>
+      </a>
+      <button class="web" id="store-web" type="button">Play in the browser</button>
+    </div>
+  </div>
+  <script>
+    // On an Android browser, offer the app before the web build starts. The
+    // build waits, rather than loading behind the card: a tab that loads a
+    // room link joins the room, and it would sit there as a second seat next
+    // to the app it just opened.
+    //
+    // A room link tries the app straight away. Android opens it if it is
+    // installed (kitchentable://join?room=...); if not, Chrome comes back
+    // here with ?app=0 and the card offers Google Play instead.
+    (function () {
+      // Phone-sized while the card is up. Removed before the build starts,
+      // which puts in a viewport tag of its own and warns about any other.
+      var viewport = document.createElement('meta');
+      viewport.name = 'viewport';
+      viewport.content = 'width=device-width, initial-scale=1';
+
+      function start() {
+        document.getElementById('store').hidden = true;
+        viewport.remove();
+        var s = document.createElement('script');
+        s.src = 'flutter_bootstrap.js';
+        s.async = true;
+        document.body.appendChild(s);
+      }
+
+      var android = /Android/i.test(navigator.userAgent) &&
+        !matchMedia('(display-mode: standalone)').matches;
+      var room = /#room=/.test(location.hash);
+      var seen = false;
+      try { seen = localStorage.getItem('kt-store-seen') === '1'; } catch (e) {}
+      // A plain visit asks once; a room link asks every time.
+      if (!android || (!room && seen)) return start();
+
+      var noApp = /[?&]app=0/.test(location.search);
+      var play = 'https://play.google.com/store/apps/details?id=com.hiitsgabe.kitchentable';
+      var back = location.origin + location.pathname + '?app=0' + location.hash;
+      function intent(fallback) {
+        return 'intent://' + (room ? 'join?' + location.hash.slice(1) : 'open') +
+          '#Intent;scheme=kitchentable;package=com.hiitsgabe.kitchentable;' +
+          'S.browser_fallback_url=' + encodeURIComponent(fallback) + ';end';
+      }
+
+      document.getElementById('store-open').href = intent(play);
+      if (room) {
+        document.getElementById('store-why').textContent = noApp
+          ? 'Install the app to join this room there, or join here.'
+          : 'Opening the room in the app\u2026';
+      }
+      document.getElementById('store-web').onclick = function () {
+        try { localStorage.setItem('kt-store-seen', '1'); } catch (e) {}
+        start();
+      };
+      document.head.appendChild(viewport);
+      document.getElementById('store').hidden = false;
+      if (room && !noApp) location.href = intent(back);
+    })();
+  </script>
 </body>
 </html>

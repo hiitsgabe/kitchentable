@@ -1,22 +1,13 @@
 import 'package:web/web.dart' as web;
 
-import '../../decks/model/game.dart';
-import '../../table/room/room.dart';
-
-/// The code the tab was opened on, out of the address bar's fragment.
+/// The address the tab was opened on; the room code is in its fragment.
 ///
 /// Read once, at startup, by the provider that wraps this. The fragment is
 /// never sent to whoever serves the page, so this is the only copy of the code
 /// there is, and it is already in the hands of the person who followed the
-/// link.
-///
-/// Null covers both a plain visit and a fragment that is not a room: `codeFrom`
-/// refuses anything that could not have been minted, so a mistyped link opens
-/// the menu rather than a room that was never there.
-String? launchRoomCode() => codeFrom(_launchHref);
-
-/// The game the link said its room plays, if it said. See [gameFrom].
-Game? launchRoomGame() => gameFrom(_launchHref);
+/// link. `codeFrom` refuses anything that could not have been minted, so a
+/// mistyped link opens the menu rather than a room that was never there.
+String? launchLink() => _launchHref;
 
 /// The address the tab opened on, kept from the first time anything asks.
 ///

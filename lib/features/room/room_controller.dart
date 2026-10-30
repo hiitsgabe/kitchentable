@@ -123,18 +123,37 @@ final roomOriginProvider = Provider<String>((ref) => appHome);
 ///     flutter build web --dart-define=HOME_URL=https://example.com/
 const appHome = String.fromEnvironment(
   'HOME_URL',
-  defaultValue: 'https://hiitsgabe.github.io/kitchentable/',
+  defaultValue: 'https://hiitsgabe.github.io/kitchentable/play/',
 );
 
-/// The code the app was opened on, or null.
+/// The room link the app was opened on, or the last one that reached it
+/// while it was open (see `RoomLinks` in app.dart), or null.
 ///
-/// Read once and never changing: the address bar at startup is a fact about
-/// this process. Watching it is therefore safe from anywhere, which matters
-/// because the widget that decides the first screen has to read it while it
-/// builds.
-final launchRoomCodeProvider = Provider<String?>((ref) => launchRoomCode());
+/// The address bar at startup is read once, as a fact about this process. A
+/// link that arrives later replaces it only after the navigator has been
+/// taken back to its first screen, so the widget that decides that screen
+/// can watch it without anything pushed on top being swapped out underneath.
+final launchLinkProvider = NotifierProvider<LaunchLink, String?>(
+  LaunchLink.new,
+);
+
+class LaunchLink extends Notifier<String?> {
+  @override
+  String? build() => launchLink();
+
+  void arrived(String link) => state = link;
+}
+
+/// The code the app was opened on, or null.
+final launchRoomCodeProvider = Provider<String?>((ref) {
+  final link = ref.watch(launchLinkProvider);
+  return link == null ? null : codeFrom(link);
+});
 
 /// The game the launch link said its room plays, or null: a plain launch, or
 /// a link passed on before the host had answered. What the first-run wizard
 /// reads to say which catalog the room needs.
-final launchRoomGameProvider = Provider<Game?>((ref) => launchRoomGame());
+final launchRoomGameProvider = Provider<Game?>((ref) {
+  final link = ref.watch(launchLinkProvider);
+  return link == null ? null : gameFrom(link);
+});

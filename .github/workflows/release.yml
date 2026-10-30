@@ -13,7 +13,7 @@ on:
 env:
   FLUTTER_VERSION: "3.47.5"
   FLUTTER_CHANNEL: "stable"
-  HOME_URL: https://hiitsgabe.github.io/kitchentable/
+  HOME_URL: https://hiitsgabe.github.io/kitchentable/play/
 
 jobs:
   resolve-version:
@@ -270,7 +270,7 @@ jobs:
 
             ---
 
-            Play in the browser: https://hiitsgabe.github.io/kitchentable/
+            Play in the browser: https://hiitsgabe.github.io/kitchentable/play/
 
             ### Downloads
 

@@ -29,6 +29,20 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- kitchentable://join?room=..., what the web build at /play/
+                 opens when a room link is followed on a phone that has the
+                 app. Flutter hands it to Dart as the initial route, or as a
+                 pushed route when the app is already open. A custom
+                 scheme rather than an https App Link: verifying one needs a
+                 file at the root of hiitsgabe.github.io, which a project
+                 page cannot serve. -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="true" />
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="kitchentable"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
