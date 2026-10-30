@@ -42,6 +42,13 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      # The code picks the relays and the kind by arithmetic, and an int on
+      # the web is a JS double: the one place that arithmetic can disagree
+      # with the phone is the one place the VM tests never run. So the
+      # derivation is tested in a browser before the web build is made.
+      - name: Test the room derivation in a browser
+        run: flutter test --platform chrome test/net/nostr/room_relays_test.dart
+
       # No service worker: a cached old build next to a new one is two apps
       # that disagree about the wire. HOME_URL is what a room link starts
       # with, and BUILD is shown in Settings so two phones can compare.

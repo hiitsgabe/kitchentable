@@ -83,11 +83,17 @@ void main() {
     });
   });
 
-  test('the hash is the same number on every run', () {
+  test('the hash is the same number on every run and on every platform', () {
     // String.hashCode is seeded per isolate in Dart and is explicitly not
     // stable across runs. Using it here would put two phones holding one
     // code on two different kinds, and they would never meet.
+    //
+    // These are the VM's numbers, and pages.yml runs this file under Chrome
+    // too: an int on the web is a double with 53 exact bits, and the first
+    // version of the hash multiplied past that, so a browser and a phone
+    // derived different relays from one code. 'a' came out 4 off there.
     expect(stableHash("abcd-efg"), 1411438980);
+    expect(stableHash('a'), 1678518572);
     expect(stableHash(''), 0x811c9dc5 & 0x7fffffff);
     expect(stableHash('a'), isNot(stableHash('b')));
   });

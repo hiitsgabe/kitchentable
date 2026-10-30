@@ -88,10 +88,28 @@ int roomDataKindFor(String code) => handshakeKindFor(code) + 1;
 /// explicitly not stable across runs: using it here would put two phones
 /// holding the same code on two different kinds and two different relays,
 /// and they would never see each other.
+///
+/// The multiply by the FNV prime is written as the shifts the prime is made
+/// of (0x01000193 is 2^24 + 2^8 + 2^7 + 2^4 + 2 + 1) and not as `* 0x01000193`.
+/// An int on the web is a JS double with 53 exact bits, and a 31 bit value
+/// times a 25 bit prime has 56: the product was rounded in a browser and
+/// exact on a phone, so the two derived different relays and a different
+/// kind from one code, and a room opened in a browser could not be found
+/// from the app. Each shift is cut to 32 bits by dart2js and exact on the
+/// VM, and the sum is only ever read modulo 2^31, where both agree.
+/// Measured on 2026 10 30, before this:
+///
+///     'abcd-efg'  VM 1411438980   JS 264832956
+///
+/// The answers are the VM's, so a phone build already installed keeps
+/// finding rooms made by a web build that has this.
 int stableHash(String s) {
   var h = 0x811c9dc5;
   for (final unit in s.codeUnits) {
-    h = ((h ^ unit) * 0x01000193) & 0x7fffffff;
+    final x = h ^ unit;
+    h =
+        (x + (x << 1) + (x << 4) + (x << 7) + (x << 8) + (x << 24)) &
+        0x7fffffff;
   }
   // Masked on the way out as well as inside the loop. Without it an empty
   // string comes back as the unmasked seed, which is the one input whose
