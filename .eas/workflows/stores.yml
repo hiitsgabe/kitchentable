@@ -10,6 +10,9 @@
 # Google service account key and the App Store Connect API key assigned to
 # the app on expo.dev. Job keys use underscores: a hyphen in
 # `needs.build-ios.outputs` reads as a subtraction and the submit job fails.
+# The submit jobs resolve their config on the worker, where git does not
+# work on the checkout, and eas-cli reads the Android applicationId through
+# git unless the submit profile in eas.json names it, so eas.json does.
 name: Stores
 
 jobs:

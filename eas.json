@@ -24,7 +24,8 @@
     "production": {
       "android": {
         "track": "alpha",
-        "releaseStatus": "draft"
+        "releaseStatus": "draft",
+        "applicationId": "com.hiitsgabe.kitchentable"
       },
       "ios": {
         "ascAppId": "6819102282",
